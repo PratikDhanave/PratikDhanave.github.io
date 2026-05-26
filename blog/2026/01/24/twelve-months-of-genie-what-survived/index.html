@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Twelve months of Genie in production — what survived, what we rewrote, what we deleted — Pratik Dhanave</title>
+<meta name="description" content="An honest retrospective on the open-source Genie project after a year. The patterns that held up; the ones we rebuilt; the code we deleted because it solved problems we didn&#x27;t actually have.">
+<meta name="author" content="Pratik Dhanave">
+<meta property="og:title" content="Twelve months of Genie in production — what survived, what we rewrote, what we deleted">
+<meta property="og:description" content="An honest retrospective on the open-source Genie project after a year. The patterns that held up; the ones we rebuilt; the code we deleted because it solved problems we didn&#x27;t actually have.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/2026/01/24/twelve-months-of-genie-what-survived/">
+<meta property="article:published_time" content="2026-01-24T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Genie">
+<meta property="article:tag" content="Multi-Agent AI">
+<meta property="article:tag" content="Retrospective">
+<meta property="article:tag" content="Go">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Twelve months of Genie in production — what survived, what we rewrote, what we deleted">
+<meta name="twitter:description" content="An honest retrospective on the open-source Genie project after a year. The patterns that held up; the ones we rebuilt; the code we deleted because it solved problems we didn&#x27;t actually have.">
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/2026/01/24/twelve-months-of-genie-what-survived/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+<style>
+:root { --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff; --text: #1a1a1a; --text-dim: #555; --text-muted: #888; --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0; --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22; --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590; --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff; --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c; } }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.7; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; font-size: 17px; }
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+<nav><div class="nav-container"><a href="/" class="nav-brand">Pratik Dhanave</a><ul class="nav-links"><li><a href="/#about">About</a></li><li><a href="/blog/">Blog</a></li><li><a href="/#projects">Projects</a></li><li><a href="/#contact">Contact</a></li></ul></div></nav>
+<main>
+<div class="post-meta"><time datetime="2026-01-24">January 24, 2026</time><span>·</span><span>4 min read</span><span>·</span><a href="/blog/">← All posts</a></div>
+<div class="post-tags">  <span class="tag">Genie</span>
+  <span class="tag">Multi-Agent AI</span>
+  <span class="tag">Retrospective</span>
+  <span class="tag">Go</span></div>
+<article class="post"><h2>The shape of the year</h2>
+<p>Genie started as a reference implementation of the MARA pattern in Go. Twelve months in, it has:</p>
+<ul>
+<li>~30K LoC of Go</li>
+<li>100+ test packages</li>
+<li>15-20 active agents</li>
+<li>7+ platform packages (RAG, safety, policy DSL, audit, etc.)</li>
+<li>Documentation that&rsquo;s actually maintained</li>
+<li>A handful of production deployments (open-source means anyone can run it; we know about a few)</li>
+</ul>
+<p>Here&rsquo;s what held up and what didn&rsquo;t.</p>
+<h2>What survived unchanged</h2>
+<p><strong>The protocol package.</strong> <code>pkg/protocol</code> defines Message and the role constants. It hasn&rsquo;t changed in 12 months because the contract is the only stable thing in a multi-agent system. Every agent depends on it; every package speaks it. Changing it would be a cross-cutting refactor; not changing it has been the right call.</p>
+<p><strong>The orchestrator&rsquo;s hook surface.</strong> <code>OnPolicyDeny</code>, <code>OnAgentError</code>. Two hooks. We were tempted to add more (OnRetry, OnTimeout, OnFallback). Each time we resisted because the existing hooks composed to express the same thing. Twelve months later, two hooks still suffices.</p>
+<p><strong>The risk class taxonomy.</strong> <code>RiskLow</code>, <code>RiskMedium</code>, <code>RiskHigh</code>. Three levels; clear semantics; never temptingly extended. Compare to projects that drift to 7-tier or 10-tier risk schemes.</p>
+<p><strong>The fallback pattern.</strong> <code>orchestrator.SetFallback(primary, fallback)</code>. One-line API; production-tested via <code>make bcp-drill</code>. Boring; works.</p>
+<h2>What we rewrote</h2>
+<p><strong>The first RAG implementation.</strong> Single embedding model; one vector store; naive retrieval. Replaced with hybrid (vector + BM25 + RRF + rerank). The first version worked but quality plateaued; the second version generalised across customer use cases.</p>
+<p><strong>The first prompt-injection policy.</strong> Hand-rolled regex against a list of suspicious patterns. Replaced with a small classifier behind the <code>pkg/safety</code> plugin chain. The classifier handles paraphrased attacks the regex missed.</p>
+<p><strong>The first audit log.</strong> Wrote to a flat table; no chain; no tampering detection. Replaced with the hash-chained <code>pkg/compliance/audit.go</code>. The old log was useful for debugging; not useful for compliance. The new one serves both.</p>
+<p><strong>The first observability layer.</strong> Logs only. Replaced with OTel spans + metrics + structured logs (slog). Three signals; same shape across services; standard tooling reads them.</p>
+<p><strong>The HTTP middleware stack.</strong> First version was custom for each route. Replaced with chi router + composable middleware. The diff was bigger than it sounded; the consistency was worth it.</p>
+<h2>What we deleted</h2>
+<p><strong>A custom workflow DSL.</strong> Built one to express agent orchestration declaratively. Used by no one because Go was already expressive enough. Deleted six months in.</p>
+<p><strong>A graph database integration.</strong> Added Neo4j support for a hypothetical use case. No customer asked for it; the code drifted; deleted.</p>
+<p><strong>A configuration hot-reload subsystem.</strong> Built for an ops scenario we never actually hit. The complexity outweighed the rare use case. Deleted; restart on config change is fine.</p>
+<p><strong>Three half-finished agents.</strong> Speculative agents (a &ldquo;supply chain optimiser,&rdquo; a &ldquo;regulatory news scanner,&rdquo; a &ldquo;customer-satisfaction predictor&rdquo;) that we built without a clear customer. Each had ~500 LoC. Deleted; the patterns we&rsquo;d shipped were transferable.</p>
+<h2>What I&rsquo;d carry to the next project</h2>
+<p>Three meta-patterns that crystallised:</p>
+<ol>
+<li>
+<p><strong>Be ruthless about deletion.</strong> Code that doesn&rsquo;t serve a real use case is liability. Twelve months in, the codebase is smaller in some areas than at month 6 — that&rsquo;s a feature, not a bug.</p>
+</li>
+<li>
+<p><strong>Two layers of defence beat one layer of cleverness.</strong> RLS + bus tenant policy beat any single &ldquo;smarter&rdquo; tenant check. Hash-chained audit + verifier beat any single &ldquo;more tamper-resistant&rdquo; log format. The boring layered approach holds up.</p>
+</li>
+<li>
+<p><strong>The hook surface should be minimal.</strong> Every time we resisted adding a hook, we found the existing hooks composed to cover the case. Every time we added one anyway, we regretted it within a quarter.</p>
+</li>
+</ol>
+<h2>What still nags</h2>
+<ul>
+<li><strong>The agent registration model is too coupled to the boot sequence.</strong> A hot-add at runtime would be nice; haven&rsquo;t built it.</li>
+<li><strong>The fallback story doesn&rsquo;t handle cascading failures.</strong> Fallback fails → ?. The current answer is &ldquo;incident + page&rdquo;; a graceful degradation chain would be better.</li>
+<li><strong>The cost-attribution per agent is approximate.</strong> Tokens get attributed to the agent that called the LLM, not to the agent whose business logic triggered the call. For shared-utility agents this under-attributes.</li>
+</ul>
+<p>Roadmap items, all of them. Not blockers for the current use cases.</p>
+<h2>The big takeaway</h2>
+<p>The thing that survived 12 months of production was the discipline, not any specific code. The discipline:</p>
+<ul>
+<li>Test pyramid that&rsquo;s actually a pyramid (more unit than integration than e2e).</li>
+<li>Documentation that&rsquo;s a contract, not an afterthought.</li>
+<li>Defence-in-depth on every security concern.</li>
+<li>Honest &ldquo;what doesn&rsquo;t work yet&rdquo; lists in every doc.</li>
+</ul>
+<p>The code is replaceable. The discipline isn&rsquo;t. For year two, the plan is more discipline, less code.</p></article>
+<div class="post-footer"><a class="back" href="/blog/">← Back to all posts</a><div class="share"><a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a><a href="https://github.com/PratikDhanave">GitHub</a></div></div>
+</main>
+<footer><p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p></footer>
+</body>
+</html>
