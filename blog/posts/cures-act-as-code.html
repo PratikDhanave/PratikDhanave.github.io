@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The 21st Century Cures Act, Expressed in Go — Pratik Dhanave</title>
+<meta name="description" content="The 21st Century Cures Act §3060 CDS carve-out criterion 4 expressed as a code-level queue, lossless on reject, with audit-recorded reviewer rationale. Build it once, satisfy GDPR Article 22 for free.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="The 21st Century Cures Act, Expressed in Go">
+<meta property="og:description" content="The 21st Century Cures Act §3060 CDS carve-out criterion 4 expressed as a code-level queue, lossless on reject, with audit-recorded reviewer rationale. Build it once, satisfy GDPR Article 22 for free.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/cures-act-as-code.html">
+<meta property="article:published_time" content="2026-05-21">
+<meta property="article:tag" content="Regulation">
+<meta property="article:tag" content="Clinical Decision Support">
+<meta property="article:tag" content="Cures Act">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The 21st Century Cures Act, Expressed in Go">
+<meta name="twitter:description" content="The 21st Century Cures Act §3060 CDS carve-out criterion 4 expressed as a code-level queue, lossless on reject, with audit-recorded reviewer rationale. Build it once, satisfy GDPR Article 22 for free.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/cures-act-as-code.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>The 21st Century Cures Act, Expressed in Go</h1>
+    <p class="post-subtitle">How one architectural commitment — letting a clinician independently review every recommendation — moves software out of FDA Software-as-a-Medical-Device classification and into the Clinical Decision Support carve-out.</p>
+    <div class="post-meta">
+      <time datetime="2026-05-21">May 21, 2026</time>
+      <span>·</span>
+      <span>Policy + engineering</span>
+    </div>
+    <div class="post-tags"><span class="tag">Regulation</span><span class="tag">Clinical Decision Support</span><span class="tag">Cures Act</span><span class="tag">Go</span></div>
+  </header>
+
+  <h2 id="the-line-nobody-talks-about">The line nobody talks about</h2>
+<p>There&rsquo;s a sentence in <a href="https://www.law.cornell.edu/uscode/text/21/360j">21 USC §360j(o)(1)</a> — the section the 21st Century Cures Act amended in 2016 — that decides whether a piece of clinical software gets regulated by the FDA as a medical device. It&rsquo;s deceptively short:</p>
+<blockquote>
+<p>The software is intended for the purpose of … enabling [the] health care professional to independently review the basis for [the] recommendations …</p>
+</blockquote>
+<p>That&rsquo;s criterion four of the four CDS carve-out criteria. The first three are about scope (no signal processing, displays patient information, supports HCP recommendations). The fourth is about <strong>architecture</strong>.</p>
+<p>If your AI proposes a diagnosis and acts on it — sends the prescription, books the imaging, places the order — you&rsquo;re a medical device. If your AI proposes a diagnosis and a clinician approves it before any action happens, you might be Clinical Decision Support under the carve-out.</p>
+<p>The difference is not a checkbox. It&rsquo;s a different shape of system.</p>
+<hr>
+<h2 id="what-independently-review-actually-means">What &ldquo;independently review&rdquo; actually means</h2>
+<p>Three things, on close reading of FDA guidance documents and the rulemaking discussion:</p>
+<ol>
+<li><strong>The recommendation has a basis</strong> — explainable rationale, not just a confident assertion.</li>
+<li><strong>The clinician can see that basis</strong> — visible in the UI, queryable in the system.</li>
+<li><strong>The clinician&rsquo;s review is <em>consequential</em></strong> — clicking through doesn&rsquo;t count; the system must actually wait for human disposition before any consequence flows.</li>
+</ol>
+<p>The third is the hard one. Most &ldquo;human in the loop&rdquo; AI systems treat humans as a speed bump, not a gate. The recommendation appears; the clinician sees it; the system has already cached its consequences and acted; the human can override but rarely does. That&rsquo;s not the carve-out. That&rsquo;s a regulated device with a UI veneer.</p>
+<hr>
+<h2 id="what-the-architecture-looks-like-in-bodh">What the architecture looks like in Bodh</h2>
+<p>I&rsquo;ve been building <a href="https://github.com/PratikDhanave/bodh">Bodh</a>, an open-source medical multi-agent platform in Go. The whole point of Bodh&rsquo;s <code>human_review</code> agent — and the design of the platform around it — is to express that third requirement in code.</p>
+<p>Here&rsquo;s the pattern:</p>
+<pre><code>upstream agent ──► human_review ──► (queued)
+                                        │
+                            reviewer decides (HTTP / API)
+                                        │
+                            ┌───────────┴───────────┐
+                            │                       │
+                        approve                  reject
+                            │                       │
+                            ▼                       ▼
+                    next agent (resume)      (no resume; logged)
+</code></pre>
+<p>Three properties make this load-bearing:</p>
+<ol>
+<li><strong>The upstream agent emits no message to the next stage.</strong> It emits a <code>review_request</code> envelope addressed to <code>human_review</code>.</li>
+<li><strong>The review queue persists.</strong> Until a human decides, nothing happens. There&rsquo;s no path that bypasses the gate.</li>
+<li><strong>Reject is lossless.</strong> On reject, the original payload is logged and dropped. No half-completed clinical action can leak past.</li>
+</ol>
+<p>That&rsquo;s it. Not a UX layer. Not a notification. A queue that <strong>stops the system</strong> until a human acts.</p>
+<hr>
+<h2 id="the-envelope">The envelope</h2>
+<p>When an upstream agent wants to gate its output, it doesn&rsquo;t send the payload to the next agent. It wraps the payload and addresses it to <code>human_review</code>. The wrapping is six metadata keys:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Required</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hitl_kind</code></td>
+<td>yes</td>
+<td>review category (<code>diagnosis_review</code>, <code>care_plan_review</code>, …)</td>
+</tr>
+<tr>
+<td><code>hitl_next_to</code></td>
+<td>yes</td>
+<td>agent to forward to on approval</td>
+</tr>
+<tr>
+<td><code>hitl_next_type</code></td>
+<td>yes</td>
+<td>message type used on resume</td>
+</tr>
+<tr>
+<td><code>hitl_priority</code></td>
+<td>no</td>
+<td><code>low</code> / <code>normal</code> / <code>high</code> / <code>urgent</code></td>
+</tr>
+<tr>
+<td><code>hitl_subject</code></td>
+<td>no</td>
+<td>short label for the queue UI</td>
+</tr>
+<tr>
+<td><code>hitl_sla_minutes</code></td>
+<td>no</td>
+<td>deadline; expired reviews never resume</td>
+</tr>
+</tbody>
+</table>
+<p>The original payload sits in <code>msg.Content</code>. The <code>human_review</code> agent doesn&rsquo;t parse it — it just records the <code>ReviewRequest</code> and waits. When a reviewer decides via <code>POST /reviews/{id}/decide</code>, the agent&rsquo;s <code>ApplyDecision</code> method either republishes the original payload to <code>hitl_next_to</code> (on approve) or logs it (on reject).</p>
+<p>This pattern is <strong>opt-in per agent</strong>. Adding HITL to a new flow doesn&rsquo;t touch the bus, the orchestrator, or the governance composer. The agent gains a <code>HITL bool</code> field and wraps its output when that&rsquo;s set.</p>
+<hr>
+<h2 id="seven-gated-agents-so-far">Seven gated agents (so far)</h2>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>What gets gated</th>
+<th>Review kind</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>reasoning_verifier</code></td>
+<td>Verified diagnosis</td>
+<td><code>diagnosis_review</code></td>
+</tr>
+<tr>
+<td><code>cdm_planner</code></td>
+<td>Chronic disease care plan</td>
+<td><code>care_plan_review</code></td>
+</tr>
+<tr>
+<td><code>tcm_coordinator</code></td>
+<td>Transitional care welcome message</td>
+<td><code>tcm_welcome_review</code></td>
+</tr>
+<tr>
+<td><code>panel_manager</code></td>
+<td>Per-gap outreach</td>
+<td><code>outreach_review</code></td>
+</tr>
+<tr>
+<td><code>refill_manager</code></td>
+<td>Refill approval</td>
+<td><code>refill_review</code></td>
+</tr>
+<tr>
+<td><code>prior_auth</code></td>
+<td>Prior auth status</td>
+<td><code>prior_auth_review</code></td>
+</tr>
+<tr>
+<td><code>readmission_tracker</code></td>
+<td>Discharge handoff to TCM</td>
+<td><code>discharge_review</code></td>
+</tr>
+</tbody>
+</table>
+<p>Notice the pattern: <strong>anything that becomes consequential</strong> — a diagnosis recorded, a refill sent, a prior auth submitted, a TCM cascade triggered — is gated. Inbox triage (already routes urgent items to a human via the nurse task queue), pre-visit chart prep (read-only), RPM ingest (advisory, not action-taking) are intentionally not gated. Each gating decision is a deliberate choice about whether human disposition adds safety.</p>
+<p>Five agents are intentionally <strong>not</strong> gated. Each &ldquo;not gated&rdquo; choice is documented in the agent&rsquo;s contract.</p>
+<hr>
+<h2 id="cascading-approvals">Cascading approvals</h2>
+<p>The pattern composes. An approval can trigger downstream agents that themselves emit review requests:</p>
+<pre><code>readmission_tracker emits discharge_review
+  → reviewer approves
+    → tcm_coordinator handles discharge_event
+      → emits tcm_welcome_review
+        → reviewer approves
+          → engagement sends welcome SMS
+</code></pre>
+<p>Two reviews per high-risk discharge. The reviewer sees the cascade in their queue; the audit log records each decision with reviewer ID, timestamp, decision, and reason.</p>
+<p>The <code>cmd/caredemo</code> auto-approver drains the queue across rounds to demonstrate. Production UIs surface cascaded reviews as they appear so the reviewer can see the chain.</p>
+<hr>
+<h2 id="gdpr-article-22-gets-it-for-free">GDPR Article 22 gets it for free</h2>
+<p>The same architecture also satisfies a different regulatory regime: <strong>GDPR Article 22</strong>.</p>
+<blockquote>
+<p>The data subject shall have the right not to be subject to a decision based solely on automated processing … which produces legal effects … or similarly significantly affects him or her.</p>
+</blockquote>
+<p>&ldquo;Solely&rdquo; is the operative word. A system where every consequential recommendation is reviewed by a human before action is, by construction, not &ldquo;solely&rdquo; automated.</p>
+<p>So one architectural pattern — the HITL gate — earns coverage under both the 21st Century Cures Act §3060 (US) and GDPR Article 22 (EU). Build it once, satisfy both.</p>
+<p>Article 35 (DPIA — Data Protection Impact Assessment, required for AI-based clinical decision support in the EU) is also easier to write when the system has explicit gates: the DPIA gets to point at the queue, the audit log, and the reviewer&rsquo;s role definition rather than asserting that &ldquo;the human is in the loop somewhere.&rdquo;</p>
+<hr>
+<h2 id="the-audit-log-is-the-forensic-record">The audit log is the forensic record</h2>
+<p>Every review decision becomes an <code>audit.Event</code> of kind <code>review_decision</code> with:</p>
+<pre><code class="language-go">Event{
+    Kind:       &quot;review_decision&quot;,
+    AgentID:    &quot;human_review&quot;,
+    MessageID:  msg.ID,
+    From:       &quot;rn-rachel&quot;,        // reviewer ID
+    To:         &quot;cdm_planner&quot;,      // hitl_next_to from envelope
+    Type:       &quot;care_plan_review&quot;,
+    ReviewerID: &quot;rn-rachel&quot;,
+    Decision:   &quot;approve_with_modifications&quot;,
+    Reason:     &quot;Spirometry frequency reduced to monthly given patient burden&quot;,
+    TenantID:   &quot;tenant-mercy-north&quot;,
+    CaseID:     &quot;case-2026-05-24-001&quot;,
+    TraceID:    &quot;trace-...&quot;,
+}
+</code></pre>
+<p>Notice what&rsquo;s deliberately absent: no diagnosis text, no medication dose, no patient name, no MRN. The audit event is a <strong>pointer</strong> into the system — enough to reconstruct who did what when, and to pull the regulated data from a separately controlled store under separate access control.</p>
+<p>This matters because audit logs go to compliance teams, regulators, and discovery requests. The shape of the event determines what&rsquo;s exposed in those contexts. Bodh&rsquo;s rule: enough to reconstruct, never enough to leak.</p>
+<hr>
+<h2 id="lossless-on-reject-is-the-key-property">&ldquo;Lossless on reject&rdquo; is the key property</h2>
+<p>This is the part most &ldquo;HITL&rdquo; systems get wrong.</p>
+<p>When a reviewer rejects, what happens to the proposed action?</p>
+<ul>
+<li><strong>Common pattern:</strong> the system has already partially acted. The notification was already queued. The patient already got the appointment text. The reject just adds a &ldquo;this was rejected&rdquo; note for later.</li>
+<li><strong>Bodh&rsquo;s pattern:</strong> the system has done nothing. The original payload was logged in the audit trail (with kind=<code>review_decision</code>, decision=<code>reject</code>, reason from the reviewer) and never republished. No SMS sent. No PA submitted. No TCM cascade started.</li>
+</ul>
+<p>Lossless on reject means the reviewer&rsquo;s &ldquo;no&rdquo; is final. The system has no &ldquo;wait and see&rdquo; mode that lets rejected actions slip through later.</p>
+<p>For criterion 4 — the clinician&rsquo;s review must be <em>consequential</em> — this is the only shape that actually delivers.</p>
+<hr>
+<h2 id="what-this-costs">What this costs</h2>
+<p>Five concrete trade-offs to walk into eyes open:</p>
+<h3 id="1-latency">1. Latency</h3>
+<p>A review queue introduces wall-clock time between the AI&rsquo;s recommendation and the consequence. Hours, sometimes days. For routine chronic-disease management, that&rsquo;s fine — care plans are reviewed at the speed of human clinical work anyway. For urgent flows (sepsis recognition, stroke alerts), HITL gating means the AI is an alert producer, not a treatment initiator.</p>
+<p>The <code>hitl_priority</code> and <code>hitl_sla_minutes</code> envelope keys let agents tier their requests. Urgent reviews can be page-out-loud; routine reviews wait in a queue.</p>
+<h3 id="2-reviewer-workload">2. Reviewer workload</h3>
+<p>If you gate seven agents, every patient generates 7×N reviews (in the worst case). The system has to be tuned so reviewers spend their time on cases where their judgment changes the outcome — not rubber-stamping every refill.</p>
+<p>Two mitigations:</p>
+<ul>
+<li><strong>High-confidence auto-approve</strong> with required audit and periodic sampling. The <code>refill_manager</code> already auto-approves on-plan medications; only off-plan refills hit the queue.</li>
+<li><strong>Reviewer triage scoring</strong> — a separate model can pre-rank the queue by likely-to-need-review, putting the easy cases at the bottom.</li>
+</ul>
+<h3 id="3-cascade-overflow">3. Cascade overflow</h3>
+<p>Approvals trigger downstream reviews. A high-risk discharge approval cascades into a TCM welcome review, which might cascade into a panel-gap outreach review. One discharge → 3 reviews. A busy hospital → hundreds of reviews per day.</p>
+<p>The architecture supports cascade depth limits (planned: a <code>hitl_cascade_depth</code> envelope key with a default of 3). Once a cascade is N reviews deep, the system either stops (silent failure) or pages the on-call clinician (loud failure). We&rsquo;ve discussed but not shipped this.</p>
+<h3 id="4-reviewer-drift">4. Reviewer drift</h3>
+<p>The same reviewer, week 1 vs week 30: are they approving for the same reasons? Are they rubber-stamping by month 12?</p>
+<p><strong>Bodh records reviewer rationales</strong> — the <code>Reason</code> field on each review decision. Periodic audit can analyse rationale text for drift, missing reasoning, or copied-template approvals. This is also Joint Commission territory if Bodh ever deploys clinically.</p>
+<h3 id="5-reject-rate-paradox">5. Reject-rate paradox</h3>
+<p>If reviewers reject 0% of recommendations, you&rsquo;re rubber-stamping. If they reject 30%, your AI isn&rsquo;t useful enough to ship.</p>
+<p>The healthy band is somewhere in between. Tracking per-<code>hitl_kind</code> reject rates over time tells you which gated flows are tuned correctly. We expose this on the audit endpoint; production deployments will graph it.</p>
+<hr>
+<h2 id="where-this-fits-in-the-regulatory-shift">Where this fits in the regulatory shift</h2>
+<p>The FDA&rsquo;s regulatory framework for AI/ML SaMD is itself a moving target. The PCCP (Predetermined Change Control Plan) guidance, GMLP (Good Machine Learning Practice), and the ongoing 510(k) clearance process for AI-enabled devices are all evolving.</p>
+<p>What&rsquo;s relatively stable is the architectural commitment: if you want to stay out of SaMD classification under the Cures Act CDS carve-out, criterion 4 is the load-bearing constraint. The other three are easier to assert; criterion 4 has to be <em>visible in the system architecture</em>.</p>
+<p>Most &ldquo;human in the loop&rdquo; claims I&rsquo;ve reviewed for clinical AI products don&rsquo;t survive contact with this. They have UIs that show recommendations to clinicians, but the system has already acted by the time the clinician sees them — the &ldquo;review&rdquo; is a confirmation dialog, not a gate.</p>
+<p>Bodh&rsquo;s <code>human_review</code> agent — and the seven gated agents wrapping their outputs in <code>review_request</code> envelopes — is what criterion 4 looks like when you actually implement it.</p>
+<hr>
+<h2 id="try-it">Try it</h2>
+<pre><code class="language-bash">git clone https://github.com/PratikDhanave/bodh.git
+cd bodh
+
+# Diagnostic flow with HITL on (default in caredemo)
+go run ./cmd/caredemo
+
+# Inspect the queue
+go run ./cmd/care -addr=:8088 &amp;
+curl -s localhost:8088/reviews?status=pending | jq .
+
+# Approve via HTTP
+curl -s -X POST localhost:8088/reviews/{id}/decide \
+  -H 'content-type: application/json' \
+  -d '{&quot;reviewer_id&quot;:&quot;rn-rachel&quot;,&quot;decision&quot;:&quot;approve&quot;,&quot;reason&quot;:&quot;vitals consistent&quot;}'
+</code></pre>
+<p>Repo: <a href="https://github.com/PratikDhanave/bodh">github.com/PratikDhanave/bodh</a></p>
+<p>If you&rsquo;re building clinical decision support and wrestling with the same regulatory question — what does criterion 4 actually require? — I&rsquo;d love to compare implementations. The audit envelope and the lossless-on-reject pattern aren&rsquo;t claims; they&rsquo;re code in <code>pkg/hitl</code> and <code>agents/human_review.go</code>. Open issues, PRs, or DMs.</p>
+<hr>
+<p><em>Bodh is a research and engineering reference. </em><em>Not a medical device. Not approved for clinical use.</em><em> This article describes architectural patterns aligned with the 21st Century Cures Act CDS carve-out criteria; it is not legal advice. Production deployments require independent regulatory review.</em></p>
+<h1 id="healthtech-clinicaldecisionsupport-fda-regulation-healthcareai-complianceengineering-cures-gdpr-go-opensource">HealthTech #ClinicalDecisionSupport #FDA #Regulation #HealthcareAI #ComplianceEngineering #Cures #GDPR #Go #OpenSource</h1>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>

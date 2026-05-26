@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Running a HIPAA-Aware Multi-Agent Medical AI on GKE: A Field Map — Pratik Dhanave</title>
+<meta name="description" content="Google's GKE AI infrastructure docs list ~40 integrations. Here's a field map of which ones actually matter when the workload is a HIPAA-aware multi-agent medical AI, and where the gaps sit.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Running a HIPAA-Aware Multi-Agent Medical AI on GKE: A Field Map">
+<meta property="og:description" content="Google's GKE AI infrastructure docs list ~40 integrations. Here's a field map of which ones actually matter when the workload is a HIPAA-aware multi-agent medical AI, and where the gaps sit.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/gke-ai-infra-medical-multiagent.html">
+<meta property="article:published_time" content="2026-05-26">
+<meta property="article:tag" content="GKE">
+<meta property="article:tag" content="GCP">
+<meta property="article:tag" content="Multi-Agent">
+<meta property="article:tag" content="Cloud Architecture">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Running a HIPAA-Aware Multi-Agent Medical AI on GKE: A Field Map">
+<meta name="twitter:description" content="Google's GKE AI infrastructure docs list ~40 integrations. Here's a field map of which ones actually matter when the workload is a HIPAA-aware multi-agent medical AI, and where the gaps sit.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/gke-ai-infra-medical-multiagent.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Running a HIPAA-Aware Multi-Agent Medical AI on GKE: A Field Map</h1>
+    <p class="post-subtitle">Google's "AI/ML orchestration on GKE" documentation lists ~40 integrations. Here's which ones actually matter when the workload is a multi-agent clinical AI platform — and where the gaps sit.</p>
+    <div class="post-meta">
+      <time datetime="2026-05-26">May 26, 2026</time>
+      <span>·</span>
+      <span>Cloud architects + medical AI engineers</span>
+    </div>
+    <div class="post-tags"><span class="tag">GKE</span><span class="tag">GCP</span><span class="tag">Multi-Agent</span><span class="tag">Cloud Architecture</span></div>
+  </header>
+
+  <h2 id="why-i-went-looking">Why I went looking</h2>
+<p>I&rsquo;ve been building <a href="https://github.com/PratikDhanave/bodh">Bodh</a>, an open-source medical multi-agent AI platform in Go that implements Microsoft&rsquo;s Multi-Agent Reference Architecture with a HIPAA-aware governance composer, append-only audit log, HITL gate aligned to the 21st Century Cures Act §3060 carve-out, PostgreSQL with tenant row-level security, and an MCP client.</p>
+<p>The &ldquo;deploy this on a real cloud&rdquo; question keeps coming up — both for my own portfolio and for the kind of conversations recruiters keep starting with me. Google Cloud&rsquo;s <a href="https://docs.cloud.google.com/kubernetes-engine/docs/integrations/ai-infra">GKE AI infrastructure integrations page</a> lists about 40 distinct integrations across training, inference, storage, observability, and agentic patterns. I mapped every one of them against Bodh&rsquo;s existing surface to figure out which ones genuinely help, which ones are noise for this workload, and where Bodh would need to grow.</p>
+<p>Below is what fell out.</p>
+<hr>
+<h2 id="what-gke-genuinely-solves-for-a-multi-agent-medical-ai">What GKE genuinely solves for a multi-agent medical AI</h2>
+<h3 id="1-pod-isolated-agent-execution-agent-sandbox">1. Pod-isolated agent execution — Agent Sandbox</h3>
+<p>Bodh runs untrusted-ish content all the time: HL7 v2 messages from EHR vendors, FHIR resources from partner hospitals, RAG retrievals from a knowledge corpus, and (most worryingly) tool calls from LLM-backed diagnostic agents that may execute shell-like behaviour in MCP tools.</p>
+<p>GKE&rsquo;s <strong>Agent Sandbox</strong> runs containerised agent code in Linux User Namespaces with a sidecar controller. This is the right shape for two specific Bodh use cases:</p>
+<ul>
+<li><strong>MCP tool execution</strong>: When a vendor MCP server exposes shell-adjacent tools (lab feeds, imaging AI, RxNorm lookup), running them in a User-Namespaced sidecar gives you a contained blast radius if the tool is compromised.</li>
+<li><strong>LLM-backed diagnosticians that use tool calling</strong>: <code>LLMDiagnosticianTools</code> in Bodh today calls internal Go tools. After the MCP client merged, those calls go out over the network — but if you ever want an in-cluster MCP server, the sandbox is what lets you run it without giving it broad node access.</li>
+</ul>
+<p>The trade-off: Agent Sandbox needs Autopilot allowlist exemptions because User Namespaces are elevated. Worth it for the AI workload class; might not be worth it for everything else in your cluster.</p>
+<h3 id="2-job-queuing-across-tenants-kueue">2. Job queuing across tenants — Kueue</h3>
+<p>This is the closest off-the-shelf analogue to Bodh&rsquo;s per-tenant work queues. Kueue gives you:</p>
+<ul>
+<li><strong>ClusterQueues</strong> that enforce aggregate compute limits across the whole cluster</li>
+<li><strong>LocalQueues</strong> per tenant namespace</li>
+<li><strong>Cohort sharing</strong> — Team A can borrow Team B&rsquo;s idle GPU quota with explicit policy</li>
+</ul>
+<p>For a Bodh deployment serving multiple hospitals, the cohort pattern maps directly onto &ldquo;Hospital A is quiet at 2 AM local; Hospital B is overflowing their on-call quota — let A&rsquo;s slack flow to B with audit-logged borrow tickets.&rdquo; Bodh today doesn&rsquo;t have this — its <code>tasks.Queue</code> is in-process per binary. Kueue makes it cross-cluster.</p>
+<h3 id="3-multi-pod-job-coordination-jobset">3. Multi-pod job coordination — JobSet</h3>
+<p>Bodh&rsquo;s diagnostic flow is sequential: intake → questioner → test_planner → cost_guardian → diagnostician → reasoning_verifier. Today this flows through an in-memory bus inside one Go binary. If you split agents into separate pods (which you eventually do, for scaling and blast-radius reasons), you need a coordinator that handles pod ordering, retry on failure, and clean teardown.</p>
+<p>JobSet is that coordinator. Each diagnostic case becomes a JobSet with one job per agent, ordered by <code>dependsOn</code>. The MARA orchestrator stays in one pod (it&rsquo;s the controller); the worker agents fan out. The audit log captures every JobSet step.</p>
+<h3 id="4-hyperdisk-ml-cloud-storage-fuse-for-model-weights">4. Hyperdisk ML + Cloud Storage FUSE for model weights</h3>
+<p>Bodh today uses vendor LLMs (Anthropic, OpenAI, Ollama) via API. Zero local model weights. But the moment you switch to self-hosted Gemma, Llama, or a fine-tuned clinical model, model-loading latency becomes the dominant cost on cold start.</p>
+<ul>
+<li><strong>Hyperdisk ML</strong> mounted as a block volume, pre-populated via Volume Populator from GCS, gives you ~4× model-loading speedup vs GCS Fuse</li>
+<li><strong>Cloud Storage FUSE</strong> is fine for the RAG corpus (15-doc shipped in Bodh today; production would be larger) — read-heavy, latency-tolerant, no need for block-level performance</li>
+<li><strong>Local SSD</strong> for diagnostic case checkpoints during long-running multi-round Reflexion or Debate inferences</li>
+</ul>
+<p>These three together give Bodh a real story for self-hosted models without writing custom storage glue.</p>
+<h3 id="5-cloud-audit-logs-managed-prometheus-opentelemetry-the-audit-substrate">5. Cloud Audit Logs + Managed Prometheus + OpenTelemetry — the audit substrate</h3>
+<p>Bodh&rsquo;s audit pipeline (PR #12 wired §164.312(b) end-to-end) emits <code>audit.Event</code> records. Today they land in Postgres <code>audit_events</code> table with <code>SELECT + INSERT</code> only at DB grants. On GKE, that pipe extends naturally:</p>
+<ul>
+<li><strong>Cloud Audit Logs</strong> captures every Kubernetes API call (pod creation, GPU allocation, secret access) — the infrastructure-layer audit</li>
+<li><strong>Application logs</strong> (Bodh&rsquo;s <code>audit.Event</code> records) flow to Cloud Logging via stdout</li>
+<li><strong>Managed OpenTelemetry</strong> captures the <code>LLMTrace</code> records Bodh already emits (PR #7 added the OTLP exporter behind the <code>otel</code> build tag)</li>
+<li><strong>DCGM</strong> captures GPU metrics if/when self-hosted models run</li>
+</ul>
+<p>The combined picture: every kubectl, every pod schedule, every LLM call, every governance decision, every HITL decision — all queryable in one place. That&rsquo;s the HIPAA §164.312(b) story end-to-end.</p>
+<h3 id="6-workload-identity-cloud-sql-iam-for-the-postgres-tenant-story">6. Workload Identity + Cloud SQL IAM for the Postgres tenant story</h3>
+<p>Bodh&rsquo;s PostgreSQL backend (PR #10) enforces tenant isolation through row-level security with a <code>bodh_app</code> DB role that has <code>NOBYPASSRLS</code>. The <code>app.tenant_id</code> setting is plumbed in via <code>set_config</code> per transaction.</p>
+<p>On GKE, this composes cleanly:</p>
+<ul>
+<li>Each tenant namespace has its own Kubernetes ServiceAccount</li>
+<li>Workload Identity binds that K8s SA to a Google Service Account</li>
+<li>The Google SA has an IAM binding to Cloud SQL with <code>cloudsql.client</code> and a tenant-specific DB role</li>
+<li>The Cloud SQL Auth Proxy sidecar handles connection authentication; the application connects through localhost</li>
+</ul>
+<p>Net effect: a compromised application credential can only authenticate as the workload&rsquo;s Service Account, which only has Cloud SQL access for the specific tenant, which only has DB access to its own RLS-bounded rows. Three layers of defence stacked.</p>
+<h3 id="7-pod-disruption-budgets-for-hitl-cases-that-stretch-days">7. Pod Disruption Budgets for HITL cases that stretch days</h3>
+<p>Bodh&rsquo;s HITL gate stores pending reviews in the queue (or Postgres in production). Some reviews — high-priority discharge handoffs, cascading care-plan approvals — may sit in the queue for hours or days waiting for a clinician.</p>
+<p>PDBs let you say: &ldquo;at most 1 pod of this agent group can be voluntarily disrupted at a time.&rdquo; That&rsquo;s the difference between Kubernetes opportunistically draining nodes mid-review (dropping the pending review state if it&rsquo;s only in-memory) and respecting the long tail of clinician availability.</p>
+<p>For Bodh, PDBs matter most for <code>human_review</code> agent pods and <code>cmd/care</code> HTTP server pods. The bus and stateless agents can tolerate restarts.</p>
+<hr>
+<h2 id="what-gke-doesnt-solve-for-bodh">What GKE doesn&rsquo;t solve for Bodh</h2>
+<p>The GKE documentation is comprehensive but Vertex-and-self-hosted-model-shaped. Six things it doesn&rsquo;t address that Bodh either has built-in or has to handle itself:</p>
+<ol>
+<li>
+<p><strong>PHI redaction at the logger seam.</strong> Bodh&rsquo;s <code>pkg/phi.LoggerWrapper</code> redacts Safe Harbor identifiers (SSN, MRN, phone, email, ISO/US date) before they ever reach stdout. GKE has Cloud DLP, which is a different shape — it scans data at rest. The first-line defence at the logger seam is Bodh&rsquo;s responsibility.</p>
+</li>
+<li>
+<p><strong>Audit event field selection.</strong> GKE gives you Cloud Audit Logs (Kubernetes API actions) and Cloud Logging (application logs). What it doesn&rsquo;t give you is the <em>schema discipline</em> — &ldquo;enough to reconstruct, never enough to leak.&rdquo; Bodh&rsquo;s <code>audit.Event</code> has 17 fields, and the absence of <code>msg.Content</code> / narrative / diagnosis-text / medication-name is the whole point. That discipline is application-layer.</p>
+</li>
+<li>
+<p><strong>HITL gate as a §3060 CDS carve-out enforcer.</strong> Lossless-on-reject, cascading approvals, SLA-aware queueing. GKE&rsquo;s Kueue gives you compute scheduling; it doesn&rsquo;t give you the <em>semantic</em> HITL pattern (review-required → reviewer-decides → pre-approved-payload-republishes-or-drops). That&rsquo;s <code>agents/human_review.go</code> in Bodh.</p>
+</li>
+<li>
+<p><strong>Specialty diagnostic rules.</strong> GKE serves the <em>runtime</em> for models that make diagnostic recommendations. The rules themselves — <code>diagnostician.inferDiagnosis</code> switching on ACS / sepsis / DKA / CHF / CAP with threshold-based logic — live in Bodh&rsquo;s <code>pkg/medical</code> and <code>agents</code>. GKE doesn&rsquo;t have an opinion about this.</p>
+</li>
+<li>
+<p><strong>MCP wire protocol.</strong> GKE&rsquo;s Agent Development Kit (ADK) does tool calling — implicitly MCP-shaped — but the docs don&rsquo;t expose MCP as an explicit primitive. Bodh&rsquo;s <code>pkg/mcp</code> (merged PR #15) is wire-compatible with the MCP standard regardless of deployment target.</p>
+</li>
+<li>
+<p><strong>Right-to-explanation endpoint.</strong> <code>GET /explain/{case_id}</code> (Bodh&rsquo;s PR #14) returns a structured PHI-free explanation per GDPR Article 22(3) + Article 15. GKE doesn&rsquo;t have an opinion about this either; it&rsquo;s an application-layer concern that Bodh treats as load-bearing.</p>
+</li>
+</ol>
+<hr>
+<h2 id="reference-topology-bodh-on-gke-autopilot">Reference topology — Bodh on GKE Autopilot</h2>
+<p>For a single-tenant pilot of Bodh deployed on GKE Autopilot in production-aspiring shape:</p>
+<pre><code>GKE Autopilot Cluster (regional, private cluster)
+├── Namespace: bodh-prod
+│   ├── Deployment: bodh-care (3 replicas)
+│   │   ├── HTTP server (cmd/care, port 8088)
+│   │   ├── In-process MARA bus (orchestrator + 17+ agents)
+│   │   └── Sidecar: Cloud SQL Auth Proxy
+│   ├── Deployment: bodh-bench (CronJob, daily)
+│   ├── Service: bodh-care (Internal Load Balancer)
+│   └── Ingress: GKE Gateway with Identity-Aware Proxy
+│
+├── Cloud SQL for PostgreSQL (regional HA)
+│   ├── interaction_records / patient_records / audit_events
+│   ├── bodh_app role (NOBYPASSRLS), CMEK-encrypted
+│   └── Automated backups + WAL archive to GCS Object Lock
+│
+├── Cloud KMS
+│   ├── CMEK for Cloud SQL
+│   ├── Envelope keys for payload_ct BYTEA columns (pending PR)
+│   └── Service Account: per-tenant audit + retention key
+│
+├── Secret Manager
+│   ├── ANTHROPIC_API_KEY (provider rotation)
+│   ├── DB connection string
+│   └── HITL reviewer service tokens
+│
+├── Cloud Logging + Audit Logs
+│   ├── Application logs (Bodh audit.Event records, PHI-redacted)
+│   ├── Cloud Audit Logs (K8s API actions)
+│   └── Log sink → BigQuery for compliance queries
+│   └── Log sink → Cloud Storage with Object Lock for §164.312(b) WORM
+│
+├── Managed Service for Prometheus + Managed OpenTelemetry
+│   ├── LLM call traces (hashed case_id per Bodh PR #7)
+│   ├── Per-tenant SLI dashboards
+│   └── Alerts: fallback rate, audit write rate, HITL queue depth
+│
+└── Cloud Storage
+    ├── RAG corpus (mounted via GCS Fuse)
+    ├── Audit cold storage (Object Lock, 6-year retention)
+    └── Bench fixtures (versioned)
+</code></pre>
+<p>For multi-tenant, add:
+- Kueue with ClusterQueues + LocalQueues per tenant cohort
+- Namespace-per-tenant with NetworkPolicy default-deny
+- Workload Identity binding K8s SA → Google SA → Cloud SQL IAM role per tenant
+- VPC Service Controls perimeter around the data services</p>
+<p>Cost: at Autopilot&rsquo;s billing model, a single-tenant Bodh deployment running 3 replicas of <code>cmd/care</code> with a 2 vCPU / 4 GiB request and a small Cloud SQL backend lands around <strong>\$300–600/month</strong> before LLM-provider API costs. Multi-tenant deployments amortise the control plane (\$73/month) across tenants.</p>
+<hr>
+<h2 id="what-id-change-in-bodh-after-reading-the-gke-docs">What I&rsquo;d change in Bodh after reading the GKE docs</h2>
+<p>Three concrete TODOs surfaced by the mapping:</p>
+<ol>
+<li>
+<p><strong>Add a <code>docs/gke-deployment-recipe.md</code></strong> capturing the topology above, with kubectl-ready manifests. This is the deployable shape of all the work in <code>docs/deployment.md</code>, but GCP-specific.</p>
+</li>
+<li>
+<p><strong>Wire Cloud SQL IAM into the Postgres adapter.</strong> Today <code>pkg/persistence/postgres</code> uses a password DSN. For GKE deployments, swap that for the <a href="https://cloud.google.com/sql/docs/postgres/iam-authentication">IAM database authentication</a> path — short-lived tokens, no static credentials. This is a ~1-day PR.</p>
+</li>
+<li>
+<p><strong>Ship column-level encryption for <code>payload_ct</code> BYTEA columns.</strong> The schema (PR #10) is ready; the encryption layer is the deferred next-PR. Cloud KMS envelope encryption is the right shape — <code>pgcrypto</code> extension + KMS-wrapped DEKs per row. ~3-5 days. Lifts Bodh from &ldquo;encryption-ready&rdquo; to &ldquo;encryption-enforced,&rdquo; which is what the §164.404 Safe Harbor exclusion actually requires.</p>
+</li>
+</ol>
+<p>These aren&rsquo;t speculative — they&rsquo;re the next three PRs queued behind the ones already in flight.</p>
+<hr>
+<h2 id="closing">Closing</h2>
+<p>GKE&rsquo;s AI infrastructure surface is broad. For a multi-agent medical AI like Bodh, only about a third of it is directly applicable today (Agent Sandbox, Kueue, JobSet, the storage tier, Workload Identity, Cloud Audit Logs, OTel). Another third becomes applicable when self-hosted models enter the picture (Hyperdisk ML, NVIDIA NIM, vLLM, GPU operators). The remaining third is for workloads Bodh doesn&rsquo;t have today (training, batch inference at scale, multi-tenant TPU orchestration).</p>
+<p>The bigger lesson: <strong>GKE solves the runtime; the application has to solve the discipline.</strong> PHI redaction, audit-event field selection, HITL gate semantics, specialty diagnostic rules, MCP wire compatibility, right-to-explanation — these all live in Bodh, and Kubernetes neither helps nor hinders. Where the platform shines is when the discipline is already there and you need a place to run it that survives load, drains gracefully under disruption, and produces a clean forensic trail.</p>
+<p>If you&rsquo;re building clinical AI on GCP, the GKE AI integrations page is genuinely worth reading end-to-end. If you&rsquo;re building it on AWS or Azure, the same patterns translate — Bedrock / Fargate / RDS / KMS on AWS; Container Apps / Postgres Flexible / Azure OpenAI / Key Vault on Azure. The platform is interchangeable; the application discipline isn&rsquo;t.</p>
+<hr>
+<p><em>Bodh is a research and engineering reference. Not a medical device. Not approved for clinical use. The deployment topology above is the architectural target for a HIPAA-aligned production deployment; the codebase is not under a Business Associate Agreement and has not been audited.</em></p>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>

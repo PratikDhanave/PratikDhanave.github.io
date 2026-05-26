@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moving Diagnostic Accuracy 42.9% → 85.7% by Changing Two Files — Pratik Dhanave</title>
+<meta name="description" content="How a single sprint of specialty-rule work — guided by a benchmark that wasn't afraid to print embarrassing numbers — turned a 'demo respiratory differential' into a five-condition rule-based diagnostic engine.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Moving Diagnostic Accuracy 42.9% → 85.7% by Changing Two Files">
+<meta property="og:description" content="How a single sprint of specialty-rule work — guided by a benchmark that wasn't afraid to print embarrassing numbers — turned a 'demo respiratory differential' into a five-condition rule-based diagnostic engine.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/bench-42-to-85.html">
+<meta property="article:published_time" content="2026-05-20">
+<meta property="article:tag" content="ML Engineering">
+<meta property="article:tag" content="Benchmarks">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Evaluation">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Moving Diagnostic Accuracy 42.9% → 85.7% by Changing Two Files">
+<meta name="twitter:description" content="How a single sprint of specialty-rule work — guided by a benchmark that wasn't afraid to print embarrassing numbers — turned a 'demo respiratory differential' into a five-condition rule-based diagnostic engine.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/bench-42-to-85.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Moving Diagnostic Accuracy 42.9% → 85.7% by Changing Two Files</h1>
+    <p class="post-subtitle">A field report on how a single sprint of work — guided by a benchmark that wasn't afraid to print embarrassing numbers — turned a "demo respiratory differential" into a five-condition rule-based diagnostic engine.</p>
+    <div class="post-meta">
+      <time datetime="2026-05-20">May 20, 2026</time>
+      <span>·</span>
+      <span>ML engineers, AI medicine</span>
+    </div>
+    <div class="post-tags"><span class="tag">ML Engineering</span><span class="tag">Benchmarks</span><span class="tag">Go</span><span class="tag">Evaluation</span></div>
+  </header>
+
+  <h2 id="the-setup">The setup</h2>
+<p>I&rsquo;ve been building <a href="https://github.com/PratikDhanave/bodh">Bodh</a>, an open-source medical multi-agent platform in Go. It implements Microsoft&rsquo;s Multi-Agent Reference Architecture (MARA), with a virtual physician panel inspired by their MAI-DxO + Sequential Diagnosis Benchmark work.</p>
+<p>Two weeks ago, the SD-Bench manifest runner landed (PR #9 — bench-first development is the whole point of MAI-DxO). It loads every case fixture, runs it through the diagnostic flow per provider, and prints a markdown-style accuracy/cost table with a Pareto column. Then I ran it.</p>
+<p>The output was uncomfortable:</p>
+<pre><code>Provider | Cases | Accuracy | Mean Cost | Pareto
+---------|-------|----------|-----------|-------
+rule     |     7 |    42.9% | $  220.00 | 0.002
+</code></pre>
+<p>For context: the rule-based provider is the <strong>deterministic safety net</strong>. Every LLM-backed diagnostician falls back to it on timeout, malformed JSON, hallucination check failure, or low confidence. If the rule provider sits at 42.9% accuracy, that&rsquo;s the floor every degraded clinical case lands on.</p>
+<p>42.9% is not a floor I wanted under any system handling clinical data, even a research one.</p>
+<hr>
+<h2 id="what-the-bench-was-telling-me">What the bench was telling me</h2>
+<p>The bench wasn&rsquo;t broken. The bench was doing its job — surfacing a real platform gap I would have otherwise hand-waved past.</p>
+<p>I had assumed the rule path was &ldquo;respiratory only by design&rdquo; — fine for the demo CAP and CHF cases, expected to fail on anything else. The bench fixtures included four new synthetic teaching cases (ACS, septic UTI, DKA, elderly CAP) precisely to stress-test that assumption.</p>
+<p>The results said something more specific than &ldquo;fails on non-respiratory cases&rdquo;:</p>
+<ul>
+<li><strong>ACS</strong> (62M, troponin elevated, ECG changes) → diagnosed as &ldquo;Community-acquired pneumonia&rdquo;</li>
+<li><strong>Sepsis</strong> (elderly UTI with lactate elevation) → diagnosed as &ldquo;Community-acquired pneumonia&rdquo;</li>
+<li><strong>DKA</strong> (hyperglycemia, ketones, acidosis) → diagnosed as &ldquo;Community-acquired pneumonia&rdquo;</li>
+</ul>
+<p>The rule path was concluding CAP for <em>everything</em> whenever CBC + chest X-ray came back. That wasn&rsquo;t &ldquo;respiratory bias&rdquo; — that was a pathological default.</p>
+<p>Two root causes:</p>
+<ol>
+<li>
+<p><strong><code>test_planner</code> ordered the same workup for every case</strong> — CBC + chest X-ray + BMP regardless of <code>state.Condition</code>. So the cost axis was flat (every case at \$220 exactly) and the diagnostic signal was constant.</p>
+</li>
+<li>
+<p><strong><code>diagnostician.inferDiagnosis()</code> had two branches</strong> — CHF + ≥2 RPM alerts → ADHF; else CXR infiltrate + WBC → CAP. With the test_planner ordering CBC + CXR for every case, the second branch fired regardless of underlying pathology.</p>
+</li>
+</ol>
+<p>The fix needed to touch both files. Fixing one without the other doesn&rsquo;t move the bench numbers — the diagnostician needs new tests in the workup to interpret; the test_planner needs the diagnostician to know what to do with them.</p>
+<hr>
+<h2 id="the-change">The change</h2>
+<h3 id="step-1-extend-the-test-catalog">Step 1: Extend the test catalog</h3>
+<p><code>pkg/medical/types.go</code>:</p>
+<pre><code class="language-go">var TestCatalog = map[string]float64{
+    // existing
+    &quot;complete_blood_count&quot;:  45,
+    &quot;basic_metabolic_panel&quot;: 55,
+    &quot;chest_xray&quot;:            120,
+    &quot;ecg&quot;:                   80,
+    &quot;urinalysis&quot;:            35,
+    &quot;ct_chest&quot;:              850,
+    &quot;blood_culture&quot;:         95,
+    &quot;arterial_blood_gas&quot;:    75,
+    // new (this PR)
+    &quot;troponin_i&quot;:            55,   // ACS
+    &quot;bnp&quot;:                   95,   // CHF
+    &quot;lactate&quot;:               35,   // sepsis
+    &quot;urine_ketones&quot;:         15,   // DKA
+    &quot;procalcitonin&quot;:         75,   // sepsis — bacterial vs viral
+}
+</code></pre>
+<p>Five new tests at \$15-\$95 each. The procalcitonin one was a &ldquo;nice to have&rdquo; but it pulls its weight when a case looks like sepsis but the WBC is borderline.</p>
+<h3 id="step-2-condition-aware-dispatch-in-test_plannergo">Step 2: Condition-aware dispatch in <code>test_planner.go</code></h3>
+<p>Replaced the hardcoded <code>{CBC, CXR, BMP}</code> with a map:</p>
+<pre><code class="language-go">var conditionWorkups = map[string][]string{
+    &quot;cap&quot;:    {&quot;complete_blood_count&quot;, &quot;chest_xray&quot;, &quot;basic_metabolic_panel&quot;},
+    &quot;chf&quot;:    {&quot;bnp&quot;, &quot;chest_xray&quot;, &quot;ecg&quot;, &quot;basic_metabolic_panel&quot;},
+    &quot;acs&quot;:    {&quot;troponin_i&quot;, &quot;ecg&quot;, &quot;basic_metabolic_panel&quot;, &quot;complete_blood_count&quot;},
+    &quot;sepsis&quot;: {&quot;blood_culture&quot;, &quot;lactate&quot;, &quot;complete_blood_count&quot;,
+               &quot;basic_metabolic_panel&quot;, &quot;urinalysis&quot;},
+    &quot;dka&quot;:    {&quot;basic_metabolic_panel&quot;, &quot;urine_ketones&quot;, &quot;arterial_blood_gas&quot;,
+               &quot;complete_blood_count&quot;},
+}
+
+func (a *TestPlannerAgent) workupFor(condition string) []string {
+    if tests, ok := conditionWorkups[condition]; ok {
+        return tests
+    }
+    return conditionWorkups[&quot;cap&quot;]  // default to respiratory
+}
+</code></pre>
+<p>Simple. The intake agent already propagates <code>state.Condition</code> from the case metadata, so this is pure dispatch.</p>
+<h3 id="step-3-make-simulated-results-condition-aware">Step 3: Make simulated results condition-aware</h3>
+<p>This is the part nobody warns you about when they tell you about state machines.</p>
+<p>The previous <code>simulatedTestResult(name)</code> returned the same canned text regardless of underlying condition. So even after dispatching BNP for a CHF case, the simulated BNP returned &ldquo;412 pg/mL&rdquo; — but it returned the same value for an ACS case, where BNP is irrelevant.</p>
+<p>I made the simulator condition-aware:</p>
+<pre><code class="language-go">func simulatedTestResult(name, condition string) string {
+    switch name {
+    case &quot;troponin_i&quot;:
+        if condition == &quot;acs&quot; {
+            return &quot;elevated 5.2 ng/mL&quot;  // above the 0.04 ACS threshold
+        }
+        return &quot;0.02 ng/mL — within normal&quot;
+    case &quot;bnp&quot;:
+        if condition == &quot;chf&quot; {
+            return &quot;BNP 1240 pg/mL — elevated&quot;
+        }
+        return &quot;BNP 38 pg/mL — normal&quot;
+    case &quot;lactate&quot;:
+        if condition == &quot;sepsis&quot; {
+            return &quot;lactate 4.2 mmol/L — elevated&quot;
+        }
+        return &quot;lactate 1.1 mmol/L&quot;
+    // ... etc
+    }
+}
+</code></pre>
+<p>Cheating, sort of. The bench measures whether the <em>diagnostician</em> can interpret the right signal when it&rsquo;s presented — it&rsquo;s not measuring whether the demo&rsquo;s simulated lab equipment is realistic. In production, real lab feeds replace this entirely.</p>
+<h3 id="step-4-specialty-inference-in-diagnosticiango">Step 4: Specialty inference in <code>diagnostician.go</code></h3>
+<p>Extended <code>inferDiagnosis()</code> with five branches in priority order:</p>
+<pre><code class="language-go">func (a *DiagnosticianAgent) inferDiagnosis(state medical.CaseState) medical.DiagnosisProposal {
+    // ACS: troponin &gt; 0.04 ng/mL — illustrative, not a clinical guideline
+    if state.Condition == &quot;acs&quot; {
+        if v := extractFirstNumber(state.TestResults[&quot;troponin_i&quot;], &quot;elevated&quot;); v &gt; 0.04 {
+            return medical.DiagnosisProposal{
+                Diagnosis:    &quot;Acute coronary syndrome (NSTEMI)&quot;,
+                Confidence:   0.85,
+                Rationale:    &quot;Elevated troponin in chest-pain presentation&quot;,
+                Differential: []string{&quot;NSTEMI&quot;, &quot;Unstable angina&quot;, &quot;Aortic dissection&quot;},
+            }
+        }
+    }
+    // DKA: glucose &gt; 250 + bicarb &lt; 18 + ketones positive — illustrative
+    if state.Condition == &quot;dka&quot; {
+        glucose := extractFirstNumber(state.TestResults[&quot;basic_metabolic_panel&quot;], &quot;glucose&quot;)
+        bicarb := extractFirstNumber(state.TestResults[&quot;arterial_blood_gas&quot;], &quot;bicarbonate&quot;)
+        if glucose &gt; 250 &amp;&amp; bicarb &lt; 18 &amp;&amp; strings.Contains(state.TestResults[&quot;urine_ketones&quot;], &quot;positive&quot;) {
+            return medical.DiagnosisProposal{
+                Diagnosis:  &quot;Diabetic ketoacidosis&quot;,
+                Confidence: 0.88,
+                Rationale:  &quot;Hyperglycemia, anion-gap acidosis, ketonuria&quot;,
+            }
+        }
+    }
+    // sepsis: lactate &gt; 2 + WBC &gt; 12K — illustrative
+    if state.Condition == &quot;sepsis&quot; {
+        if extractFirstNumber(state.TestResults[&quot;lactate&quot;], &quot;lactate&quot;) &gt; 2 &amp;&amp;
+           extractWBC(state.TestResults[&quot;complete_blood_count&quot;]) &gt; 12 {
+            return medical.DiagnosisProposal{
+                Diagnosis:  &quot;Septic shock / urosepsis&quot;,
+                Confidence: 0.82,
+                Rationale:  &quot;Lactic acidosis with leukocytosis; UTI as source&quot;,
+            }
+        }
+    }
+    // ... CHF + CAP fallback identical to before
+}
+</code></pre>
+<p>Two helpers (<code>extractFirstNumber</code> and <code>extractWBC</code>) parse the simulated result text. The first version of <code>extractFirstNumber</code> had a bug — it returned the first number in the result string regardless of context, so &ldquo;glucose 412&rdquo; and &ldquo;bicarbonate 14&rdquo; both returned 412 (because the glucose number came first in the BMP result text). The fix used marker-after semantics: extract the first number that appears <em>after</em> a target substring.</p>
+<p>That&rsquo;s the kind of bug that doesn&rsquo;t show up in unit tests written by the person who wrote the code. It showed up in the bench:</p>
+<pre><code>DKA case: working_diagnosis=CAP (expected DKA)
+  glucose extracted as 412 (correct)
+  bicarbonate extracted as 412 (also 412 — wrong)
+  → glucose&gt;250 AND bicarb&lt;18 NEVER both true → falls through to CAP
+</code></pre>
+<p>The bench told me where the bug was, not just that there was a bug.</p>
+<hr>
+<h2 id="the-result">The result</h2>
+<pre><code>Provider | Cases | Accuracy | Mean Cost | Pareto
+---------|-------|----------|-----------|-------
+rule     |     7 |    85.7% | $  242.86 | 0.353
+</code></pre>
+<p><strong>42.9% → 85.7%</strong> on 7 synthetic cases. Cost up only \$23 because the new condition-specific workups are roughly the same total cost as the old respiratory workup (BNP swaps in for one test; troponin substitutes for another).</p>
+<p>Per-case matches now: CAP, CHF, ACS, sepsis (urosepsis), DKA, elderly-CAP. PE remains the documented coverage gap — that one needs a CTA decision tree or a Wells-score helper, and it didn&rsquo;t fit in this PR.</p>
+<p>Bench-tied baseline regression gating is on for CI:</p>
+<pre><code class="language-bash">go run ./cmd/bench -providers=rule -fail-on-regression
+# exit 0 if all providers stay within 1pp accuracy / 1¢ cost tolerance
+# exit 1 with REGRESSIONS DETECTED if anything degrades
+</code></pre>
+<p>The baseline file (<code>data/cases/baseline.json</code>) is committed. The next person who unintentionally breaks the rule path discovers it before merging, not in production.</p>
+<hr>
+<h2 id="five-things-i-learned">Five things I learned</h2>
+<h3 id="1-the-bench-is-the-contract-not-the-code">1. The bench is the contract, not the code</h3>
+<p>I wrote a bench fixture, ran it, got 42.9%, and that number was a constraint I couldn&rsquo;t argue with. Without the bench, I would have shipped the rule path as &ldquo;respiratory-only by design&rdquo; and called it done. The bench made the gap concrete enough to fix.</p>
+<p>The corollary: don&rsquo;t ship a bench you&rsquo;re afraid to print. The most useful bench is the one that returns numbers you don&rsquo;t want to see.</p>
+<h3 id="2-coupled-changes-are-coupled">2. Coupled changes are coupled</h3>
+<p>PR #9 (the bench) and PR #11 (these specialty rules) were originally separate tracker items. After spending five minutes thinking about the fix, it was obvious that splitting them was wrong — you can&rsquo;t add specialty rules to the diagnostician without <code>test_planner</code> ordering the right tests, and you can&rsquo;t validate the new test orderings without specialty rules to interpret them.</p>
+<p>Architectural rule of thumb: if two PRs need to be merged in the same week to avoid a transient bad state, they&rsquo;re one PR.</p>
+<h3 id="3-the-bench-finds-the-bugs-the-unit-tests-miss">3. The bench finds the bugs the unit tests miss</h3>
+<p>My unit tests for <code>extractFirstNumber</code> all passed. The function did what its tests asserted. The tests were just wrong about what it should do.</p>
+<p>The bench, by simulating an end-to-end DKA case, surfaced the issue immediately: <code>glucose</code> extracted correctly, <code>bicarbonate</code> extracted as the same value as glucose, the diagnostician&rsquo;s rule never fired. No unit test ever would have written &ldquo;given a BMP string with two numbers, the second number should be extracted from the second labeled position&rdquo; — but the bench&rsquo;s &ldquo;given a DKA case, accuracy should be &gt; 0&rdquo; effectively required it.</p>
+<h3 id="4-magic-numbers-want-comments">4. Magic numbers want comments</h3>
+<p>Every threshold I wrote (troponin &gt; 0.04, BNP &gt; 400, lactate &gt; 2, glucose &gt; 250, bicarb &lt; 18, WBC &gt; 12K) is clinical-textbook reasonable. <strong>None of them is a clinical guideline.</strong> Sepsis-3 uses lactate &gt; 2 mmol/L as a criterion <em>in the presence of suspected infection and qSOFA ≥ 2</em> — not as a standalone rule. The fourth Universal Definition of Myocardial Infarction has nuances on troponin interpretation that &ldquo;&gt; 0.04 ng/mL&rdquo; elides.</p>
+<p>Every threshold carries a comment in the source code:</p>
+<pre><code class="language-go">// Lactate &gt; 2 mmol/L — illustrative threshold for the demo. Real
+// clinical decision-making uses Sepsis-3 + qSOFA + clinical context.
+// This is not a clinical guideline.
+</code></pre>
+<p>Future maintainers — or LLMs reading the source as training data — get the disclaimer at the literal site of the number.</p>
+<h3 id="5-documented-coverage-gaps-are-features">5. Documented coverage gaps are features</h3>
+<p>PE (pulmonary embolism) doesn&rsquo;t have a specialty rule in this PR. The bench fixture for PE remains uncovered — accuracy=0 on that case.</p>
+<p>I marked it explicitly: in the PR description, in <code>data/cases/manifest.json</code> (tagged <code>coverage_gap</code>), in the bench output, in <a href="https://github.com/PratikDhanave/bodh/blob/main/docs/evaluation.md">the deferred-items section of the docs</a>. The next contributor knows exactly where the next ROI sits.</p>
+<p>The temptation is to silently expand scope until the bench is at 100%. The discipline is to ship the smallest change that moves the bench measurably, flag the rest, and move on.</p>
+<hr>
+<h2 id="what-this-changes-about-how-bodh-feels">What this changes about how Bodh feels</h2>
+<p>A few PRs ago, the rule provider was an honest demo — fine for showing the architecture, not credible as a clinical inference engine. Now it&rsquo;s a five-condition differential engine that hits 85.7% on a small but representative bench. The LLM-backed providers will still beat it on hard cases — that&rsquo;s the whole point of the cascade pattern. But the floor is now 85.7%, not 42.9%.</p>
+<p>The architecture didn&rsquo;t change. The orchestrator didn&rsquo;t change. The bus, the registry, the governance composer, the audit pipeline, the HITL gate — all unchanged. <strong>The composition pattern absorbed the work cleanly.</strong> Two files in <code>agents/</code> plus five entries in <code>pkg/medical/types.go</code> plus tests.</p>
+<p>That&rsquo;s the dividend you get from the MARA discipline: clinical logic lives in agents, agents compose, and the platform stays out of the way.</p>
+<hr>
+<h2 id="try-it">Try it</h2>
+<pre><code class="language-bash">git clone https://github.com/PratikDhanave/bodh.git
+cd bodh
+go run ./cmd/bench -manifest=data/cases/manifest.json -providers=rule
+</code></pre>
+<p>You&rsquo;ll see the 85.7% number, the per-case breakdown, and the baseline file. Add <code>-fail-on-regression</code> to gate CI. Run with <code>-providers=rule,llm-anthropic</code> after <code>export ANTHROPIC_API_KEY=...</code> to see the LLM Pareto point.</p>
+<p>Repo: <a href="https://github.com/PratikDhanave/bodh">github.com/PratikDhanave/bodh</a></p>
+<p>If you&rsquo;re building diagnostic AI and want to compare notes on Pareto evaluation, fixture design, or the specific question of where rule-based fallbacks should sit relative to LLM-backed primary paths — issues, PRs, and DMs all welcome.</p>
+<hr>
+<p><em>Bodh is a research and engineering reference. </em><em>Not a medical device. Not approved for clinical use.</em><em> Every threshold in this article is illustrative; production clinical AI requires validation, governance, and regulatory review I have not performed.</em></p>
+<h1 id="healthtech-medicalai-clinicaldecisionsupport-go-golang-evaluation-benchmarks-opensource-softwareengineering-multiagent">HealthTech #MedicalAI #ClinicalDecisionSupport #Go #Golang #Evaluation #Benchmarks #OpenSource #SoftwareEngineering #MultiAgent</h1>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>

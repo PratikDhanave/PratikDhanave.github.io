@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PostgreSQL Row-Level Security Is HIPAA Defense in Depth — Pratik Dhanave</title>
+<meta name="description" content="PostgreSQL row-level security as HIPAA defence in depth. Why fail-open application filtering isn't enough, and how 'append-only at DB GRANTs' carries more of the §164.312(b) burden than people realise.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="PostgreSQL Row-Level Security Is HIPAA Defense in Depth">
+<meta property="og:description" content="PostgreSQL row-level security as HIPAA defence in depth. Why fail-open application filtering isn't enough, and how 'append-only at DB GRANTs' carries more of the §164.312(b) burden than people realise.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/postgres-rls-hipaa.html">
+<meta property="article:published_time" content="2026-05-22">
+<meta property="article:tag" content="PostgreSQL">
+<meta property="article:tag" content="HIPAA">
+<meta property="article:tag" content="Database Security">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="PostgreSQL Row-Level Security Is HIPAA Defense in Depth">
+<meta name="twitter:description" content="PostgreSQL row-level security as HIPAA defence in depth. Why fail-open application filtering isn't enough, and how 'append-only at DB GRANTs' carries more of the §164.312(b) burden than people realise.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/postgres-rls-hipaa.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>PostgreSQL Row-Level Security Is HIPAA Defense in Depth</h1>
+    <p class="post-subtitle">Why I'm putting tenant isolation, append-only audit, and PHI column encryption boundaries into the database itself — not just into the application layer that calls it.</p>
+    <div class="post-meta">
+      <time datetime="2026-05-22">May 22, 2026</time>
+      <span>·</span>
+      <span>Backend engineering + security</span>
+    </div>
+    <div class="post-tags"><span class="tag">PostgreSQL</span><span class="tag">HIPAA</span><span class="tag">Database Security</span><span class="tag">Go</span></div>
+  </header>
+
+  <h2 id="the-pattern-most-clinical-apps-get-wrong">The pattern most clinical apps get wrong</h2>
+<p>Most multi-tenant healthcare apps I&rsquo;ve audited handle tenant isolation in the application:</p>
+<pre><code class="language-go">// Pseudo-code from a typical clinical SaaS
+func GetPatients(tenantID string) []Patient {
+    rows := db.Query(&quot;SELECT * FROM patients WHERE tenant_id = ?&quot;, tenantID)
+    return scanPatients(rows)
+}
+</code></pre>
+<p>That works until one of three things happens:</p>
+<ol>
+<li><strong>A new query path forgets the <code>WHERE tenant_id = ?</code>.</strong> Now it&rsquo;s a cross-tenant data leak in production.</li>
+<li><strong>An ORM generates a query without the filter.</strong> Same outcome.</li>
+<li><strong>A reporting tool, BI dashboard, or ad-hoc analyst connects to the DB.</strong> They have no concept of &ldquo;tenant&rdquo; — they see everything.</li>
+</ol>
+<p>Application-level tenant isolation is <strong>fail-open</strong>. A single bug, a single new code path, or a single legacy tool means everyone&rsquo;s data is everyone else&rsquo;s data.</p>
+<p>The fix is to push tenant isolation down to the database: <strong>PostgreSQL row-level security (RLS)</strong>. I just shipped this for <a href="https://github.com/PratikDhanave/bodh">Bodh</a>, the open-source medical multi-agent platform I&rsquo;ve been building in Go. The pattern is worth writing up — it&rsquo;s the difference between &ldquo;we should be tenant-isolated&rdquo; and &ldquo;we are, demonstrably, tenant-isolated.&rdquo;</p>
+<hr>
+<h2 id="the-architecture">The architecture</h2>
+<p>Three tables, all with a <code>tenant_id</code> column:</p>
+<pre><code class="language-sql">CREATE TABLE interaction_records (
+    id           UUID PRIMARY KEY,
+    tenant_id    TEXT NOT NULL,
+    case_id      TEXT NOT NULL,
+    patient_id   TEXT,                  -- opaque, NEVER an MRN
+    payload_ct   BYTEA NOT NULL,        -- ciphertext-ready (plaintext today)
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE patient_records (
+    tenant_id    TEXT NOT NULL,
+    patient_id   TEXT NOT NULL,
+    payload_ct   BYTEA NOT NULL,        -- ciphertext-ready
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (tenant_id, patient_id)
+);
+
+CREATE TABLE audit_events (
+    id           UUID PRIMARY KEY,
+    tenant_id    TEXT NOT NULL,
+    at           TIMESTAMPTZ NOT NULL,
+    kind         TEXT NOT NULL,
+    -- field-narrow schema: enough to reconstruct, never enough to leak
+    agent_id, message_id, from_id, to_id, type,
+    patient_id, case_id, trace_id,
+    decision, reason, reviewer_id, error_text TEXT
+);
+</code></pre>
+<p>A dedicated database role with <code>NOBYPASSRLS</code>:</p>
+<pre><code class="language-sql">CREATE ROLE bodh_app LOGIN PASSWORD '&lt;from secrets manager&gt;' NOBYPASSRLS;
+
+-- Minimum necessary grants (HIPAA Privacy Rule §164.502(b) applied to DB privileges)
+GRANT SELECT, INSERT, UPDATE, DELETE ON interaction_records TO bodh_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON patient_records TO bodh_app;
+GRANT SELECT, INSERT                  ON audit_events TO bodh_app;  -- append-only at DB
+</code></pre>
+<p>RLS enabled and forced:</p>
+<pre><code class="language-sql">ALTER TABLE interaction_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE interaction_records FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation ON interaction_records
+    USING       (tenant_id = current_setting('app.tenant_id', true))
+    WITH CHECK  (tenant_id = current_setting('app.tenant_id', true));
+</code></pre>
+<p>(<code>FORCE ROW LEVEL SECURITY</code> makes the policy apply even to the table owner — important when the owner role might be used for migrations and you don&rsquo;t want the migrator role bypassing policies during data loads.)</p>
+<p>The application side reads its current tenant from context and sets it per query:</p>
+<pre><code class="language-go">func (s *Store) withTenant(ctx context.Context, tenantID string,
+    fn func(pgx.Tx) error) error {
+
+    return s.pool.BeginTx(ctx, pgx.TxOptions{}, func(tx pgx.Tx) error {
+        // SET LOCAL — scoped to the transaction; cleared at commit/rollback
+        _, err := tx.Exec(ctx,
+            &quot;SELECT set_config('app.tenant_id', $1, true)&quot;, tenantID)
+        if err != nil {
+            return err
+        }
+        return fn(tx)
+    })
+}
+</code></pre>
+<p>That&rsquo;s the whole pattern. Every query goes through <code>withTenant</code>; the application <em>cannot forget</em> the filter because there&rsquo;s no way to construct a query that bypasses the policy.</p>
+<hr>
+<h2 id="five-things-rls-gives-you-that-app-layer-filtering-does-not">Five things RLS gives you that app-layer filtering does not</h2>
+<h3 id="1-the-policy-is-the-spec">1. The policy is the spec</h3>
+<p>Read the migration file. That&rsquo;s the security model. Not the application code, not a Confluence page, not &ldquo;trust me, every query has WHERE tenant_id.&rdquo;</p>
+<p>When an auditor asks &ldquo;how do you enforce tenant isolation?&rdquo;, the answer is one SQL statement they can read in 30 seconds.</p>
+<h3 id="2-defence-against-future-code">2. Defence against future code</h3>
+<p>The new junior engineer six months from now who adds a new query path doesn&rsquo;t have to remember to add the tenant filter. The database enforces it. They literally cannot write a query that leaks cross-tenant data while connected as <code>bodh_app</code>.</p>
+<p>This is the difference between a guideline (&ldquo;always filter by tenant&rdquo;) and an invariant (&ldquo;tenant filter is impossible to bypass&rdquo;). HIPAA risk-management programs love invariants.</p>
+<h3 id="3-defence-against-introspection-tools">3. Defence against introspection tools</h3>
+<p>The BI tool connects as <code>bodh_app</code>. The reporting query connects as <code>bodh_app</code>. The ad-hoc analyst&rsquo;s <code>psql</code> shell connects as <code>bodh_app</code>. None of them sees cross-tenant data unless they explicitly <code>SET app.tenant_id = '...'</code> to the tenant they&rsquo;re meant to see.</p>
+<p>The <code>NOBYPASSRLS</code> on the role means even a <code>SECURITY DEFINER</code> function written by the analyst can&rsquo;t bypass — only <code>BYPASSRLS</code> roles (postgres superuser, dedicated DBA accounts) can.</p>
+<h3 id="4-tests-can-verify-the-invariant">4. Tests can verify the invariant</h3>
+<pre><code class="language-go">func TestTenantIsolation(t *testing.T) {
+    store := setupPostgresWithTestcontainers(t)
+
+    // Insert under tenant-a
+    store.UpsertPatient(ctx, &quot;tenant-a&quot;, PatientRecord{
+        PatientID: &quot;shared-id&quot;, Age: 30,
+    })
+    // Insert with same patient_id under tenant-b
+    store.UpsertPatient(ctx, &quot;tenant-b&quot;, PatientRecord{
+        PatientID: &quot;shared-id&quot;, Age: 40,
+    })
+
+    // Each tenant sees only its own row
+    aPatients := store.ListPatients(ctx, &quot;tenant-a&quot;)
+    if aPatients[0].Age != 30 { t.Fatal(&quot;tenant-a sees wrong row&quot;) }
+
+    bPatients := store.ListPatients(ctx, &quot;tenant-b&quot;)
+    if bPatients[0].Age != 40 { t.Fatal(&quot;tenant-b sees wrong row&quot;) }
+
+    // BYPASSRLS sanity check — fails loudly if RLS isn't being enforced
+    rows := superuserPool.Query(&quot;SELECT count(*) FROM patient_records&quot;)
+    if count(rows) != 2 { t.Fatal(&quot;expected 2 rows under BYPASSRLS&quot;) }
+}
+</code></pre>
+<p>You can integration-test the invariant. CI fails if RLS ever regresses. That&rsquo;s load-bearing.</p>
+<h3 id="5-the-audit-table-goes-one-level-further">5. The audit table goes one level further</h3>
+<pre><code class="language-sql">GRANT SELECT, INSERT ON audit_events TO bodh_app;
+-- Notably absent: UPDATE, DELETE
+</code></pre>
+<p>The application role <em>cannot modify or delete audit events</em>. Append-only is enforced by the database GRANT, not by the application&rsquo;s intentions.</p>
+<p>HIPAA §164.312(b) (&ldquo;Audit controls — Implement hardware, software, and procedural mechanisms that record and examine activity in information systems that contain or use electronic protected health information&rdquo;) doesn&rsquo;t say &ldquo;append-only&rdquo;, but every audit framework operationalising HIPAA does: HITRUST, SOC 2, NIST SP 800-66, 21 CFR Part 11. Append-only at the database is the cleanest place to enforce it.</p>
+<p>A compromised application credential can write garbage events but cannot rewrite history. The audit log remains a credible forensic record.</p>
+<hr>
+<h2 id="what-about-the-phi-itself">What about the PHI itself?</h2>
+<p>The schema types PHI columns as <code>BYTEA</code> with a <code>_ct</code> suffix:</p>
+<pre><code class="language-sql">payload_ct BYTEA NOT NULL,  -- ciphertext-ready (plaintext today)
+</code></pre>
+<p>Today they&rsquo;re plaintext JSON. The next PR adds <strong>column-level encryption</strong> via pgcrypto or KMS envelope encryption — without a schema migration, because the column is already typed for it.</p>
+<p>The envelope-encryption pattern:</p>
+<ol>
+<li>KMS holds the Customer Master Key (CMK). It never leaves the KMS.</li>
+<li>The application asks the KMS to generate a Data Encryption Key (DEK) — a 256-bit AES key wrapped (encrypted) under the CMK.</li>
+<li>The application uses the DEK to encrypt the PHI payload with AES-256-GCM.</li>
+<li>The wrapped DEK is stored alongside the ciphertext.</li>
+<li>To read: ask the KMS to unwrap the DEK, then decrypt the payload locally.</li>
+</ol>
+<p>The CMK never appears in process memory. The DEK is rotated per record. Auditors love this pattern — the audit log shows &ldquo;asked KMS to unwrap DEK for record X at time T by principal P&rdquo; without any plaintext key material ever existing outside the HSM.</p>
+<h3 id="why-this-matters-for-hipaa-breach-notification">Why this matters for HIPAA breach notification</h3>
+<p>The HIPAA Breach Notification Rule (45 CFR Part 164 Subpart D) has a <strong>Safe Harbor exclusion</strong>: a breach of <em>properly encrypted</em> data per HHS Guidance (FIPS 140-2/3 cryptographic modules, NIST-approved algorithms) does <strong>not count as a breach.</strong></p>
+<p>The notification timeline that would otherwise apply:</p>
+<table>
+<thead>
+<tr>
+<th>Audience</th>
+<th>Deadline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Affected individuals</td>
+<td>60 days from discovery</td>
+</tr>
+<tr>
+<td>HHS Secretary</td>
+<td>60 days (≥500 affected) or annually (&lt;500)</td>
+</tr>
+<tr>
+<td>Prominent media (≥500 in a state)</td>
+<td>60 days</td>
+</tr>
+</tbody>
+</table>
+<p>Properly encrypted data lets you skip all three. That&rsquo;s why TLS 1.3 in transit + KMS-backed AES-256-GCM at rest isn&rsquo;t optional — it&rsquo;s the difference between an incident response and a regulator-facing notification.</p>
+<p>The <code>_ct</code> column suffix is a load-bearing convention: it tells every future maintainer &ldquo;this column is ciphertext (or about to be).&rdquo; It&rsquo;s documentation as data.</p>
+<hr>
+<h2 id="what-about-hard-delete">What about hard-delete?</h2>
+<p>GDPR Article 17 (right to erasure) and several US state privacy laws give patients the right to have their data deleted. HIPAA, by contrast, has retention requirements (typically 6 years).</p>
+<p>These can conflict. The architecture has to support both. Bodh&rsquo;s pattern:</p>
+<pre><code class="language-go">func (s *Store) DeletePatient(ctx context.Context, tenantID, patientID string) error {
+    return s.withTenant(ctx, tenantID, func(tx pgx.Tx) error {
+        // 1. Hard-delete from patient_records and interaction_records
+        if _, err := tx.Exec(ctx,
+            &quot;DELETE FROM patient_records WHERE tenant_id = $1 AND patient_id = $2&quot;,
+            tenantID, patientID); err != nil { return err }
+
+        if _, err := tx.Exec(ctx,
+            &quot;DELETE FROM interaction_records WHERE tenant_id = $1 AND patient_id = $2&quot;,
+            tenantID, patientID); err != nil { return err }
+
+        // 2. Audit events: governed by HIPAA retention, NOT deleted by this call.
+        //    Operator-only SQL (via DBA account) performs retention-window deletes.
+        //    The Reason field documents the deletion request itself, creating a
+        //    record of the deletion without preserving the deleted PHI.
+        _, err := tx.Exec(ctx, `
+            INSERT INTO audit_events (id, tenant_id, at, kind, patient_id, reason)
+            VALUES ($1, $2, $3, 'message', $4, 'GDPR Article 17 erasure request executed')`,
+            uuid.NewString(), tenantID, time.Now().UTC(), patientID)
+        return err
+    })
+}
+</code></pre>
+<p>Two records of the deletion remain: an audit event saying &ldquo;this deletion happened&rdquo; with no PHI, and the retention-policy-governed audit history of what that patient&rsquo;s activity was while in the system. The operator can argue both HIPAA compliance (audit retention) and GDPR compliance (PHI erasure) with a clean separation.</p>
+<p>This is the kind of tension you discover when you try to satisfy both regulations in the same database. The pattern documented in <code>pkg/persistence/postgres/README.md</code> is one way to resolve it.</p>
+<hr>
+<h2 id="what-it-costs">What it costs</h2>
+<p>Two real trade-offs:</p>
+<h3 id="1-performance">1. Performance</h3>
+<p>Every query carries the <code>set_config</code> round-trip in a transaction. PostgreSQL processes ~10-50µs per <code>set_config</code> call. For high-QPS read-heavy workloads, you might benchmark with and without RLS and decide. For clinical workloads (~10-100 QPS per app instance is typical), the overhead is invisible.</p>
+<p>For batch jobs (panel rule evaluation across 10k patients), <code>SET LOCAL</code> is a one-time cost per transaction. Run the whole batch in one transaction with the tenant set once.</p>
+<h3 id="2-connection-pool-implications">2. Connection pool implications</h3>
+<p><code>SET LOCAL</code> is scoped to the transaction. Connection pools that hand the same connection to different requests across tenants need to either:</p>
+<ul>
+<li>Use <code>SET LOCAL</code> (transaction-scoped — the safe pattern Bodh uses), OR</li>
+<li>Use <code>RESET ROLE</code> / <code>RESET app.tenant_id</code> between leases (extra round-trip)</li>
+</ul>
+<p>The pattern I&rsquo;ve been using with pgx works. Don&rsquo;t try to use session-scoped <code>SET</code> with a shared pool — that&rsquo;s how cross-tenant leaks happen via a misconfigured connection lease.</p>
+<hr>
+<h2 id="whats-not-rlss-job">What&rsquo;s not RLS&rsquo;s job</h2>
+<p>RLS doesn&rsquo;t protect against:</p>
+<ul>
+<li>A compromised <code>BYPASSRLS</code> superuser account</li>
+<li>A malicious DBA with direct DB access</li>
+<li>A backup file leaked to a third party (if columns aren&rsquo;t encrypted)</li>
+<li>An application that legitimately needs to switch tenants mid-request (multi-tenant admin tooling)</li>
+</ul>
+<p>Each of these needs a separate control:</p>
+<ul>
+<li><strong>Privileged access management</strong> (PAM, jit-elevation, time-limited credentials) for the superuser problem.</li>
+<li><strong>Vault / sealed-secrets</strong> for credential rotation.</li>
+<li><strong>Column-level encryption</strong> for the backup problem.</li>
+<li><strong>Carefully audited admin endpoints</strong> for the multi-tenant case, with <code>BreakGlassPolicy</code>-style audit on every cross-tenant access.</li>
+</ul>
+<p>RLS is the foundation. The other controls layer on top.</p>
+<hr>
+<h2 id="try-it">Try it</h2>
+<p>The Postgres backend ships in <code>pkg/persistence/postgres</code>. Migrations live in <code>db/migrations/</code>. The integration tests in <code>pkg/persistence/postgres/postgres_test.go</code> use <code>testcontainers-go</code> to spin up a real Postgres and prove the RLS invariant. Skip the suite cleanly with <code>t.Skip</code> when Docker isn&rsquo;t available — green CI without Docker.</p>
+<pre><code class="language-bash">git clone https://github.com/PratikDhanave/bodh.git
+cd bodh
+
+# Run the integration tests against a real Postgres (needs Docker)
+go test ./pkg/persistence/postgres/... -v
+
+# Point cmd/care at a real Postgres
+docker run -d --name bodh-pg -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16
+psql -h localhost -U postgres -c &quot;CREATE DATABASE bodh;&quot;
+BODH_DB_DSN=&quot;postgres://bodh_app:postgres@localhost:5432/bodh?sslmode=disable&quot; \
+BODH_TENANT_ID=tenant-pilot \
+go run ./cmd/care -addr=:8088
+</code></pre>
+<p>Schema, RLS policies, and the GDPR Article 17 path are documented in <code>pkg/persistence/postgres/README.md</code>. Full deployment guide in <code>docs/deployment.md</code>.</p>
+<p>Repo: <a href="https://github.com/PratikDhanave/bodh">github.com/PratikDhanave/bodh</a></p>
+<p>If you&rsquo;re building HIPAA-aligned multi-tenant infrastructure and want to compare the RLS pattern, the BAA chain considerations, or the GDPR vs HIPAA retention tension — open issues, PRs, or DMs welcome.</p>
+<hr>
+<p><em>Bodh is a research and engineering reference. </em><em>Not under a Business Associate Agreement. Not certified for clinical deployment.</em><em> The architecture described above is the target for a production HIPAA-aligned system; the codebase is not audited.</em></p>
+<h1 id="hipaa-postgresql-databasesecurity-rls-compliance-healthcareit-privacyengineering-go-backendengineering-opensource">HIPAA #PostgreSQL #DatabaseSecurity #RLS #Compliance #HealthcareIT #PrivacyEngineering #Go #BackendEngineering #OpenSource</h1>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>
