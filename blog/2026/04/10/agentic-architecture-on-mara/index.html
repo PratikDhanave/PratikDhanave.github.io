@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic architecture on MARA — the seven load-bearing pieces — Pratik Dhanave</title>
+<meta name="description" content="Microsoft&#x27;s Multi-Agent Reference Architecture in Go. Protocol, registry, bus, governance, orchestration, observability, evaluation — and how the seven hold each other up.">
+<meta name="author" content="Pratik Dhanave">
+
+<!-- Open Graph -->
+<meta property="og:title" content="Agentic architecture on MARA — the seven load-bearing pieces">
+<meta property="og:description" content="Microsoft&#x27;s Multi-Agent Reference Architecture in Go. Protocol, registry, bus, governance, orchestration, observability, evaluation — and how the seven hold each other up.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/2026/04/10/agentic-architecture-on-mara/">
+<meta property="article:published_time" content="2026-04-10T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Architecture">
+<meta property="article:tag" content="MARA">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Multi-Agent AI">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Agentic architecture on MARA — the seven load-bearing pieces">
+<meta name="twitter:description" content="Microsoft&#x27;s Multi-Agent Reference Architecture in Go. Protocol, registry, bus, governance, orchestration, observability, evaluation — and how the seven hold each other up.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/2026/04/10/agentic-architecture-on-mara/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #555;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #b1bac4;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container {
+  max-width: 800px; margin: 0 auto; padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+}
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+
+.post-meta {
+  font-size: 13px; color: var(--text-muted);
+  margin-bottom: 18px;
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+}
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag {
+  font-size: 12px; font-weight: 500; padding: 3px 10px;
+  border-radius: 12px; background: var(--tag-bg); color: var(--tag-text);
+}
+
+article.post h1 {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 800; letter-spacing: -0.02em; line-height: 1.15;
+  margin-bottom: 16px; color: var(--text);
+}
+article.post h2 {
+  font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px;
+  color: var(--text); letter-spacing: -0.01em;
+}
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+
+article.post blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 4px 0 4px 18px;
+  margin: 18px 0;
+  color: var(--text);
+  font-style: italic;
+  background: var(--bg-elev);
+  border-radius: 0 6px 6px 0;
+}
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+
+article.post code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text);
+}
+article.post pre {
+  background: var(--code-bg);
+  padding: 16px 18px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 18px 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  border: 1px solid var(--border);
+}
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+
+article.post table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 18px 0;
+  font-size: 0.92rem;
+}
+article.post th, article.post td {
+  text-align: left; padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+.post-footer {
+  margin-top: 56px; padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-wrap: wrap; gap: 14px;
+  justify-content: space-between; align-items: center;
+  font-size: 14px;
+}
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+
+footer {
+  text-align: center; padding: 32px 24px;
+  color: var(--text-muted); font-size: 13px;
+  border-top: 1px solid var(--border);
+}
+footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-04-10">April 10, 2026</time>
+  <span>·</span>
+  <span>6 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">Architecture</span>
+  <span class="tag">MARA</span>
+  <span class="tag">Go</span>
+  <span class="tag">Multi-Agent AI</span>
+</div>
+
+<article class="post">
+<h1 id="what-multi-agent-architecture-actually-looks-like-in-production">What Multi-Agent Architecture Actually Looks Like in Production</h1>
+<p><em>Why single-LLM &ldquo;AI assistants&rdquo; don&rsquo;t survive contact with real systems — and the seven load-bearing pieces of an architecture that does.</em></p>
+<hr>
+<h2 id="the-pattern-that-keeps-failing">The pattern that keeps failing</h2>
+<p>Every week, another &ldquo;AI assistant&rdquo; demo built on the same shape: one HTTP endpoint, one mega-prompt, one LLM call, a thin retry loop. It demos beautifully. It dies in production.</p>
+<p>Six months in, the team is rewriting from scratch — and rediscovering, the hard way, a pattern the distributed systems community has known for two decades. The pattern has a name. <strong>Multi-agent architecture.</strong> Microsoft formalised it as the <strong>Multi-Agent Reference Architecture (MARA)</strong>, and it&rsquo;s what production-grade LLM systems converge on regardless of language or framework.</p>
+<p>This article is a tour of the seven pieces that actually do load-bearing work, with examples from an open-source Go implementation called <strong>Genie</strong>. The implementation language doesn&rsquo;t matter. The pattern does.</p>
+<hr>
+<h2 id="why-the-monolith-breaks">Why the monolith breaks</h2>
+<p>A single-LLM-call assistant has five structural problems that no amount of prompt engineering fixes:</p>
+<ol>
+<li><strong>It cannot be audited.</strong> A 4,000-token system prompt that branches on input is not a specification. The compliance team&rsquo;s question — &ldquo;show me what this does with a PAN number&rdquo; — has no answer except &ldquo;depends.&rdquo; Regulators won&rsquo;t accept that.</li>
+<li><strong>It cannot be partially upgraded.</strong> Every edit touches every capability. Every regression touches every capability.</li>
+<li><strong>It cannot be differentially controlled.</strong> Different operations need different caching, rate limits, and budgets. One LLM call gives you one set of controls.</li>
+<li><strong>Failure is all-or-nothing.</strong> Provider returns a 500, the whole assistant is down. There&rsquo;s no degraded path because there&rsquo;s nothing else in the system.</li>
+<li><strong>Latency is the slowest path.</strong> You cannot parallelise what you cannot decompose.</li>
+</ol>
+<p>These are properties of the architecture. Polishing won&rsquo;t fix them.</p>
+<hr>
+<h2 id="the-seven-load-bearing-pieces">The seven load-bearing pieces</h2>
+<p>Skip any one of these and you re-create the failure modes in a new disguise.</p>
+<h3 id="1-the-protocol">1. The protocol</h3>
+<p>A typed message envelope. Not function calls — <em>messages</em>.</p>
+<pre><code class="language-go">type Message struct {
+    From           string
+    To             string
+    Type           string
+    Payload        []byte
+    Classification Classification // public | internal | pii | secret
+    Metadata       map[string]string
+}
+</code></pre>
+<p><code>Type</code> makes the system inspectable. <code>Classification</code> makes governance possible. <code>Metadata</code> carries W3C <code>traceparent</code> so async hops still show up as one distributed trace.</p>
+<p><strong>Anti-pattern:</strong> direct method calls between agents (<code>recommender.Recommend(analysis)</code>). You&rsquo;ve just rebuilt the monolith with extra files.</p>
+<h3 id="2-the-registry">2. The registry</h3>
+<p>Agents declare capabilities at registration:</p>
+<pre><code class="language-go">type Agent interface {
+    Name() string
+    Capabilities() []string
+    RiskLevel() RiskClass
+    HandleMessage(ctx context.Context, msg Message) ([]Message, error)
+}
+</code></pre>
+<p>The orchestrator queries the registry to discover who handles what. Adding an agent is a one-line registration, not an orchestrator refactor. This is also what makes a live AI inventory endpoint real — built from the registry, it cannot drift from what&rsquo;s actually running.</p>
+<h3 id="3-the-bus">3. The bus</h3>
+<p>Pub/sub transport so agents are decoupled in time and space. Start in-memory (a channel-backed pub/sub is ~200 lines). Swap for Kafka or NATS when you outgrow one process. The agents don&rsquo;t change.</p>
+<p><strong>The decoupling matters more than the technology.</strong> When the analyzer fans out to forecaster, anomaly_detector, and recommender in parallel — three messages, three goroutines, results aggregated by correlation ID — latency becomes max(stages) instead of sum(stages). 3× speedup with zero algorithmic work.</p>
+<h3 id="4-the-orchestrator">4. The orchestrator</h3>
+<p>The orchestrator subscribes agents to message types, <strong>enforces policy before dispatch</strong>, and traces every hop.</p>
+<p>The critical word is <em>before</em>. Policy inside a handler can be skipped by a buggy or compromised handler. Policy in the orchestrator cannot be bypassed.</p>
+<pre><code class="language-go">func (o *Orchestrator) dispatch(ctx context.Context, msg Message) error {
+    if err := o.policy.Evaluate(ctx, msg); err != nil {
+        o.incidents.Record(msg, err)
+        return err
+    }
+    return o.bus.Publish(ctx, msg)
+}
+</code></pre>
+<h3 id="5-governance-as-middleware">5. Governance as middleware</h3>
+<p>Every message passes through a <strong>composite policy</strong> before any agent runs: length, required metadata, RBAC, classification ceiling, residency, consent, explainability, PII regex, prompt injection, JSON schema. Each is small, independently testable, composable. Loaded from a board-approved YAML.</p>
+<p><strong>Why middleware, not handler code:</strong> middleware is a single audit surface. The compliance team reads one composite, not 40 handlers. The red-team corpus runs against one composite. The denial counter is one metric. Put policy inside handlers and you re-verify it every time you add an agent.</p>
+<h3 id="6-per-agent-risk-class">6. Per-agent risk class</h3>
+<pre><code class="language-go">func (a *AMLMonitor) RiskLevel() RiskClass { return RiskHigh }
+</code></pre>
+<p>The orchestrator enforces ceilings — a <code>RiskHigh</code> agent cannot execute on a message lacking an <code>advisor</code> or <code>admin</code> role. Autonomous loops (ReAct, Reflexion) are bounded by deadline, circuit, and budget wrappers on the LLM provider. An agent cannot accidentally run away or DoS a downstream.</p>
+<h3 id="7-fallback-agents">7. Fallback agents</h3>
+<p>The piece that turns a research project into a production system.</p>
+<pre><code class="language-go">orchestrator.SetFallback(&quot;portfolio_advisor&quot;, deterministic.PortfolioFallback{})
+</code></pre>
+<p>When the primary times out or panics, the orchestrator dispatches a deterministic fallback that needs neither LLM nor network. The user gets a degraded but truthful answer — &ldquo;live analytics unavailable, here&rsquo;s the cached snapshot from 14:00 IST.&rdquo; Audit log records the fallback. On-call gets paged. System stays up.</p>
+<p>CI proves it works: a drill target forces a failure and asserts the fallback fires.</p>
+<hr>
+<h2 id="what-this-buys-you-concretely">What this buys you, concretely</h2>
+<ul>
+<li><strong>Parallelism for free</strong> — fan-out to multiple agents, aggregate by correlation ID. Latency = max(stages), not sum.</li>
+<li><strong>Surgical caching</strong> — educator caches 6h, rate_watcher caches 5m, recommender doesn&rsquo;t cache. Each agent owns its policy.</li>
+<li><strong>Differential observability</strong> — per-agent SLOs in Tempo. &ldquo;p99 latency of anomaly_detector for <code>enriched_transactions</code> over 7 days&rdquo; is a query, not a project.</li>
+<li><strong>Composable safety</strong> — drop a new policy into the composite, it applies everywhere.</li>
+<li><strong>Surgical upgrades</strong> — swap the model behind one agent; the other 39 are unaffected.</li>
+<li><strong>Honest failure stories</strong> — uptime isn&rsquo;t hostage to the LLM provider&rsquo;s status page.</li>
+</ul>
+<hr>
+<h2 id="what-genie-ships">What Genie ships</h2>
+<p>Genie is the open-source Go implementation. The architecture is the deliverable; the financial-assistant domain is the demonstration.</p>
+<ul>
+<li><strong>40+ specialist agents</strong> — canonical pipeline (ingestor → normalizer → enricher → analyzer → forecaster → anomaly → recommender → reporter) plus 26 domain specialists (fraud, AML, LCR, VaR, ALM, tax, lending, complaint triage…)</li>
+<li><strong>5 LLM providers</strong> behind one interface, with cost/cache/router/shadow/circuit/deadline/budget wrappers</li>
+<li><strong>Hybrid RAG</strong> (vector + BM25 + RRF + cross-encoder rerank + HyDE + Self-RAG + Corrective RAG) plus GraphRAG entity walks</li>
+<li><strong>Reasoning patterns</strong> — CoT, ReAct, Reflexion, Chain-of-Verification, Step-Back, Semantic Router</li>
+<li><strong>Workflow runtime</strong> — DAG + Saga compensation + HITL approval + event-sourced log</li>
+<li><strong>MCP + A2A</strong> for interop and federation</li>
+<li><strong>OpenTelemetry end-to-end</strong> with OpenInference semantics</li>
+</ul>
+<p>57 test packages, all green. The sandbox is the production code:</p>
+<pre><code class="language-bash">git clone https://github.com/c2siorg/genie.git
+cd genie
+go test ./...           # 57 packages green
+go run ./cmd/genie      # full pipeline, in-process, no Postgres, no network
+make compose-up         # full stack with Postgres + Tempo + Grafana + Ollama
+</code></pre>
+<hr>
+<h2 id="the-takeaway">The takeaway</h2>
+<p><strong>The protocol and the bus are the architecture.</strong> Everything else — the agents, the LLM, the RAG strategy, the prompts — is replaceable. The shape of how messages flow determines whether you can audit, upgrade, observe, and keep the system running.</p>
+<p>Most &ldquo;multi-agent&rdquo; projects skip this part. They have multiple agents, but the agents call each other directly. They have governance, but it&rsquo;s inside the agents. They have observability, but it&rsquo;s per-agent and doesn&rsquo;t compose. They have fallbacks, but only for the LLM call itself.</p>
+<p>That&rsquo;s not multi-agent architecture. That&rsquo;s a monolith with extra files.</p>
+<p>The seven pieces are not optional.</p>
+<hr>
+<p><strong>References</strong></p>
+<ul>
+<li><a href="https://microsoft.github.io/multi-agent-reference-architecture/">Microsoft Multi-Agent Reference Architecture</a></li>
+<li><a href="https://modelcontextprotocol.io/">Anthropic Model Context Protocol</a></li>
+<li><a href="https://github.com/google/a2a">Google Agent2Agent Protocol</a></li>
+<li><a href="https://github.com/c2siorg/genie">Genie — Go reference implementation (MIT)</a></li>
+</ul>
+<p>If you&rsquo;re building multi-agent systems, what&rsquo;s the piece you skipped first — and what did it cost you?</p>
+<h1 id="multiagent-aiarchitecture-systemdesign-llm-distributedsystems-mara-golang-softwarearchitecture">MultiAgent #AIArchitecture #SystemDesign #LLM #DistributedSystems #MARA #Golang #SoftwareArchitecture</h1>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>
