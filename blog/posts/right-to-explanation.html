@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Right-to-Explanation Handler: GDPR Article 22 as a Go HTTP Endpoint — Pratik Dhanave</title>
+<meta name="description" content="How a 200-line Go handler turns an audit log and an eval store into a regulator-friendly answer to 'why did the AI decide that?' — without leaking a single byte of PHI. GDPR Article 22 as a Go HTTP endpoint.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="The Right-to-Explanation Handler: GDPR Article 22 as a Go HTTP Endpoint">
+<meta property="og:description" content="How a 200-line Go handler turns an audit log and an eval store into a regulator-friendly answer to 'why did the AI decide that?' — without leaking a single byte of PHI. GDPR Article 22 as a Go HTTP endpoint.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/right-to-explanation.html">
+<meta property="article:published_time" content="2026-05-26">
+<meta property="article:tag" content="GDPR">
+<meta property="article:tag" content="Privacy Engineering">
+<meta property="article:tag" content="AI Governance">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Right-to-Explanation Handler: GDPR Article 22 as a Go HTTP Endpoint">
+<meta name="twitter:description" content="How a 200-line Go handler turns an audit log and an eval store into a regulator-friendly answer to 'why did the AI decide that?' — without leaking a single byte of PHI. GDPR Article 22 as a Go HTTP endpoint.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/right-to-explanation.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>The Right-to-Explanation Handler: GDPR Article 22 as a Go HTTP Endpoint</h1>
+    <p class="post-subtitle">How a 200-line Go handler turns an audit log and an eval store into a regulator-friendly answer to "why did the AI decide that?" — without leaking a single byte of PHI.</p>
+    <div class="post-meta">
+      <time datetime="2026-05-26">May 26, 2026</time>
+      <span>·</span>
+      <span>AI governance + backend engineering</span>
+    </div>
+    <div class="post-tags"><span class="tag">GDPR</span><span class="tag">Privacy Engineering</span><span class="tag">AI Governance</span><span class="tag">Go</span></div>
+  </header>
+
+  <h2 id="the-regulation-in-one-paragraph">The regulation, in one paragraph</h2>
+<p>GDPR Article 22(3) gives a data subject the right to <strong>&ldquo;obtain human intervention on the part of the controller, to express his or her point of view and to contest the decision.&rdquo;</strong> Article 15 layers in the right of access — <strong>&ldquo;meaningful information about the logic involved, as well as the significance and the envisaged consequences of such processing.&rdquo;</strong> Read together, they describe a feature, not a policy memo: when an automated system makes a consequential decision about a person, that person must be able to (a) ask what happened, (b) get a meaningful answer, and (c) contest it through a human.</p>
+<p>In a hospital, that translates to a clinician calling on behalf of a patient and saying: <em>&ldquo;Why did your platform recommend this diagnosis? Show me the steps. Show me who reviewed it. Show me whether anyone could have overridden it.&rdquo;</em></p>
+<p>In <a href="https://github.com/PratikDhanave/bodh">Bodh</a>, the medical multi-agent platform I&rsquo;ve been writing about, the answer is <code>GET /explain/{case_id}</code>.</p>
+<hr>
+<h2 id="what-the-endpoint-returns">What the endpoint returns</h2>
+<p>The response is a single JSON document. Here&rsquo;s the struct (<code>cmd/care/explain.go</code>):</p>
+<pre><code class="language-go">type Explanation struct {
+    CaseID          string                  `json:&quot;case_id&quot;`
+    TenantID        string                  `json:&quot;tenant_id,omitempty&quot;`
+    GeneratedAt     time.Time               `json:&quot;generated_at&quot;`
+    Status          string                  `json:&quot;status&quot;`          // pending | completed | failed | unknown
+    FinalDiagnosis  string                  `json:&quot;final_diagnosis,omitempty&quot;`
+    Accuracy        float64                 `json:&quot;accuracy_vs_gold,omitempty&quot;`
+    TotalCostUSD    float64                 `json:&quot;total_cost_usd,omitempty&quot;`
+    UnderBudget     *bool                   `json:&quot;under_budget,omitempty&quot;`
+    AgentHops       []AgentHop              `json:&quot;agent_hops&quot;`
+    HumanReviews    []HumanReviewSummary    `json:&quot;human_reviews&quot;`
+    PolicyDecisions []PolicyDecisionSummary `json:&quot;policy_decisions&quot;`
+    EventCounts     map[string]int          `json:&quot;event_counts&quot;`
+    Caveats         []string                `json:&quot;caveats&quot;`
+}
+</code></pre>
+<p>A clinician (or a regulator with the right credentials) gets back:</p>
+<ol>
+<li><strong>The decision</strong> — final diagnosis label, accuracy against the gold answer (if it&rsquo;s a bench case), and whether it stayed under the cost budget.</li>
+<li><strong>The reasoning chain</strong> — <code>AgentHops</code>, an ordered list of which agents emitted what messages in what sequence. Hypothesist, test planner, challenger, cost guardian, judge, human review — every step that touched the case.</li>
+<li><strong>The human-in-the-loop record</strong> — every <code>ReviewRequest</code> that was raised, who decided what, when, and the rationale. Pending reviews surface too.</li>
+<li><strong>The governance trail</strong> — every policy decision (<code>allow</code> / <code>deny</code> / <code>defer</code>) with the reason. If the cost-guardian policy rejected a <code>$5000</code> workup, that decision is here.</li>
+<li><strong>The audit summary</strong> — <code>EventCounts</code> shows how many message events, how many policy decisions, how many errors. The full audit log is the source of truth; the explanation is the projection.</li>
+<li><strong>The caveats</strong> — explicit disclaimers (&ldquo;Bodh is a research and engineering reference. Not a medical device, not approved for clinical use&rdquo;) plus any case-specific caveats, baked into the response so they cannot be stripped by an over-eager UI layer.</li>
+</ol>
+<hr>
+<h2 id="what-the-endpoint-does-not-return">What the endpoint does <strong>not</strong> return</h2>
+<p>This is the part that took the most design work.</p>
+<p>The response carries <strong>zero PHI</strong>. No chief complaint, no HPI narrative, no lab values, no medication names with doses, no patient name, no DOB, no MRN, no SSN. Not because we run a redactor over it — because <strong>the data source itself does not contain PHI</strong>.</p>
+<p>The handler reads from two stores:</p>
+<ul>
+<li><strong><code>pkg/audit.Recorder</code></strong> — the immutable append-only audit log. Its field selection follows the &ldquo;enough to reconstruct, never enough to leak&rdquo; rule: IDs, kinds, timestamps, agent IDs, decision verdicts, redacted reasons. Never clinical content.</li>
+<li><strong><code>pkg/eval.Store</code></strong> — case-level metrics: final diagnosis label, accuracy, cost. The clinical narrative lives in the persistence layer behind row-level-security policies; the eval store records the <em>outcome</em>, not the <em>story</em>.</li>
+</ul>
+<p>So the right-to-explanation surface inherits its privacy guarantee from architecture, not from a regex pass. The handler doesn&rsquo;t need to know what PHI looks like; it can&rsquo;t reach it.</p>
+<p>The test that proves this is short:</p>
+<pre><code class="language-go">func TestExplainHandler_PHIFreeFieldSelection(t *testing.T) {
+    // ... drive the handler against a populated audit + eval store ...
+    body := strings.ToLower(rec.Body.String())
+
+    forbiddenKeys := []string{
+        `&quot;chief_complaint&quot;:`, `&quot;hpi&quot;:`,
+        `&quot;patient_name&quot;:`, `&quot;dob&quot;:`, `&quot;mrn&quot;:`, `&quot;ssn&quot;:`,
+        `&quot;narrative_text&quot;:`, `&quot;test_result_value&quot;:`,
+        `&quot;medication_name&quot;:`, `&quot;medication_dose&quot;:`,
+    }
+    for _, k := range forbiddenKeys {
+        if strings.Contains(body, k) {
+            t.Errorf(&quot;response contains forbidden JSON key %q — PHI surface leaked&quot;, k)
+        }
+    }
+}
+</code></pre>
+<p>If anyone ever tries to add a &ldquo;rich&rdquo; explanation field that quotes the chief complaint, this test fires in CI before the PR can merge.</p>
+<hr>
+<h2 id="why-audit-log-eval-store-is-the-right-design">Why &ldquo;audit log + eval store&rdquo; is the right design</h2>
+<p>The first design instinct is to store an &ldquo;explanation document&rdquo; per case — a separate record summarising what the AI thought. That design has three problems:</p>
+<ol>
+<li><strong>It&rsquo;s a second source of truth.</strong> Now there are two records that can diverge. Audit log says X happened; explanation document says Y was decided. Which is right? The audit log, always — so the explanation document is redundant.</li>
+<li><strong>It can drift from reality.</strong> If someone fixes a bug in the diagnostician three months later, the historical explanation document still reflects the old reasoning. Reconstructing from the audit log + eval store at query time means the explanation always matches what actually happened.</li>
+<li><strong>It expands the PHI surface.</strong> Storing a narrative explanation creates a new place where PHI can land, where access controls must be re-enforced, where breach notification must be re-considered. Computing the explanation from PHI-free sources sidesteps the whole problem.</li>
+</ol>
+<p>Reconstructing at read time also makes the <strong>right-to-erasure</strong> path (GDPR Article 17) cleaner: there&rsquo;s no separate explanation cache to invalidate. Delete the patient&rsquo;s clinical record from the persistence layer (via the documented hard-delete path in <code>pkg/persistence/postgres/</code>), and the explanation handler now returns <code>status: unknown</code> for any future query. No background job, no eventual consistency.</p>
+<hr>
+<h2 id="the-four-kinds-of-audit-event-the-explanation-surfaces">The four kinds of audit event the explanation surfaces</h2>
+<p>Bodh&rsquo;s audit log uses four event kinds, and the explanation handler maps each to a different part of the response:</p>
+<table>
+<thead>
+<tr>
+<th>Audit kind</th>
+<th>Maps to</th>
+<th>What it records</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>KindMessage</code></td>
+<td><code>AgentHops</code></td>
+<td>An agent received and processed a message. Records the sending and receiving agent IDs, the message type, and timestamps. Never the content.</td>
+</tr>
+<tr>
+<td><code>KindPolicyDecision</code></td>
+<td><code>PolicyDecisions</code></td>
+<td>The governance layer evaluated a policy and returned a verdict. Records the policy name, verdict (allow/deny/defer), and a redacted reason.</td>
+</tr>
+<tr>
+<td><code>KindReviewDecision</code></td>
+<td><code>HumanReviews</code></td>
+<td>A clinician decided on a HITL review. Records the review ID, decision (approve/reject/modify), and a redacted reason.</td>
+</tr>
+<tr>
+<td><code>KindAgentError</code></td>
+<td>flag on <code>AgentHops</code> (<code>HadError=true</code>) + <code>Status="failed"</code></td>
+<td>An agent encountered an error. Records the error class and a redacted error text.</td>
+</tr>
+</tbody>
+</table>
+<p>The handler iterates the audit log once, partitions by kind, deduplicates by timestamp where appropriate (a <code>KindReviewDecision</code> event might already appear in the pending-reviews queue), and assembles the response in chronological order.</p>
+<hr>
+<h2 id="status-transitions">Status transitions</h2>
+<p>The <code>status</code> field is computed, not stored:</p>
+<ul>
+<li><code>pending</code> — audit events exist but no eval record yet. The case is still flowing through the pipeline.</li>
+<li><code>completed</code> — audit events exist and an eval record exists. The case finished.</li>
+<li><code>failed</code> — at least one <code>KindAgentError</code> event exists. The case errored.</li>
+<li><code>unknown</code> — no audit events for this case ID. Either it never existed or it was erased.</li>
+</ul>
+<p>This is intentionally observable from the outside. A regulator should not need to understand Bodh&rsquo;s internal state machine; they should see a status and have it match their mental model.</p>
+<hr>
+<h2 id="the-auth-question-honestly">The auth question, honestly</h2>
+<p>Production deployments need authentication on this endpoint, scoped by tenant and possibly by role (a clinician can see their own cases; a compliance officer can see all cases for their tenant; nobody can see another tenant&rsquo;s cases). <strong>The current implementation has no auth on the route.</strong> It&rsquo;s a research reference; the binary scopes the audit log it reads from via <code>BODH_TENANT_ID</code>, but per-request tenant routing — <code>?tenant_id=</code> or a JWT claim — is future work documented in the handler&rsquo;s comments.</p>
+<p>I&rsquo;m calling this out because right-to-explanation is exactly the kind of feature where &ldquo;we&rsquo;ll add auth later&rdquo; is the wrong answer. If you stand up Bodh in front of any system that touches a real patient, wrap this endpoint with your auth middleware on day one. The contract of the response is PHI-safe; the <em>existence</em> of the response for a given case ID is still a fact you don&rsquo;t want to expose to anyone who can guess case IDs.</p>
+<p>The right answer for a production fork is probably a small middleware:</p>
+<pre><code class="language-go">mux.Handle(&quot;GET /explain/{case_id}&quot;,
+    authMiddleware(
+        tenantScopingMiddleware(
+            explainHandler(...))))
+</code></pre>
+<p>And the <code>tenantScopingMiddleware</code> reads the JWT, sets <code>BODH_TENANT_ID</code> from the claim, and refuses if the case&rsquo;s tenant doesn&rsquo;t match.</p>
+<hr>
+<h2 id="what-this-maps-to-in-the-regulatory-landscape">What this maps to in the regulatory landscape</h2>
+<table>
+<thead>
+<tr>
+<th>Regulation</th>
+<th>Article / Section</th>
+<th>What the handler satisfies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>GDPR</strong></td>
+<td>Article 22(3)</td>
+<td>Right to human intervention — the <code>HumanReviews</code> field surfaces the HITL gate.</td>
+</tr>
+<tr>
+<td><strong>GDPR</strong></td>
+<td>Article 15(1)(h)</td>
+<td>&ldquo;Meaningful information about the logic involved&rdquo; — <code>AgentHops</code> + <code>PolicyDecisions</code>.</td>
+</tr>
+<tr>
+<td><strong>GDPR</strong></td>
+<td>Article 17</td>
+<td>Right to erasure — the handler reads from PHI-free stores, so erasure of the patient&rsquo;s clinical record automatically downgrades future explanations to <code>status=unknown</code>.</td>
+</tr>
+<tr>
+<td><strong>21st Century Cures Act</strong></td>
+<td>§3060 CDS carve-out, criterion 4</td>
+<td>&ldquo;Independent review by a healthcare professional&rdquo; — the <code>HumanReviews</code> field is the field-level proof of that.</td>
+</tr>
+<tr>
+<td><strong>HIPAA Privacy Rule</strong></td>
+<td>§164.524 (access of individuals to PHI)</td>
+<td>Orthogonal — the handler is PHI-free by design, so it doesn&rsquo;t fall under §164.524&rsquo;s PHI access scope. Clinical content access is handled separately by the persistence layer.</td>
+</tr>
+<tr>
+<td><strong>HIPAA Security Rule</strong></td>
+<td>§164.312(b) (audit controls)</td>
+<td>The audit log this handler reads from <em>is</em> the §164.312(b) artefact.</td>
+</tr>
+<tr>
+<td><strong>EU AI Act</strong></td>
+<td>Article 13 (transparency for high-risk systems)</td>
+<td>Per-decision transparency, computable from logs without bespoke explanation infrastructure.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="what-it-doesnt-try-to-be">What it doesn&rsquo;t try to be</h2>
+<p>This isn&rsquo;t a global model explanation. It doesn&rsquo;t explain why the LLM weights make Pattern X more likely than Pattern Y in general. It explains <strong>this case</strong> — what messages flowed, what policies fired, what humans decided.</p>
+<p>That&rsquo;s deliberate. Model-level explanations are a research problem; per-decision explanations are an engineering problem. The regulatory frameworks that matter today (GDPR Article 22, Cures Act §3060) ask for the engineering version. The research version is best left to the bench, the red-team catalogue, and the model cards under <a href="https://github.com/PratikDhanave/bodh/tree/main/docs/model-cards"><code>docs/model-cards/</code></a> — which are written manually, not generated per case.</p>
+<hr>
+<h2 id="six-lines-of-test-coverage">Six lines of test coverage</h2>
+<p>The handler ships with six test cases. They&rsquo;re worth listing because they&rsquo;re what regulators would want to see:</p>
+<ol>
+<li><strong>Unknown case</strong> — returns <code>status=unknown</code>, three caveats, empty hops. Confirms the endpoint doesn&rsquo;t 500 on a missing case.</li>
+<li><strong>Reconstructs agent hops</strong> — three <code>KindMessage</code> events become three chronologically-sorted hops. Status is <code>pending</code> (no eval record). Policy decisions are deduplicated.</li>
+<li><strong>Completed case from eval store</strong> — looks up <code>Accuracy=1.0</code>, <code>TotalCostUSD=220.0</code>, <code>UnderBudget=true</code> from the eval record.</li>
+<li><strong>Failed case</strong> — a <code>KindAgentError</code> event flips the case to <code>status=failed</code> and stamps <code>HadError=true</code> on the affected hop.</li>
+<li><strong>HITL decisions and pending reviews</strong> — a decided review (from the audit log) and a pending review (from the queue) both surface, in chronological order, without duplication.</li>
+<li><strong>PHI-free field selection</strong> — the response body, lowercased, contains none of <code>chief_complaint</code>, <code>hpi</code>, <code>patient_name</code>, <code>dob</code>, <code>mrn</code>, <code>ssn</code>, <code>narrative_text</code>, <code>test_result_value</code>, <code>medication_name</code>, <code>medication_dose</code>.</li>
+</ol>
+<p>That last test is the one that matters in a review. The first five prove the handler works; the sixth proves it can&rsquo;t be made to misbehave by a careless schema change.</p>
+<hr>
+<h2 id="what-id-build-next">What I&rsquo;d build next</h2>
+<ol>
+<li><strong>Per-request tenant routing</strong> — JWT-claim-driven tenant scoping, replacing the binary-level <code>BODH_TENANT_ID</code>.</li>
+<li><strong>Signed responses</strong> — a JWS signature on the explanation document so it can be archived and replayed in a regulatory proceeding.</li>
+<li><strong>PDF rendering</strong> — the same JSON document rendered as a one-page PDF for the patient&rsquo;s record, with the caveats on a footer.</li>
+<li><strong>An <code>/explain</code> index</strong> — <code>GET /explain</code> (no case ID) returns a paginated list of explainable cases for the tenant, again PHI-free (just IDs, kinds, statuses).</li>
+</ol>
+<p>None of these change the contract. The handler&rsquo;s invariants — PHI-free, audit-sourced, computed-not-stored — already make it forward-compatible with all four.</p>
+<hr>
+<h2 id="the-takeaway">The takeaway</h2>
+<p>GDPR Article 22 reads like a compliance burden. In a system where the audit log is already PHI-free and append-only, where governance decisions are already structured records, where HITL is already a queue with an audit trail — the right-to-explanation handler is <strong>200 lines of Go that project existing data onto a JSON shape</strong>.</p>
+<p>The work is upstream. Build the audit log right, build governance as code, build the HITL gate as a first-class queue, and <code>GET /explain/{case_id}</code> is almost free. Build them wrong, and no amount of handler engineering will give you a regulator-friendly answer.</p>
+<p>Code: <a href="https://github.com/PratikDhanave/bodh/blob/main/cmd/care/explain.go"><code>cmd/care/explain.go</code></a> (handler), <a href="https://github.com/PratikDhanave/bodh/blob/main/cmd/care/explain_test.go"><code>cmd/care/explain_test.go</code></a> (six-case suite), <a href="https://github.com/PratikDhanave/bodh/blob/main/docs/aigp-governance-mapping.md"><code>docs/aigp-governance-mapping.md</code></a> (regulatory cross-reference).</p>
+<p><em>Bodh is a research and engineering reference. Not a medical device, not approved for clinical use.</em></p>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>

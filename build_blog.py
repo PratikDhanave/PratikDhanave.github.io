@@ -120,6 +120,13 @@ POST_META = {
         "audience": "Cloud architects + medical AI engineers",
         "excerpt": "Google's GKE AI infrastructure docs list ~40 integrations. Here's a field map of which ones actually matter when the workload is a HIPAA-aware multi-agent medical AI, and where the gaps sit.",
     },
+    "10-right-to-explanation.md": {
+        "slug": "right-to-explanation",
+        "date": "2026-05-26",
+        "tags": ["GDPR", "Privacy Engineering", "AI Governance", "Go"],
+        "audience": "AI governance + backend engineering",
+        "excerpt": "How a 200-line Go handler turns an audit log and an eval store into a regulator-friendly answer to 'why did the AI decide that?' — without leaking a single byte of PHI. GDPR Article 22 as a Go HTTP endpoint.",
+    },
 }
 
 
