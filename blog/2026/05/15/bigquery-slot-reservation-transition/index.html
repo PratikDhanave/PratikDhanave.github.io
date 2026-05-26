@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BigQuery slot reservation transitions — when to commit, when to stay on-demand — Pratik Dhanave</title>
+<meta name="description" content="Capacity-based slot reservation is the biggest single FinOps lever for predictable batch workloads, but the transition is harder than the math. Notes from sizing reservations across enterprise GCP customers.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="BigQuery slot reservation transitions — when to commit, when to stay on-demand">
+<meta property="og:description" content="Capacity-based slot reservation is the biggest single FinOps lever for predictable batch workloads, but the transition is harder than the math. Notes from sizing reservations across enterprise GCP customers.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/2026/05/15/bigquery-slot-reservation-transition/">
+<meta property="article:published_time" content="2026-05-15T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="BigQuery">
+<meta property="article:tag" content="FinOps">
+<meta property="article:tag" content="GCP">
+<meta property="article:tag" content="Reservations">
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="BigQuery slot reservation transitions — when to commit, when to stay on-demand">
+<meta name="twitter:description" content="Capacity-based slot reservation is the biggest single FinOps lever for predictable batch workloads, but the transition is harder than the math. Notes from sizing reservations across enterprise GCP customers.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/2026/05/15/bigquery-slot-reservation-transition/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff;
+  --text: #1a1a1a; --text-dim: #555; --text-muted: #888;
+  --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22;
+    --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590;
+    --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7; color: var(--text); background: var(--bg);
+  -webkit-font-smoothing: antialiased; font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-05-15">May 15, 2026</time>
+  <span>·</span>
+  <span>4 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">BigQuery</span>
+  <span class="tag">FinOps</span>
+  <span class="tag">GCP</span>
+  <span class="tag">Reservations</span>
+</div>
+
+<article class="post">
+<h1>Slot reservations — the math and the politics</h1>
+<blockquote>
+<p>Capacity-based slot reservation is the single biggest one-time
+FinOps lever in BigQuery for workloads with predictable diurnal
+patterns. Here is the math, the sizing process we used, and the
+two organisational traps that have killed more reservation moves
+than the math has.</p>
+</blockquote>
+<h2>The math</h2>
+<p>On-demand: $5 per TB scanned (US pricing as of mid-2026, varies by
+region). You pay per byte regardless of how much capacity you used.</p>
+<p>Capacity (Enterprise edition): ~$0.06 per slot-hour, baseline +
+autoscale. 100 baseline slots running 24×7 is roughly $4,400 / month
+plus autoscale up-charge for bursts.</p>
+<p>Break-even depends on workload shape. For a predictable batch
+workload scanning ~1 PB / month on-demand, that&rsquo;s ~$5,000 / month.
+A 100-slot reservation that absorbs that workload at maybe 60-70%
+utilisation costs ~$4,400 — already cheaper. Add the autoscale band
+on top for the peaks and you save 20-30%.</p>
+<p>For interactive ad-hoc workloads with low total bytes scanned, the
+math goes the other way. Reservation idle time is real cost.</p>
+<h2>The sizing problem</h2>
+<p>You can&rsquo;t size a reservation correctly by averaging the on-demand
+spend. The reservation needs to absorb the <em>peak</em> of the regular
+workload, not the mean. Two complications:</p>
+<ol>
+<li>
+<p><strong>Concurrency.</strong> A query that scans 100 GB might use 200 slots
+   for 30 seconds or 50 slots for two minutes. The per-query
+   slot-time integral is what matters, and INFORMATION_SCHEMA tells
+   you both pieces.</p>
+</li>
+<li>
+<p><strong>Burst patterns.</strong> A reservation that&rsquo;s flat 24×7 wastes money
+   overnight. A reservation with autoscale handles bursts but the
+   autoscale charge is on top of baseline; the question is what
+   baseline to set so autoscale fires rarely enough.</p>
+</li>
+</ol>
+<p>The sizing query I run first:</p>
+<pre><code class="language-sql">SELECT
+  TIMESTAMP_TRUNC(creation_time, HOUR) AS hour,
+  SUM(total_slot_ms) / (1000 * 60 * 60) AS slot_hours,
+  COUNT(*) AS jobs
+FROM `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE creation_time &gt; TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY)
+GROUP BY hour
+ORDER BY hour;
+</code></pre>
+<p>Plot it. The 95th percentile of the hourly slot-hour is roughly the
+baseline you want. The peak above that is where autoscale lives.</p>
+<h2>The first organisational trap</h2>
+<p>The reservation purchase is a one-year commitment (or three, with a
+bigger discount). The engineering team can sign off on the
+recommendation, but the contract goes through finance and
+procurement. That&rsquo;s a 2-4 week loop minimum.</p>
+<p>In the gap, two things happen:</p>
+<ul>
+<li>The workload changes. Someone adds a new dashboard, a new
+  pipeline, retires an old one. The reservation you sized in week 1
+  is too big or too small by week 4.</li>
+<li>Engineering enthusiasm fades. The team has moved on; nobody owns
+  the post-purchase validation.</li>
+</ul>
+<p>Mitigation: do the contract negotiation in parallel with the
+engineering sizing, not after. Set a calendar reminder for +30d to
+re-validate the reservation against actual usage. Don&rsquo;t let the
+purchase be the end-state.</p>
+<h2>The second organisational trap</h2>
+<p>Reservations are billed monthly regardless of who runs the queries.
+If multiple teams share a project, the shared reservation needs an
+attribution scheme. Otherwise:</p>
+<ul>
+<li>Team A scales their workload 3×. The reservation runs hotter.
+  Team B&rsquo;s queries queue.</li>
+<li>Team A&rsquo;s manager doesn&rsquo;t see a cost spike because the reservation
+  is flat-rate. Team B&rsquo;s manager sees latency complaints they
+  don&rsquo;t understand.</li>
+</ul>
+<p>We solved this with project-level reservation assignments where
+politically possible, and with labels + a Looker dashboard that
+showed <code>slot_hours_consumed_by_team</code> where the projects were
+already shared. The dashboard alone — without changing billing —
+shifted behaviour within a quarter.</p>
+<h2>When NOT to reserve</h2>
+<ul>
+<li><strong>Workload is genuinely ad-hoc.</strong> Data scientists running
+  exploratory queries with high variance. The reservation is idle
+  60% of the time; on-demand is honestly cheaper.</li>
+<li><strong>You&rsquo;re early in a build-out.</strong> Workload is going to triple in
+  six months. Lock-in is a bet on a shape that won&rsquo;t hold.</li>
+<li><strong>You haven&rsquo;t done query optimisation yet.</strong> Reserving against
+  the un-optimised workload buys 30% too much.</li>
+</ul>
+<p>The right order is: optimise first, reserve second. The
+optimisation typically removes 20-40% of the workload, and that&rsquo;s a
+20-40% smaller reservation you commit to.</p>
+<h2>The 30-day check</h2>
+<p>After a reservation purchase, the +30d check is the most important
+moment. The questions to answer:</p>
+<ul>
+<li>Is the baseline saturated or idle most of the time?</li>
+<li>Is autoscale firing? How much, when?</li>
+<li>Are queries queuing at peak? (<code>pending_time</code> in the JOBS view.)</li>
+</ul>
+<p>If the baseline is idle most of the time and queries aren&rsquo;t queuing,
+you over-bought. Most reservation contracts allow downward changes
+with notice; use them.</p>
+<p>If queries are queuing at peak, you under-bought the baseline. Add
+slots or extend the autoscale ceiling.</p>
+<p>The reservation is not a fire-and-forget purchase. Treat it the
+same way you&rsquo;d treat any other infrastructure commitment — with a
+monthly review.</p>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>

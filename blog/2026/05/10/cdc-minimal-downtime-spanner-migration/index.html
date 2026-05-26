@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CDC for minimal-downtime Spanner migration — Datastream + Pub/Sub + Dataflow — Pratik Dhanave</title>
+<meta name="description" content="A bulk migration takes hours; the application can&#x27;t be offline that long. CDC keeps the source and destination in sync while the bulk runs, and a quick cutover swaps traffic. The handoff between bulk and CDC is where most migrations go wrong.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="CDC for minimal-downtime Spanner migration — Datastream + Pub/Sub + Dataflow">
+<meta property="og:description" content="A bulk migration takes hours; the application can&#x27;t be offline that long. CDC keeps the source and destination in sync while the bulk runs, and a quick cutover swaps traffic. The handoff between bulk and CDC is where most migrations go wrong.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/2026/05/10/cdc-minimal-downtime-spanner-migration/">
+<meta property="article:published_time" content="2026-05-10T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Spanner">
+<meta property="article:tag" content="Datastream">
+<meta property="article:tag" content="Pub/Sub">
+<meta property="article:tag" content="Dataflow">
+<meta property="article:tag" content="Migration">
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="CDC for minimal-downtime Spanner migration — Datastream + Pub/Sub + Dataflow">
+<meta name="twitter:description" content="A bulk migration takes hours; the application can&#x27;t be offline that long. CDC keeps the source and destination in sync while the bulk runs, and a quick cutover swaps traffic. The handoff between bulk and CDC is where most migrations go wrong.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/2026/05/10/cdc-minimal-downtime-spanner-migration/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff;
+  --text: #1a1a1a; --text-dim: #555; --text-muted: #888;
+  --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22;
+    --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590;
+    --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7; color: var(--text); background: var(--bg);
+  -webkit-font-smoothing: antialiased; font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-05-10">May 10, 2026</time>
+  <span>·</span>
+  <span>5 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">Spanner</span>
+  <span class="tag">Datastream</span>
+  <span class="tag">Pub/Sub</span>
+  <span class="tag">Dataflow</span>
+  <span class="tag">Migration</span>
+</div>
+
+<article class="post">
+<h1>CDC for Spanner migration — the handoff that breaks</h1>
+<blockquote>
+<p>Bulk-loading a 14 TB table into Spanner takes hours. Production
+can&rsquo;t be offline that long. The standard pattern is bulk + CDC:
+bulk for the historical data, CDC for the changes that happen
+while the bulk runs. The handoff between the two is where
+migrations fall over.</p>
+</blockquote>
+<h2>The pipeline shape</h2>
+<pre><code>Source DB (Postgres) ───► Datastream ───► Pub/Sub ───► Dataflow ───► Spanner
+                              │
+                              └─► writes change events from the
+                                   source's logical replication slot
+</code></pre>
+<p>Datastream tails the source&rsquo;s WAL. Pub/Sub buffers. Dataflow
+applies the changes to Spanner. The pipeline is delivery-reliable
+but not in-order.</p>
+<h2>The ordering problem</h2>
+<p>Pub/Sub doesn&rsquo;t preserve order across messages — events for the
+same row can arrive out of order. The Dataflow consumer has to
+reorder them before applying to Spanner, or it&rsquo;ll apply an old
+UPDATE on top of a newer one.</p>
+<p>The Migration Tool&rsquo;s CDC consumer does this with a windowed buffer
+keyed by the source&rsquo;s commit timestamp:</p>
+<pre><code>for each event:
+  insert into buffer keyed by (table, pk, commit_ts)
+  flush buffer entries older than (now - window)
+
+flush:
+  for each (table, pk):
+    apply the events in commit_ts order
+</code></pre>
+<p>The window has to be larger than the worst-case
+Datastream-to-Dataflow latency. Too small and you apply
+out-of-order. Too large and the destination lags. In practice 30-60
+seconds is the right ballpark; we tune per workload.</p>
+<h2>The handoff</h2>
+<p>The handoff sequence — the one that&rsquo;s easy to get wrong:</p>
+<ol>
+<li><strong>Start CDC</strong> against the source. CDC begins capturing changes
+   from time T0.</li>
+<li><strong>Snapshot the source</strong> at time T1 &gt; T0. The snapshot is a
+   consistent point-in-time view.</li>
+<li><strong>Bulk-load the snapshot</strong> into Spanner. Takes hours; CDC keeps
+   running in parallel.</li>
+<li><strong>Bulk completes</strong> at time T2. Spanner now has the snapshot up
+   to T1.</li>
+<li><strong>Apply CDC events</strong> with commit_ts &gt; T1 to Spanner. This is the
+   gap between the snapshot and now.</li>
+<li><strong>Cutover</strong> when CDC lag is small (e.g. &lt;10 seconds): briefly
+   block writes on the source, drain CDC, switch reads + writes
+   to Spanner.</li>
+</ol>
+<p>Steps 1 and 2 <em>must</em> be in that order. If you snapshot first and
+start CDC second, you have a gap between the snapshot timestamp
+and the CDC start where changes are lost. Most migration failures
+trace to inverting these two steps.</p>
+<h2>The deduplication problem</h2>
+<p>Step 5 applies CDC events from T0 to now. But the bulk in step 3
+already applied changes up to T1. So the CDC events between T0 and
+T1 are duplicates of changes already in Spanner.</p>
+<p>Two ways to handle this:</p>
+<ol>
+<li><strong>Idempotent application.</strong> Use <code>INSERT OR UPDATE</code> semantics.
+   The duplicate doesn&rsquo;t matter because applying the same change
+   twice is a no-op.</li>
+<li><strong>Filter by timestamp.</strong> Drop CDC events with commit_ts &lt; T1.</li>
+</ol>
+<p>Option 1 is more robust if your schema supports it. Option 2 is
+faster but breaks if the snapshot timestamp is fuzzy (some
+databases give you only second-resolution timestamps for the
+snapshot, and CDC events at the boundary become ambiguous).</p>
+<p>The Migration Tool uses option 1 by default and falls back to
+option 2 for sources where idempotent application isn&rsquo;t safe.</p>
+<h2>What goes wrong</h2>
+<p>Three classic failure modes:</p>
+<h3>1. Snapshot is too old</h3>
+<p>You started the snapshot at midnight, the bulk ran for 14 hours,
+CDC has been buffering changes for 14 hours, the CDC consumer
+hasn&rsquo;t kept up. The lag is now hours, not seconds. Cutover would
+be a multi-hour outage.</p>
+<p>Mitigation: start the CDC consumer earlier, or run it with more
+parallelism, or shard the bulk so it completes faster.</p>
+<h3>2. Schema drift</h3>
+<p>The source schema changed during the migration. A column was added.
+The CDC events for that column don&rsquo;t have a Spanner column to land
+in. Dataflow errors out.</p>
+<p>Mitigation: freeze schema changes during the migration window. If
+that&rsquo;s not possible, plan a schema sync step before the cutover.</p>
+<h3>3. Dataflow consumer crash with state loss</h3>
+<p>The Dataflow consumer&rsquo;s buffer was in memory. Job restart loses
+the buffer; the next CDC events apply out of order against rows
+that were waiting for their predecessor.</p>
+<p>Mitigation: persist the buffer state. The Migration Tool does this
+via Cloud Storage checkpointing; if you roll your own consumer,
+build the same.</p>
+<h2>DLQ patterns</h2>
+<p>When the consumer can&rsquo;t apply an event (schema mismatch, type
+incompatibility, FK violation), send it to a dead-letter queue
+rather than crashing. The DLQ gives operators a place to inspect
+and re-apply manually.</p>
+<p>The DLQ schema we used:</p>
+<pre><code>{
+  &quot;source_event&quot;: &lt;original Pub/Sub message&gt;,
+  &quot;error&quot;: &quot;FK violation on customer_id=123&quot;,
+  &quot;retry_count&quot;: 3,
+  &quot;last_attempt&quot;: &quot;2026-06-04T14:23:01Z&quot;
+}
+</code></pre>
+<p>The DLQ topic feeds into a Cloud Storage bucket. An operator can
+download a day&rsquo;s worth, fix root cause in the source, and replay.</p>
+<h2>The cutover script</h2>
+<p>The cutover is the most-rehearsed part of the migration. The
+script:</p>
+<pre><code>1. Acquire write lock on source (deny new writes)
+2. Wait for CDC lag to reach zero
+3. Verify row counts: source = spanner
+4. Sample-diff 1000 random rows
+5. Update application config: writes go to spanner
+6. Update application config: reads go to spanner
+7. Release write lock on source (now read-only)
+8. Monitor for 24 hours; rollback path remains until verified
+</code></pre>
+<p>Steps 5 and 6 are usually separated by minutes — flip writes
+first, wait for the dust to settle, then flip reads. If reads
+break, you have a fallback.</p>
+<p>The script lives in version control. The team rehearses it against
+staging cutovers at least three times before the production
+cutover. The first one always reveals something missed.</p>
+<h2>What I learned contributing</h2>
+<p>The CDC handoff was the most subtle part of the Spanner Migration
+Tool I worked on. The bulk loader is well-trodden territory; the
+handoff is where the per-source quirks accumulate. Most of the PRs
+I landed in this area were small fixes — a different ordering
+guarantee from a new Datastream version, a corner case in the
+deduplication when the source used millisecond timestamps, an
+improvement in the DLQ schema.</p>
+<p>The pattern transfers beyond Spanner. Any minimal-downtime
+migration that mixes bulk + CDC has this shape. The discipline
+around start order, deduplication, and cutover rehearsal is more
+important than the specific tools.</p>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>

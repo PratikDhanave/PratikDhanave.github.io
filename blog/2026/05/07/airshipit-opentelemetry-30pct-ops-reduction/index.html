@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>airshipit + OpenTelemetry — 30% reduction in manual ops in a multi-vendor OSS project — Pratik Dhanave</title>
+<meta name="description" content="Notes from integrating OpenTelemetry into airshipit, an open-source bare-metal Kubernetes lifecycle project with contributions from Ericsson, AT&amp;T, Microsoft, and others. The hard part wasn&#x27;t OTel; it was making distributed traces useful across foreign code.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="airshipit + OpenTelemetry — 30% reduction in manual ops in a multi-vendor OSS project">
+<meta property="og:description" content="Notes from integrating OpenTelemetry into airshipit, an open-source bare-metal Kubernetes lifecycle project with contributions from Ericsson, AT&amp;T, Microsoft, and others. The hard part wasn&#x27;t OTel; it was making distributed traces useful across foreign code.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/2026/05/07/airshipit-opentelemetry-30pct-ops-reduction/">
+<meta property="article:published_time" content="2026-05-07T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="OpenTelemetry">
+<meta property="article:tag" content="Kubernetes">
+<meta property="article:tag" content="Open Source">
+<meta property="article:tag" content="Observability">
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="airshipit + OpenTelemetry — 30% reduction in manual ops in a multi-vendor OSS project">
+<meta name="twitter:description" content="Notes from integrating OpenTelemetry into airshipit, an open-source bare-metal Kubernetes lifecycle project with contributions from Ericsson, AT&amp;T, Microsoft, and others. The hard part wasn&#x27;t OTel; it was making distributed traces useful across foreign code.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/2026/05/07/airshipit-opentelemetry-30pct-ops-reduction/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff;
+  --text: #1a1a1a; --text-dim: #555; --text-muted: #888;
+  --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22;
+    --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590;
+    --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7; color: var(--text); background: var(--bg);
+  -webkit-font-smoothing: antialiased; font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-05-07">May 7, 2026</time>
+  <span>·</span>
+  <span>4 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">OpenTelemetry</span>
+  <span class="tag">Kubernetes</span>
+  <span class="tag">Open Source</span>
+  <span class="tag">Observability</span>
+</div>
+
+<article class="post">
+<h1>Integrating OpenTelemetry into airshipit</h1>
+<blockquote>
+<p>airshipit is an open-source project for declarative bare-metal
+Kubernetes lifecycle management — used by telecom operators for
+things like 5G core deployment. Contributions come from Ericsson,
+AT&amp;T, Microsoft, and others. I worked on the OpenTelemetry
+integration. The integration itself took weeks; making the traces
+usable across multi-vendor code took months.</p>
+</blockquote>
+<h2>The starting point</h2>
+<p>airshipit was a constellation of components: a CLI, a couple of
+controllers, the underlying provisioning workflow. Each emitted
+structured logs but no traces. When a deployment failed three
+hours in, the operator had to grep across components and
+reconstruct the timeline manually.</p>
+<p>The brief: integrate OpenTelemetry so a single trace covers the
+end-to-end provisioning, surface that trace in the operator&rsquo;s
+existing observability stack (varied by vendor — Grafana Tempo for
+some, Honeycomb for others, Lightstep for yet others), and reduce
+the manual reconstruction time.</p>
+<h2>What OTel gave us</h2>
+<p>The straightforward part: instrument each component with the OTel
+SDK, emit spans, propagate trace context across HTTP and Kubernetes
+events.</p>
+<p>The result was the operator could pull one trace ID from the CLI
+output and see every operation across every component on the
+trace. The &ldquo;what happened in those three hours&rdquo; question moved
+from a grep exercise to a Jaeger/Tempo browse.</p>
+<p>This bit was straightforward because OTel is well-designed. The
+work is mostly mechanical.</p>
+<h2>What OTel didn&rsquo;t give us — context across foreign code</h2>
+<p>Multi-vendor OSS means components from different teams with
+different conventions. Ericsson&rsquo;s component might emit spans named
+one way; AT&amp;T&rsquo;s another; Microsoft&rsquo;s a third. Without coordination
+the traces were technically correct and operationally useless —
+nobody could read &ldquo;namespace.k8s.apply.do&rdquo; and &ldquo;azureNetwork.x&rdquo;
+and &ldquo;ericsson_provision.attempt&rdquo; together as one story.</p>
+<p>We added two cross-cutting things:</p>
+<ol>
+<li><strong>A shared span naming convention.</strong> A short document agreed
+   across the vendors: spans named <code>verb.subject</code> (e.g.
+   <code>apply.cluster</code>, <code>wait.pod</code>, <code>provision.host</code>), top-level
+   attributes pulled from a fixed list, no PII in attributes.</li>
+<li><strong>A semantic glossary.</strong> Each vendor&rsquo;s contributors mapped their
+   internal terms to the convention. &ldquo;Host&rdquo; meant the same thing
+   everywhere; &ldquo;node&rdquo; meant something different; the glossary
+   resolved it.</li>
+</ol>
+<p>The convention took two video calls and one PR template; the
+glossary took longer because internal vocabularies are surprisingly
+load-bearing.</p>
+<h2>The propagation surprise</h2>
+<p>Trace context propagates over HTTP via the W3C <code>traceparent</code>
+header. That covers most distributed systems.</p>
+<p>airshipit had Kubernetes events as a propagation boundary — one
+controller fires an event, another reacts. The trace context
+doesn&rsquo;t ride along on a Kubernetes event by default.</p>
+<p>We solved it with a custom annotation. The producing controller
+wrote <code>airshipit.io/trace-context: 00-...-...</code> on the related
+resource; the consuming controller read it and used it as the
+parent of its spans. The result: traces that crossed event
+boundaries cleanly.</p>
+<p>This required two PRs across the affected controllers and a small
+update to the OTel propagator. The pattern transferred to other
+event-driven Kubernetes projects.</p>
+<h2>The 30% number</h2>
+<p>The operator team measured &ldquo;time from deployment failure to root
+cause identified&rdquo; before and after the OTel integration. The
+median dropped from ~45 minutes to ~14 minutes — a ~30% reduction
+in manual ops time on a per-incident basis, multiplied across the
+incident volume.</p>
+<p>The bulk of the win wasn&rsquo;t OTel per se. It was:</p>
+<ul>
+<li>One trace ID per deployment instead of N component logs to
+  grep.</li>
+<li>Cross-component spans showing the actual ordering and durations.</li>
+<li>The naming convention making the trace readable without
+  re-learning each vendor&rsquo;s terminology.</li>
+</ul>
+<p>Without the naming work the traces would have been technically
+correct and operationally unloved.</p>
+<h2>What I&rsquo;d do differently</h2>
+<p>Two things:</p>
+<ol>
+<li>
+<p><strong>Start the naming convention before the instrumentation.</strong> I
+   did them in the wrong order. We had instrumentation across all
+   components by the time the naming convention was ratified, and
+   we had to go back and refactor. Six PRs that could have been
+   none.</p>
+</li>
+<li>
+<p><strong>Build the operator dashboards before declaring success.</strong> The
+   integration was technically complete when traces flowed; it
+   was operationally complete when the on-call had dashboards
+   they actually checked. The dashboards lagged the integration
+   by months; the perceived value of the work tracked the
+   dashboard adoption, not the instrumentation date.</p>
+</li>
+</ol>
+<h2>The contribution shape</h2>
+<p>Multi-vendor OSS contributions need a particular discipline:</p>
+<ul>
+<li><strong>Small PRs.</strong> A 200-line change reviewed by three vendors is
+  easier than a 2000-line change.</li>
+<li><strong>Decision docs.</strong> Every architectural choice (the naming
+  convention, the Kubernetes-annotation propagator) was written
+  up as a one-page doc before the PR. The doc could be reviewed
+  on its own; the PR was then a mechanical follow-up.</li>
+<li><strong>No vendor-specific assumptions in core.</strong> The OTel integration
+  shipped with vendor-neutral defaults; vendor-specific
+  exporters lived in their own modules.</li>
+</ul>
+<p>The contribution rhythm was slower than internal work but the
+artefact had more reviewers, was used by more operators, and
+generally became more robust over time. Open source pays back, but
+the patience is real.</p>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>
