@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic security in production — the operations playbook — Pratik Dhanave</title>
+<meta name="description" content="Twelve months of running multi-agent AI in a regulated context. SLIs that matter, the incident runbook, drift detection, continuous adversarial testing, secret rotation, compliance posture as code.">
+<meta name="author" content="Pratik Dhanave">
+
+<!-- Open Graph -->
+<meta property="og:title" content="Agentic security in production — the operations playbook">
+<meta property="og:description" content="Twelve months of running multi-agent AI in a regulated context. SLIs that matter, the incident runbook, drift detection, continuous adversarial testing, secret rotation, compliance posture as code.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/2026/04/20/agentic-security-in-production/">
+<meta property="article:published_time" content="2026-04-20T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Security">
+<meta property="article:tag" content="Operations">
+<meta property="article:tag" content="SRE">
+<meta property="article:tag" content="Multi-Agent AI">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Agentic security in production — the operations playbook">
+<meta name="twitter:description" content="Twelve months of running multi-agent AI in a regulated context. SLIs that matter, the incident runbook, drift detection, continuous adversarial testing, secret rotation, compliance posture as code.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/2026/04/20/agentic-security-in-production/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #555;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #b1bac4;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container {
+  max-width: 800px; margin: 0 auto; padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+}
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+
+.post-meta {
+  font-size: 13px; color: var(--text-muted);
+  margin-bottom: 18px;
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+}
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag {
+  font-size: 12px; font-weight: 500; padding: 3px 10px;
+  border-radius: 12px; background: var(--tag-bg); color: var(--tag-text);
+}
+
+article.post h1 {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 800; letter-spacing: -0.02em; line-height: 1.15;
+  margin-bottom: 16px; color: var(--text);
+}
+article.post h2 {
+  font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px;
+  color: var(--text); letter-spacing: -0.01em;
+}
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+
+article.post blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 4px 0 4px 18px;
+  margin: 18px 0;
+  color: var(--text);
+  font-style: italic;
+  background: var(--bg-elev);
+  border-radius: 0 6px 6px 0;
+}
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+
+article.post code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text);
+}
+article.post pre {
+  background: var(--code-bg);
+  padding: 16px 18px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 18px 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  border: 1px solid var(--border);
+}
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+
+article.post table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 18px 0;
+  font-size: 0.92rem;
+}
+article.post th, article.post td {
+  text-align: left; padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+.post-footer {
+  margin-top: 56px; padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-wrap: wrap; gap: 14px;
+  justify-content: space-between; align-items: center;
+  font-size: 14px;
+}
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+
+footer {
+  text-align: center; padding: 32px 24px;
+  color: var(--text-muted); font-size: 13px;
+  border-top: 1px solid var(--border);
+}
+footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-04-20">April 20, 2026</time>
+  <span>·</span>
+  <span>24 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">Security</span>
+  <span class="tag">Operations</span>
+  <span class="tag">SRE</span>
+  <span class="tag">Multi-Agent AI</span>
+</div>
+
+<article class="post">
+<h1 id="agentic-security-in-production-the-operational-playbook">Agentic Security in Production: The Operational Playbook</h1>
+<p><em>Twelve months of running a 60+ agent financial assistant. Dashboards, runbooks, drift detection, secret rotation, and the day-to-day rituals that decide whether your architecture survives contact with reality.</em></p>
+<hr>
+<h2 id="the-shift-from-is-it-secure-to-is-it-still-secure">The shift from &ldquo;is it secure?&rdquo; to &ldquo;is it still secure?&rdquo;</h2>
+<p>Most security writing about agentic AI stops at deployment day. The architecture diagrams are drawn, the policy YAML is signed by the board, the red-team probe corpus is green in CI, the LLM provider has been benchmarked. Someone runs <code>make up</code>, the smoke test passes, and the article ends.</p>
+<p>That is where the actual work starts.</p>
+<p>I&rsquo;ve spent the last 12 months running Genie — an open-source, RBI FREE-AI–aligned multi-agent financial assistant written in Go, with 60+ specialist agents — through enough production-like iteration to learn that <em>securing an agentic system on day one is roughly 30% of the job</em>. The other 70% is operating it: noticing when something has changed, knowing what to do at 02:17 IST when an alert fires, proving to a regulator six months later that you noticed and acted, and ensuring the safety net you built on day one is still there on day 300.</p>
+<p>I wrote a companion piece — <a href="linkedin-article-security-complete.md">The Complete Security Playbook for Production Agentic AI</a> — covering the architectural patterns: identity, residency, governance at the message bus, resilience wrappers, hash-chained audit logs, the nine attack surfaces. That article answers <em>&ldquo;what do I build?&rdquo;</em>. This one answers the question that comes after: <em>&ldquo;now that I&rsquo;ve built it, what do I actually do every day?&rdquo;</em></p>
+<p>If the architecture piece was the blueprint, this is the building-maintenance manual. SLIs, dashboards, runbooks, drift detection, rotation playbooks, continuous adversarial testing, compliance posture as code. The unglamorous, indispensable work.</p>
+<hr>
+<h2 id="the-operational-slis-that-matter">The operational SLIs that matter</h2>
+<p>A microservice has SLIs you know cold: request rate, error rate, latency, saturation. An agentic system has those, plus a layer that traditional SRE training does not prepare you for. The metrics below are the ones I watch every single day. If any of them moves, I want to know within minutes.</p>
+<h3 id="1-governance-denial-rate-per-policy-per-agent-per-user">1. Governance denial rate (per policy, per agent, per user)</h3>
+<p>Genie&rsquo;s <code>pkg/governance</code> composite stack runs about ten policies on every bus hop — <code>RBACPolicy</code>, <code>ClassificationPolicy</code>, <code>DataResidencyPolicy</code>, <code>ConsentPolicy</code>, <code>PIIBlockPolicy</code>, <code>PromptInjectionPolicy</code>, and the rest. Every denial is a counter increment on <code>genie.governance.denials</code> in <code>pkg/observability/metrics.go</code>, tagged with policy name, agent id, and user id (pseudonymised).</p>
+<p>What I watch:</p>
+<ul>
+<li><strong>By policy</strong>: each one has a normal hum. <code>PIIBlockPolicy</code> denies a small steady trickle. <code>PromptInjectionPolicy</code> should be near zero. A spike on any single policy is the first sign of a probe campaign, a buggy upstream, or a prompt regression.</li>
+<li><strong>By agent</strong>: if <code>kyc_orchestrator</code> starts denying messages it never denied before, either the upstream changed shape or somebody shipped a prompt change.</li>
+<li><strong>By user</strong>: a single user accounting for 80% of injection denials is a security researcher or an attacker. Either way, you want to know.</li>
+</ul>
+<p>In the first six months I had the <em>aggregate</em> denial rate but no breakdowns. When denials spiked, I knew something had broken but spent an hour in traces finding what. The per-dimension breakdown was the highest-leverage observability investment we made.</p>
+<h3 id="2-incident-grade-distribution">2. Incident grade distribution</h3>
+<p>Every guardrail firing in Genie produces a structured incident payload — Annexure VI–shaped, written through <code>pkg/incidents</code> and routed through <code>pkg/incidents.Grade()</code> (a pure deterministic function in <code>pkg/incidents/grading.go</code>) into the hash-chained audit log at <code>pkg/compliance/audit.go</code>.</p>
+<p>The daily SLI: % of incidents by severity (Informational, Low, Medium, High, Critical). Healthy distribution skews heavily toward Informational and Low. The shape of the curve is the SLI; absolute counts are noise. If the High percentage doubles week-over-week, that&rsquo;s the alert.</p>
+<p>Watch the <em>first-offence flag</em>. <code>Grade()</code> returns <code>IsFirstOffense</code> based on a 30-day lookback. A High incident that is a first-offence for that failure mode is different from the fourth one this week.</p>
+<h3 id="3-fallback-firing-rate-per-agent-should-be-near-zero">3. Fallback firing rate (per agent — should be near zero)</h3>
+<p>Every primary agent that touches an LLM has a paired fallback in <code>agents/fallback/</code>. The fallback firing rate is a leading indicator of LLM degradation that bypasses your normal latency dashboards — by the time latency is bad, fallbacks are already firing.</p>
+<p>Healthy baseline: ~0 fires per agent per day under steady-state traffic. A single fire is interesting. Five fires in an hour is an LLM outage in progress. The alert fires <em>before</em> customers feel degradation, because the fallback gives them a useful answer (&ldquo;here&rsquo;s your last cached portfolio snapshot from 14:00 IST&rdquo;) instead of a 500.</p>
+<p>Track per agent, not in aggregate. An aggregate fallback rate of 0.1% means nothing if <code>portfolio_advisor</code> is at 5% and the rest are at zero.</p>
+<h3 id="4-llm-circuit-breaker-openings">4. LLM circuit-breaker openings</h3>
+<p><code>pkg/llm/circuit.go</code> opens after N consecutive errors (default 5). Every open is a metric. Every half-open recovery is a metric. The <em>open</em> event tells you when degradation started; the <em>recover</em> event tells you when it stopped. The difference is the impact window, which is what goes into the post-mortem and (if it crosses the threshold) the regulator notification.</p>
+<p>A circuit that opens-recovers-opens-recovers in a 10-minute window is a flap. Worse than a sustained open — sustained opens get noticed; flaps slip past.</p>
+<h3 id="5-token-exchange-failure-rate">5. Token-exchange failure rate</h3>
+<p>Once OAuth2 token exchange (RFC 8693) ships — Genie&rsquo;s next-quarter item, but every team running 5+ MCP servers lands on it — the token-exchange endpoint is a critical dependency. Failures fall into three buckets: IdP unreachable, token invalid (underlying credential expired or revoked), policy denied (actor-subject combination not permitted). Each bucket has a different runbook. Don&rsquo;t conflate them.</p>
+<h3 id="6-red-team-probe-pass-rate-should-always-be-100">6. Red-team probe pass rate (should always be 100%)</h3>
+<p>Genie ships <code>make red-team</code> (the <code>cmd/red-team</code> binary) which runs the adversarial probe corpus against the active composite policy. Every PR. If a single probe slips through, the build is red and the PR cannot merge.</p>
+<p>The SLI for the running system: the <em>production policy YAML</em> should always pass 100% of the corpus. Not 99%. Not &ldquo;all but two known issues.&rdquo; 100%, with the corpus being a strict superset of the historical attack patterns we&rsquo;ve seen.</p>
+<p>The corpus only ever grows. Anything else is regression.</p>
+<h3 id="7-time-to-detect-for-new-attack-patterns">7. Time-to-detect for new attack patterns</h3>
+<p>When a novel injection pattern shows up in the wild — not in your corpus, not in your test suite — how long does it take you to notice? The honest answer for most teams is &ldquo;as long as it takes for a customer to complain.&rdquo; That&rsquo;s days. The target is hours. The way to hit hours: a daily sample of the top N denied messages (with PII redacted) lands in a queue that a human reviews. Patterns the existing policies aren&rsquo;t catching surface there. Add to the corpus. Re-deploy the policy. The loop closes in the same week.</p>
+<h3 id="8-mean-time-to-revoke-when-a-credential-leaks">8. Mean time to revoke (when a credential leaks)</h3>
+<p>From the moment you know a JWT, KEK, MCP token, or service-account credential is compromised, how long until it is unusable in production?</p>
+<p>The architecture answer is &ldquo;short TTLs, rotation is automatic.&rdquo; The operational answer is &ldquo;do you know what the actual MTTR is, and have you measured it under load?&rdquo; Genie&rsquo;s <code>pkg/auth/jwt.go</code> defaults to 60-minute TTLs. KEK rotation in <code>pkg/crypto</code> happens per-row via the <code>kek_id</code> field on the <code>EncryptedPayload</code>. Both architectures support fast rotation. But &ldquo;supports rotation&rdquo; and &ldquo;has rotated, with a known MTTR, in the last 90 days&rdquo; are very different claims.</p>
+<p>Pick a target. Mine: under 15 minutes from compromise-known to credential-unusable across the fleet. Test it quarterly with a drill.</p>
+<hr>
+<h2 id="the-five-dashboards-every-team-needs">The five dashboards every team needs</h2>
+<p>Pages of metrics with no named view is the same as no metrics. Below are the five named dashboards I keep open across two monitors. Each one answers one operational question, fast.</p>
+<h3 id="dashboard-1-live-governance-posture">Dashboard 1 — Live governance posture</h3>
+<p><em>What policies are firing right now, on what traffic, for what reason?</em></p>
+<p>A single-page view fed by <code>genie.governance.denials</code> counters, tagged with policy, agent, and reason. Time-series for the last 60 minutes. Stacked-bar by policy. The reason field for the top 20 denials in the last hour, sorted by frequency. Pseudonymised user IDs in a separate panel for the top denied principals.</p>
+<p>This is the dashboard you look at <em>first</em> when anything feels off. It tells you in 30 seconds whether the problem is in the policy layer or elsewhere.</p>
+<h3 id="dashboard-2-incident-funnel">Dashboard 2 — Incident funnel</h3>
+<p><em>Annexure VI–shaped, severity-graded, with disclosure status.</em></p>
+<p>Funnel from raw policy denial → graded incident → notified to customer → notified to regulator (where applicable). Drop-offs in the funnel are bugs in the disclosure pipeline. A medium-grade incident that never got a customer notification is a compliance gap, even if the technical resolution was clean.</p>
+<p>Filterable by severity, by system (<code>kyc_orchestrator</code>, <code>payment_orchestrator</code>, etc.), by failure mode, by 7/30/90-day window. The same query the regulator will run is the query that builds this dashboard. Build it once; it earns its keep every quarter.</p>
+<h3 id="dashboard-3-agent-health">Dashboard 3 — Agent health</h3>
+<p><em>Per-agent error rate, fallback rate, p99 latency, panic count.</em></p>
+<p>One row per agent (we run 60+; the row height is small but every row matters). The columns are non-negotiable:</p>
+<ul>
+<li>Error rate (5-minute window, rolling)</li>
+<li>Fallback firing rate (15-minute window)</li>
+<li>p99 latency on <code>genie.agent.handle_duration_ms</code></li>
+<li>Panic count (zero is the only acceptable value; any non-zero number is a P1)</li>
+<li>Messages handled (so you know if an agent has gone <em>quiet</em>, which is its own problem)</li>
+</ul>
+<p>A quiet agent is suspicious. If <code>dividend_planner</code> normally handles 200 messages a day and handled 3 yesterday, either the routing changed or the agent silently crashed at startup. Both are bugs.</p>
+<h3 id="dashboard-4-identity-flows">Dashboard 4 — Identity flows</h3>
+<p><em>Token issuance, exchange, revocation.</em></p>
+<p>JWT issuance rate, average TTL of issued tokens, count of refresh failures, OAuth device-flow polls (the Genie device flow lives in <code>pkg/auth/oauth_device</code>). Once token exchange ships: exchange request rate, exchange failure rate (by reason), exchanged-token cache hit rate.</p>
+<p>Revocations are the most important panel. Every event has a reason: logout, admin revocation, compromise response, TTL expiry. If &ldquo;compromise response&rdquo; spikes, you have a security event in progress.</p>
+<h3 id="dashboard-5-adversarial-verification">Dashboard 5 — Adversarial verification</h3>
+<p><em>Red-team CI history, BCP drill history, posture drift.</em></p>
+<p>A timeline. Every PR&rsquo;s <code>make red-team</code> result. Every nightly <code>make bcp-drill</code> result. Every change to the policy YAML hash (exposed on <code>/v1/disclosures</code>). The corpus size over time (it should monotonically grow). The most recent external penetration test&rsquo;s verdict.</p>
+<p>The point of this dashboard isn&rsquo;t real-time response; it&rsquo;s <em>trend</em>. A policy hash that changes weekly is healthy iteration. One that hasn&rsquo;t changed in six months is policy rot.</p>
+<hr>
+<h2 id="incident-response-runbook-for-agentic-systems">Incident response runbook for agentic systems</h2>
+<p>Microservice incident response is a solved problem — pull the on-call playbook, identify the failing service, scale or roll back, post-mortem. Agentic incidents are different in three specific ways: the failure can be in the policy layer (which microservice playbooks don&rsquo;t cover), the failure can be in the LLM (which is a third-party black box), and the failure can be <em>nondeterministic</em> (which makes reproduction hard).</p>
+<p>Below is what we actually do, broken down by the first 5 minutes, 15 minutes, 1 hour, and 1 day.</p>
+<h3 id="first-5-minutes-query-the-structured-incident-log">First 5 minutes — query the structured incident log</h3>
+<p>The first move is <em>not</em> to grep logs. The first move is to query <code>/v1/incidents</code> (or the underlying audit table, whichever your team has access to faster). The structured payload tells you:</p>
+<ul>
+<li>What fired (which policy, which agent, which failure mode)</li>
+<li>What user (pseudonymised)</li>
+<li>What classification (PII? Public? Internal?)</li>
+<li>What severity grade</li>
+<li>What <code>IsFirstOffense</code> says — is this a one-off or a pattern?</li>
+</ul>
+<p>Five minutes is enough to know: is this a single user under attack, is this a campaign across users, is this a policy regression that shipped 90 minutes ago, or is this an upstream provider degrading?</p>
+<p>The architecture article describes <em>why</em> incidents are structured at the source. The operational payoff is here: the first 5 minutes of triage are a query, not a grep.</p>
+<h3 id="first-15-minutes-isolate">First 15 minutes — isolate</h3>
+<p>Isolation in an agentic system has more knobs than in microservices:</p>
+<ul>
+<li><strong>Revoke tokens</strong> for the affected user (or principal class). The <code>pkg/auth/jwt.go</code> module supports revocation through the JTI denylist; the operational question is whether you&rsquo;ve ever actually exercised the denylist under load. (See the secret rotation section.)</li>
+<li><strong>Drain the affected agent from the registry</strong>. Genie&rsquo;s <code>pkg/registry/registry.go</code> is the source of truth for which agents are accepting messages. A drain is a registry update; the orchestrator will route around the drained agent. Far better than killing the pod (which leaves in-flight messages dangling).</li>
+<li><strong>Tighten the policy</strong> — temporarily lower the relevant denial thresholds. Policy YAML reload is hot; the active hash will change on the dashboard, and the change will be in the audit log. (Do this from a board-approved emergency-procedures file, not by editing the live config. The point of policy-as-code is that emergencies don&rsquo;t bypass the review trail.)</li>
+<li><strong>Open the circuit</strong> on the affected LLM provider. <code>pkg/llm/circuit.go</code> exposes a manual trip; the system will fall back to deterministic agents for the duration.</li>
+</ul>
+<p>The 15-minute target: the active blast radius is bounded. Customer-facing degradation is the fallback agent&rsquo;s message, not a 500.</p>
+<h3 id="first-hour-trace-replay-via-otel">First hour — trace replay via OTel</h3>
+<p>Now the forensics work begins. Genie emits OTel traces with the trace ID flowing through <code>msg.Metadata["trace_id"]</code> from the HTTP request through every bus hop. You can pull a single trace and see the full path: which agents handled the message, which policies evaluated, which LLM calls fired, with what budget and what circuit state.</p>
+<p>The differentiator from microservices: <em>the LLM call is nondeterministic</em>. The same prompt at 10:00 and at 10:01 produces different completions. Reproducing the failure path requires capturing not just the input but the <em>exact</em> LLM response that triggered the misbehaviour.</p>
+<p>The operational discipline: in incident-response mode, the LLM client logs the full request and response (with PII redacted via <code>pkg/governance/pii.go</code>) into a side channel. Expensive in storage, so it&rsquo;s off by default; the on-call&rsquo;s first move when escalating is to turn it on for the affected agent. The replay then has bounded LLM inputs — same prompt, same model, same temperature, recorded completion — and you can reproduce the path deterministically. A failing microservice is a function of its inputs; replay is trivial. A failing agent is a function of inputs <em>and</em> a stochastic completion; you have to capture both.</p>
+<h3 id="first-day-post-incident-close-the-loop">First day — post-incident: close the loop</h3>
+<p>The post-mortem produces three artefacts, every time, without exception:</p>
+<ol>
+<li><strong>A new probe in the red-team corpus</strong> (<code>cmd/red-team/main.go</code>). Whatever the attack or failure mode was, the next PR cannot regress on it. Without this step, the same incident recurs in three months.</li>
+<li><strong>A policy update</strong>. Either a new rule in the DSL (<code>pkg/policy/dsl</code>), a tightening of an existing rule, or a new agent risk class. The change goes through the same board approval as any policy change — emergencies are not an excuse to bypass the review trail.</li>
+<li><strong>A runbook diff</strong>. Whatever was missing from the runbook that made the response slower than necessary gets added. Runbooks are living documents; the diff is the artefact.</li>
+</ol>
+<p>The loop is closed when the next quarterly drill exercises the new runbook entry.</p>
+<hr>
+<h2 id="posture-drift-and-how-to-detect-it">Posture drift and how to detect it</h2>
+<p>Architecture is a snapshot. Posture is a function of time. Drift detection is the discipline that says: <em>what is true today that was not true on the day we last verified?</em></p>
+<p>Four drift signals I monitor, with the alert that should fire for each.</p>
+<h3 id="signal-1-policy-yaml-hash-changed-without-a-deployment">Signal 1 — Policy YAML hash changed without a deployment</h3>
+<p>The active policy YAML hash is published on <code>GET /v1/disclosures</code>. The deployment pipeline knows when it shipped a new policy. The intersection is the alert: <em>hash changed AND no deployment in the last hour AND no change ticket in the queue</em>. That intersection is exactly zero in healthy operation. Anything else is an investigation.</p>
+<p>The investigation: somebody edited the policy file on a running host (which they shouldn&rsquo;t be able to do), the file was corrupted, or the deployment pipeline is broken in a way that ships changes outside the formal release process. All three are bad. The alert is what surfaces them.</p>
+<h3 id="signal-2-agent-risk-class-lowered-without-a-governance-review">Signal 2 — Agent risk class lowered without a governance review</h3>
+<p>Every agent in the <code>pkg/registry</code> declares a risk class. Lowering an agent&rsquo;s risk class — say, from <code>high</code> to <code>medium</code> — relaxes the policies that apply to it. That change should be infrequent and reviewed.</p>
+<p>The alert: <em>risk class lowered on any agent AND no governance ticket linked AND no PR with the appropriate approvers</em>. The lowering itself is fine in principle; the lack of a paper trail is the bug.</p>
+<h3 id="signal-3-a-new-dependency-landed-in-gomod">Signal 3 — A new dependency landed in go.mod</h3>
+<p>Supply chain is part of the security boundary. Every PR that modifies <code>go.mod</code> — added, removed, version bumped — triggers a supply-chain review. A CI job runs <code>go list -m -json all</code> against a known-good baseline and surfaces deltas to a human reviewer. Not glamorous. Prevents the next <code>event-stream</code> or <code>xz-utils</code> from landing because somebody bumped a transitive dependency without thinking about it.</p>
+<h3 id="signal-4-the-red-team-probe-corpus-shrank">Signal 4 — The red-team probe corpus shrank</h3>
+<p>This one took me by surprise. Around month 8, a refactor moved test fixtures around, and a handful of probes accidentally moved out of the corpus path. The CI was still green, because the smaller corpus still passed. The bug was that the corpus was smaller than yesterday.</p>
+<p>The alert: <em>corpus size today &lt; corpus size yesterday</em>. Strict greater-than-or-equal-to is the invariant. Generalise the lesson: <em>anything that should only grow needs an alert when it shrinks.</em> Audit log row count. Agent count in the registry. Probe corpus. The list of policies in the composite. Each, alarmed on shrink.</p>
+<hr>
+<h2 id="continuous-adversarial-testing">Continuous adversarial testing</h2>
+<p>Architectures decay because adversaries don&rsquo;t stop iterating. Adversarial testing is how you keep up.</p>
+<h3 id="red-team-in-ci-on-every-pr">Red team in CI on every PR</h3>
+<p>Genie&rsquo;s <code>make red-team</code> runs <code>cmd/red-team/main.go</code> against the board-approved policy YAML on every PR. The corpus today covers prompt injection, PII patterns (account-shaped digit runs, emails, Aadhaar), residency violations (PII bound for a non-home region), classification escalations, and schema violations. Every probe asserts an expected denial reason; a probe that gets denied with the <em>wrong</em> reason still fails the build.</p>
+<p>The corpus is the single most leveraged file in the repo. Probes added there protect every future PR.</p>
+<h3 id="quarterly-external-penetration-test-against-the-running-policy">Quarterly external penetration test against the running policy</h3>
+<p>Internal red teaming finds the patterns you thought of. External penetration testing finds the patterns you didn&rsquo;t.</p>
+<p>Every quarter, an external firm gets a sandbox deployment with the production policy loaded and a charter: &ldquo;find a way to make Genie do something it shouldn&rsquo;t.&rdquo; Every working pattern becomes a probe in the corpus. Every failed pattern is also added (negative test — the policy should <em>continue</em> to deny these). Cost: real money. Value: the next attacker is going to try the same thing, and now you&rsquo;ll catch them.</p>
+<h3 id="bug-bounty-considerations-for-ai-systems">Bug bounty considerations for AI systems</h3>
+<p>AI systems have a fuzzier perimeter than HTTP APIs. Scope language matters more than usual:</p>
+<ul>
+<li><strong>In scope</strong>: prompt injection that escalates privilege. Jailbreaking the model to bypass governance. Exfiltrating the audit log via a crafted query. Causing misclassification (PII as public, or vice versa). Triggering a fallback that leaks state. Defeating the residency policy. Forging an Annexure VI incident payload.</li>
+<li><strong>Out of scope</strong>: making the model say a rude word. Hallucinations without a downstream effect. Social-engineering a human operator (separate program). DoS via cost-overrun (we have budget caps and accept the risk).</li>
+</ul>
+<p>Researchers follow the scope you write. Vague scope produces vague reports.</p>
+<hr>
+<h2 id="secret-rotation-under-production-load">Secret rotation under production load</h2>
+<p>Architecture supports rotation. Operations <em>performs</em> rotation. The gap between the two is where most breaches actually happen.</p>
+<h3 id="jwt-secret-rotation-with-a-dual-secret-window">JWT secret rotation with a dual-secret window</h3>
+<p>The naive rotation: change <code>GENIE_JWT_SECRET</code>, restart. Every in-flight session is now invalid. Customer support gets a wave of &ldquo;I got logged out&rdquo; tickets.</p>
+<p>The right pattern: dual-secret window. The verifier accepts both old and new for one full TTL (60 minutes default). The issuer signs only with the new one starting at T+0. At T+60, the old secret is removed. Zero customer-visible impact. The discipline: the rotation runbook says T+60 <em>exactly</em>. Not &ldquo;next deploy.&rdquo; A stale dual-secret window extends the compromise window if the old secret was rotated because it leaked.</p>
+<h3 id="kek-rotation-via-per-row-kek_id">KEK rotation via per-row kek_id</h3>
+<p><code>pkg/crypto/envelope.go</code> stamps every <code>EncryptedPayload</code> with the <code>KEKID</code> that wrapped its DEK. New KEK rolls in via the <code>KeyResolver</code>&rsquo;s <code>ActiveKEKID()</code>; the resolver knows how to <code>Unwrap</code> payloads stamped with any previously-active KEK ID. Old data is readable; new data uses the new key. A background job re-encrypts old data lazily.</p>
+<p>The nuance: the resolver&rsquo;s list of historical KEKs is itself sensitive. It must live in the same KMS as the active KEK, with the same access controls. A common anti-pattern is keeping &ldquo;old keys&rdquo; in a less-protected store because &ldquo;they&rsquo;re old.&rdquo; Old keys decrypt old data. They&rsquo;re often <em>more</em> sensitive, not less.</p>
+<h3 id="token-exchange-caching-invalidation">Token-exchange caching invalidation</h3>
+<p>Once you cache exchanged tokens (keyed by <code>(user_subject, agent_identity, audience)</code>, TTL bounded by the JWT <code>exp</code> claim), the cache becomes a rotation surface. A revoked token must be evicted, not just denylisted at the IdP. Every revocation event publishes to a topic; every cache instance subscribes and evicts. The MTTR target (&ldquo;under 15 minutes&rdquo;) is set by this loop&rsquo;s slowest segment.</p>
+<h3 id="the-we-cant-rotate-the-secret-because-three-services-hardcoded-it-anti-pattern">The &ldquo;we can&rsquo;t rotate the secret because three services hardcoded it&rdquo; anti-pattern</h3>
+<p>You will encounter this on the first attempted rotation. You change the secret, three things break, you change it back, you file a ticket to &ldquo;fix it later,&rdquo; later doesn&rsquo;t happen.</p>
+<p>The fix is not &ldquo;fix the hardcoded references.&rdquo; The fix is to make the secret-loading code <em>fail loudly</em> on startup if the secret matches a known-bad value (the README example, common defaults, the empty string). Genie does this check in <code>cmd/api/main.go</code> — the process refuses to start with <code>GENIE_JWT_SECRET</code> set to anything that smells like a placeholder. Catches hardcoding at deploy time, when fixing it is cheap, instead of at rotation time, when fixing it is expensive.</p>
+<hr>
+<h2 id="compliance-posture-as-code-not-as-document">Compliance posture as code, not as document</h2>
+<p>The compliance officer&rsquo;s nightmare is a slide deck that claims &ldquo;we encrypt at rest&rdquo; while the actual system has three exceptions nobody documented. The fix is to make every compliance claim <em>queryable from the running system</em>.</p>
+<h3 id="the-active-policy-yaml-hash-is-in-v1disclosures">The active policy YAML hash is in /v1/disclosures</h3>
+<p><code>GET /v1/disclosures</code> is public, unauthenticated. The response includes the policy version and the policy approval date. Tampering with the policy file in production changes the hash; the change is visible on a public URL. Anyone — the regulator, an auditor, a curious customer — can verify that the policy in production today is the policy that was approved.</p>
+<p>Tampering is detectable from outside the system. That is a different posture than &ldquo;tampering is logged internally and we&rsquo;ll notice.&rdquo;</p>
+<h3 id="the-agent-inventory-is-built-from-the-live-registry">The agent inventory is built from the live registry</h3>
+<p><code>GET /v1/ai-inventory</code> (admin-authenticated) is built by iterating <code>registry.List(ctx)</code> in <code>pkg/registry/registry.go</code>. Every agent that&rsquo;s actually running shows up. Every agent that&rsquo;s <em>not</em> running doesn&rsquo;t. The inventory cannot drift from the deployment, because it <em>is</em> the deployment.</p>
+<p>A spreadsheet of agents is a document. The registry is the system. They cannot disagree.</p>
+<h3 id="the-audit-log-is-hash-chained">The audit log is hash-chained</h3>
+<p><code>pkg/compliance/audit.go</code> implements an <code>AuditEntry</code> with <code>PrevHash</code> and <code>RowHash</code> (both hex SHA-256). The <code>Verify</code> method walks the chain and fails if any row&rsquo;s hash is inconsistent.</p>
+<p>Tampering with a historical entry breaks the chain at every subsequent entry. The next verification pass detects it. Anchoring the chain periodically to an external timestamp (S3 + Object Lock, a notary service, etc.) extends the integrity guarantee to &ldquo;an external party can verify.&rdquo;</p>
+<h3 id="quarterly-attestation-export-verify-sign-send">Quarterly attestation: export, verify, sign, send</h3>
+<p>The compliance ritual that closes the loop:</p>
+<ol>
+<li>Export the audit log for the quarter as JSONL.</li>
+<li>Run the <code>Verify</code> walk; the chain must verify clean.</li>
+<li>Sign the export with a key the compliance officer holds.</li>
+<li>Send the signed JSONL to the regulator (or hold it ready for when they ask).</li>
+</ol>
+<p>The export is reproducible. The signature ties the export to a specific moment. The regulator can verify the chain independently. The whole loop is mechanical — no judgement calls, no spreadsheet reconciliation.</p>
+<p>Compliance as code means the compliance work is the <em>export</em>, not the <em>narrative</em>. The narrative is whatever the regulator wants to read; the export is what&rsquo;s true.</p>
+<hr>
+<h2 id="five-operational-lessons-learned">Five operational lessons learned</h2>
+<p>After twelve months, the lessons taped to the wall.</p>
+<h3 id="1-the-dashboard-you-dont-look-at-every-day-fails-silently">1. The dashboard you don&rsquo;t look at every day fails silently</h3>
+<p>I built a beautiful identity-flows dashboard in month 3. Looked at it twice a week, then stopped. In month 7 a data-source migration moved a metric and the dashboard had been showing flat zeros for ten days. I didn&rsquo;t notice because I wasn&rsquo;t looking.</p>
+<p>The fix is not discipline. The fix is to wire an alert to <em>the dashboard query itself</em>. If a panel goes flat-zero or null for 15 minutes, an alert fires. The dashboard monitors itself.</p>
+<h3 id="2-the-drill-that-doesnt-run-in-ci-rots-in-six-months">2. The drill that doesn&rsquo;t run in CI rots in six months</h3>
+<p><code>make bcp-drill</code> runs on every PR. A BCP drill that runs on every PR cannot rot — any refactor that breaks it makes the build red. A drill that runs &ldquo;quarterly when somebody remembers&rdquo; rots in a single quarter. Same for <code>make red-team</code>, the policy YAML hash check, the audit-chain <code>Verify</code> walk. Any safety mechanism not continuously exercised has a half-life of about six months.</p>
+<h3 id="3-the-metric-without-an-alert-is-a-graveyard">3. The metric without an alert is a graveyard</h3>
+<p>Ten thousand metrics and zero alerts is not operational signal. Useful metrics have alerts. Alerts without useful metrics are noise. For every SLI above I have a corresponding alert with a defined threshold and a defined runbook. If I can&rsquo;t write the runbook, I shouldn&rsquo;t have the alert; if I shouldn&rsquo;t have the alert, I shouldn&rsquo;t be tracking the metric.</p>
+<h3 id="4-the-runbook-nobody-has-practiced-is-fiction">4. The runbook nobody has practiced is fiction</h3>
+<p>The runbook says &ldquo;drain the affected agent from the registry.&rdquo; Has anyone on the team actually done that? Under load? At 02:17 IST with four other things on fire?</p>
+<p>Quarterly fire-drills exercise every step. We pick a Tuesday afternoon, simulate a credential leak, run the response. The first three drills are awful and exposing. The fourth is smooth. The fifth finds something the first four didn&rsquo;t. The runbook is fiction until it&rsquo;s been practiced.</p>
+<h3 id="5-the-handover-that-doesnt-include-the-threat-model-leaks-knowledge">5. The handover that doesn&rsquo;t include the threat model leaks knowledge</h3>
+<p>Onboarding usually covers the codebase, the deployment pipeline, the on-call rotation. It usually does <em>not</em> cover the threat model, the historical incidents, the patterns we added to the corpus because of past attacks. That gap is how institutional security knowledge leaks: the new engineer ships a feature that re-introduces a pattern we explicitly blocked nine months ago, and the reviewer doesn&rsquo;t catch it because the reviewer wasn&rsquo;t on the team nine months ago either. Fix: a written threat model updated with every significant incident, in the onboarding pack, re-read by the whole team annually.</p>
+<hr>
+<h2 id="whats-next-on-the-operational-roadmap">What&rsquo;s next on the operational roadmap</h2>
+<p>Five concrete items on the next-quarter operational board:</p>
+<ol>
+<li><strong>Self-monitoring dashboards</strong> — every panel wired to an alert that fires if the panel goes flat-zero or null for 15 minutes. Eliminates the silent-dashboard failure mode.</li>
+<li><strong>Automated quarterly attestation export</strong> — <code>make attest</code> exports the quarter&rsquo;s audit log, runs <code>Verify</code>, signs the JSONL, and produces a regulator-ready bundle. Removes the &ldquo;I forgot to run step 4&rdquo; failure mode in the current manual ritual.</li>
+<li><strong>Corpus expansion via traffic sampling</strong> — daily sampler over denied messages, top-N patterns to a human reviewer, frictionless path from &ldquo;novel pattern&rdquo; to &ldquo;probe in corpus.&rdquo; Closes the time-to-detect loop.</li>
+<li><strong>Drill scheduler</strong> — calendar integration that picks a random Tuesday each month and creates a drill ticket. We cannot accidentally skip a quarter.</li>
+<li><strong>Per-agent SLO dashboards in Grafana</strong> — every agent in the 60+ inventory gets a SLO panel (error rate, fallback rate, p99, quiet-agent alert). Full coverage so a quiet agent in the long tail can&rsquo;t hide.</li>
+</ol>
+<p>Each is a gap operational reality surfaced. Each is being shipped because the cost of not shipping it is &ldquo;you&rsquo;ll find out the bad way.&rdquo;</p>
+<hr>
+<h2 id="the-repo-a-question">The repo + a question</h2>
+<p>Everything above runs on the open-source Genie codebase: <a href="https://github.com/c2siorg/genie">github.com/c2siorg/genie</a>. The operational primitives:</p>
+<ul>
+<li><strong>Structured incidents</strong> — <code>pkg/incidents/</code> with <code>Grade()</code> in <code>pkg/incidents/grading.go</code></li>
+<li><strong>Hash-chained audit log</strong> — <code>pkg/compliance/audit.go</code> with <code>Verify</code></li>
+<li><strong>Composite governance policy</strong> — <code>pkg/governance/</code> (~10 policies)</li>
+<li><strong>Policy DSL for board-authored rules</strong> — <code>pkg/policy/dsl/</code></li>
+<li><strong>Fallback agents</strong> — <code>agents/fallback/</code></li>
+<li><strong>Resilience wrappers</strong> — <code>pkg/llm/</code> (deadline, circuit, budget, cache)</li>
+<li><strong>OTel-instrumented metrics</strong> — <code>pkg/observability/metrics.go</code></li>
+<li><strong>Envelope encryption with per-row KEK ID</strong> — <code>pkg/crypto/envelope.go</code></li>
+<li><strong>Adversarial probe corpus</strong> — <code>cmd/red-team/main.go</code>, runnable via <code>make red-team</code></li>
+<li><strong>BCP drill</strong> — runnable via <code>make bcp-drill</code></li>
+</ul>
+<p>Public posture endpoints once a deployment is live:</p>
+<pre><code class="language-bash">curl https://your-deploy/v1/disclosures      # public, hash of active policy
+curl -H &quot;Authorization: Bearer $A&quot; /v1/ai-inventory  # live registry-built inventory
+curl -H &quot;Authorization: Bearer $A&quot; /v1/incidents?limit=20  # Annexure VI–shaped
+</code></pre>
+<p>The architectural companion piece is <a href="linkedin-article-security-complete.md">The Complete Security Playbook for Production Agentic AI</a> — covering the patterns this article assumes have already shipped. Read it first if you&rsquo;re at day zero. Read this one if you&rsquo;re past day one and wondering what comes next.</p>
+<hr>
+<p>A question for the practitioners reading: of the operational rituals above — the drills, the rotation runbooks, the drift alerts, the dashboard self-monitoring — which one took you longest to land in your team&rsquo;s muscle memory? For us it was the BCP drill in CI; the team initially resisted &ldquo;another thing that can break the build,&rdquo; until the first time the drill caught a fallback regression that would have been an outage. Always curious how other teams converged on this.</p>
+<h1 id="securityoperations-responsibleai-soc-incidentresponse-rbi-freeai-bankingai-fintechindia-threathunting">SecurityOperations #ResponsibleAI #SOC #IncidentResponse #RBI #FREEAI #BankingAI #FinTechIndia #ThreatHunting</h1>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>
