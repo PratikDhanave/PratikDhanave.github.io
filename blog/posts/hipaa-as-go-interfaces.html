@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building a HIPAA-Aware Medical AI Platform in Go: An Architecture & Compliance Deep Dive — Pratik Dhanave</title>
+<meta name="description" content="What HIPAA looks like when you express it as Go interfaces — governance policies, append-only audit at DB GRANTs, PHI redaction at the logger seam, and HITL as the §3060 CDS carve-out criterion 4.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Building a HIPAA-Aware Medical AI Platform in Go: An Architecture & Compliance Deep Dive">
+<meta property="og:description" content="What HIPAA looks like when you express it as Go interfaces — governance policies, append-only audit at DB GRANTs, PHI redaction at the logger seam, and HITL as the §3060 CDS carve-out criterion 4.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/hipaa-as-go-interfaces.html">
+<meta property="article:published_time" content="2026-05-19">
+<meta property="article:tag" content="HIPAA">
+<meta property="article:tag" content="Compliance">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Privacy Engineering">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Building a HIPAA-Aware Medical AI Platform in Go: An Architecture & Compliance Deep Dive">
+<meta name="twitter:description" content="What HIPAA looks like when you express it as Go interfaces — governance policies, append-only audit at DB GRANTs, PHI redaction at the logger seam, and HITL as the §3060 CDS carve-out criterion 4.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/hipaa-as-go-interfaces.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Building a HIPAA-Aware Medical AI Platform in Go: An Architecture & Compliance Deep Dive</h1>
+    <p class="post-subtitle">How Bodh implements Microsoft's Multi-Agent Reference Architecture for sequential diagnosis, and what HIPAA looks like when it's expressed as Go interfaces instead of Confluence pages.</p>
+    <div class="post-meta">
+      <time datetime="2026-05-19">May 19, 2026</time>
+      <span>·</span>
+      <span>Compliance + engineering</span>
+    </div>
+    <div class="post-tags"><span class="tag">HIPAA</span><span class="tag">Compliance</span><span class="tag">Go</span><span class="tag">Privacy Engineering</span></div>
+  </header>
+
+  <h2 id="why-this-article-exists">Why this article exists</h2>
+<p>Two patterns have been on my mind since Microsoft published <a href="https://microsoft.ai/news/the-path-to-medical-superintelligence/">The Path to Medical Superintelligence</a> in 2025:</p>
+<ol>
+<li><strong>MAI-DxO + the Sequential Diagnosis Benchmark (SD Bench)</strong> — a virtual physician panel that asks targeted questions, orders cost-aware tests, and self-verifies before committing to a diagnosis. Reportedly ~85.5% accuracy on 304 NEJM cases versus ~20% for experienced physicians in their study setup.</li>
+<li><strong>The Multi-Agent Reference Architecture (MARA)</strong> — Microsoft&rsquo;s vendor-neutral blueprint for orchestrators, agents, registries, governance, memory, and observability.</li>
+</ol>
+<p>The clinical results are the headline. The architecture is the part you can actually build on. So I built <strong><a href="https://github.com/PratikDhanave/bodh">Bodh</a></strong> (Sanskrit: <em>insight</em>) — an open-source Go reference implementation of MARA, tuned for medicine, with HIPAA-aware governance baked in.</p>
+<p>This article is a knowledge dump in two halves:</p>
+<ul>
+<li><strong>Part 1 — Architecture.</strong> The patterns that make a multi-agent clinical system auditable, swappable, and safe to evolve.</li>
+<li><strong>Part 2 — Compliance.</strong> How those same patterns map to HIPAA, the 21st Century Cures Act, and adjacent regimes — with code, not bullet points.</li>
+</ul>
+<blockquote>
+<p><strong>Disclaimer up front:</strong> Bodh is a research and engineering reference. <strong>Not</strong> approved for clinical use. Demo agents use simulated answers and rule-based inference. Thresholds are illustrative, not clinical guidelines.</p>
+</blockquote>
+<hr>
+<h1 id="part-1-architecture">Part 1 — Architecture</h1>
+<h2 id="the-core-insight-a-monolithic-llm-call-is-not-the-right-shape-for-clinical-work">The core insight: a monolithic LLM call is not the right shape for clinical work</h2>
+<p>A single big prompt cannot be:</p>
+<ul>
+<li><strong>Audited</strong> — there&rsquo;s no per-step record of who decided what</li>
+<li><strong>Cost-capped</strong> — the cost is whatever the model decides to spend</li>
+<li><strong>Regression-tested</strong> — when a guideline changes, you can&rsquo;t isolate the affected step</li>
+<li><strong>Stopped mid-flow</strong> — there&rsquo;s no place for a clinician to intervene</li>
+<li><strong>Swapped per step</strong> — you can&rsquo;t use a cheap model for triage and a strong model for diagnosis</li>
+</ul>
+<p>A multi-agent system, with the right boundary discipline, can do all five.</p>
+<h2 id="the-mara-pattern-in-one-sentence">The MARA pattern, in one sentence</h2>
+<p>A user (or API call) publishes a clinical message → the orchestrator delivers it to the right agent → the agent returns zero or more new messages → the orchestrator publishes those → <strong>governance gates each hop</strong> → the workflow continues until a terminal agent decides we&rsquo;re done.</p>
+<p>That&rsquo;s it. Every clinically interesting behaviour in Bodh is a consequence of that one loop.</p>
+<h2 id="five-interfaces-hold-the-whole-platform-together">Five interfaces hold the whole platform together</h2>
+<p>Everything in Bodh — 17 agents, the bus, the registry, the governance composer, the HITL gate — composes from these five contracts:</p>
+<pre><code class="language-go">type Agent interface {
+    ID() string
+    Name() string
+    Capabilities() []string
+    HandleMessage(ctx context.Context, msg Message, env Environment) ([]Message, error)
+}
+
+type Bus interface {
+    Subscribe(agentID string, h Handler) (unsubscribe func())
+    Publish(ctx context.Context, msg protocol.Message)
+}
+
+type Registry interface {
+    Register(ctx, agent) error
+    Get(ctx, id) (Agent, error)
+    List(ctx) []Agent
+    FindByCapability(ctx, capability) []Agent
+}
+
+type Policy interface {
+    Evaluate(ctx context.Context, msg protocol.Message) (PolicyResult, error)
+}
+
+type Environment interface {
+    Now() time.Time
+    Logf(format string, args ...any)
+}
+</code></pre>
+<p>Five interfaces. Each one has an in-memory implementation today and a clear production swap path (Kafka or NATS for <code>Bus</code>, PostgreSQL for the persistence layer behind <code>Environment</code>, an OIDC-aware policy composer for <code>Policy</code>).</p>
+<p><strong>Design rule #1: agents never call each other directly.</strong> They emit <code>Message</code>s with a <code>To</code> field. The bus routes. The orchestrator runs governance before any <code>HandleMessage</code>. This single rule is what makes the system testable, auditable, and safe to refactor.</p>
+<h2 id="the-orchestrator-is-the-only-place-where-governance-runs">The orchestrator is the only place where governance runs</h2>
+<p>Here&rsquo;s the exact subscription closure that wires each agent to the bus. It&rsquo;s ~30 lines and it&rsquo;s the most important code in the platform:</p>
+<pre><code class="language-go">func (o *Orchestrator) subscribeAgentLocked(a agent.Agent) {
+    agentID := a.ID()
+    o.bus.Subscribe(agentID, func(c context.Context, msg agent.Message) {
+        // Apply governance *before* the agent sees the message.
+        if o.policy != nil {
+            res, err := o.policy.Evaluate(c, msg)
+            if err != nil {
+                o.env.Logf(&quot;policy error for msg %s: %v&quot;, msg.ID, err)
+                return
+            }
+            if res.Decision == governance.DecisionDeny {
+                o.env.Logf(&quot;message %s denied by policy: %s&quot;, msg.ID, res.Reason)
+                return  // ← agent never sees the message
+            }
+        }
+
+        o.env.Logf(&quot;agent %s handling message %s from %s&quot;, agentID, msg.ID, msg.From)
+
+        out, err := a.HandleMessage(c, msg, o.env)
+        if err != nil {
+            o.env.Logf(&quot;agent %s error: %v&quot;, agentID, err)
+            return
+        }
+        for _, m := range out {
+            o.bus.Publish(c, m)  // ← one agent's output is another agent's input
+        }
+    })
+}
+</code></pre>
+<p>Three properties fall out of this:</p>
+<ol>
+<li><strong>Fail closed.</strong> A denied message never reaches an agent. There is no fallback path that bypasses policy.</li>
+<li><strong>Single audit point.</strong> Every governance decision and every agent invocation passes through this closure. If you want a HIPAA audit log, you instrument here once, not in 17 agents.</li>
+<li><strong>Pluggability.</strong> Want to add multi-tenancy, rate limiting, scope checks, or SUD record segmentation? Add a policy. The orchestrator doesn&rsquo;t change.</li>
+</ol>
+<h2 id="sequential-diagnosis-as-a-state-machine-not-a-prompt">Sequential diagnosis as a state machine, not a prompt</h2>
+<p>The diagnostic panel is eight agents:</p>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Action</th>
+<th>Output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>intake</code></td>
+<td>Parse presentation</td>
+<td><code>case_state</code></td>
+</tr>
+<tr>
+<td><code>rpm_monitor</code></td>
+<td>Evaluate remote monitoring alerts</td>
+<td><code>case_state</code></td>
+</tr>
+<tr>
+<td><code>diagnostic_supervisor</code></td>
+<td>Route the case</td>
+<td>(delegates)</td>
+</tr>
+<tr>
+<td><code>questioner</code></td>
+<td>History + symptoms</td>
+<td><code>questions_complete</code></td>
+</tr>
+<tr>
+<td><code>test_planner</code></td>
+<td>Order tests from a virtual catalog</td>
+<td><code>case_state</code></td>
+</tr>
+<tr>
+<td><code>cost_guardian</code></td>
+<td>Check <code>spent + test_cost &lt;= max_cost</code></td>
+<td><code>tests_complete</code> or rework</td>
+</tr>
+<tr>
+<td><code>diagnostician</code></td>
+<td>Emit <code>DiagnosisProposal</code> with confidence</td>
+<td><code>diagnosis_proposal</code></td>
+</tr>
+<tr>
+<td><code>reasoning_verifier</code></td>
+<td>Validate rationale; optionally route to HITL</td>
+<td><code>diagnosis</code> (final)</td>
+</tr>
+</tbody>
+</table>
+<p>A full case for <code>demo-case-001</code> (58M, cough/fever, gold = CAP) produces this trace:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>From</th>
+<th>To</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>user</code></td>
+<td><code>intake</code></td>
+<td><code>presentation</code></td>
+<td>chief complaint + HPI</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>intake</code></td>
+<td><code>rpm_monitor</code></td>
+<td><code>case_state</code></td>
+<td>no RPM data, passthrough</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>rpm_monitor</code></td>
+<td><code>diagnostic_supervisor</code></td>
+<td><code>case_state</code></td>
+<td></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>supervisor</code></td>
+<td><code>questioner</code></td>
+<td><code>case_state</code></td>
+<td>start history</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>questioner</code></td>
+<td><code>supervisor</code></td>
+<td><code>questions_complete</code></td>
+<td>4 Q&amp;A, 3 hypotheses</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>supervisor</code></td>
+<td><code>test_planner</code></td>
+<td><code>case_state</code></td>
+<td>order labs/imaging</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>test_planner</code></td>
+<td><code>cost_guardian</code></td>
+<td><code>case_state</code></td>
+<td>total $220</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>cost_guardian</code></td>
+<td><code>supervisor</code></td>
+<td><code>tests_complete</code></td>
+<td>budget OK ($220 / $500)</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>supervisor</code></td>
+<td><code>diagnostician</code></td>
+<td><code>case_state</code></td>
+<td>infer</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>diagnostician</code></td>
+<td><code>reasoning_verifier</code></td>
+<td><code>diagnosis_proposal</code></td>
+<td>CAP @ 87%</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>reasoning_verifier</code></td>
+<td><code>supervisor</code></td>
+<td><code>diagnosis</code></td>
+<td>verified</td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>supervisor</code></td>
+<td>—</td>
+<td>(terminal)</td>
+<td>logs final + gold match</td>
+</tr>
+</tbody>
+</table>
+<p>Twelve messages. Twelve audit events. Twelve governance evaluations. <strong>No hidden state, no inter-agent function calls, no place where a clinician can&rsquo;t intervene.</strong></p>
+<p>Every test has a virtual USD cost ($35 to $850). The Pareto frontier of accuracy vs. spend is the right way to evaluate sequential-diagnosis systems — Microsoft&rsquo;s blog cites up to 25% of US health spending as low-value or wasted, so the cost dimension isn&rsquo;t hypothetical.</p>
+<h2 id="care-services-share-the-same-bus">Care services share the same bus</h2>
+<p>Nine more agents add value-based care workflows on the same platform:</p>
+<ul>
+<li><strong>CDM</strong> (Chronic Disease Management) — care plan templates for HTN, DM, CHF, CKD, COPD</li>
+<li><strong>TCM</strong> (Transitional Care Management) — discharge → nurse task queue + medication reconciliation</li>
+<li><strong>Panel Management</strong> — gap-in-care detection across the patient roster (A1c overdue, BP uncontrolled, annual visit due, CHF weight alert, post-discharge follow-up open)</li>
+<li><strong>Virtual Office</strong> — pre-visit prep, inbox triage, refill management, prior auth</li>
+<li><strong>Patient engagement</strong> — SMS / email / IVR notifier with adherence tracking</li>
+<li><strong>Readmission tracking</strong> — ADT feed + transparent LACE-inspired risk score</li>
+</ul>
+<p>These aren&rsquo;t bolted on. They subscribe to the same bus, share the same <code>PatientRegistry</code> and <code>tasks.Queue</code>, pass through the same governance and audit. Adding a new clinical workflow is &ldquo;implement <code>Agent</code>, register it, optionally compose a new policy.&rdquo;</p>
+<h2 id="human-in-the-loop-the-21st-century-cures-act-3060-as-code">Human-in-the-loop: the 21st Century Cures Act §3060, as code</h2>
+<p>Under Section 3060 of the Cures Act (21 USC §360j(o)), Clinical Decision Support software can avoid Software-as-a-Medical-Device classification if it meets four criteria. The hardest one — and the one most consequential for AI — is criterion four: the software must <strong>enable the clinician to independently review the basis for the recommendations.</strong></p>
+<p>Bodh&rsquo;s <code>human_review</code> agent is that criterion expressed in code.</p>
+<p>When <code>HITL=true</code> on an upstream agent, that agent doesn&rsquo;t address its output directly to the next stage. It wraps it in a review envelope and addresses it to <code>human_review</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Envelope key</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hitl_kind</code></td>
+<td>Review category (<code>diagnosis_review</code>, <code>care_plan_review</code>, etc.)</td>
+</tr>
+<tr>
+<td><code>hitl_next_to</code></td>
+<td>Agent to forward to on approval</td>
+</tr>
+<tr>
+<td><code>hitl_next_type</code></td>
+<td>Message type used on resume</td>
+</tr>
+<tr>
+<td><code>hitl_priority</code></td>
+<td><code>low</code> / <code>normal</code> / <code>high</code> / <code>urgent</code></td>
+</tr>
+<tr>
+<td><code>hitl_subject</code></td>
+<td>Short label for the queue UI</td>
+</tr>
+<tr>
+<td><code>hitl_sla_minutes</code></td>
+<td>Deadline; expired reviews never resume</td>
+</tr>
+</tbody>
+</table>
+<p>The gate records a <code>ReviewRequest</code>, emits nothing, and waits. A clinician decides via <code>POST /reviews/{id}/decide</code> with <code>approve | approve_with_modifications | reject</code> plus an optional rationale. On approve, the original payload is republished to its intended recipient. On reject, it&rsquo;s logged and dropped — <strong>lossless on reject</strong>. No half-completed clinical action can leak past the gate.</p>
+<p>Seven agents are gated when HITL is on:</p>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Gated output</th>
+<th>Review kind</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>reasoning_verifier</code></td>
+<td>Verified diagnosis</td>
+<td><code>diagnosis_review</code></td>
+</tr>
+<tr>
+<td><code>cdm_planner</code></td>
+<td>Care plan</td>
+<td><code>care_plan_review</code></td>
+</tr>
+<tr>
+<td><code>tcm_coordinator</code></td>
+<td>TCM welcome message</td>
+<td><code>tcm_welcome_review</code></td>
+</tr>
+<tr>
+<td><code>panel_manager</code></td>
+<td>Per-gap outreach</td>
+<td><code>outreach_review</code></td>
+</tr>
+<tr>
+<td><code>refill_manager</code></td>
+<td>Refill response</td>
+<td><code>refill_review</code></td>
+</tr>
+<tr>
+<td><code>prior_auth</code></td>
+<td>PA status</td>
+<td><code>prior_auth_review</code></td>
+</tr>
+<tr>
+<td><code>readmission_tracker</code></td>
+<td>Discharge handoff (priority scales with risk band)</td>
+<td><code>discharge_review</code></td>
+</tr>
+</tbody>
+</table>
+<p>Approvals cascade. A <code>discharge_review</code> approval triggers TCM, which itself emits a <code>tcm_welcome_review</code>. The <code>cmd/caredemo</code> auto-approver drains the queue across rounds to demonstrate this; in production a clinician&rsquo;s UI shows cascaded reviews as they appear.</p>
+<h2 id="the-fallback-contract-for-llm-agents">The fallback contract for LLM agents</h2>
+<p>Every LLM-backed agent in Bodh has a <strong>deterministic rule-based fallback</strong>. If the model times out, returns malformed JSON, exceeds latency budget, or trips a safety check, the case still finalizes.</p>
+<pre><code class="language-go">// LLMDiagnostician wraps an llm.Client and a rule-based fallback.
+// On any per-call failure, the case still finalises via the fallback.
+type LLMDiagnostician struct {
+    Client        llm.Client
+    Fallback      *DiagnosticianAgent
+    MinConfidence float64   // below this, fall back
+}
+</code></pre>
+<p>This isn&rsquo;t a workaround. It&rsquo;s the contract. Failure modes degrade — they don&rsquo;t break. Provider matrix:</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Chat</th>
+<th>Embeddings</th>
+<th>Vision</th>
+<th>Key env var</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Anthropic</td>
+<td>yes</td>
+<td>(via Voyage)</td>
+<td>yes (Sonnet, Opus)</td>
+<td><code>ANTHROPIC_API_KEY</code></td>
+</tr>
+<tr>
+<td>OpenAI</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes (<code>gpt-4o</code>)</td>
+<td><code>OPENAI_API_KEY</code></td>
+</tr>
+<tr>
+<td>Ollama (local)</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes (<code>llama3.2-vision</code>, <code>bakllava</code>)</td>
+<td>(none)</td>
+</tr>
+<tr>
+<td>Voyage</td>
+<td>—</td>
+<td>yes</td>
+<td>—</td>
+<td><code>VOYAGE_API_KEY</code></td>
+</tr>
+</tbody>
+</table>
+<p>Prompt caching is on by default for Anthropic and OpenAI — the diagnostic system prompt is marked cacheable so repeated calls within the TTL pay only for incremental tokens. The <code>[llm-trace]</code> log line reports <code>cached_tokens</code> per call so you can see cache hit rates in production.</p>
+<h2 id="rag-done-with-care-vector-bm25">RAG done with care: vector + BM25</h2>
+<p>A pure vector retriever loses on rare clinical terms — drug names, ICD codes, acronyms like <code>BNP</code> or <code>LACE</code>. So Bodh&rsquo;s <code>HybridStore</code> blends vector cosine with Okapi BM25 lexical scoring using reciprocal-rank fusion (k=60). Useful when &ldquo;BNP &gt; 400&rdquo; needs to win on the lexical match even if the vector similarity is lukewarm.</p>
+<p>Citations are first-class — every RAG-backed <code>DiagnosisProposal</code> carries a <code>Citations[]</code> array with <code>source</code>, <code>title</code>, <code>snippet</code>, and <code>score</code>. The hallucination check in <code>pkg/safety</code> then asserts that at least half of the significant terms in the diagnosis rationale appear in those citations&rsquo; snippets — if grounding fails, the agent falls back to deterministic rules.</p>
+<hr>
+<h1 id="part-2-compliance-expressed-as-code">Part 2 — Compliance, expressed as code</h1>
+<p>Most HIPAA work I&rsquo;ve seen is documentation. Policies in Confluence. Risk assessments in spreadsheets. SOC 2 evidence in a folder. The actual code is often surprisingly silent on PHI.</p>
+<p>The interesting question is: what does HIPAA look like when you express it as Go interfaces?</p>
+<h2 id="the-eight-phi-handling-principles-baked-into-the-architecture">The eight PHI handling principles, baked into the architecture</h2>
+<ol>
+<li><strong>Minimum necessary</strong> — agents see only the fields they need for their task.</li>
+<li><strong>Opaque identifiers</strong> — <code>case_id</code> and <code>patient_id</code> are routing tokens, never MRNs or SSNs.</li>
+<li><strong>Fail closed</strong> — governance denies messages missing correlation IDs; a denied message never reaches an agent.</li>
+<li><strong>Auditable everything</strong> — every interaction is a <code>Message</code> with a UUID; every governance decision is logged with a reason.</li>
+<li><strong>No PHI in third-party telemetry</strong> — redact <code>Content</code> and <code>Metadata</code> before any OTel or log export.</li>
+<li><strong>De-identify for evaluation</strong> — CI uses synthetic data only; <code>gold_diagnosis</code> is never production PHI.</li>
+<li><strong>Encrypted at rest and in transit</strong> — TLS 1.3 + KMS-backed AES-256-GCM in production.</li>
+<li><strong>Right to delete</strong> — the persistence layer must support point-deletion by <code>patient_id</code> (GDPR Article 17, several US state laws).</li>
+</ol>
+<p>Three of those (#3, #4, #6) are enforceable at the platform layer. The rest are architectural constraints the code is designed to support.</p>
+<h2 id="164312-technical-safeguards-code-level-crosswalk">§164.312 Technical Safeguards — code-level crosswalk</h2>
+<table>
+<thead>
+<tr>
+<th>Standard</th>
+<th>Bodh code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Audit Controls (R)</td>
+<td><code>pkg/audit</code> — append-only <code>Event</code> records for every message, governance decision, HITL review, and agent error</td>
+</tr>
+<tr>
+<td>Access Control (R) — unique user ID</td>
+<td>Planned — OIDC <code>sub</code> becomes the user ID, persisted in audit</td>
+</tr>
+<tr>
+<td>Integrity (R)</td>
+<td>Append-only audit; periodic Merkle chain-hash for tamper evidence</td>
+</tr>
+<tr>
+<td>Person/Entity Auth (R)</td>
+<td>Planned — OIDC / SMART on FHIR / mTLS</td>
+</tr>
+<tr>
+<td>Transmission Security (R)</td>
+<td>Planned — TLS 1.3 end-to-end</td>
+</tr>
+</tbody>
+</table>
+<p>Below is what&rsquo;s <em>actually shipping today</em>, with code.</p>
+<h2 id="governance-policies-enforceable-contracts-at-the-boundary">Governance policies = enforceable contracts at the boundary</h2>
+<p>These run <strong>before</strong> any agent&rsquo;s <code>HandleMessage</code> is invoked. Here&rsquo;s <code>RequireCaseIDPolicy</code> in full:</p>
+<pre><code class="language-go">type RequireCaseIDPolicy struct{}
+
+func (RequireCaseIDPolicy) Evaluate(_ context.Context, msg protocol.Message) (PolicyResult, error) {
+    clinicalTypes := map[string]bool{
+        &quot;presentation&quot;: true, &quot;case_state&quot;: true, &quot;ask_question&quot;: true,
+        &quot;order_test&quot;: true, &quot;diagnosis&quot;: true, &quot;verify_reasoning&quot;: true,
+    }
+    if !clinicalTypes[msg.Type] {
+        return allow(&quot;non-clinical message&quot;), nil
+    }
+    if msg.Metadata == nil {
+        return deny(&quot;missing metadata with case_id&quot;), nil
+    }
+    if _, ok := msg.Metadata[&quot;case_id&quot;].(string); !ok {
+        return deny(&quot;case_id required for clinical messages&quot;), nil
+    }
+    return allow(&quot;case_id present&quot;), nil
+}
+</code></pre>
+<p>Thirteen lines. It&rsquo;s the simplest possible expression of &ldquo;fail closed on missing correlation.&rdquo; A clinical message without a <code>case_id</code> is silently dropped by the orchestrator — and the <em>denial itself</em> is recorded as a <code>policy_decision</code> audit event.</p>
+<p><code>MaxDiagnosticCostPolicy</code> is the same shape:</p>
+<pre><code class="language-go">func (MaxDiagnosticCostPolicy) Evaluate(_ context.Context, msg protocol.Message) (PolicyResult, error) {
+    if msg.Type != &quot;order_test&quot; {
+        return allow(&quot;not a test order&quot;), nil
+    }
+    maxCost, _ := msg.Metadata[&quot;max_cost_usd&quot;].(float64)
+    testCost, _ := msg.Metadata[&quot;test_cost_usd&quot;].(float64)
+    spent, _ := msg.Metadata[&quot;spent_usd&quot;].(float64)
+    if spent+testCost &gt; maxCost {
+        return deny(&quot;test would exceed diagnostic budget&quot;), nil
+    }
+    return allow(&quot;within diagnostic budget&quot;), nil
+}
+</code></pre>
+<p>The composer ties them together:</p>
+<pre><code class="language-go">policy := governance.NewComposite(
+    governance.MaxContentLengthPolicy{Max: 65536},   // DoS / prompt-bomb cap
+    governance.RequireCaseIDPolicy{},                // correlation enforced
+    governance.MaxDiagnosticCostPolicy{},            // per-case budget
+    governance.ResearchDisclaimerPolicy{},           // intent marker
+)
+</code></pre>
+<p><code>CompositePolicy</code> denies if <strong>any</strong> child denies (fail fast). Adding multi-tenancy, SMART scopes, rate limiting, or 42 CFR Part 2 SUD segmentation is &ldquo;implement a <code>Policy</code>, add it to the composer.&rdquo; The orchestrator doesn&rsquo;t change. The agents don&rsquo;t change.</p>
+<p>The planned set:</p>
+<table>
+<thead>
+<tr>
+<th>Policy</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RequireTenantPolicy</code></td>
+<td>Multi-tenant isolation — <code>tenant_id</code> must be present so downstream stores (PostgreSQL row-level security) can enforce</td>
+</tr>
+<tr>
+<td><code>RequireScopePolicy{Required}</code></td>
+<td>SMART-on-FHIR scope check — e.g. <code>cdm_request</code> requires <code>user/CarePlan.write</code></td>
+</tr>
+<tr>
+<td><code>RedactNarrativePolicy</code></td>
+<td>Strip clinical narrative from log-bound copies</td>
+</tr>
+<tr>
+<td><code>Part2ConsentPolicy</code></td>
+<td>42 CFR Part 2 substance-use records — demand explicit consent token</td>
+</tr>
+<tr>
+<td><code>BreakGlassPolicy</code></td>
+<td>Audited emergency cross-patient reads</td>
+</tr>
+<tr>
+<td><code>RateLimitPolicy</code></td>
+<td>Per-tenant / per-clinician QPS cap</td>
+</tr>
+</tbody>
+</table>
+<p><code>RequireScopePolicy</code> already ships:</p>
+<pre><code class="language-go">RequireScopePolicy{Required: map[string]string{
+    &quot;cdm_request&quot;:     &quot;user/CarePlan.write&quot;,
+    &quot;discharge_event&quot;: &quot;user/Encounter.read&quot;,
+}}
+</code></pre>
+<h2 id="phi-redaction-at-the-logger-seam">PHI redaction at the logger seam</h2>
+<p><code>pkg/phi</code> ships a <code>LoggerWrapper</code> that sits in front of the standard logger and runs Safe Harbor patterns over every format string and string-typed argument <strong>before</strong> it reaches stdout, Loki, or any third-party sink. The default pattern set:</p>
+<pre><code class="language-go">func DefaultPatterns() []Pattern {
+    return []Pattern{
+        {Name: &quot;ssn&quot;,      Re: regexp.MustCompile(`\b\d{3}-\d{2}-\d{4}\b`),                  Replace: &quot;[REDACTED-SSN]&quot;},
+        {Name: &quot;mrn&quot;,      Re: regexp.MustCompile(`(?i)\bMRN[:\s]*[A-Z0-9-]{4,}\b`),         Replace: &quot;[REDACTED-MRN]&quot;},
+        {Name: &quot;phone&quot;,    Re: regexp.MustCompile(`\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b`),        Replace: &quot;[REDACTED-PHONE]&quot;},
+        {Name: &quot;email&quot;,    Re: regexp.MustCompile(`\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b`), Replace: &quot;[REDACTED-EMAIL]&quot;},
+        {Name: &quot;iso_date&quot;, Re: regexp.MustCompile(`\b(19|20)\d{2}-\d{2}-\d{2}\b`),           Replace: &quot;[REDACTED-DATE]&quot;},
+        {Name: &quot;us_date&quot;,  Re: regexp.MustCompile(`\b\d{1,2}/\d{1,2}/(19|20)\d{2}\b`),       Replace: &quot;[REDACTED-DATE]&quot;},
+    }
+}
+</code></pre>
+<p>Deliberately a &ldquo;first line&rdquo; — not a Data Loss Prevention service replacement. In regulated production, layer it in front of Google Cloud DLP, AWS Macie, or Microsoft Presidio with custom patterns for the field shapes you actually see (internal MRN formats, payer claim IDs, etc.).</p>
+<p>The wrapper composes with anything that satisfies <code>observability.Logger</code>:</p>
+<pre><code class="language-go">inner := observability.NewStdLogger()
+logger := &amp;phi.LoggerWrapper{
+    Redactor: phi.NewRedactor(),
+    Inner:    inner,
+}
+// All Logf calls are now redacted before they reach the inner logger.
+</code></pre>
+<h2 id="audit-events-enough-to-reconstruct-never-enough-to-leak">Audit events — &ldquo;enough to reconstruct, never enough to leak&rdquo;</h2>
+<p><code>pkg/audit.Event</code> is what gets persisted. Field selection is deliberate:</p>
+<pre><code class="language-go">type Event struct {
+    ID         string    `json:&quot;id&quot;`
+    At         time.Time `json:&quot;at&quot;`
+    Kind       Kind      `json:&quot;kind&quot;`         // message | policy_decision | review_decision | agent_error
+    AgentID    string    `json:&quot;agent_id,omitempty&quot;`
+    MessageID  string    `json:&quot;message_id,omitempty&quot;`
+    From       string    `json:&quot;from,omitempty&quot;`
+    To         string    `json:&quot;to,omitempty&quot;`
+    Type       string    `json:&quot;type,omitempty&quot;`
+    TenantID   string    `json:&quot;tenant_id,omitempty&quot;`   // correlation, not PHI
+    PatientID  string    `json:&quot;patient_id,omitempty&quot;`  // opaque ID, not MRN
+    CaseID     string    `json:&quot;case_id,omitempty&quot;`     // opaque ID
+    TraceID    string    `json:&quot;trace_id,omitempty&quot;`
+    Decision   string    `json:&quot;decision,omitempty&quot;`    // allow | deny | approve | reject
+    Reason     string    `json:&quot;reason,omitempty&quot;`
+    ReviewerID string    `json:&quot;reviewer_id,omitempty&quot;`
+    ErrorText  string    `json:&quot;error,omitempty&quot;`
+}
+</code></pre>
+<p>What&rsquo;s deliberately <strong>absent</strong>: no narrative, no diagnosis text, no patient name, no DOB, no test result content. The event is a <strong>pointer</strong> into the system — enough to reconstruct who-did-what-when, never enough to leak PHI if the audit sink is ever compromised. The regulated data lives behind it under access control.</p>
+<p>Today&rsquo;s implementation is a thread-safe in-memory recorder plus a file-backed <code>FileStore</code> that appends one JSON line per event. Production swaps this for a WORM sink: S3 Object Lock, Azure Immutable Blob, or Loki + retention lock. Add Merkle chain-hashing for tamper evidence and you have what HIPAA §164.312(b) and 21 CFR Part 11 both expect.</p>
+<h2 id="hipaa-privacy-rule-the-operator-side-and-the-baa-chain">HIPAA Privacy Rule — the operator side and the BAA chain</h2>
+<p>If a covered entity deploys Bodh, the operator becomes a <strong>business associate</strong> under 45 CFR §164.504(e). The operator must sign BAAs with both the covered entity and every PHI-touching subcontractor:</p>
+<table>
+<thead>
+<tr>
+<th>Subcontractor type</th>
+<th>What you need</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cloud provider (AWS / Azure / GCP)</td>
+<td>BAA — only use services on the HIPAA-eligible list</td>
+</tr>
+<tr>
+<td>SMS / email (Twilio, SendGrid)</td>
+<td>BAA — engagement notifier must respect opt-out and never sell PHI</td>
+</tr>
+<tr>
+<td>Observability (Datadog, New Relic)</td>
+<td>BAA before piping logs or traces with PHI shapes</td>
+</tr>
+<tr>
+<td>LLM provider</td>
+<td>OpenAI: Zero Data Retention agreement. Azure OpenAI: standard Azure BAA. Anthropic: BAA available via API on request.</td>
+</tr>
+</tbody>
+</table>
+<p>The minimum-necessary principle propagates down this chain. If your engagement notifier sends &ldquo;Reminder: lab on 2026-05-30 at 9:00 AM&rdquo; via Twilio, that string transits a third party — and it had better be under a BAA with no analytics retention.</p>
+<h2 id="hipaa-breach-notification-the-safe-harbor-exclusion-is-why-encryption-isnt-optional">HIPAA Breach Notification — the Safe Harbor exclusion is why encryption isn&rsquo;t optional</h2>
+<table>
+<thead>
+<tr>
+<th>Audience</th>
+<th>Deadline</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Affected individuals</td>
+<td>60 days from discovery</td>
+<td>§164.404</td>
+</tr>
+<tr>
+<td>HHS Secretary</td>
+<td>60 days (≥500 affected) or annually (&lt;500)</td>
+<td>§164.408</td>
+</tr>
+<tr>
+<td>Prominent media (≥500 in a state)</td>
+<td>60 days</td>
+<td>§164.406</td>
+</tr>
+<tr>
+<td>Business associate → covered entity</td>
+<td>&ldquo;without unreasonable delay&rdquo; and ≤60 days</td>
+<td>§164.410</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Safe Harbor exclusion:</strong> a breach of properly encrypted data per HHS Guidance (FIPS 140-2/3 cryptographic modules, NIST-approved algorithms) does <strong>not</strong> count as a breach. This is the practical reason TLS 1.3 in transit + KMS-backed AES-256-GCM at rest isn&rsquo;t optional — encryption is what makes the difference between an incident response and a regulator-facing breach notification.</p>
+<p>Bodh&rsquo;s audit log is the <strong>forensic record</strong> that lets the operator determine breach scope: what PHI was touched, whose, by which users, during which window. If your audit log can&rsquo;t answer those three questions in a 60-day window, you don&rsquo;t have a breach response — you have a guess.</p>
+<h2 id="adjacent-regimes-what-bites-if-you-only-think-hipaa">Adjacent regimes — what bites if you only think HIPAA</h2>
+<ul>
+<li><strong>HITECH + Information Blocking Rule</strong> — your FHIR adapter must not artificially obstruct legitimate access requests. Eight named exceptions (Preventing Harm, Privacy, Security, Infeasibility, Health IT Performance, Content &amp; Manner, Fees, Licensing).</li>
+<li><strong>42 CFR Part 2</strong> — substance-use treatment records require explicit consent for many disclosures HIPAA allows. Bodh&rsquo;s planned <code>Part2ConsentPolicy</code> is the policy-shaped hook for this.</li>
+<li><strong>State laws</strong> — California CMIA (private right of action), NY SHIELD, Texas HB 300, Illinois BIPA (biometrics), Washington My Health My Data Act (consumer health data outside HIPAA), CCPA/CPRA.</li>
+<li><strong>GDPR Article 9</strong> — special-category data. Article 22&rsquo;s &ldquo;right not to be subject to a decision based solely on automated processing&rdquo; is exactly the use case Bodh&rsquo;s verifier + HITL pattern is designed for. Article 35 requires a DPIA for AI-based clinical decision support.</li>
+<li><strong>NIST AI RMF (AI 600-1)</strong> — the generative-AI profile is required if Bodh ever runs LLM-backed agents in production. The audit log + per-call <code>LLMTrace</code> records are designed to satisfy it.</li>
+</ul>
+<h2 id="de-identification-two-paths-under-164514">De-identification — two paths under §164.514</h2>
+<p>Either <strong>Safe Harbor</strong> (strip the 18 named identifiers — names, geography smaller than state, full dates, SSN, MRN, IPs, biometrics, photos) or <strong>Expert Determination</strong> (a qualified statistician certifies very small re-identification risk). Re-identification risk rises with:</p>
+<ul>
+<li>High-resolution dates (use year only)</li>
+<li>Rare diagnoses combined with demographics</li>
+<li>ZIP5 vs ZIP3</li>
+<li>Free-text narrative (clinical notes often contain names, addresses, employer)</li>
+</ul>
+<p>In Bodh, the rule is: de-identification runs <strong>before</strong> records leave the regulated boundary. Not after, not during export, not &ldquo;in the warehouse&rdquo; — at the boundary.</p>
+<hr>
+<h2 id="what-ships-today-vs-whats-planned">What ships today vs. what&rsquo;s planned</h2>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Components</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Done</strong></td>
+<td>MARA platform · 17 agents · sequential diagnosis demo · care services demo · HTTP API · operator CLI · HITL gate · PHI redaction · append-only audit (in-memory + file-backed) · multi-tenant + scope policies · cost-rework loop · SD-Bench runner · LLM stack (Anthropic / OpenAI / Ollama) · hybrid RAG (vector + BM25) · LLM-as-judge · safety guardrails · OTel-ready tracing · FHIR R4 (Patient / Observation / Encounter / Condition) · cohort analytics</td>
+</tr>
+<tr>
+<td><strong>Planned</strong></td>
+<td>HL7 v2 · SMART on FHIR auth · FHIR Bulk Data export · NEJM case loader · PostgreSQL persistence · case timeline UI · immutable audit pipeline (S3 Object Lock / Azure Immutable Blob with Merkle chain-hash) · 21 CFR Part 11 e-signature · ONC Certification artifacts</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="five-takeaways">Five takeaways</h2>
+<ol>
+<li>
+<p><strong>HIPAA is an architecture problem, not a paperwork problem.</strong> Encryption, audit, minimum necessary, breach forensics, and the right to delete all show up as concrete interfaces. If the architecture doesn&rsquo;t express them, no amount of policy documentation will.</p>
+</li>
+<li>
+<p><strong>The orchestrator must stay thin.</strong> Clinical logic belongs in agents. Governance belongs in policies. Routing belongs in the bus. Discovery belongs in the registry. Mix any of these and the system gets harder to test, harder to audit, and harder to evolve.</p>
+</li>
+<li>
+<p><strong>Human-in-the-loop is the regulatory hinge.</strong> The 21st Century Cures Act §3060 CDS carve-out and GDPR Article 22 both turn on whether a clinician can independently review each recommendation. That&rsquo;s not a UI feature — it&rsquo;s an architectural commitment that touches every gated agent, every audit event, and every review queue.</p>
+</li>
+<li>
+<p><strong>The fallback is the feature.</strong> Every LLM-backed agent has a deterministic rule-based fallback. The case always finalizes. Production-grade clinical AI is fail-soft, not fail-hard.</p>
+</li>
+<li>
+<p><strong>Compliance composes.</strong> <code>governance.NewComposite(...)</code> is the operational shape of HIPAA / GDPR / 42 CFR Part 2 / SMART scopes / rate limiting / tenancy. New regulation? New policy. The orchestrator doesn&rsquo;t change.</p>
+</li>
+</ol>
+<hr>
+<h2 id="try-it">Try it</h2>
+<pre><code class="language-bash">git clone https://github.com/PratikDhanave/bodh.git
+cd bodh
+
+go run ./cmd/demo                            # Sequential diagnosis (rule-based)
+go run ./cmd/caredemo                        # Care services with HITL on
+go run ./cmd/care -addr=:8088                # HTTP API
+go run ./cmd/bench                           # SD-Bench runner
+
+# LLM-backed diagnostician
+export ANTHROPIC_API_KEY=sk-...
+go run ./cmd/demo -diagnostician=llm-anthropic
+
+# Side-by-side provider compare
+go run ./cmd/bench -providers=rule,llm-anthropic,llm-openai,llm-ollama
+</code></pre>
+<p>Repo: <strong><a href="https://github.com/PratikDhanave/bodh">github.com/PratikDhanave/bodh</a></strong></p>
+<p>If you&rsquo;re building clinical AI, working on HIPAA-aligned infrastructure, or thinking about how Microsoft&rsquo;s MAI-DxO / SD Bench ideas translate to production-ready systems — issues, PRs, and conversations are welcome.</p>
+<hr>
+<p><em>Bodh is a research and engineering reference. It is not a medical device, not approved for clinical use, and not under a Business Associate Agreement. The HIPAA architecture described above is the target for a production deployment — the codebase is not certified or audited.</em></p>
+<h1 id="healthtech-artificialintelligence-go-golang-hipaa-compliance-clinicaldecisionsupport-multiagent-llm-opensource-healthcareit-medicalai-fhir-interoperability-privacyengineering-softwarearchitecture">HealthTech #ArtificialIntelligence #Go #Golang #HIPAA #Compliance #ClinicalDecisionSupport #MultiAgent #LLM #OpenSource #HealthcareIT #MedicalAI #FHIR #Interoperability #PrivacyEngineering #SoftwareArchitecture</h1>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>

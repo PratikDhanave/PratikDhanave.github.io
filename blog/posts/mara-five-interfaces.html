@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Agent Systems in 5 Interfaces: A MARA Implementation Field Report — Pratik Dhanave</title>
+<meta name="description" content="Five interfaces hold the whole platform together. The 30-line orchestrator closure that makes the rest of the architecture testable, auditable, and safe to evolve.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Multi-Agent Systems in 5 Interfaces: A MARA Implementation Field Report">
+<meta property="og:description" content="Five interfaces hold the whole platform together. The 30-line orchestrator closure that makes the rest of the architecture testable, auditable, and safe to evolve.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/mara-five-interfaces.html">
+<meta property="article:published_time" content="2026-05-23">
+<meta property="article:tag" content="Software Architecture">
+<meta property="article:tag" content="Multi-Agent">
+<meta property="article:tag" content="MARA">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Multi-Agent Systems in 5 Interfaces: A MARA Implementation Field Report">
+<meta name="twitter:description" content="Five interfaces hold the whole platform together. The 30-line orchestrator closure that makes the rest of the architecture testable, auditable, and safe to evolve.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/mara-five-interfaces.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Multi-Agent Systems in 5 Interfaces: A MARA Implementation Field Report</h1>
+    <p class="post-subtitle">Microsoft published a Multi-Agent Reference Architecture last year. I spent the last sprint implementing it for medical sequential diagnosis. This is what the architecture buys you, what it doesn't, and the design rules that actually matter.</p>
+    <div class="post-meta">
+      <time datetime="2026-05-23">May 23, 2026</time>
+      <span>·</span>
+      <span>Software architects</span>
+    </div>
+    <div class="post-tags"><span class="tag">Software Architecture</span><span class="tag">Multi-Agent</span><span class="tag">MARA</span><span class="tag">Go</span></div>
+  </header>
+
+  <h2 id="the-architecture-in-one-sentence">The architecture in one sentence</h2>
+<p>A user (or API call) publishes a clinical message → the orchestrator delivers it to the right agent → the agent returns zero or more new messages → the orchestrator publishes those → governance gates each hop → the workflow continues until a terminal agent decides we&rsquo;re done.</p>
+<p>That&rsquo;s it. Every interesting behaviour in <a href="https://github.com/PratikDhanave/bodh">Bodh</a> — the open-source medical multi-agent platform I&rsquo;ve been writing in Go — is a consequence of that loop.</p>
+<p>The Microsoft <a href="https://microsoft.github.io/multi-agent-reference-architecture/">Multi-Agent Reference Architecture (MARA)</a> doesn&rsquo;t tell you what your agents should do. It tells you what shape they should have, where governance runs, and how they coordinate. The clinical specificity lives in <strong>agents</strong> and <strong>policies</strong>. The platform is opinion-free about clinical reasoning.</p>
+<p>If you&rsquo;ve been building agentic systems with frameworks that bundle prompting + tool selection + state management + observability into one library, MARA will feel structurally different. Here&rsquo;s what it looks like in code.</p>
+<hr>
+<h2 id="five-interfaces-hold-the-whole-platform-together">Five interfaces hold the whole platform together</h2>
+<p>Seventeen-plus agents, the bus, the registry, the governance composer, the HITL gate — all compose from these five contracts.</p>
+<h3 id="1-agent">1. <code>Agent</code></h3>
+<pre><code class="language-go">type Agent interface {
+    ID() string
+    Name() string
+    Capabilities() []string
+    HandleMessage(ctx context.Context, msg Message, env Environment) ([]Message, error)
+}
+</code></pre>
+<ul>
+<li><code>ID()</code> is the addressable name on the bus. Used as the <code>To</code> field for routing.</li>
+<li><code>Capabilities()</code> is a list of capability strings the registry can search by (<code>"ask_question"</code>, <code>"verify_reasoning"</code>, <code>"order_test"</code>). Capability-driven dispatch beats hardcoded peer names every time.</li>
+<li><code>HandleMessage</code> takes one message, returns zero or more outputs. The orchestrator handles routing those outputs back to the bus.</li>
+</ul>
+<p>That&rsquo;s the agent contract. Four methods. No &ldquo;tools&rdquo;, no &ldquo;memory injection&rdquo;, no &ldquo;session state&rdquo; — those are concerns at other interfaces.</p>
+<h3 id="2-bus">2. <code>Bus</code></h3>
+<pre><code class="language-go">type Bus interface {
+    Subscribe(agentID string, h Handler) (unsubscribe func())
+    Publish(ctx context.Context, msg protocol.Message)
+}
+</code></pre>
+<p><code>Publish</code> routes by <code>msg.To</code>. The default in-memory bus invokes matching handlers as goroutines. Production swaps Kafka / NATS JetStream / RabbitMQ without any agent code changes.</p>
+<p>The bus implementation is where you make decisions about ordering, retries, persistence, and back-pressure. None of those decisions leak into agent code.</p>
+<h3 id="3-registry">3. <code>Registry</code></h3>
+<pre><code class="language-go">type Registry interface {
+    Register(ctx context.Context, a agent.Agent) error
+    Get(ctx context.Context, id string) (agent.Agent, error)
+    List(ctx context.Context) []agent.Agent
+    FindByCapability(ctx context.Context, capability string) []agent.Agent
+}
+</code></pre>
+<p>The discovery layer. <code>FindByCapability("ask_question")</code> returns every agent that publishes that capability. In Bodh, the <code>inbox_triage</code> agent uses this to find a primary-care agent at runtime — capability-driven, not hard-coded.</p>
+<p>Production replaces the in-memory registry with service-discovery-backed implementations (Consul, etcd, Kubernetes EndpointSlice) when agents live in separate pods.</p>
+<h3 id="4-policy">4. <code>Policy</code></h3>
+<pre><code class="language-go">type Policy interface {
+    Evaluate(ctx context.Context, msg protocol.Message) (PolicyResult, error)
+}
+</code></pre>
+<p>Policies run <strong>before</strong> any agent&rsquo;s <code>HandleMessage</code>. Returning a <code>Deny</code> short-circuits the message — the agent never sees it.</p>
+<p>This is where HIPAA, GDPR, multi-tenancy, scope checks, rate limits, and cost caps live. Adding a new regulatory regime is: add a <code>Policy</code>, add it to the composer. The orchestrator never changes. The agents never change.</p>
+<p>Bodh ships:</p>
+<ul>
+<li><code>RequireCaseIDPolicy</code> — fail closed on missing correlation</li>
+<li><code>MaxDiagnosticCostPolicy</code> — per-case budget enforcement</li>
+<li><code>MaxContentLengthPolicy</code> — DoS / prompt-bomb protection</li>
+<li><code>RequireTenantPolicy</code> — multi-tenant isolation</li>
+<li><code>RequireScopePolicy</code> — SMART-on-FHIR scope check</li>
+<li><code>ResearchDisclaimerPolicy</code> — research-only deployment marker</li>
+</ul>
+<p>Each one is ~15 lines.</p>
+<h3 id="5-environment">5. <code>Environment</code></h3>
+<pre><code class="language-go">type Environment interface {
+    Now() time.Time
+    Logf(format string, args ...any)
+}
+</code></pre>
+<p>Intentionally minimal. The orchestrator hands the same <code>Environment</code> to every agent&rsquo;s <code>HandleMessage</code>. <strong>Extend by composition</strong> — add fields to your concrete type, give it richer methods, type-assert in the agent when you need them. This pattern keeps the interface stable while letting deployments inject memory, LLM clients, FHIR clients, KMS clients, secret stores.</p>
+<hr>
+<h2 id="the-30-line-orchestrator-closure">The 30-line orchestrator closure</h2>
+<p>Here&rsquo;s the most important code in the platform. The closure subscribes one agent to the bus and orchestrates governance + audit + handler dispatch + republish:</p>
+<pre><code class="language-go">func (o *Orchestrator) subscribeAgentLocked(a agent.Agent) {
+    agentID := a.ID()
+    o.bus.Subscribe(agentID, func(c context.Context, msg agent.Message) {
+        // 1. Governance runs BEFORE the agent sees the message.
+        if o.policy != nil {
+            res, err := o.policy.Evaluate(c, msg)
+            if err != nil {
+                o.env.Logf(&quot;policy error for msg %s: %v&quot;, msg.ID, err)
+                return
+            }
+            if res.Decision == governance.DecisionDeny {
+                o.env.Logf(&quot;message %s denied by policy: %s&quot;, msg.ID, res.Reason)
+                o.recordAudit(audit.FromPolicyDecision(msg, agentID, res))
+                return  // agent NEVER sees the message
+            }
+        }
+
+        // 2. Record the agent invocation.
+        o.env.Logf(&quot;agent %s handling message %s from %s&quot;, agentID, msg.ID, msg.From)
+        o.recordAudit(audit.FromMessage(msg, agentID))
+
+        // 3. Delegate to the agent implementation.
+        out, err := a.HandleMessage(c, msg, o.env)
+        if err != nil {
+            o.env.Logf(&quot;agent %s error: %v&quot;, agentID, err)
+            o.recordAudit(audit.Event{
+                Kind: audit.KindAgentError, AgentID: agentID,
+                ErrorText: err.Error(),
+            })
+            return
+        }
+
+        // 4. Republish outputs. One agent's output becomes another's input.
+        for _, m := range out {
+            o.bus.Publish(c, m)
+        }
+    })
+}
+</code></pre>
+<p>Five properties fall out:</p>
+<ol>
+<li><strong>Fail closed.</strong> A denied message has no path to the agent.</li>
+<li><strong>Single audit point.</strong> Every governance decision and every agent invocation passes through this closure. Want HIPAA §164.312(b) audit controls? Instrument here once, not in 17 agents.</li>
+<li><strong>Pluggability.</strong> Want multi-tenancy, scope checks, rate limits, SUD segmentation? Add a Policy. The orchestrator doesn&rsquo;t change.</li>
+<li><strong>No clinical logic.</strong> The orchestrator never branches on diagnosis, condition, or test results. Pure transport + policy.</li>
+<li><strong>Audit is fail-open.</strong> If audit <code>Record()</code> errors, log and continue — never block message processing because audit failed. Audit failures are operational; blocking the clinical flow because the sink is down is the worst outcome.</li>
+</ol>
+<p>This 30 lines is what separates &ldquo;agent framework&rdquo; from &ldquo;multi-agent platform.&rdquo; Everything clinical or domain-specific lives outside of it.</p>
+<hr>
+<h2 id="design-rule-that-makes-the-rest-of-the-system-testable">Design rule that makes the rest of the system testable</h2>
+<p><strong>Agents never call each other directly. They emit <code>Message</code>s with a <code>To</code> field. The bus routes. The orchestrator runs governance before any <code>HandleMessage</code>.</strong></p>
+<p>This single rule is what makes the system testable, auditable, and safe to refactor.</p>
+<p>If <code>diagnostician</code> could call <code>reasoning_verifier.Verify(...)</code> directly:</p>
+<ul>
+<li>The audit log doesn&rsquo;t see it (no message to record)</li>
+<li>The governance composer doesn&rsquo;t see it (no policy evaluation)</li>
+<li>The HITL gate can&rsquo;t intercept it (no envelope wrapping)</li>
+<li>Tests can&rsquo;t observe it (no message to assert on)</li>
+<li>Bus implementation changes don&rsquo;t affect it (in-process function call)</li>
+</ul>
+<p>By forcing every interaction through the bus, every interaction becomes:</p>
+<ul>
+<li>Observable (one place to instrument)</li>
+<li>Auditable (one schema)</li>
+<li>Governable (one place to enforce policy)</li>
+<li>Testable (assert on emitted messages)</li>
+<li>Distributable (swap in-memory for Kafka)</li>
+</ul>
+<p>That&rsquo;s the dividend.</p>
+<hr>
+<h2 id="what-sequential-diagnosis-looks-like-in-this-shape">What sequential diagnosis looks like in this shape</h2>
+<p>A diagnostic case in Bodh runs 12 messages through 8 agents:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>From</th>
+<th>To</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>user</code></td>
+<td><code>intake</code></td>
+<td><code>presentation</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>intake</code></td>
+<td><code>rpm_monitor</code></td>
+<td><code>case_state</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>rpm_monitor</code></td>
+<td><code>diagnostic_supervisor</code></td>
+<td><code>case_state</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>supervisor</code></td>
+<td><code>questioner</code></td>
+<td><code>case_state</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>questioner</code></td>
+<td><code>supervisor</code></td>
+<td><code>questions_complete</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>supervisor</code></td>
+<td><code>test_planner</code></td>
+<td><code>case_state</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>test_planner</code></td>
+<td><code>cost_guardian</code></td>
+<td><code>case_state</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>cost_guardian</code></td>
+<td><code>supervisor</code></td>
+<td><code>tests_complete</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>supervisor</code></td>
+<td><code>diagnostician</code></td>
+<td><code>case_state</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>diagnostician</code></td>
+<td><code>reasoning_verifier</code></td>
+<td><code>diagnosis_proposal</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>reasoning_verifier</code></td>
+<td><code>supervisor</code></td>
+<td><code>diagnosis</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>supervisor</code></td>
+<td>—</td>
+<td>(terminal)</td>
+</tr>
+</tbody>
+</table>
+<p>12 messages = 12 audit events = 12 governance evaluations. No hidden state, no inter-agent function calls, no place where a clinician can&rsquo;t intervene.</p>
+<p>The supervisor is a pure state machine on <code>msg.Type</code>:</p>
+<pre><code class="language-go">func (s *DiagnosticSupervisor) HandleMessage(
+    ctx context.Context, msg agent.Message, env agent.Environment,
+) ([]agent.Message, error) {
+    switch msg.Type {
+    case &quot;case_state&quot;:
+        return s.delegate(msg, &quot;questioner&quot;, &quot;case_state&quot;)
+    case &quot;questions_complete&quot;:
+        return s.delegate(msg, &quot;test_planner&quot;, &quot;case_state&quot;)
+    case &quot;tests_complete&quot;:
+        return s.delegate(msg, &quot;diagnostician&quot;, &quot;case_state&quot;)
+    case &quot;tests_revise&quot;:
+        return s.reviseTests(msg)
+    case &quot;diagnosis&quot;:
+        return s.finalize(msg, env)
+    }
+    return nil, nil
+}
+</code></pre>
+<p>That&rsquo;s it. The supervisor has zero clinical reasoning. It routes by message type. The clinical reasoning lives in the specialist agents.</p>
+<hr>
+<h2 id="the-pattern-composes">The pattern composes</h2>
+<p>Adding a new condition (asthma, PR #6) was the canonical worked example of how the architecture composes:</p>
+<ol>
+<li><code>medical.BuildCarePlan</code> gets a <code>case "asthma":</code> branch (~30 lines)</li>
+<li><code>medical.DefaultPanelRules</code> gets two new rules (~20 lines each)</li>
+<li><code>agents/test_planner.go</code> gets an entry in <code>conditionWorkups</code> map (one line)</li>
+<li><code>agents/diagnostician.go</code> (in PR #11) gets a specialty inference branch (~10 lines)</li>
+<li>New tests, README update</li>
+</ol>
+<p><strong>Zero platform changes.</strong> No orchestrator change. No new policy. No new bus topic. No new HTTP endpoint. The asthma support lands as pure <code>pkg/medical</code> + agent extension.</p>
+<p>That&rsquo;s the composition dividend. The platform&rsquo;s job is to stay out of the way of the clinical work.</p>
+<hr>
+<h2 id="three-things-this-architecture-is-not">Three things this architecture is NOT</h2>
+<h3 id="not-a-tool-using-agent-framework">Not a tool-using agent framework</h3>
+<p>There&rsquo;s nothing in the MARA pattern about &ldquo;tools&rdquo; as a first-class concept. Tool use lives inside individual LLM-backed agents (the <code>diagnostician_tools.go</code> variant in Bodh wraps an <code>llm.Client</code> that supports tools). The orchestrator doesn&rsquo;t care.</p>
+<p>If your problem is &ldquo;let an LLM call a function&rdquo; — LangChain, LlamaIndex, the OpenAI SDK&rsquo;s native tool-use, Anthropic&rsquo;s tool-use, MCP all do this directly. You probably don&rsquo;t need MARA.</p>
+<h3 id="not-a-graphdag-framework">Not a graph/DAG framework</h3>
+<p>If you&rsquo;re thinking of LangGraph, Inngest, Temporal, Airflow — those are workflow engines. They model a DAG of steps, possibly with retries and human approvals.</p>
+<p>MARA is a coordination pattern. Workflows emerge from the conversation between agents, not from a pre-declared DAG. The supervisor agent is what makes a workflow exist — and that&rsquo;s a domain-specific agent, not platform code.</p>
+<h3 id="not-optimised-for-low-latency">Not optimised for low latency</h3>
+<p>12 messages per case = 12 bus hops, 12 governance evaluations, 12 audit writes. In-memory, that&rsquo;s ~5-50µs of platform overhead per hop. For clinical work, fine. For sub-millisecond real-time, no.</p>
+<p>If your problem is high-frequency trading or real-time game state, look elsewhere. If your problem is clinical reasoning, financial advice, legal document analysis, customer support escalation — the latency budget is generous enough that the MARA discipline pays off in auditability.</p>
+<hr>
+<h2 id="when-to-reach-for-this-pattern">When to reach for this pattern</h2>
+<table>
+<thead>
+<tr>
+<th>Use case</th>
+<th>Does MARA fit?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Clinical decision support</td>
+<td>✅ Built for it</td>
+</tr>
+<tr>
+<td>Financial advice / fraud review</td>
+<td>✅ Auditability is non-negotiable</td>
+</tr>
+<tr>
+<td>Legal document analysis</td>
+<td>✅ Multi-step reasoning + audit</td>
+</tr>
+<tr>
+<td>Customer support escalation</td>
+<td>✅ Multiple specialists + human handoff</td>
+</tr>
+<tr>
+<td>Robotics control</td>
+<td>🟡 Latency may be too high</td>
+</tr>
+<tr>
+<td>Real-time game NPCs</td>
+<td>❌ Too much overhead</td>
+</tr>
+<tr>
+<td>One-shot Q&amp;A</td>
+<td>❌ Overkill — use a single LLM call</td>
+</tr>
+<tr>
+<td>Tool-using assistant (1-2 tools)</td>
+<td>❌ Single agent + tools is simpler</td>
+</tr>
+</tbody>
+</table>
+<p>The rule of thumb: if your problem has <strong>regulatory or audit pressure</strong> AND involves <strong>multi-step reasoning</strong> AND benefits from <strong>role-specialised reasoning</strong> (specialist 1 does X, specialist 2 does Y), MARA pays off. Otherwise, simpler patterns win.</p>
+<hr>
+<h2 id="try-it">Try it</h2>
+<pre><code class="language-bash">git clone https://github.com/PratikDhanave/bodh.git
+cd bodh
+
+# Watch a full diagnostic case run through 12 messages
+go run ./cmd/demo
+
+# Inspect the 5 interfaces
+ls pkg/{agent,comm,registry,governance,orchestration}/
+
+# Read the 30-line closure
+grep -A30 &quot;subscribeAgentLocked&quot; pkg/orchestration/orchestrator.go
+</code></pre>
+<p>Deep architecture documentation in <a href="https://github.com/PratikDhanave/bodh/blob/main/docs/architecture.md">docs/architecture.md</a>.</p>
+<p>Repo: <a href="https://github.com/PratikDhanave/bodh">github.com/PratikDhanave/bodh</a></p>
+<p>If you&rsquo;re building multi-agent systems and want to compare design decisions — the bus implementation, the registry shape, the policy composition pattern — issues, PRs, and DMs welcome.</p>
+<hr>
+<p><em>Bodh is a research and engineering reference. The MARA implementation described here is the architecture target for clinical AI; the codebase is not approved for clinical use.</em></p>
+<h1 id="softwarearchitecture-multiagent-distributedsystems-go-golang-mara-systemdesign-opensource-healthtech">SoftwareArchitecture #MultiAgent #DistributedSystems #Go #Golang #MARA #SystemDesign #OpenSource #HealthTech</h1>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>
