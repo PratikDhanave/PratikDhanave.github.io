@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>"Enough to Reconstruct, Never Enough to Leak": The HIPAA Audit Log Design Problem — Pratik Dhanave</title>
+<meta name="description" content="Enough to reconstruct, never enough to leak. The audit event schema problem under §164.312(b), and how to solve it without conflating the audit sink with the PHI sink.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content=""Enough to Reconstruct, Never Enough to Leak": The HIPAA Audit Log Design Problem">
+<meta property="og:description" content="Enough to reconstruct, never enough to leak. The audit event schema problem under §164.312(b), and how to solve it without conflating the audit sink with the PHI sink.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/audit-log-design.html">
+<meta property="article:published_time" content="2026-05-24">
+<meta property="article:tag" content="HIPAA">
+<meta property="article:tag" content="Audit Log">
+<meta property="article:tag" content="Privacy Engineering">
+<meta property="article:tag" content="Compliance">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content=""Enough to Reconstruct, Never Enough to Leak": The HIPAA Audit Log Design Problem">
+<meta name="twitter:description" content="Enough to reconstruct, never enough to leak. The audit event schema problem under §164.312(b), and how to solve it without conflating the audit sink with the PHI sink.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/audit-log-design.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>"Enough to Reconstruct, Never Enough to Leak": The HIPAA Audit Log Design Problem</h1>
+    <p class="post-subtitle">Why my audit event schema deliberately doesn't carry the patient narrative, the diagnosis text, or the test result content — and how that constraint makes the audit log a credible forensic record under HIPAA §164.312(b).</p>
+    <div class="post-meta">
+      <time datetime="2026-05-24">May 24, 2026</time>
+      <span>·</span>
+      <span>Privacy + compliance + engineering</span>
+    </div>
+    <div class="post-tags"><span class="tag">HIPAA</span><span class="tag">Audit Log</span><span class="tag">Privacy Engineering</span><span class="tag">Compliance</span></div>
+  </header>
+
+  <h2 id="the-question-i-had-to-answer">The question I had to answer</h2>
+<p>HIPAA §164.312(b) requires &ldquo;hardware, software, and procedural mechanisms that record and examine activity in information systems that contain or use electronic protected health information.&rdquo;</p>
+<p>Easy paraphrase: log everything that touches PHI.</p>
+<p>Harder version of the question: <strong>what fields should each log event contain?</strong></p>
+<p>This sounds trivial. It isn&rsquo;t. The answer determines whether your audit log is a credible forensic record or a second copy of the PHI you&rsquo;re trying to protect.</p>
+<p>I just shipped audit pipeline wiring for <a href="https://github.com/PratikDhanave/bodh">Bodh</a>, the open-source medical multi-agent platform I&rsquo;ve been building in Go. The audit event schema is the part I spent the most time thinking about. The pattern I landed on, after a few iterations, is <strong>&ldquo;enough to reconstruct, never enough to leak.&rdquo;</strong></p>
+<hr>
+<h2 id="the-schema">The schema</h2>
+<pre><code class="language-go">type Event struct {
+    ID         string    `json:&quot;id&quot;`               // UUID per event
+    At         time.Time `json:&quot;at&quot;`
+    Kind       Kind      `json:&quot;kind&quot;`             // message | policy_decision | review_decision | agent_error
+    AgentID    string    `json:&quot;agent_id,omitempty&quot;`
+    MessageID  string    `json:&quot;message_id,omitempty&quot;`
+    From       string    `json:&quot;from,omitempty&quot;`
+    To         string    `json:&quot;to,omitempty&quot;`
+    Type       string    `json:&quot;type,omitempty&quot;`
+    TenantID   string    `json:&quot;tenant_id,omitempty&quot;`   // routing token only
+    PatientID  string    `json:&quot;patient_id,omitempty&quot;`  // opaque ID, NEVER MRN
+    CaseID     string    `json:&quot;case_id,omitempty&quot;`     // opaque ID
+    TraceID    string    `json:&quot;trace_id,omitempty&quot;`
+    Decision   string    `json:&quot;decision,omitempty&quot;`    // allow | deny | approve | reject
+    Reason     string    `json:&quot;reason,omitempty&quot;`
+    ReviewerID string    `json:&quot;reviewer_id,omitempty&quot;`
+    ErrorText  string    `json:&quot;error,omitempty&quot;`       // err.Error() ONLY — never msg.Content
+}
+</code></pre>
+<p>Sixteen fields. Notice what&rsquo;s deliberately <strong>absent</strong>:</p>
+<ul>
+<li>No narrative</li>
+<li>No HPI text</li>
+<li>No diagnosis label</li>
+<li>No medication name or dose</li>
+<li>No test result value</li>
+<li>No patient name, DOB, MRN</li>
+<li>No <code>msg.Content</code> ever</li>
+</ul>
+<p>That absence is load-bearing. Let me explain why.</p>
+<hr>
+<h2 id="what-an-audit-log-is-actually-for">What an audit log is actually for</h2>
+<p>Three jobs, in priority order:</p>
+<h3 id="job-1-reconstruct-what-happened-on-a-specific-case">Job 1: Reconstruct what happened on a specific case</h3>
+<p>A clinician says &ldquo;Bodh&rsquo;s recommendation for case-2026-05-24-001 was wrong.&rdquo; Or a privacy investigator says &ldquo;we got a complaint that someone accessed patient pt-9382 inappropriately last Tuesday — what happened?&rdquo;</p>
+<p>The audit log needs to answer:</p>
+<ul>
+<li><strong>Who</strong> acted on this case (which agents, which human reviewers)</li>
+<li><strong>When</strong> each action happened (RFC3339 timestamps with timezone)</li>
+<li><strong>What</strong> kind of action it was (policy decision, agent invocation, review decision, agent error)</li>
+<li><strong>In what order</strong> the actions happened (message_id + UUID + at provide causal ordering)</li>
+<li><strong>What outcome</strong> each step produced (decision: allow / deny / approve / reject)</li>
+<li><strong>What rationale</strong> governed each decision (<code>Reason</code> field, populated by policies and reviewers)</li>
+</ul>
+<p>The shipped schema answers all six.</p>
+<h3 id="job-2-aggregate-over-many-cases-to-detect-patterns">Job 2: Aggregate over many cases to detect patterns</h3>
+<p>Compliance teams need to ask:</p>
+<ul>
+<li>&ldquo;What&rsquo;s our policy-denial rate by tenant this quarter?&rdquo;</li>
+<li>&ldquo;Which reviewer rejects refill requests at 3× the team average?&rdquo;</li>
+<li>&ldquo;Did this agent&rsquo;s error rate spike after the last deploy?&rdquo;</li>
+<li>&ldquo;Show me every case where a <code>discharge_review</code> was approved with a SLA breach.&rdquo;</li>
+</ul>
+<p>The schema&rsquo;s structured fields (<code>Kind</code>, <code>TenantID</code>, <code>ReviewerID</code>, <code>Type</code>, <code>Decision</code>) make these queries straightforward. No need to parse free text out of a narrative field.</p>
+<h3 id="job-3-be-a-defensible-forensic-record">Job 3: Be a defensible forensic record</h3>
+<p>When the audit log is examined as evidence — in a HIPAA breach investigation, in litigation, in a 21 CFR Part 11 inspection — it needs to:</p>
+<ul>
+<li>Show no tampering (append-only at the database GRANT level, plus Merkle chain-hash in production)</li>
+<li>Show no PHI leakage if the audit sink itself is compromised</li>
+<li>Survive a court-ordered subpoena that demands &ldquo;all activity on this patient&rdquo; without requiring redaction passes</li>
+</ul>
+<p>The third point is where the &ldquo;never enough to leak&rdquo; rule pays off. A regulator can request, and you can produce, the full audit history for a specific patient ID — and that history reveals routing pointers but not regulated content.</p>
+<hr>
+<h2 id="why-narrative-belongs-somewhere-else">Why narrative belongs <em>somewhere else</em></h2>
+<p>The narrative — chief complaint, HPI, test results, diagnosis, rationale — is regulated PHI. It needs:</p>
+<ul>
+<li>TLS in transit</li>
+<li>AES-256-GCM at rest (with KMS-managed keys)</li>
+<li>Access control per HIPAA Privacy Rule §164.502(b) (minimum necessary)</li>
+<li>BAA coverage on every subcontractor that touches it</li>
+<li>Right-to-delete on patient request (GDPR Article 17)</li>
+<li>Retention per HIPAA (6 years from creation OR last action, whichever later)</li>
+</ul>
+<p>Bodh&rsquo;s pattern: the narrative lives in <code>pkg/persistence/postgres.interaction_records.payload_ct</code> (BYTEA, encryption-ready, plaintext today, ciphertext after the column-encryption PR). The audit event references it via <code>message_id</code> and <code>case_id</code>. To reconstruct a case, you join the audit table to the persistence table — under the access controls that govern the persistence table.</p>
+<p>This separation is what lets the audit log be <strong>less sensitive</strong> than the data it indexes. The two sinks have different access controls, different retention policies, different export paths to forensic services. A compromised audit sink leaks routing pointers. A compromised persistence sink leaks PHI. The blast radius of an audit-sink incident is recoverable; the blast radius of a persistence-sink incident is a HIPAA breach.</p>
+<p>If you put the narrative <em>in</em> the audit log, you&rsquo;ve conflated the two sinks. Now an audit-log compromise is a PHI breach. That&rsquo;s worse.</p>
+<hr>
+<h2 id="three-examples-of-the-field-selection-logic">Three examples of the field-selection logic</h2>
+<h3 id="policy-denial-event">Policy denial event</h3>
+<p>A clinical message arrives without a <code>case_id</code>. The <code>RequireCaseIDPolicy</code> denies it. The audit event:</p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;01HXVY...&quot;,
+  &quot;at&quot;: &quot;2026-05-24T07:02:11Z&quot;,
+  &quot;kind&quot;: &quot;policy_decision&quot;,
+  &quot;agent_id&quot;: &quot;orchestrator&quot;,
+  &quot;message_id&quot;: &quot;6ab0f882-...&quot;,
+  &quot;from&quot;: &quot;api-gateway&quot;,
+  &quot;to&quot;: &quot;intake&quot;,
+  &quot;type&quot;: &quot;presentation&quot;,
+  &quot;tenant_id&quot;: &quot;tenant-mercy-north&quot;,
+  &quot;decision&quot;: &quot;deny&quot;,
+  &quot;reason&quot;: &quot;case_id required for clinical messages&quot;
+}
+</code></pre>
+<p>What&rsquo;s there: enough to reconstruct <em>who</em> tried to do <em>what</em>, <em>where</em> the request originated, and <em>why</em> it was denied. What&rsquo;s missing: the narrative body of the rejected message. The denied content never gets stored — both because it might be malformed and because we don&rsquo;t want to retain content we explicitly refused.</p>
+<h3 id="agent-error-event">Agent error event</h3>
+<p>The LLM diagnostician times out. The audit event:</p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;01HXVY...&quot;,
+  &quot;at&quot;: &quot;2026-05-24T07:14:23Z&quot;,
+  &quot;kind&quot;: &quot;agent_error&quot;,
+  &quot;agent_id&quot;: &quot;diagnostician/llm-anthropic&quot;,
+  &quot;message_id&quot;: &quot;6ab0f882-...&quot;,
+  &quot;tenant_id&quot;: &quot;tenant-mercy-north&quot;,
+  &quot;case_id&quot;: &quot;case-2026-05-24-001&quot;,
+  &quot;trace_id&quot;: &quot;trace-abc123&quot;,
+  &quot;error&quot;: &quot;context deadline exceeded after 30s&quot;
+}
+</code></pre>
+<p>What&rsquo;s there: which agent failed, when, on which case (opaque ID), with what error message. What&rsquo;s missing: the prompt, the response, the case state. The error text is <code>err.Error()</code> ONLY — never <code>msg.Content</code>. The audit code path explicitly never reads <code>msg.Content</code> into the event.</p>
+<p>When the operator investigates &ldquo;why did this case use the rule-based fallback?&rdquo;, the trace_id correlates to the <code>[llm-trace]</code> JSON line (which has token counts, stop_reason, hashed case_id). For the actual case state, you go to the persistence table under separate access controls.</p>
+<h3 id="review-decision-event">Review decision event</h3>
+<p>A clinician approves a care plan with modifications:</p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;01HXVY...&quot;,
+  &quot;at&quot;: &quot;2026-05-24T11:42:08Z&quot;,
+  &quot;kind&quot;: &quot;review_decision&quot;,
+  &quot;agent_id&quot;: &quot;human_review&quot;,
+  &quot;message_id&quot;: &quot;6ab0f882-...&quot;,
+  &quot;from&quot;: &quot;rn-rachel&quot;,
+  &quot;to&quot;: &quot;cdm_planner&quot;,
+  &quot;type&quot;: &quot;care_plan_review&quot;,
+  &quot;tenant_id&quot;: &quot;tenant-mercy-north&quot;,
+  &quot;case_id&quot;: &quot;case-2026-05-24-001&quot;,
+  &quot;reviewer_id&quot;: &quot;rn-rachel&quot;,
+  &quot;decision&quot;: &quot;approve_with_modifications&quot;,
+  &quot;reason&quot;: &quot;Spirometry frequency reduced to monthly given patient burden&quot;
+}
+</code></pre>
+<p>What&rsquo;s there: who decided, what kind of review, what decision, what rationale. What&rsquo;s missing: the care plan content itself, the patient demographics, the diagnosis label. The reviewer&rsquo;s rationale is preserved (it&rsquo;s their reasoning, not patient PHI per se) — but it&rsquo;s expected to be sanitised by the reviewer (per UI guidance / training) to avoid leaking PHI into the rationale field.</p>
+<p>The <code>Reason</code> field is the one place narrative-y content lives in the audit log. Reviewers are explicitly trained: rationales are for clinical reasoning, not patient identifiers. The <code>phi.Redactor</code> runs on rationales as a defence-in-depth measure.</p>
+<hr>
+<h2 id="what-fail-open-on-audit-means">What &ldquo;fail-open on audit&rdquo; means</h2>
+<pre><code class="language-go">if err := o.recorder.Record(event); err != nil {
+    o.env.Logf(&quot;audit record error: %v&quot;, err)
+    // CONTINUE PROCESSING — never block on audit failure
+}
+</code></pre>
+<p>Audit failures (sink down, disk full, network partition) are logged but <strong>do not block message processing</strong>. This is deliberate and worth defending.</p>
+<p>The alternative is fail-closed: if audit fails, refuse to process the clinical message. The cost: the clinician now has nothing to look at, because the audit sink is temporarily down. Is this safer?</p>
+<p>No. It&rsquo;s worse.</p>
+<ul>
+<li>The clinician&rsquo;s workflow blocks for an operational issue.</li>
+<li>The clinical decision they were about to make happens <em>outside</em> the system — pen and paper, or a different tool, with no audit trail at all.</li>
+<li>The original message is dropped, so even after audit recovers, the case isn&rsquo;t replayable.</li>
+</ul>
+<p>Fail-open on audit means: the clinical workflow continues, the audit gap is logged (in the operational logs, which are separately persisted), and the operator can investigate the gap after the fact. The case still has <em>some</em> trail — the operational logs — even if the audit-specific sink is temporarily unavailable.</p>
+<p>This is the principle: <strong>audit failures are operational issues, not safety issues.</strong> Blocking the clinical flow because the audit sink is down is the worst outcome.</p>
+<p>The HIPAA Security Rule §164.312(b) doesn&rsquo;t require zero audit gaps — it requires &ldquo;mechanisms that record and examine activity.&rdquo; A small gap with a logged explanation is compatible with §164.312(b); blocking the clinical workflow is not.</p>
+<hr>
+<h2 id="what-append-only-at-db-grants-means">What &ldquo;append-only at DB GRANTs&rdquo; means</h2>
+<p>The Postgres backend&rsquo;s <code>audit_events</code> table has grants:</p>
+<pre><code class="language-sql">GRANT SELECT, INSERT ON audit_events TO bodh_app;
+-- Notably absent: UPDATE, DELETE
+</code></pre>
+<p>The application role <em>cannot modify or delete audit events.</em> Append-only is enforced by the database, not by the application&rsquo;s intentions.</p>
+<p>Why this matters:</p>
+<ul>
+<li>A compromised application credential can write garbage events but cannot rewrite history.</li>
+<li>An application bug that issues an <code>UPDATE audit_events</code> fails with a permission error.</li>
+<li>A bad migration that tries to &ldquo;clean up&rdquo; old audit rows fails with a permission error.</li>
+<li>Only privileged DBA roles can run retention deletes — those are governed by separate access controls, audit-logged in a different system, and time-limited.</li>
+</ul>
+<p>This is defense in depth in literal Postgres GRANTs. The audit log&rsquo;s integrity doesn&rsquo;t depend on the application code being correct — it depends on the database role&rsquo;s privileges being correct, which is much easier to audit (<code>\du</code> in psql).</p>
+<hr>
+<h2 id="what-you-do-with-this-audit-log">What you do with this audit log</h2>
+<p>Three queries that fall out of the schema naturally:</p>
+<h3 id="show-me-every-action-on-case-x">&ldquo;Show me every action on case X&rdquo;</h3>
+<pre><code class="language-sql">SELECT at, kind, agent_id, decision, reason
+FROM audit_events
+WHERE tenant_id = current_setting('app.tenant_id')
+  AND case_id = 'case-2026-05-24-001'
+ORDER BY at ASC;
+</code></pre>
+<p>Returns the full chronological trail for a case — every governance decision, every agent invocation, every review. The narrative isn&rsquo;t there, but the <strong>shape</strong> of what happened is fully reconstructible.</p>
+<h3 id="show-me-policy-denial-spikes-by-tenant">&ldquo;Show me policy denial spikes by tenant&rdquo;</h3>
+<pre><code class="language-sql">SELECT tenant_id, date_trunc('hour', at) AS hour, count(*)
+FROM audit_events
+WHERE kind = 'policy_decision' AND decision = 'deny'
+  AND at &gt; now() - interval '24 hours'
+GROUP BY tenant_id, hour
+ORDER BY count DESC;
+</code></pre>
+<p>Operational query. Spikes indicate misconfigured callers, attacks, or policy changes that broke a workflow.</p>
+<h3 id="reviewer-rationale-audit-for-the-last-month">&ldquo;Reviewer rationale audit for the last month&rdquo;</h3>
+<pre><code class="language-sql">SELECT reviewer_id, kind, decision, reason
+FROM audit_events
+WHERE kind = 'review_decision'
+  AND at &gt; now() - interval '30 days'
+ORDER BY reviewer_id, at;
+</code></pre>
+<p>Compliance review. Are reviewers documenting their reasoning? Are rationales pattern-matched (copy/paste) or unique? Are there reviewers who never reject? Are there reviewers who never approve?</p>
+<p>The <code>Reason</code> field is the one place narrative-y content lives. Operators can analyse rationale text for drift, missing reasoning, or copy-paste approvals — without ever needing the patient narrative or test results.</p>
+<hr>
+<h2 id="production-add-ons-not-in-this-pr">Production add-ons not in this PR</h2>
+<p>The shipped audit pipeline is complete enough for HIPAA §164.312(b) compliance at the data-collection layer. Three production additions are tracked:</p>
+<h3 id="1-worm-sink">1. WORM sink</h3>
+<p>For long-term retention (HIPAA: 6 years), forward audit events to a write-once-read-many sink: S3 Object Lock, Azure Immutable Blob, or Loki with retention lock. The application database is for hot access (90 days typical); the WORM sink is the cold-storage forensic record.</p>
+<h3 id="2-merkle-chain-hash">2. Merkle chain-hash</h3>
+<p>Periodic export jobs compute <code>hash_n = sha256(hash_n-1 || serialize(events_n))</code> and write the chain into a separate signed manifest. Any tampering with historical events breaks the chain and is detectable.</p>
+<p>This addresses the &ldquo;tamper-evident&rdquo; expectation in 21 CFR Part 11 and the Joint Commission&rsquo;s audit-log integrity guidance.</p>
+<h3 id="3-real-time-alerting">3. Real-time alerting</h3>
+<p>Stream from the Postgres LISTEN/NOTIFY (or replace with NATS / Kafka for higher throughput) to a real-time alerting layer: spike-on-deny, anomaly-on-reviewer-pattern, integrity-check-failure. Detection latency goes from &ldquo;discovered next quarter&rdquo; to &ldquo;discovered in minutes.&rdquo;</p>
+<p>None of these are required for the §164.312(b) data-collection baseline. All of them are part of a mature audit-log operation.</p>
+<hr>
+<h2 id="try-it">Try it</h2>
+<pre><code class="language-bash">git clone https://github.com/PratikDhanave/bodh.git
+cd bodh
+
+# Start cmd/care
+go run ./cmd/care -addr=:8088 &amp;
+
+# Trigger a clinical flow
+curl -X POST localhost:8088/cdm \
+  -H 'content-type: application/json' \
+  -d '{&quot;patient_id&quot;:&quot;pt-001&quot;,&quot;condition&quot;:&quot;dm&quot;,&quot;case_id&quot;:&quot;case-001&quot;}'
+
+# Inspect the audit log
+curl -s localhost:8088/audit?limit=20 | jq '.[] | {kind, agent_id, decision, reason}'
+</code></pre>
+<p>Schema details in <a href="https://github.com/PratikDhanave/bodh/blob/main/docs/governance.md">docs/governance.md</a>, Postgres backend details in <a href="https://github.com/PratikDhanave/bodh/blob/main/docs/deployment.md">docs/deployment.md</a>, full audit pipeline architecture in <a href="https://github.com/PratikDhanave/bodh/blob/main/docs/operations.md">docs/operations.md</a>.</p>
+<p>Repo: <a href="https://github.com/PratikDhanave/bodh">github.com/PratikDhanave/bodh</a></p>
+<p>If you&rsquo;re building HIPAA-aligned audit pipelines and want to compare schema decisions, retention models, or the WORM-sink integration story — issues, PRs, and DMs welcome.</p>
+<hr>
+<p><em>Bodh is a research and engineering reference. </em><em>Not under a Business Associate Agreement.</em><em> The audit pipeline described here is the architectural target for HIPAA-aligned clinical deployments; the codebase is not certified.</em></p>
+<h1 id="hipaa-auditlog-privacyengineering-compliance-healthcareit-softwareengineering-databasedesign-go-opensource">HIPAA #AuditLog #PrivacyEngineering #Compliance #HealthcareIT #SoftwareEngineering #DatabaseDesign #Go #OpenSource</h1>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>
