@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPIFFE/SPIRE basics — workload identity at deploy time — Pratik Dhanave</title>
+<meta name="description" content="Services need identity too, not just users. SPIFFE issues SVIDs (verifiable identity documents) to workloads; SPIRE is the reference issuer. The shape and the first deploy.">
+<meta name="author" content="Pratik Dhanave">
+<meta property="og:title" content="SPIFFE/SPIRE basics — workload identity at deploy time">
+<meta property="og:description" content="Services need identity too, not just users. SPIFFE issues SVIDs (verifiable identity documents) to workloads; SPIRE is the reference issuer. The shape and the first deploy.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/2026/02/28/spiffe-spire-workload-identity-basics/">
+<meta property="article:published_time" content="2026-02-28T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="SPIFFE">
+<meta property="article:tag" content="SPIRE">
+<meta property="article:tag" content="Workload Identity">
+<meta property="article:tag" content="Zero-Trust">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="SPIFFE/SPIRE basics — workload identity at deploy time">
+<meta name="twitter:description" content="Services need identity too, not just users. SPIFFE issues SVIDs (verifiable identity documents) to workloads; SPIRE is the reference issuer. The shape and the first deploy.">
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/2026/02/28/spiffe-spire-workload-identity-basics/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+<style>
+:root { --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff; --text: #1a1a1a; --text-dim: #555; --text-muted: #888; --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0; --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22; --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590; --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff; --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c; } }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.7; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; font-size: 17px; }
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+<nav><div class="nav-container"><a href="/" class="nav-brand">Pratik Dhanave</a><ul class="nav-links"><li><a href="/#about">About</a></li><li><a href="/blog/">Blog</a></li><li><a href="/#projects">Projects</a></li><li><a href="/#contact">Contact</a></li></ul></div></nav>
+<main>
+<div class="post-meta"><time datetime="2026-02-28">February 28, 2026</time><span>·</span><span>2 min read</span><span>·</span><a href="/blog/">← All posts</a></div>
+<div class="post-tags">  <span class="tag">SPIFFE</span>
+  <span class="tag">SPIRE</span>
+  <span class="tag">Workload Identity</span>
+  <span class="tag">Zero-Trust</span></div>
+<article class="post"><h2>The problem</h2>
+<p>Service A calls service B. Service B asks: &ldquo;is this really service A?&rdquo;</p>
+<p>The traditional answers — shared API keys, mTLS with manually-managed certs, IP allowlists — all break in K8s where pods are ephemeral and IPs rotate. SPIFFE replaces all of them with verifiable identity documents (SVIDs) issued at runtime to workloads.</p>
+<h2>The shape</h2>
+<pre><code>┌─────────────────┐
+│ SPIRE Server    │    issues SVIDs based on attestation policy
+│ (control plane) │
+└────────┬────────┘
+         │
+   ┌─────┴─────┐
+   │           │
+┌──┴──┐    ┌───┴──┐
+│Agent│    │Agent │   one per node, attest workloads to the server
+└──┬──┘    └──┬───┘
+   │          │
+┌──┴────┐  ┌──┴───┐
+│ pod A │  │ pod B│   each pod gets an SVID via the Workload API
+└───────┘  └──────┘
+</code></pre>
+<p>Each pod&rsquo;s SVID is signed by the SPIRE server. Service B verifies service A&rsquo;s SVID against the SPIRE server&rsquo;s public key.</p>
+<h2>The SVID format</h2>
+<p>An SVID is an X.509 cert (or a JWT, depending on use case). The Subject Alternative Name is a SPIFFE ID:</p>
+<pre><code>spiffe://genie.example/ns/prod/sa/kyc-orchestrator
+</code></pre>
+<p>Structure: <code>spiffe://&lt;trust-domain&gt;/&lt;arbitrary path&gt;</code>. The path encodes namespace, service account, and any other policy-relevant context.</p>
+<h2>Attestation</h2>
+<p>The interesting part: how does SPIRE decide whether a pod gets an SVID? Attestation policy. Example policies:</p>
+<ul>
+<li>Pod has Kubernetes service account <code>kyc-orchestrator</code> in namespace <code>prod</code> → issue SVID <code>spiffe://genie.example/ns/prod/sa/kyc-orchestrator</code></li>
+<li>Process binary SHA matches <code>&lt;known good hash&gt;</code> → issue SVID</li>
+<li>Node is in cloud provider zone <code>asia-south1-a</code> → issue regional SVID</li>
+</ul>
+<p>Combine these — &ldquo;K8s namespace AND binary hash&rdquo; — for defence-in-depth attestation.</p>
+<h2>Genie&rsquo;s plan</h2>
+<p><code>pkg/identity</code> ships DID + W3C VC primitives in Go. SPIRE wiring at deploy time is on the roadmap (PCSE §1.2 partial). The shape:</p>
+<ol>
+<li>SPIRE server in cluster.</li>
+<li>SPIRE agent DaemonSet on every node.</li>
+<li>Genie pods include the SPIFFE Workload API socket as a volume.</li>
+<li>Genie&rsquo;s gRPC server uses SPIFFE certs for mTLS automatically (the <code>spiffe/go-spiffe</code> library handles cert rotation).</li>
+</ol>
+<p>After SPIRE is in, the audit log can carry the calling SVID alongside the user identity — &ldquo;user alice, calling agent kyc_orchestrator (SVID spiffe://genie.example/ns/prod/sa/kyc-orchestrator), accessed patient record 12345.&rdquo; Three layers of attribution.</p>
+<h2>When it pays back</h2>
+<p>The cost of SPIRE is operational (one more control plane). The benefit:</p>
+<ul>
+<li>No more shared API keys between services.</li>
+<li>mTLS certs rotate automatically (no more &ldquo;the cert expired at midnight&rdquo; outages).</li>
+<li>Audit trail includes verifiable service identity (not just self-reported names).</li>
+<li>Federations between separate SPIRE installations let cross-org service-to-service trust work without shared secrets.</li>
+</ul>
+<p>For a regulated multi-service deployment, this is the right shape. For a single-service deployment, it&rsquo;s overkill — JWT and mTLS via cert-manager suffice.</p>
+<p>The classic guide: SPIFFE.io documentation, plus the <a href="https://github.com/spiffe/go-spiffe"><code>spiffe/go-spiffe</code></a> library. Two weeks of setup, three years of &ldquo;we never have to think about service identity again.&rdquo;</p></article>
+<div class="post-footer"><a class="back" href="/blog/">← Back to all posts</a><div class="share"><a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a><a href="https://github.com/PratikDhanave">GitHub</a></div></div>
+</main>
+<footer><p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p></footer>
+</body>
+</html>
