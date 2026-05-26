@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HL7 v2 in 2026: Why This 50-Year-Old Protocol Still Drives Healthcare Integration — Pratik Dhanave</title>
+<meta name="description" content="Why HL7 v2 — a 50-year-old pipe-delimited protocol — still drives most US hospital ADT integrations in 2026, and what a clean Go parser looks like in ~300 lines.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="HL7 v2 in 2026: Why This 50-Year-Old Protocol Still Drives Healthcare Integration">
+<meta property="og:description" content="Why HL7 v2 — a 50-year-old pipe-delimited protocol — still drives most US hospital ADT integrations in 2026, and what a clean Go parser looks like in ~300 lines.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/hl7v2-still-matters.html">
+<meta property="article:published_time" content="2026-05-25">
+<meta property="article:tag" content="HL7 v2">
+<meta property="article:tag" content="FHIR">
+<meta property="article:tag" content="Healthcare IT">
+<meta property="article:tag" content="Integration">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HL7 v2 in 2026: Why This 50-Year-Old Protocol Still Drives Healthcare Integration">
+<meta name="twitter:description" content="Why HL7 v2 — a 50-year-old pipe-delimited protocol — still drives most US hospital ADT integrations in 2026, and what a clean Go parser looks like in ~300 lines.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/hl7v2-still-matters.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>HL7 v2 in 2026: Why This 50-Year-Old Protocol Still Drives Healthcare Integration</h1>
+    <p class="post-subtitle">Most US hospital integrations still ride pipe-delimited messages with custom delimiters per message. Here's why FHIR hasn't displaced it, what an ADT ingest path actually looks like, and a 300-line Go parser that handles the real-world edge cases.</p>
+    <div class="post-meta">
+      <time datetime="2026-05-25">May 25, 2026</time>
+      <span>·</span>
+      <span>Healthcare IT integration</span>
+    </div>
+    <div class="post-tags"><span class="tag">HL7 v2</span><span class="tag">FHIR</span><span class="tag">Healthcare IT</span><span class="tag">Integration</span></div>
+  </header>
+
+  <h2 id="the-integration-nobody-wants-to-write">The integration nobody wants to write</h2>
+<p>If you build clinical software that talks to a US hospital — any hospital, almost any vendor — you&rsquo;re going to write an HL7 v2 integration. Probably an ADT^A01/A03/A08 feed. Probably as the first thing.</p>
+<p>Two things are usually true at this point:</p>
+<ol>
+<li>You assume FHIR will save you. (It won&rsquo;t, not for ADT.)</li>
+<li>You consider buying a Mirth Connect license or hiring an interface engine specialist. (You can; it&rsquo;ll work; it&rsquo;ll also be expensive forever.)</li>
+</ol>
+<p>There&rsquo;s a third option, which is &ldquo;parse HL7 v2 yourself in ~300 lines of code.&rdquo; That&rsquo;s what I just shipped for <a href="https://github.com/PratikDhanave/bodh">Bodh</a>, the open-source medical multi-agent platform I&rsquo;ve been writing in Go. The result is <code>pkg/hl7v2</code> — a zero-dependency parser with full tests, fixtures for the four most common ADT trigger events, and a <code>POST /hl7/adt</code> endpoint that returns proper AA / AE ACKs.</p>
+<p>Here&rsquo;s why HL7 v2 is still the lingua franca, what the protocol actually requires of you, and what the implementation looks like.</p>
+<hr>
+<h2 id="why-fhir-didnt-replace-it">Why FHIR didn&rsquo;t replace it</h2>
+<p>FHIR (Fast Healthcare Interoperability Resources) is the modern HL7 standard — JSON over REST, resource-oriented, OAuth 2.0 + OIDC for auth via the SMART on FHIR profile. It&rsquo;s genuinely good. ONC&rsquo;s 2015 Edition Cures Update certification requires FHIR R4 with US Core profiles. New healthcare APIs increasingly use it.</p>
+<p>But:</p>
+<ul>
+<li><strong>ADT events (admit / discharge / transfer)</strong> in most US hospital EHRs are emitted as HL7 v2 because the EHR&rsquo;s internal interface engine was designed around it 20-30 years ago and hasn&rsquo;t been rewritten.</li>
+<li><strong>Orders (ORM), results (ORU), scheduling (SIU)</strong> — same story. These message types have been stable for decades; the cost to rewrite the EHR&rsquo;s emitter outweighs the benefit.</li>
+<li><strong>State Medicaid / public health reporting</strong> mostly accepts HL7 v2.</li>
+<li><strong>Lab interfaces</strong> between hospital labs and outside reference labs almost universally use v2.</li>
+</ul>
+<p>What FHIR is replacing:</p>
+<ul>
+<li><strong>Patient-facing APIs</strong> (USCDI conformance, patient-mediated record access)</li>
+<li><strong>Population-health bulk exports</strong> (FHIR Bulk Data <code>$export</code>)</li>
+<li><strong>New apps launched inside the EHR</strong> (SMART App Launch)</li>
+<li><strong>Cross-org clinical document exchange</strong> (FHIR Document Reference, increasingly)</li>
+</ul>
+<p>What FHIR is <strong>not</strong> replacing in 2026:</p>
+<ul>
+<li>The 1 AM stream of <code>ADT^A01</code> messages from the hospital admit / discharge events feed that triggers your TCM workflow.</li>
+<li>The <code>ORU^R01</code> lab result stream that updates your panel-management dashboard.</li>
+<li>The <code>SIU^S12</code> scheduling messages your appointment-reminder engagement layer needs.</li>
+</ul>
+<p>If you want to integrate with US hospitals for clinical operations, you write HL7 v2. The question is whether you do it yourself or buy.</p>
+<hr>
+<h2 id="what-hl7-v2-actually-looks-like">What HL7 v2 actually looks like</h2>
+<p>This is a real ADT^A01 message (admission, anonymised):</p>
+<pre><code>MSH|^~\&amp;|ADTSYS|MERCY|BODH|MERCY|20260524143000||ADT^A01|MSG00001|P|2.5
+EVN|A01|20260524143000
+PID|||MR12345^^^MERCY^MR||REDACTED^REDACTED||19540101|F|||...
+PV1||I|MERCY^EDOBS^01|||||||MED||||||...
+DG1|1|I10|I50.23^Acute on chronic systolic heart failure^I10|||W
+</code></pre>
+<p>Five segments. Pipe-delimited fields within each segment. The first character of MSH after the segment header is the field delimiter (<code>|</code>). The next four characters are the encoding characters: <code>^</code> (component separator), <code>~</code> (repetition separator), <code>\</code> (escape), <code>&amp;</code> (subcomponent separator).</p>
+<p><strong>Yes, the delimiters are declared in-band.</strong> A message can choose its own delimiters. The parser must read MSH-1 and MSH-2 first, then parse the rest of the message using those delimiters. A library that hardcodes pipes is wrong.</p>
+<p>Three real edge cases the parser must handle:</p>
+<h3 id="1-custom-delimiters">1. Custom delimiters</h3>
+<p>A poorly-configured hospital sender once decided pipes were annoying and switched to <code>#</code>. Their messages look like:</p>
+<pre><code>MSH#@\`\&amp;#ADTSYS#MERCY#BODH#MERCY#...
+</code></pre>
+<p>If your parser hardcodes <code>|</code>, every message from this sender is garbage. The right pattern is:</p>
+<pre><code class="language-go">func parseMSH(line string) (*MSH, error) {
+    if !strings.HasPrefix(line, &quot;MSH&quot;) {
+        return nil, errors.New(&quot;expected MSH segment&quot;)
+    }
+    fieldSep := rune(line[3])       // MSH-1
+    encChars := line[4:8]            // MSH-2: comp ^ rep ~ esc \ sub &amp;
+    // ... rest of parser uses these delimiters, not constants
+}
+</code></pre>
+<p>Bodh&rsquo;s parser exercises this in tests: a fixture using <code>#@\</code>\&amp;<code>as the delimiters parses successfully and produces the same</code>ADTEvent` as a fixture using the standard delimiters.</p>
+<h3 id="2-repeating-pid-3">2. Repeating PID-3</h3>
+<p>PID-3 is &ldquo;Patient Identifier List&rdquo;. A patient can have multiple identifiers — internal MRN, account number, SSN (yes, sometimes), driver&rsquo;s license, military ID. Separated by <code>~</code>:</p>
+<pre><code>PID|||MR12345^^^MERCY^MR~ACC98765^^^MERCY^AN~SSN123456789^^^USA^SS||...
+</code></pre>
+<p>Which one is the patient identifier you care about? The convention: pick the one with assigning-authority type <code>MR</code> (medical record). If none has type <code>MR</code>, fall back to the first repetition.</p>
+<p>Bodh&rsquo;s parser:</p>
+<pre><code class="language-go">func extractPatientID(pid3 string, fieldSep, repSep, compSep rune) string {
+    for _, rep := range strings.Split(pid3, string(repSep)) {
+        parts := strings.Split(rep, string(compSep))
+        // CX type: ID^check_digit^check_alg^assigning_auth^id_type_code
+        if len(parts) &gt;= 5 &amp;&amp; strings.EqualFold(parts[4], &quot;MR&quot;) {
+            return parts[0]
+        }
+    }
+    // Fallback: first repetition's first component
+    first := strings.SplitN(pid3, string(repSep), 2)[0]
+    return strings.SplitN(first, string(compSep), 2)[0]
+}
+</code></pre>
+<p>Test fixtures include a PID-3 with only <code>AN</code> (account number, not MR) — the fallback path returns the first repetition, with a documented behaviour note.</p>
+<h3 id="3-multiple-dg1-segments-with-priority">3. Multiple DG1 segments with priority</h3>
+<p>DG1 is &ldquo;Diagnosis.&rdquo; A discharge message often has multiple DG1 segments — primary diagnosis, secondary, follow-up, admitting. The 6th field is &ldquo;Diagnosis Type&rdquo; with values like <code>W</code> (working), <code>F</code> (final), <code>A</code> (admitting), <code>D</code> (discharge).</p>
+<p>For mapping to Bodh&rsquo;s <code>ADTEvent.PrimaryDx</code>, the rule is: working priority <code>W</code> wins, else first DG1. The parser:</p>
+<pre><code class="language-go">func extractPrimaryDx(segments []Segment, /* delimiters */) string {
+    var firstDG1 string
+    for _, seg := range segments {
+        if seg.Name != &quot;DG1&quot; { continue }
+        dxCode := /* parse DG1-3.1 — code value */
+        dxType := /* parse DG1-6 */
+        if dxType == &quot;W&quot; {
+            return dxCode  // working priority wins
+        }
+        if firstDG1 == &quot;&quot; {
+            firstDG1 = dxCode
+        }
+    }
+    return firstDG1  // fallback to first DG1 if no W
+}
+</code></pre>
+<hr>
+<h2 id="the-ack-problem">The ACK problem</h2>
+<p>Every HL7 v2 message expects an ACK in response. Three ACK codes:</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AA</code></td>
+<td>Application Accept (parsed + processed successfully)</td>
+</tr>
+<tr>
+<td><code>AE</code></td>
+<td>Application Error (parse OK, processing failed — e.g. unknown trigger event)</td>
+</tr>
+<tr>
+<td><code>AR</code></td>
+<td>Application Reject (parse failed — message is malformed)</td>
+</tr>
+</tbody>
+</table>
+<p>The ACK is itself an HL7 v2 message with one segment: MSA.</p>
+<pre><code>MSH|^~\&amp;|BODH|MERCY|ADTSYS|MERCY|&lt;now&gt;||ACK^A01^ACK|ACK-MSG00001|P|2.5
+MSA|AA|MSG00001|
+</code></pre>
+<p>Notice:</p>
+<ul>
+<li>Sender and receiver are <strong>flipped</strong> from the inbound message (Bodh is now sending; the EHR is now receiving).</li>
+<li>The MSA-2 field echoes the original control ID (<code>MSG00001</code>) so the sender can correlate.</li>
+<li>Trigger event in MSH-9 includes <code>ACK^A01^ACK</code> so the sender knows which trigger this ACK responds to.</li>
+</ul>
+<p>Bodh&rsquo;s <code>BuildACK</code> constructs this from the parsed inbound MSH:</p>
+<pre><code class="language-go">func BuildACK(in MSH, code string, diagnostic string) string {
+    var b strings.Builder
+    b.WriteString(&quot;MSH|^~\\&amp;|&quot;)
+    b.WriteString(in.ReceivingApp)   // sender becomes receiver
+    b.WriteString(&quot;|&quot;)
+    b.WriteString(in.ReceivingFacility)
+    b.WriteString(&quot;|&quot;)
+    b.WriteString(in.SendingApp)     // receiver becomes sender
+    b.WriteString(&quot;|&quot;)
+    b.WriteString(in.SendingFacility)
+    b.WriteString(&quot;|&quot;)
+    b.WriteString(time.Now().UTC().Format(&quot;20060102150405&quot;))
+    b.WriteString(&quot;||ACK^&quot;)
+    b.WriteString(in.TriggerEvent)
+    b.WriteString(&quot;^ACK|ACK-&quot;)
+    b.WriteString(in.MessageControlID)
+    b.WriteString(&quot;|P|2.5\r&quot;)
+    b.WriteString(&quot;MSA|&quot;)
+    b.WriteString(code)
+    b.WriteString(&quot;|&quot;)
+    b.WriteString(in.MessageControlID)
+    b.WriteString(&quot;|&quot;)
+    b.WriteString(diagnostic)
+    return b.String()
+}
+</code></pre>
+<p>Production add-ons:</p>
+<ul>
+<li><strong>MLLP framing</strong> (<code>\v...\x1c\r</code>) for TCP-based transports — most hospital EHRs use MLLP over TCP, not HTTP. Bodh&rsquo;s HTTP wrapper is for cloud-native deployments; production over MLLP is a separate transport layer.</li>
+<li><strong>Batched messages</strong> (FHS / BHS / BTS / FTS envelopes) for overnight batch loads.</li>
+<li><strong>Z-segments</strong> — custom segments hospitals invent for vendor-specific data. The parser preserves unknown segments raw so downstream agents can read them if needed.</li>
+</ul>
+<hr>
+<h2 id="what-a-clean-go-implementation-looks-like">What a clean Go implementation looks like</h2>
+<p>Bodh&rsquo;s parser is ~300 lines. The shape:</p>
+<pre><code class="language-go">package hl7v2
+
+type Message struct {
+    Segments []Segment
+    // delimiters parsed from MSH-1/MSH-2
+    FieldSep    rune
+    CompSep     rune
+    RepSep      rune
+    EscChar     rune
+    SubCompSep  rune
+}
+
+type Segment struct {
+    Name   string
+    Fields []string
+}
+
+func ParseMessage(raw string) (*Message, error) { /* ... */ }
+func (m *Message) FindSegment(name string) *Segment { /* ... */ }
+func MessageToADTEvent(m *Message) (medical.ADTEvent, error) { /* ... */ }
+func BuildACK(in MSH, code string, diagnostic string) string { /* ... */ }
+</code></pre>
+<p>Five public functions. No external dependencies — just <code>strings</code>, <code>time</code>, <code>errors</code>, <code>fmt</code>.</p>
+<p>The <code>cmd/care</code> HTTP handler:</p>
+<pre><code class="language-go">func handleHL7ADT(w http.ResponseWriter, r *http.Request, bus comm.Bus) {
+    body, _ := io.ReadAll(r.Body)
+    msg, err := hl7v2.ParseMessage(string(body))
+    if err != nil {
+        ack := hl7v2.BuildACK(hl7v2.MSH{}, &quot;AR&quot;, err.Error())
+        w.WriteHeader(http.StatusBadRequest)
+        w.Header().Set(&quot;Content-Type&quot;, &quot;application/hl7-v2&quot;)
+        w.Write([]byte(ack))
+        return
+    }
+    evt, err := hl7v2.MessageToADTEvent(msg)
+    if err != nil {
+        ack := hl7v2.BuildACK(msg.MSH(), &quot;AE&quot;, err.Error())
+        w.WriteHeader(http.StatusBadRequest)
+        w.Write([]byte(ack))
+        return
+    }
+    // Publish ADT event on the bus
+    bus.Publish(r.Context(), agent.NewMessage(
+        &quot;user&quot;, &quot;readmission_tracker&quot;, agent.RoleUser, &quot;adt_event&quot;,
+        medical.EncodeADT(evt),
+        map[string]any{
+            &quot;patient_id&quot;:     evt.PatientID,
+            &quot;hl7_control_id&quot;: msg.MSH().MessageControlID,
+        },
+    ))
+    // AA ACK
+    w.Header().Set(&quot;Content-Type&quot;, &quot;application/hl7-v2&quot;)
+    w.Write([]byte(hl7v2.BuildACK(msg.MSH(), &quot;AA&quot;, &quot;&quot;)))
+}
+</code></pre>
+<p>The ADT event flows into Bodh&rsquo;s <code>readmission_tracker</code> agent, which computes the LACE-inspired risk score and publishes <code>readmission_risk</code> + <code>discharge_event</code> to trigger TCM cascades.</p>
+<hr>
+<h2 id="what-this-enables-in-a-clinical-workflow">What this enables in a clinical workflow</h2>
+<p>End-to-end, with all the pieces I&rsquo;ve written about in this series:</p>
+<ol>
+<li><strong>EHR sends <code>ADT^A01</code> for an admit</strong> — pipe-delimited message over MLLP (or in this case, HTTP).</li>
+<li><strong>Bodh parses it</strong> — extracts patient_id (preferring MR-typed), facility, primary_dx, occurred_at.</li>
+<li><strong>Publishes <code>adt_event</code> on the bus</strong> — with <code>tenant_id</code> from the binary&rsquo;s <code>BODH_TENANT_ID</code> config.</li>
+<li><strong>Governance evaluates</strong> — <code>RequireTenantPolicy</code> checks tenant_id present, <code>MaxContentLengthPolicy</code> checks message body size.</li>
+<li><strong>Audit event recorded</strong> — <code>KindMessage</code> with agent_id=readmission_tracker, opaque patient_id, no message body.</li>
+<li><strong><code>readmission_tracker</code> runs</strong> — computes risk band, emits <code>readmission_risk</code> and <code>discharge_event</code>.</li>
+<li><strong><code>discharge_event</code> is gated by HITL</strong> — wraps in <code>discharge_review</code> envelope, addresses to <code>human_review</code>.</li>
+<li><strong>Reviewer approves</strong> — <code>discharge_review</code> audit event records <code>decision=approve</code>, <code>reviewer_id=rn-rachel</code>, rationale.</li>
+<li><strong>TCM cascade triggers</strong> — <code>tcm_coordinator</code> handles the discharge, creates nurse tasks, emits <code>tcm_welcome_review</code>.</li>
+<li><strong>Reviewer approves the welcome SMS</strong> — engagement layer sends the message via Twilio (under BAA).</li>
+</ol>
+<p>That&rsquo;s the full path from an HL7 v2 admit message to a Twilio SMS to the patient, with every step audit-logged, every governance check enforced, every consequential decision human-approved.</p>
+<p>The HL7 v2 parser is just the front door. But it&rsquo;s the <em>most common</em> front door in US hospital integration in 2026.</p>
+<hr>
+<h2 id="three-patterns-that-age-well">Three patterns that age well</h2>
+<h3 id="1-dont-hardcode-delimiters">1. Don&rsquo;t hardcode delimiters</h3>
+<p>A library that assumes pipes works 99% of the time, then fails silently when a hospital sender changes config. Parse MSH-1 and MSH-2 first.</p>
+<h3 id="2-be-conservative-on-mapping">2. Be conservative on mapping</h3>
+<p>For ambiguous fields (multiple PID-3 repetitions, multiple DG1 segments), document the rule you applied and write a test for the fallback. A future contributor adding a new hospital integration needs to know whether the parser picked MR vs first vs nothing.</p>
+<h3 id="3-preserve-raw-segments">3. Preserve raw segments</h3>
+<p>Unknown segments — Z-segments, future-version segments, vendor-specific — should round-trip through the parser unmolested. Bodh stores them in <code>Message.Segments</code> with their raw fields. Downstream agents that know about them can read them; agents that don&rsquo;t, ignore them.</p>
+<p>This is the &ldquo;be liberal in what you accept&rdquo; half of Postel&rsquo;s Law. The other half — &ldquo;be conservative in what you send&rdquo; — applies to the ACK builder, which produces a strict subset of v2.5 with no extensions.</p>
+<hr>
+<h2 id="five-trade-offs-worth-eyes-open">Five trade-offs worth eyes-open</h2>
+<h3 id="1-hl7-v2-in-http-vs-mllp">1. HL7 v2 in HTTP vs MLLP</h3>
+<p>Bodh&rsquo;s <code>/hl7/adt</code> endpoint accepts HTTP POST. Most production hospital EHRs send v2 over <strong>MLLP</strong> (Minimum Lower Layer Protocol — <code>\v...\x1c\r</code> framing over a persistent TCP socket).</p>
+<p>For cloud-native deployments where the EHR can be configured to POST to a URL, HTTP works. For traditional integration engines that only emit MLLP, you need a small TCP listener that strips the MLLP framing and forwards to the HTTP handler (or rewrite the handler to be transport-agnostic). Roughly 100 more lines of code.</p>
+<h3 id="2-oru-orm-siu-dft-mdm-coming">2. ORU / ORM / SIU / DFT / MDM coming?</h3>
+<p>Bodh ships ADT. Each additional message type is a parser extension — same segment grammar, different mapping logic. ORU (results) and ORM (orders) are next most useful.</p>
+<h3 id="3-z-segments-are-a-research-project">3. Z-segments are a research project</h3>
+<p>Hospitals invent custom Z-segments to carry vendor-specific or workflow-specific data that doesn&rsquo;t fit the standard segments. Mapping Z-segments to a useful domain type usually requires a conversation with the hospital&rsquo;s integration team. The parser preserves them; the mapping is bespoke.</p>
+<h3 id="4-character-set-assumptions">4. Character set assumptions</h3>
+<p>HL7 v2 messages can declare a character set (e.g. <code>8859/1</code>, <code>UNICODE UTF-8</code>) in MSH-18. Bodh&rsquo;s parser assumes UTF-8 throughout. Production deployments interfacing with older systems (Windows-1252 hospital EHRs are real) need an explicit conversion layer.</p>
+<h3 id="5-escape-sequences">5. Escape sequences</h3>
+<p>The escape character (<code>\</code> by default) introduces sequences like <code>\F\</code> (field separator literal), <code>\S\</code> (component separator literal), <code>\T\</code> (subcomponent separator literal), <code>\R\</code> (repetition separator literal), <code>\E\</code> (escape character literal), <code>\Xnn\</code> (hex), <code>\Znn\</code> (Z-segment). Bodh&rsquo;s parser handles only <code>\F\</code> / <code>\S\</code> / <code>\R\</code> / <code>\E\</code> / <code>\T\</code> / <code>\X..\</code>. Production-grade un-escaping is more thorough (especially <code>\X..\</code> hex sequences); planned addition.</p>
+<hr>
+<h2 id="try-it">Try it</h2>
+<p>The parser lives in <code>pkg/hl7v2/</code>. Four test fixtures under <code>pkg/hl7v2/testdata/</code>. The HTTP endpoint in <code>cmd/care/main.go</code>. The mapping to <code>medical.ADTEvent</code> in <code>pkg/hl7v2/hl7v2.go</code>.</p>
+<pre><code class="language-bash">git clone https://github.com/PratikDhanave/bodh.git
+cd bodh
+
+# Run the parser tests
+go test ./pkg/hl7v2/... -v
+
+# Start the HTTP server and POST a real fixture
+go run ./cmd/care -addr=:8088 &amp;
+curl -X POST localhost:8088/hl7/adt \
+  -H 'Content-Type: application/hl7-v2' \
+  --data-binary @pkg/hl7v2/testdata/adt_a01_admit.hl7
+# Returns: MSH|^~\&amp;|BODH|MERCY|ADTSYS|MERCY|...|ACK^A01^ACK|ACK-MSG00001|P|2.5
+#          MSA|AA|MSG00001|
+
+# Inspect the audit event the parsed message produced
+curl -s localhost:8088/audit?kind=message | jq '.[] | select(.type==&quot;adt_event&quot;)'
+</code></pre>
+<p>The full HL7 v2 reference is in <a href="https://github.com/PratikDhanave/bodh/blob/main/docs/api.md#hl7-v2">docs/api.md</a>. Healthcare standards context (where HL7 v2 sits relative to FHIR, X12, NCPDP, DICOM, CDA) is in <a href="https://github.com/PratikDhanave/bodh/blob/main/docs/healthcare-standards.md">docs/healthcare-standards.md</a>.</p>
+<p>Repo: <a href="https://github.com/PratikDhanave/bodh">github.com/PratikDhanave/bodh</a></p>
+<p>If you&rsquo;re writing hospital integrations and want to compare parser approaches, mapping conventions, or the FHIR-vs-v2 decision matrix — issues, PRs, and DMs welcome.</p>
+<hr>
+<p><em>Bodh is a research and engineering reference. </em><em>Not certified for production hospital integration without independent validation, BAA coverage, and operational tooling I have not built.</em><em> HL7 v2 in production deployments requires interface-engine-grade reliability, dead-letter queues, replay capabilities, and 24×7 ops support.</em></p>
+<h1 id="hl7-fhir-healthcareit-integration-go-golang-opensource-healthtech-interfaceengine-clinicalsoftware">HL7 #FHIR #HealthcareIT #Integration #Go #Golang #OpenSource #HealthTech #InterfaceEngine #ClinicalSoftware</h1>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>

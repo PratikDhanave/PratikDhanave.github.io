@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Fallback Is the Contract: Reliability Patterns for Clinical AI — Pratik Dhanave</title>
+<meta name="description" content="Every LLM-backed agent in this platform has a deterministic rule-based fallback. The case always finalises. The fallback isn't a workaround — it's the contract.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="The Fallback Is the Contract: Reliability Patterns for Clinical AI">
+<meta property="og:description" content="Every LLM-backed agent in this platform has a deterministic rule-based fallback. The case always finalises. The fallback isn't a workaround — it's the contract.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/fallback-is-the-contract.html">
+<meta property="article:published_time" content="2026-05-23">
+<meta property="article:tag" content="SRE">
+<meta property="article:tag" content="Reliability">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="Production">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Fallback Is the Contract: Reliability Patterns for Clinical AI">
+<meta name="twitter:description" content="Every LLM-backed agent in this platform has a deterministic rule-based fallback. The case always finalises. The fallback isn't a workaround — it's the contract.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/fallback-is-the-contract.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>The Fallback Is the Contract: Reliability Patterns for Clinical AI</h1>
+    <p class="post-subtitle">Why every LLM-backed agent in my medical platform has a deterministic rule-based fallback — and why "the case always finalises" is the only contract that matters for clinical work.</p>
+    <div class="post-meta">
+      <time datetime="2026-05-23">May 23, 2026</time>
+      <span>·</span>
+      <span>SRE / reliability + ML infra</span>
+    </div>
+    <div class="post-tags"><span class="tag">SRE</span><span class="tag">Reliability</span><span class="tag">LLM</span><span class="tag">Production</span></div>
+  </header>
+
+  <h2 id="the-thing-nobody-warns-you-about">The thing nobody warns you about</h2>
+<p>A research-grade LLM agent has a really nice failure profile in dev: occasionally returns malformed JSON, occasionally hallucinates a diagnosis, occasionally times out on a slow API call. You catch those in eval, add retries, move on.</p>
+<p>A production-grade LLM agent in a clinical system has a much worse failure profile. Same failure modes, but now every one of them is a case that doesn&rsquo;t finalise. A clinician opened a chart, expected a recommendation, and gets a spinner. Or a 500. Or worse: a partial result that <em>looks</em> like a recommendation but is actually a JSON parse fragment from a model that ran out of tokens.</p>
+<p>The reflex is to add more retries, more timeouts, more error handling. That doesn&rsquo;t fix the underlying issue. The underlying issue is that <strong>failure is the default behaviour</strong> of any system whose primary path involves a model that can occasionally just not work.</p>
+<p>For <a href="https://github.com/PratikDhanave/bodh">Bodh</a>, the open-source medical multi-agent platform I&rsquo;ve been building, I went the other direction. <strong>Every LLM-backed agent has a deterministic rule-based fallback. The fallback isn&rsquo;t a workaround — it&rsquo;s the contract.</strong></p>
+<p>Here&rsquo;s what that looks like, why it matters, and where it doesn&rsquo;t apply.</p>
+<hr>
+<h2 id="the-shape">The shape</h2>
+<p>Every LLM-backed diagnostician looks like this:</p>
+<pre><code class="language-go">type LLMDiagnostician struct {
+    Client        llm.Client            // Anthropic / OpenAI / Ollama / Voyage
+    Fallback      *DiagnosticianAgent   // always present
+    MinConfidence float64               // default 0.6
+    Timeout       time.Duration         // default 30s
+    MaxRetries    int                   // default 1 transient retry
+}
+
+func (a *LLMDiagnostician) HandleMessage(
+    ctx context.Context, msg agent.Message, env agent.Environment,
+) ([]agent.Message, error) {
+    // Try LLM path with timeout
+    llmCtx, cancel := context.WithTimeout(ctx, a.Timeout)
+    defer cancel()
+
+    resp, err := a.Client.Complete(llmCtx, a.buildRequest(msg))
+    if err != nil {
+        env.Logf(&quot;[diagnostician/llm] error: %v — falling back to rule-based&quot;, err)
+        return a.Fallback.HandleMessage(ctx, msg, env)
+    }
+
+    proposal, err := medical.DecodeProposal(resp.Content)
+    if err != nil {
+        env.Logf(&quot;[diagnostician/llm] malformed JSON — falling back&quot;)
+        return a.Fallback.HandleMessage(ctx, msg, env)
+    }
+
+    if proposal.Confidence &lt; a.MinConfidence {
+        env.Logf(&quot;[diagnostician/llm] confidence %.2f &lt; threshold — falling back&quot;,
+            proposal.Confidence)
+        return a.Fallback.HandleMessage(ctx, msg, env)
+    }
+
+    if !safety.IsGroundedInCitations(proposal.Rationale, proposal.Citations) {
+        env.Logf(&quot;[diagnostician/llm] hallucination check failed — falling back&quot;)
+        return a.Fallback.HandleMessage(ctx, msg, env)
+    }
+
+    if safety.ContainsPHIPattern(proposal.Rationale) {
+        env.Logf(&quot;[diagnostician/llm] PHI pattern in output — falling back&quot;)
+        return a.Fallback.HandleMessage(ctx, msg, env)
+    }
+
+    return []agent.Message{a.emit(proposal, msg)}, nil
+}
+</code></pre>
+<p>Six paths to the fallback. Each one is named, logged, and recorded in the <code>[llm-trace]</code> JSON line for that call:</p>
+<table>
+<thead>
+<tr>
+<th>Trigger</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Network timeout / transport error</td>
+<td>Provider is down or slow; degrade to deterministic path</td>
+</tr>
+<tr>
+<td>Malformed JSON from model</td>
+<td>Model didn&rsquo;t follow the schema; deterministic path catches it</td>
+</tr>
+<tr>
+<td>Confidence below <code>MinConfidence</code></td>
+<td>Model isn&rsquo;t sure; rule-based path&rsquo;s confidence is at least known and bounded</td>
+</tr>
+<tr>
+<td>Hallucination check (RAG grounding)</td>
+<td>Rationale doesn&rsquo;t reference the supplied citations; can&rsquo;t trust the reasoning</td>
+</tr>
+<tr>
+<td>Safety guardrail trips (refusal phrase, PHI pattern in output)</td>
+<td>Output is malformed for a different reason; deterministic path is safer</td>
+</tr>
+<tr>
+<td>Latency budget exceeded</td>
+<td>Even if the LLM eventually returns, the user has already moved on</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The case always finalises.</strong> That&rsquo;s the contract.</p>
+<hr>
+<h2 id="why-this-matters-for-clinical-work">Why this matters for clinical work</h2>
+<p>A diagnostic case in Bodh runs 12 messages through 8 agents. Twelve <code>Publish</code> calls. Twelve subscribers picking them up. Each message can be governance-gated, audit-logged, HITL-queued, or routed onward. The orchestrator is small (~30 lines for the critical closure); the real complexity is in the state machine the supervisor runs.</p>
+<p>If the LLM diagnostician errors mid-case, the supervisor is sitting at <code>incoming msg.Type == "case_state"</code>, expecting a <code>diagnosis_proposal</code>. The downstream <code>reasoning_verifier</code> is waiting too. The HITL gate is waiting on the <code>reasoning_verifier</code>. The clinician is staring at a spinner.</p>
+<p>Add a fallback, and:</p>
+<ul>
+<li>LLM call fails</li>
+<li>Fallback runs (deterministic, ~50µs)</li>
+<li><code>diagnosis_proposal</code> flows to <code>reasoning_verifier</code></li>
+<li><code>reasoning_verifier</code> accepts (or rejects, with audit)</li>
+<li>HITL gates the verified diagnosis to the clinician&rsquo;s queue</li>
+<li>Case completes; clinician sees the recommendation</li>
+</ul>
+<p>The clinician never sees the underlying LLM hiccup. The audit log shows the fallback path was taken (so operators can graph it, alert on it, debug it). The case finalises.</p>
+<p>That&rsquo;s the difference between &ldquo;LLM eventually works most of the time&rdquo; and &ldquo;this is a clinical system.&rdquo;</p>
+<hr>
+<h2 id="degrade-gracefully-what-graceful-actually-means">&ldquo;Degrade gracefully&rdquo; — what graceful actually means</h2>
+<p>The rule-based fallback isn&rsquo;t going to be as good as the LLM on hard cases. That&rsquo;s fine. The question is <strong>what does graceful degradation look like for clinical reasoning?</strong></p>
+<p>Bodh&rsquo;s rule-based diagnostician, after PR #11, hits 85.7% accuracy on a 7-case synthetic bench (vs ~42.9% before specialty rules landed). The LLM-backed diagnosticians should beat it on hard cases — that&rsquo;s the whole point of having them. But on easy cases, the rule provider is fast (~50µs), cheap (\$0), and confident in a bounded way (we know the rule).</p>
+<p>The graceful degradation curve looks like this:</p>
+<pre><code>LLM available + confident → LLM diagnosis (~2-5s, $0.01-0.05 per call, ~90% accuracy)
+LLM available + low conf  → Rule fallback (~50µs, $0, ~85.7% accuracy)
+LLM unavailable           → Rule fallback (same)
+LLM hallucinating         → Rule fallback (same)
+</code></pre>
+<p>The floor isn&rsquo;t &ldquo;the system breaks.&rdquo; The floor is &ldquo;85.7% on this bench, with the cost and rationale audit-trailed.&rdquo; That&rsquo;s a number a compliance team can plan against.</p>
+<hr>
+<h2 id="three-things-the-fallback-contract-enables">Three things the fallback contract enables</h2>
+<h3 id="1-operational-metrics-that-matter">1. Operational metrics that matter</h3>
+<p>Every call to <code>Complete</code> emits an <code>[llm-trace]</code> JSON line with <code>provider</code>, <code>model</code>, <code>agent_id</code>, <code>case_id</code> (hashed for privacy), <code>duration_ms</code>, token counts, <code>stop_reason</code>, and an explicit <code>outcome</code> field: <code>success | fallback_timeout | fallback_malformed | fallback_low_confidence | fallback_hallucination | fallback_phi_pattern | fallback_safety</code>.</p>
+<p>Aggregate the outcome field:</p>
+<pre><code>bodh_llm_calls_total{provider=&quot;anthropic&quot;, outcome=&quot;success&quot;}             142
+bodh_llm_calls_total{provider=&quot;anthropic&quot;, outcome=&quot;fallback_timeout&quot;}    7
+bodh_llm_calls_total{provider=&quot;anthropic&quot;, outcome=&quot;fallback_malformed&quot;}  2
+</code></pre>
+<p>That&rsquo;s a Service Level Indicator. The SLO is &ldquo;fallback rate ≤ 5%, alert at &gt; 10% over 15 min.&rdquo; When the SLO trips, you know exactly which failure mode is driving it and which provider.</p>
+<p>Without the fallback contract, the metric is &ldquo;success rate&rdquo; — a binary that hides the distribution of failure modes you actually care about.</p>
+<h3 id="2-cross-provider-failover-gets-simple">2. Cross-provider failover gets simple</h3>
+<p>For multi-provider robustness (Anthropic outage → OpenAI), the pattern composes:</p>
+<pre><code class="language-go">primary  := &amp;LLMDiagnostician{Client: anthropic, Fallback: ruleBased}
+failover := &amp;LLMDiagnostician{Client: openai,    Fallback: primary}
+</code></pre>
+<p><code>failover</code> tries OpenAI first; on failure falls back to <code>primary</code>, which tries Anthropic, which falls back to rule-based. Each layer has its own confidence threshold, its own timeout, its own safety checks. The case still finalises if every layer fails — at the rule provider&rsquo;s floor.</p>
+<p>This is the same shape as a circuit-breaker chain in any distributed system. It&rsquo;s not novel. But clinical AI systems are routinely shipped <em>without</em> it, and the result is that a degraded LLM provider becomes a degraded clinical workflow.</p>
+<h3 id="3-eval-and-bench-numbers-stay-honest">3. Eval and bench numbers stay honest</h3>
+<p>The bench (<code>cmd/bench</code>) runs against every provider including the rule provider. When an LLM provider drops below the rule provider&rsquo;s accuracy on a per-condition basis, that&rsquo;s a signal — maybe the model is wrong, maybe the prompt is wrong, maybe the RAG corpus is missing the right citations. The bench surfaces the regression because you have the floor to compare against.</p>
+<p>Without the fallback as a measurable baseline, every LLM result is its own island. &ldquo;Is the new model better?&rdquo; is a hard question without a deterministic comparison point.</p>
+<hr>
+<h2 id="what-this-doesnt-mean">What this doesn&rsquo;t mean</h2>
+<p>A few things the fallback contract is <strong>not</strong>:</p>
+<h3 id="not-the-llm-is-unreliable-so-dont-trust-it">Not &ldquo;the LLM is unreliable, so don&rsquo;t trust it&rdquo;</h3>
+<p>The LLM is fine. Production LLMs from Anthropic, OpenAI, and (with appropriate hardware) Ollama are operationally sound. Bodh&rsquo;s measured LLM-path success rate in dev with reasonable prompts is ≥95%.</p>
+<p>The fallback contract is for the ≤5% that — across thousands of cases — will fail in some specific way at some specific time. For clinical work, the 5% matters as much as the 95%.</p>
+<h3 id="not-use-rules-instead-of-llms">Not &ldquo;use rules instead of LLMs&rdquo;</h3>
+<p>The rule provider exists <em>to be the fallback</em>. It&rsquo;s not the primary path for production. It&rsquo;s the floor under the primary path.</p>
+<p>For most clinical reasoning, LLMs are dramatically better than my hand-coded rules. The rule provider exists because there&rsquo;s always going to be a 5% — and because having a measurable floor improves the whole system, not just the failure cases.</p>
+<h3 id="not-fallback-is-free">Not &ldquo;fallback is free&rdquo;</h3>
+<p>Maintaining the rule provider has a cost. PR #11 was specifically about lifting the rule provider from 42.9% to 85.7% accuracy — that took rule-tuning, fixture-tuning, and bug-hunting in test result parsing. The rule provider needs ongoing care as the bench grows, the same way a unit test suite needs care.</p>
+<p>The investment pays back when the LLM provider has a bad day. The rule provider&rsquo;s bench accuracy <em>is</em> the SLA you can promise.</p>
+<hr>
+<h2 id="where-the-pattern-doesnt-apply">Where the pattern doesn&rsquo;t apply</h2>
+<p>Three places the fallback contract doesn&rsquo;t shape the architecture:</p>
+<h3 id="1-reads-with-no-decision">1. Reads with no decision</h3>
+<p>Pre-visit chart prep is read-only. It summarises the patient&rsquo;s open gaps, recent labs, last visit notes. If the LLM-backed summariser fails, the clinician gets the raw chart — same as if Bodh wasn&rsquo;t running. No fallback needed because there&rsquo;s no decision to fall back from.</p>
+<h3 id="2-pure-observability-outputs">2. Pure observability outputs</h3>
+<p>The OpenTelemetry exporter (PR #7) is fire-and-forget. If it fails to ship a span to the collector, the span is dropped and the application continues. There&rsquo;s no fallback because the alternative — making the application block on observability — is the worst outcome.</p>
+<p>This is the same shape as audit recording (PR #12): <strong>fail-open</strong> on observability, <strong>fail-closed</strong> on safety. Audit write failure logs an error and continues; policy denial blocks the message.</p>
+<h3 id="3-inputs-that-can-be-retried-explicitly">3. Inputs that can be retried explicitly</h3>
+<p>The HL7 v2 ADT endpoint (PR #8) returns AE ACK on parse failure with HTTP 400. The caller knows to retry with a corrected message. There&rsquo;s no fallback because the caller has the context to fix the input.</p>
+<p>The pattern is: <strong>fallback when the system can&rsquo;t tell the caller about the failure usefully</strong>. When the caller can fix it, surface the error. When the system has to keep going without the caller&rsquo;s help, fallback.</p>
+<hr>
+<h2 id="five-slos-the-fallback-contract-makes-possible">Five SLOs the fallback contract makes possible</h2>
+<table>
+<thead>
+<tr>
+<th>SLI</th>
+<th>Suggested SLO</th>
+<th>What you do when breached</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM call success rate (no fallback)</td>
+<td>≥ 95%</td>
+<td>Check provider status; check API key; check prompt rev</td>
+</tr>
+<tr>
+<td>Fallback rate per agent</td>
+<td>≤ 5%</td>
+<td>Identify which trigger; tune prompt or rule path accordingly</td>
+</tr>
+<tr>
+<td>Case completion p95 (incl. fallback latency)</td>
+<td>&lt; 60 s</td>
+<td>Profile the slow case; look at agent hops</td>
+</tr>
+<tr>
+<td>Per-provider Pareto degradation</td>
+<td>&lt; 5pp accuracy regression vs rule</td>
+<td>Bench regression alert; investigate model / prompt</td>
+</tr>
+<tr>
+<td>Hallucination check fail rate</td>
+<td>&lt; 1% with RAG enabled</td>
+<td>Check corpus drift; expand RAG knowledge base</td>
+</tr>
+</tbody>
+</table>
+<p>Each one has a defined response. That&rsquo;s the difference between &ldquo;the AI is having a bad day&rdquo; and an actionable operational metric.</p>
+<hr>
+<h2 id="try-it">Try it</h2>
+<p>The pattern lives in <code>agents/diagnostician_llm.go</code>, with the factory in <code>agents/diagnostician_factory.go</code> doing the LLM-client construction. The Debate / Reflexion / Cascade variants (<code>diagnostician_debate.go</code>, <code>_reflexion.go</code>, <code>_cascade.go</code>) all wrap the same fallback contract.</p>
+<pre><code class="language-bash">git clone https://github.com/PratikDhanave/bodh.git
+cd bodh
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Side-by-side: rule vs LLM, with the rule provider as the visible floor
+go run ./cmd/bench -providers=rule,llm-anthropic -manifest=data/cases/manifest.json
+
+# Force LLM failures to test the fallback (use a bogus key)
+ANTHROPIC_API_KEY=sk-bogus go run ./cmd/demo -diagnostician=llm-anthropic
+# Logs:
+#   [diagnostician/llm] error: 401 — falling back to rule-based
+#   [diagnostician] CAP @ 0.87
+#   [reasoning_verifier] VERIFIED
+#   [supervisor] gold standard: Community-acquired pneumonia | match=true
+</code></pre>
+<p>Repo: <a href="https://github.com/PratikDhanave/bodh">github.com/PratikDhanave/bodh</a></p>
+<p>If you&rsquo;re building production AI systems that touch clinical workflows and want to compare reliability patterns — issues, PRs, and DMs all welcome.</p>
+<hr>
+<p><em>Bodh is a research and engineering reference. </em><em>Not a medical device. Not approved for clinical use.</em><em> The reliability patterns described here are architectural; clinical AI in production additionally requires regulatory review, clinical validation, and operational tooling I have not built.</em></p>
+<h1 id="sre-reliability-clinicalai-llm-productionengineering-softwareengineering-healthtech-go-opensource">SRE #Reliability #ClinicalAI #LLM #ProductionEngineering #SoftwareEngineering #HealthTech #Go #OpenSource</h1>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>
