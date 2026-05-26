@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Idempotency at three layers — the pattern that kept the Globe transaction engine honest — Pratik Dhanave</title>
+<meta name="description" content="A single layer of idempotency will eventually fail. Three independent layers gives you a margin. Here is the pattern that worked across ingest, worker, and emit boundaries.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Idempotency at three layers — the pattern that kept the Globe transaction engine honest">
+<meta property="og:description" content="A single layer of idempotency will eventually fail. Three independent layers gives you a margin. Here is the pattern that worked across ingest, worker, and emit boundaries.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/2026/05/02/globe-idempotency-three-layers/">
+<meta property="article:published_time" content="2026-05-02T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Idempotency">
+<meta property="article:tag" content="Distributed Systems">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Idempotency at three layers — the pattern that kept the Globe transaction engine honest">
+<meta name="twitter:description" content="A single layer of idempotency will eventually fail. Three independent layers gives you a margin. Here is the pattern that worked across ingest, worker, and emit boundaries.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/2026/05/02/globe-idempotency-three-layers/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff;
+  --text: #1a1a1a; --text-dim: #555; --text-muted: #888;
+  --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22;
+    --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590;
+    --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7; color: var(--text); background: var(--bg);
+  -webkit-font-smoothing: antialiased; font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-05-02">May 2, 2026</time>
+  <span>·</span>
+  <span>5 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">Idempotency</span>
+  <span class="tag">Distributed Systems</span>
+  <span class="tag">Payments</span>
+  <span class="tag">Go</span>
+</div>
+
+<article class="post">
+<h1>Idempotency at three layers</h1>
+<blockquote>
+<p>Processing a transaction once is a hard problem. Processing a
+transaction <em>exactly</em> once is impossible without coordinating
+with the partner. Processing a transaction <em>at most once</em> on top
+of at-least-once delivery is the achievable shape. Here is the
+three-layer idempotency pattern that ran 30K+ TPS at Globe.</p>
+</blockquote>
+<h2>Why one layer isn&rsquo;t enough</h2>
+<p>Every distributed system that says &ldquo;we deduplicate&rdquo; usually means
+&ldquo;we deduplicate in one place.&rdquo; That place is a single point of
+failure for the property you care about most.</p>
+<p>Examples:</p>
+<ul>
+<li>Dedup at the ingest gateway. A failover replicates partial state,
+  the next instance accepts a duplicate.</li>
+<li>Dedup at the database via unique constraint. A retry before the
+  first transaction commits inserts a second row before the
+  constraint fires.</li>
+<li>Dedup at the message queue. The queue&rsquo;s deduplication window
+  expires, a late retry slips through.</li>
+</ul>
+<p>Each layer covers a class of failure. The classes don&rsquo;t overlap
+completely. The interesting failures are the ones that escape one
+layer and would have been caught by the next — if there was a
+next.</p>
+<h2>The three layers</h2>
+<pre><code>┌──────────────────────┐
+│ Layer 1: Ingest      │  Redis key with TTL
+│                      │  Covers: client retries
+└──────────────────────┘
+            │
+            ▼
+┌──────────────────────┐
+│ Layer 2: Worker      │  Spanner unique constraint
+│                      │  Covers: queue redelivery
+└──────────────────────┘
+            │
+            ▼
+┌──────────────────────┐
+│ Layer 3: Emit        │  Outbox + Pub/Sub dedup ID
+│                      │  Covers: downstream replay
+└──────────────────────┘
+</code></pre>
+<p>Each layer uses a different mechanism. A bug in one mechanism
+doesn&rsquo;t affect the others. The combined probability of a duplicate
+escaping all three is the product of the independent failure
+probabilities — much smaller than any single layer alone.</p>
+<h2>Layer 1 — Redis at ingest</h2>
+<p>The ingest service receives an HTTP request with an
+<code>Idempotency-Key</code> header. The pattern:</p>
+<pre><code class="language-go">key := r.Header.Get(&quot;Idempotency-Key&quot;)
+if key == &quot;&quot; {
+    return 400, &quot;idempotency-key required&quot;
+}
+
+// SETNX with TTL — atomic check-and-set
+ok, err := redis.SetNX(ctx, &quot;idem:&quot; + key, &quot;in-flight&quot;, 1*time.Hour).Result()
+if err != nil { return 500, err }
+
+if !ok {
+    // Key exists; this is a duplicate.
+    // Two cases: &quot;in-flight&quot; or &quot;completed: &lt;response&gt;&quot;
+    val := redis.Get(ctx, &quot;idem:&quot; + key).Val()
+    if val == &quot;in-flight&quot; {
+        return 409, &quot;duplicate request, original still processing&quot;
+    }
+    return 200, val  // return cached response
+}
+
+// Process the request
+resp := process(r)
+
+// Update the cache with the completed response
+redis.Set(ctx, &quot;idem:&quot; + key, &quot;completed: &quot; + resp, 24*time.Hour)
+return 200, resp
+</code></pre>
+<p>The TTL matters. Too short and partner retries leak through
+(&ldquo;the original was an hour ago but you retried 2 hours later&rdquo;).
+Too long and Redis fills with stale keys. We landed on 24h
+after the response is cached, matching the partner&rsquo;s retry policy.</p>
+<p>The <code>in-flight</code> marker handles concurrent duplicates — two copies
+arriving at the same moment. One wins the SETNX; the other sees
+&ldquo;in-flight&rdquo; and gets a 409. The partner retries; the second one
+gets the cached response.</p>
+<h2>Layer 2 — Spanner unique constraint</h2>
+<p>The worker consumes Kafka events. Each event carries a
+<code>transaction_id</code> that was set at ingest. The worker writes the
+transaction to the ledger:</p>
+<pre><code class="language-sql">INSERT INTO ledger (txn_id, partner_id, amount, status, created_at)
+VALUES (@txn_id, @partner, @amount, 'pending', CURRENT_TIMESTAMP());
+</code></pre>
+<p><code>txn_id</code> has a unique constraint. If the event is a redelivery from
+Kafka (which can happen — Kafka is at-least-once), the second
+INSERT hits the constraint and fails.</p>
+<p>The worker treats the constraint violation as success — the
+transaction is already recorded; the worker&rsquo;s job is done. It
+commits the Kafka offset and moves on.</p>
+<p>This is the layer that catches Kafka redeliveries, which happen
+more often than you&rsquo;d think. Consumer rebalances, broker failures,
+long-running message processing — all produce occasional
+redelivery.</p>
+<h2>Layer 3 — outbox + Pub/Sub dedup ID</h2>
+<p>When the worker emits a downstream event (notification to the
+partner, accounting feed, settlement trigger), it doesn&rsquo;t publish
+directly to Pub/Sub. It writes to an outbox table in the same
+Spanner transaction as the ledger write:</p>
+<pre><code class="language-sql">INSERT INTO outbox (event_id, type, payload, status)
+VALUES (@event_id, 'transaction.completed', @payload, 'pending');
+</code></pre>
+<p>A separate process (the outbox dispatcher) reads from outbox and
+publishes to Pub/Sub, marking the row as <code>published</code> on success.</p>
+<p>Pub/Sub messages carry an <code>ordering_key</code> (for ordering) and a
+<code>message_id</code> (deduped by Pub/Sub within a 10-minute window). The
+combination means:</p>
+<ul>
+<li>Within 10 minutes, Pub/Sub itself dedupes redelivered messages.</li>
+<li>Beyond 10 minutes, the outbox row&rsquo;s <code>status = 'published'</code> flag
+  prevents the dispatcher from publishing again.</li>
+</ul>
+<p>A downstream consumer sees a Pub/Sub message at most once per
+event_id within the system&rsquo;s lifetime.</p>
+<h2>What each layer catches</h2>
+<table>
+<thead>
+<tr>
+<th>Failure mode</th>
+<th>Caught by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Partner retries within the same hour</td>
+<td>Layer 1 (Redis)</td>
+</tr>
+<tr>
+<td>Partner retries hours later, same key</td>
+<td>Layer 1 (Redis, longer TTL)</td>
+</tr>
+<tr>
+<td>Two concurrent partner requests with same key</td>
+<td>Layer 1 (SETNX + in-flight marker)</td>
+</tr>
+<tr>
+<td>Kafka redelivers an event the worker already saw</td>
+<td>Layer 2 (Spanner unique constraint)</td>
+</tr>
+<tr>
+<td>Worker crashes after Spanner write but before Kafka commit</td>
+<td>Layer 2 (next worker re-processes, constraint fires)</td>
+</tr>
+<tr>
+<td>Outbox dispatcher crashes after Pub/Sub publish but before marking row published</td>
+<td>Layer 3 (Pub/Sub dedup window)</td>
+</tr>
+<tr>
+<td>Downstream consumer replays an old offset</td>
+<td>Layer 3 (downstream&rsquo;s own idempotency)</td>
+</tr>
+</tbody>
+</table>
+<h2>What&rsquo;s still not idempotent</h2>
+<p>The pattern doesn&rsquo;t guarantee exactly-once. It guarantees at-most-
+once <em>per layer</em>, with three layers. A duplicate has to escape all
+three; in practice they don&rsquo;t.</p>
+<p>What the pattern can&rsquo;t fix:</p>
+<ul>
+<li>A partner that sends two genuinely different requests with the
+  same idempotency-key. The system treats them as duplicates,
+  which is the partner&rsquo;s bug not ours.</li>
+<li>A long-enough delay between a request and a retry that exhausts
+  the Redis TTL AND the outbox row was cleaned up. We retain the
+  outbox indefinitely (cheap) to prevent this.</li>
+<li>An idempotency-key collision (two unrelated partners
+  coincidentally generate the same UUID). Vanishingly unlikely;
+  we scope the key to (partner_id, key) to make it impossible.</li>
+</ul>
+<h2>What the team agreed on</h2>
+<p>A small contract that every service in the system honoured:</p>
+<ol>
+<li>Every operation that mutates state takes an idempotency key.</li>
+<li>Every operation that emits an event includes a dedup ID.</li>
+<li>No service skips a layer for performance.</li>
+</ol>
+<p>The &ldquo;no skipping&rdquo; rule is the boring one and the load-bearing one.
+Once you let one service skip Redis &ldquo;because it&rsquo;s fast enough,&rdquo;
+you&rsquo;ll find a duplicate three months later and the post-mortem
+will name that decision.</p>
+<h2>Where this transfers</h2>
+<p>The pattern isn&rsquo;t payment-specific. Any system where exactly-once-
+processing-of-a-thing matters benefits from the same shape:</p>
+<ul>
+<li>Email sending (idempotency at queue-in, send-out, audit-row).</li>
+<li>File upload processing (dedup at upload, chunk-processing,
+  manifest-commit).</li>
+<li>Webhook delivery (dedup at receipt, processing, downstream-call).</li>
+</ul>
+<p>Two of those examples I&rsquo;ve built since Globe; both used a variant
+of the three-layer pattern. The pattern doesn&rsquo;t get old.</p>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>

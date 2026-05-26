@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Double-entry ledger invariants — building a P2P lending platform that never loses money — Pratik Dhanave</title>
+<meta name="description" content="5K+ loans per month. Three credit bureaus. Multiple payment gateways. The thing that has to be right is the ledger. Notes on what invariants the database enforces vs what the application enforces.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Double-entry ledger invariants — building a P2P lending platform that never loses money">
+<meta property="og:description" content="5K+ loans per month. Three credit bureaus. Multiple payment gateways. The thing that has to be right is the ledger. Notes on what invariants the database enforces vs what the application enforces.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/2026/04/30/p2p-lender-double-entry-ledger-invariants/">
+<meta property="article:published_time" content="2026-04-30T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="PostgreSQL">
+<meta property="article:tag" content="FinTech">
+<meta property="article:tag" content="Lending">
+<meta property="article:tag" content="Accounting">
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Double-entry ledger invariants — building a P2P lending platform that never loses money">
+<meta name="twitter:description" content="5K+ loans per month. Three credit bureaus. Multiple payment gateways. The thing that has to be right is the ledger. Notes on what invariants the database enforces vs what the application enforces.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/2026/04/30/p2p-lender-double-entry-ledger-invariants/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff;
+  --text: #1a1a1a; --text-dim: #555; --text-muted: #888;
+  --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22;
+    --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590;
+    --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7; color: var(--text); background: var(--bg);
+  -webkit-font-smoothing: antialiased; font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-04-30">April 30, 2026</time>
+  <span>·</span>
+  <span>4 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">Go</span>
+  <span class="tag">PostgreSQL</span>
+  <span class="tag">FinTech</span>
+  <span class="tag">Lending</span>
+  <span class="tag">Accounting</span>
+</div>
+
+<article class="post">
+<h1>Double-entry ledger invariants</h1>
+<blockquote>
+<p>A P2P lending platform processed 5K+ loans/month. The most
+important property of the platform was that the ledger always
+balanced — every debit had a matching credit, every payment was
+attributed correctly, every borrower&rsquo;s balance was reconcilable
+against the source accounts. Here is the set of invariants we
+baked into Postgres, and the ones that stayed in application
+code with very heavy testing.</p>
+</blockquote>
+<h2>What &ldquo;double-entry&rdquo; means in code</h2>
+<p>The accounting principle: every transaction has at least two
+entries. A loan disbursement is a credit to the borrower&rsquo;s account
+and a debit to the lender&rsquo;s account (or pool). A repayment is the
+reverse.</p>
+<p>The code shape:</p>
+<pre><code class="language-sql">CREATE TABLE journal_entries (
+  entry_id UUID PRIMARY KEY,
+  transaction_id UUID NOT NULL,
+  account_id UUID NOT NULL,
+  amount_minor INTEGER NOT NULL,   -- positive = credit, negative = debit
+  currency CHAR(3) NOT NULL,
+  posted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  reference TEXT
+);
+
+CREATE TABLE transactions (
+  transaction_id UUID PRIMARY KEY,
+  type TEXT NOT NULL,              -- 'disburse' | 'repay' | 'fee' | ...
+  description TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+</code></pre>
+<p>Every business action creates one <code>transactions</code> row and two-or-more
+<code>journal_entries</code> rows. The sum of <code>amount_minor</code> across the
+entries for one transaction must be zero.</p>
+<h2>Invariants the database enforces</h2>
+<p>We pushed three invariants into Postgres directly:</p>
+<h3>1. A transaction&rsquo;s entries sum to zero</h3>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION check_transaction_balanced()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF (SELECT COALESCE(SUM(amount_minor), 0)
+        FROM journal_entries
+       WHERE transaction_id = NEW.transaction_id) != 0 THEN
+    RAISE EXCEPTION 'transaction % does not balance', NEW.transaction_id;
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER tr_transaction_balanced
+  AFTER INSERT OR UPDATE OR DELETE ON journal_entries
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE PROCEDURE check_transaction_balanced();
+</code></pre>
+<p><code>DEFERRABLE INITIALLY DEFERRED</code> is the key. The check runs at
+commit, not on each insert. That means you can do <code>INSERT INTO
+journal_entries</code> twice (debit, credit) inside one transaction; the
+check fires at COMMIT and ensures the pair balanced.</p>
+<h3>2. Entries are immutable after posting</h3>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION prevent_entry_mutation()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF OLD.entry_id IS NOT NULL THEN
+    RAISE EXCEPTION 'journal entries are immutable; reverse with a new transaction';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_entry_immutable
+  BEFORE UPDATE OR DELETE ON journal_entries
+  FOR EACH ROW EXECUTE PROCEDURE prevent_entry_mutation();
+</code></pre>
+<p>You can&rsquo;t fix a journal entry. If a transaction was wrong, you
+create a reversing transaction. The audit trail stays intact.</p>
+<h3>3. Currency consistency within a transaction</h3>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION check_transaction_single_currency()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF (SELECT COUNT(DISTINCT currency)
+        FROM journal_entries
+       WHERE transaction_id = NEW.transaction_id) &gt; 1 THEN
+    RAISE EXCEPTION 'transaction % mixes currencies', NEW.transaction_id;
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER tr_transaction_single_currency
+  AFTER INSERT OR UPDATE ON journal_entries
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE PROCEDURE check_transaction_single_currency();
+</code></pre>
+<p>Cross-currency transactions exist (FX conversions). They get a
+<em>different</em> transaction type that uses a designated FX-suspense
+account; the trigger excludes them by transaction type. The rule
+for the common case stays simple.</p>
+<h2>What stayed in application code</h2>
+<p>Some invariants couldn&rsquo;t reasonably live in the database:</p>
+<ul>
+<li>
+<p><strong>Account balance non-negativity for lender accounts</strong> (over a
+  defined threshold). Some accounts can go negative (loan
+  receivable), others can&rsquo;t (lender wallet). The rule depends on
+  account type and the surrounding business state.</p>
+</li>
+<li>
+<p><strong>Loan repayment schedule consistency.</strong> A repayment for ₹1,000
+  has to break into principal + interest + fee per the schedule.
+  The split logic depends on the loan&rsquo;s amortisation type.</p>
+</li>
+<li>
+<p><strong>Credit bureau eligibility.</strong> Whether a borrower can take a new
+  loan depends on bureau data + internal exposure + risk score.
+  Way too much logic to push to the database.</p>
+</li>
+</ul>
+<p>Each of these had:</p>
+<ul>
+<li>A pure Go function with deterministic inputs and outputs.</li>
+<li>A test file with at least 30 cases including edge cases (zero
+  amounts, rounding, currency mismatch attempts).</li>
+<li>Property-based tests for the calculations (the
+  amortisation-schedule test was the most useful).</li>
+</ul>
+<h2>Reconciliation as the daily check</h2>
+<p>Every night, a reconciliation job ran:</p>
+<ol>
+<li>Sum all <code>journal_entries</code> per account.</li>
+<li>Compare against external sources of truth (bank statements,
+   payment gateway settlement files).</li>
+<li>Flag any account where the internal balance and the external
+   balance disagreed by more than 1 paisa.</li>
+</ol>
+<p>In the first six months the job caught 14 issues. Twelve were
+incorrect application-side logic (a repayment fee getting double-
+counted, an FX conversion using the wrong rate). Two were partner
+issues (the payment gateway&rsquo;s settlement file was wrong; the
+partner credited the account the next day).</p>
+<p>The job was the operational backbone of the system. Without it,
+the application bugs would have accumulated invisibly.</p>
+<h2>What I&rsquo;d carry forward</h2>
+<p>Three patterns that earned their keep:</p>
+<ol>
+<li>
+<p><strong>DEFERRABLE constraints for multi-row invariants.</strong> The
+   &ldquo;transaction must balance&rdquo; rule is impossible without
+   deferred checks; with them, it&rsquo;s three lines of SQL.</p>
+</li>
+<li>
+<p><strong>Immutable journal entries.</strong> The audit trail stays intact;
+   reversals are first-class; debugging six months later is
+   straightforward.</p>
+</li>
+<li>
+<p><strong>Nightly reconciliation against external truth.</strong> The
+   internal database can be perfectly self-consistent and still
+   wrong. The external check is the only thing that catches
+   integration bugs.</p>
+</li>
+</ol>
+<p>The P2P platform never lost money. That&rsquo;s the simplest summary
+and the hardest property. The patterns above are what bought it.</p>
+<h2>What to avoid</h2>
+<p>Two anti-patterns we discovered the slow way:</p>
+<ol>
+<li>
+<p><strong>A &ldquo;fix it in the app&rdquo; mindset for ledger bugs.</strong> Every ledger
+   bug should produce a <em>reversing transaction</em> and a fix to the
+   application code that caused the bug. The temptation to &ldquo;just
+   update the row&rdquo; exists because Postgres allows it; the
+   immutable-entries trigger removes the temptation.</p>
+</li>
+<li>
+<p><strong>Cross-currency in a single transaction.</strong> Even when it
+   &ldquo;seems convenient&rdquo; — an FX conversion that pays one account
+   in USD and another in INR — the audit story becomes hard. Use
+   a designated FX-suspense account so the transaction is
+   single-currency on both sides.</p>
+</li>
+</ol>
+<p>Both came from the same instinct (do the small expedient thing
+now), and both cost us in different ways.</p>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>
