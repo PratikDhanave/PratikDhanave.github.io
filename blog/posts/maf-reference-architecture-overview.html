@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The 12-chapter reference architecture, in 102 Python files — Pratik Dhanave</title>
+<meta name="description" content="Microsoft published a 12-chapter reference architecture for multi-agent systems and a separate framework (MAF) to build them. I implemented one on top of the other and learned what each chapter actually demands in code.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="The 12-chapter reference architecture, in 102 Python files">
+<meta property="og:description" content="Microsoft published a 12-chapter reference architecture for multi-agent systems and a separate framework (MAF) to build them. I implemented one on top of the other and learned what each chapter actually demands in code.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/maf-reference-architecture-overview.html">
+P26-05-29">
+<meta property="article:tag" content="Multi-Agent">
+<meta property="article:tag" content="MAF">
+<meta property="article:tag" content="Architecture">
+<meta property="article:tag" content="Python">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The 12-chapter reference architecture, in 102 Python files">
+<meta name="twitter:description" content="Microsoft published a 12-chapter reference architecture for multi-agent systems and a separate framework (MAF) to build them. I implemented one on top of the other and learned what each chapter actually demands in code.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/maf-reference-architecture-overview.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<main>
+<article>
+  <header>
+    <h1>The 12-chapter reference architecture, in 102 Python files</h1>
+    <p class="post-subtitle">Microsoft published a 12-chapter reference architecture for multi-agent systems and a separate framework (MAF) to build them. I implemented one on top of the other and learned what each chapter actually demands in code.</p>
+    <div class="post-meta">
+      <time datetime="2026-05-29">May 29, 2026</time>
+      <span>·</span>
+      <span>Engineers shipping multi-agent systems to production</span>
+    </div>
+    <div class="post-tags"><span class="tag">Multi-Agent</span><span class="tag">MAF</span><span class="tag">Architecture</span><span class="tag">Python</span></div>
+  </header>
+
+<p>Microsoft published two things this year that look like they belong together but live in different places.</p>
+<p>The first is the <a href="https://microsoft.github.io/multi-agent-reference-architecture/">Multi-Agent Reference Architecture</a> — a 12-chapter mdBook that says what an enterprise multi-agent system <em>should</em> contain: orchestrator + specialists, an agent registry, short- and long-term memory, request-based and message-driven communication, observability, evaluation, security, governance, context engineering, and a final reference topology.</p>
+<p>The second is the <a href="https://github.com/microsoft/agent-framework">Microsoft Agent Framework</a> (MAF) — the Python and .NET SDKs that give you <code>Agent</code>, <code>WorkflowBuilder</code>, <code>SequentialBuilder</code>, <code>ConcurrentBuilder</code>, <code>HandoffBuilder</code>, and a swarm of optional integration packages (<code>agent-framework-a2a</code>, <code>agent-framework-mem0</code>, <code>agent-framework-purview</code>, <code>agent-framework-lab-gaia</code>, …).</p>
+<p>The architecture is <em>opinionated, agnostic of language</em>. The framework is <em>opinionated, specific to .NET and Python</em>. The natural question is: if you take both seriously, what does the resulting code look like?</p>
+<p>I spent a week answering that question. The result is <a href="https://github.com/PratikDhanave/microsofagenframework"><code>PratikDhanave/microsofagenframework</code></a> — a runnable Python implementation where every reference-architecture chapter maps to a concrete module, and every module that <em>can</em> be backed by an official MAF package <em>is</em>.</p>
+<h2 id="whats-in-the-repo">What's in the repo</h2>
+<ul>
+<li><strong>102 files</strong>, 6,432 lines (mostly Python, with mermaid-heavy markdown docs and a Grafana dashboard JSON).</li>
+<li><strong>48 passing tests</strong> that exercise everything the framework doesn't auto-instrument.</li>
+<li><strong>One <code>make all</code></strong> target that runs pre-flight, install, docker stack, tests, every workflow, and every eval, then prints the URLs of the observability stack.</li>
+<li>Default LLM: <strong>local Ollama</strong> (<code>granite4.1:3b</code>). No API key needed to run the whole demo.</li>
+</ul>
+<h2 id="chapter-code-map">Chapter → code map</h2>
+<p>This is the table that drove the design:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Chapter</th>
+<th>Code</th>
+<th>MAF package used</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Introduction (Design Principles)</td>
+<td>(all modules)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Building Blocks</td>
+<td><code>agents/</code> + <code>registry/</code></td>
+<td><code>agent_framework.Agent</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Design Options</td>
+<td>(project layout)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Agent Registry</td>
+<td><code>registry/</code></td>
+<td>project-local convention</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Agents Communication</td>
+<td><code>communication/</code></td>
+<td><code>agent_framework_a2a</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Memory (STM / LTM)</td>
+<td><code>memory/</code></td>
+<td><code>AgentSession</code>, <code>MemoryContextProvider</code>, <code>MemoryFileStore</code>, <code>agent_framework_mem0</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td>Observability</td>
+<td><code>observability.py</code></td>
+<td><code>agent_framework.observability.configure_otel_providers</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td>Evaluation</td>
+<td><code>evals/</code></td>
+<td><code>agent_framework_lab_gaia</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td>Security</td>
+<td><code>security/</code></td>
+<td><code>agent_framework_purview</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td>Governance</td>
+<td><code>governance/</code></td>
+<td>project-local + Agent Governance Toolkit</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Context Engineering</td>
+<td><code>context/</code></td>
+<td><code>agent_framework.ContextProvider</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td>Patterns</td>
+<td><code>workflows/</code></td>
+<td>the four MAF builders</td>
+</tr>
+</tbody>
+</table>
+<p>Two rows in that table are worth flagging:</p>
+<p><strong>Chapter 4 (Agent Registry) is project-local.</strong> MAF does not ship a built-in registry. Azure AI Foundry has a hosted-agent catalog (<code>AIProjectClient.agents.list()</code>) but it only sees Foundry-managed agents. If you want a registry that works across providers (Ollama, OpenAI, Foundry) you build one. The repo's <a href="https://github.com/PratikDhanave/microsofagenframework/tree/main/src/multi_agent/registry"><code>registry/</code></a> is a 4-file <code>@register(...)</code> decorator + an in-memory store. It's a hundred lines.</p>
+<p><strong>Chapter 10 (Governance) is also project-local — until you wire in the Agent Governance Toolkit.</strong> MAF doesn't have a lifecycle state machine or an RAI checklist either. The repo ships both, and then integrates <a href="https://github.com/PratikDhanave/agent-governance-toolkit"><code>agent-governance-toolkit</code></a> for real OWASP-Agentic-Top-10-aligned policy enforcement. There's a separate post on that.</p>
+<h2 id="the-shape-it-ends-up-as">The shape it ends up as</h2>
+<pre><code class="language-mermaid">flowchart TB
+    Client[&quot;👤 Client (CLI / DevUI / API)&quot;]
+
+    subgraph Orchestration[&quot;Orchestration · workflows/&quot;]
+        Sequential[&quot;SequentialBuilder&quot;]
+        Concurrent[&quot;ConcurrentBuilder&quot;]
+        Handoff[&quot;HandoffBuilder&quot;]
+        Custom[&quot;WorkflowBuilder (custom graph)&quot;]
+    end
+
+    subgraph Agents[&quot;Agents · agents/&quot;]
+        Orch[&quot;Orchestrator&quot;]
+        Planner[&quot;Planner&quot;]
+        Researcher[&quot;Researcher&quot;]
+        Writer[&quot;Writer&quot;]
+        Critic[&quot;Critic&quot;]
+        Classifier[&quot;Classifier&quot;]
+    end
+
+    Registry[(&quot;Registry · registry/&quot;)]
+    Memory[(&quot;Memory · AgentSession + MemoryContextProvider&quot;)]
+    Comm[&quot;Communication · A2A wrapper&quot;]
+    Sec[&quot;Security · Purview + RBAC&quot;]
+    Gov[&quot;Governance · Lifecycle + RAI + AGT&quot;]
+    Ctx[&quot;Context · Tool selectors&quot;]
+    Obs[&quot;Observability · OTel&quot;]
+
+    Client --&gt;|prompt| Orchestration
+    Orchestration --&gt;|delegate| Agents
+    Agents --&gt;|discover| Registry
+    Agents --&gt;|state| Memory
+    Agents --&gt;|distributed| Comm
+    Agents --&gt;|policy| Sec
+    Registry -.-&gt;|gate promotion| Gov
+    Orchestration --&gt;|assemble| Ctx
+    Agents -.-&gt;|spans + metrics| Obs
+</code></pre>
+<p>Six agents. Four orchestration topologies. Seven cross-cutting modules. One CLI.</p>
+<h2 id="what-you-actually-run">What you actually run</h2>
+<pre><code class="language-bash">git clone https://github.com/PratikDhanave/microsofagenframework
+cd microsofagenframework
+make all
+</code></pre>
+<p><code>make all</code> runs eight sequenced steps:</p>
+<ol>
+<li>Pre-flight: verify Ollama is up, pull <code>granite4.1:3b</code> if needed.</li>
+<li>Install: <code>pip install -e ".[dev]"</code> + <code>agent-governance-toolkit[full]</code>.</li>
+<li>Boot OpenTelemetry collector + Jaeger + Prometheus + Grafana.</li>
+<li>48 unit tests (~2 seconds, no LLM needed).</li>
+<li>Smoke: registry populated + custom_graph end-to-end.</li>
+<li>Sequential + Concurrent + Custom_graph workflows against Ollama.</li>
+<li>Tool-call eval + multi-turn agent eval.</li>
+<li>URLs for Grafana / Prometheus / Jaeger.</li>
+</ol>
+<p>The whole thing on my laptop runs in about 90 seconds after the first install. The model is small enough to be honest in real time; the framework integration is what's being demonstrated, not a benchmark score.</p>
+<h2 id="what-you-dont-get">What you don't get</h2>
+<p>This is a reference <em>implementation</em>, not a product. Specifically:</p>
+<ul>
+<li>The <strong>Researcher</strong> agent's web-search tool is a stub that returns fabricated results. The article on tool design says the boundary between "test the agent" and "test the tools" is a clean place to draw a line, so the tool is mocked and the agent's <em>decision</em> about whether to use it is what the evals score.</li>
+<li>The <strong>Handoff</strong> pattern works on OpenAI and Foundry but breaks on Ollama right now due to an upstream bug in <code>agent-framework-ollama</code> that forwards an <code>allow_multiple_tool_calls</code> kwarg the <code>ollama</code> package never supported. Sequential, concurrent, and custom-graph all work on Ollama; handoff is documented as such.</li>
+<li>The <strong>Purview</strong> security tier is only useful if you have an Azure tenant with Purview entitlement. A regex-based PII redaction + audit log is shipped as the no-cloud fallback so the project keeps working in dev/CI.</li>
+</ul>
+<h2 id="why-bother">Why bother</h2>
+<p>Reading 12 chapters of a reference architecture in the abstract is not the same as having a Python module to read. You can see the module, run it, change one line, and watch what breaks. You can compare what the architecture asked for to what MAF gives you and see — concretely — which chapters MAF has thought hardest about (memory, observability, A2A) and which ones it leaves to you (registry, lifecycle, RAI).</p>
+<p>The next nine posts in this series go through that map module by module. The next one is about the four MAF orchestration patterns and when each one is the right shape.</p>
+<p>If you want to skip ahead, the repo's <a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/docs/chapters/SUMMARY.md"><code>docs/chapters/SUMMARY.md</code></a> is the table above with one markdown doc per chapter, each with its own mermaid diagrams.</p>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>

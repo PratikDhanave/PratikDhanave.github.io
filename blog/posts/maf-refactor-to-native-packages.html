@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Refactor: from rolled-our-own to MAF-native — Pratik Dhanave</title>
+<meta name="description" content="I built memory, communication, security, governance, and evals from scratch first. Then I deleted most of it and used the official MAF packages. Here's the audit, the deletions, and the result.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Refactor: from rolled-our-own to MAF-native">
+<meta property="og:description" content="I built memory, communication, security, governance, and evals from scratch first. Then I deleted most of it and used the official MAF packages. Here's the audit, the deletions, and the result.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/maf-refactor-to-native-packages.html">
+P26-06-08">
+<meta property="article:tag" content="MAF">
+<meta property="article:tag" content="Refactor">
+<meta property="article:tag" content="Engineering">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Refactor: from rolled-our-own to MAF-native">
+<meta name="twitter:description" content="I built memory, communication, security, governance, and evals from scratch first. Then I deleted most of it and used the official MAF packages. Here's the audit, the deletions, and the result.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/maf-refactor-to-native-packages.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<main>
+<article>
+  <header>
+    <h1>Refactor: from rolled-our-own to MAF-native</h1>
+    <p class="post-subtitle">I built memory, communication, security, governance, and evals from scratch first. Then I deleted most of it and used the official MAF packages. Here's the audit, the deletions, and the result.</p>
+    <div class="post-meta">
+      <time datetime="2026-06-08">June 8, 2026</time>
+      <span>·</span>
+      <span>Engineers tempted to write their own framework primitives</span>
+    </div>
+    <div class="post-tags"><span class="tag">MAF</span><span class="tag">Refactor</span><span class="tag">Engineering</span></div>
+  </header>
+
+<p>The first commit of this project's MAF integration had five hand-rolled modules. None of them were <em>bad</em> code. All of them were <em>unnecessary</em> code, because the official MAF packages do the same thing with a maintained API and a future MAF will keep upgrading. This post is the audit of what I deleted, what I kept, and what I'd warn future-me about.</p>
+<h2 id="where-i-started">Where I started</h2>
+<p>After the first pass through the reference architecture I had:</p>
+<pre><code>src/multi_agent/
+├── memory/
+│   ├── base.py          # Memory ABC: write/read/list/delete
+│   ├── short_term.py    # InMemorySTM (dict per namespace)
+│   └── long_term.py     # FileLTM (newline-delimited JSON)
+├── communication/
+│   ├── request_based.py # OrchestratorClient (sync/stream helpers)
+│   └── message_driven.py # InProcessBroker (asyncio.Queue pub/sub)
+├── security/
+│   └── (regex guardrails, identity, RBAC, audit log)
+├── governance/
+│   └── (lifecycle state machine, RAI checklist)
+├── evals/
+│   ├── run_eval.py      # bespoke substring scorer
+│   └── tool_call.py     # bespoke tool-call scorer
+</code></pre>
+<p>Eight files of code I wrote because I thought MAF didn't ship a thing. Five of them I deleted on the second pass.</p>
+<h2 id="the-audit">The audit</h2>
+<p>When I sat down to do the audit, I made one table. Module → does MAF ship a real package for this → if yes, can I delete mine.</p>
+<table>
+<thead>
+<tr>
+<th>My module</th>
+<th>MAF package</th>
+<th>Delete?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>memory/base.py</code>, <code>short_term.py</code>, <code>long_term.py</code></td>
+<td><code>MemoryContextProvider</code>, <code>MemoryFileStore</code>, <code>AgentSession</code>, <code>agent-framework-mem0</code></td>
+<td>✅ delete</td>
+</tr>
+<tr>
+<td><code>communication/request_based.py</code>, <code>message_driven.py</code></td>
+<td><code>agent-framework-a2a</code> for distributed; MAF workflow runtime for in-process</td>
+<td>✅ delete</td>
+</tr>
+<tr>
+<td><code>security/</code> regex guardrails</td>
+<td><code>agent-framework-purview</code> for prod; keep regex as no-cloud fallback</td>
+<td>⚠️ partial</td>
+</tr>
+<tr>
+<td><code>governance/lifecycle.py</code>, <code>responsible_ai.py</code></td>
+<td>(nothing in MAF)</td>
+<td>❌ keep</td>
+</tr>
+<tr>
+<td><code>registry/</code></td>
+<td>(nothing in MAF; Foundry has a catalog but only for hosted agents)</td>
+<td>❌ keep</td>
+</tr>
+<tr>
+<td><code>evals/run_eval.py</code>, <code>tool_call.py</code> (bespoke records)</td>
+<td><code>agent-framework-lab-gaia</code> ships <code>Task</code>, <code>Evaluation</code>, <code>Prediction</code>, <code>TaskResult</code></td>
+<td>⚠️ partial (emit MAF types)</td>
+</tr>
+</tbody>
+</table>
+<p>Three deletions, two refactors, two keepers. Let me walk through each.</p>
+<h2 id="delete-memory">Delete: memory</h2>
+<p>The old <code>memory/</code> was 200 lines of code and four files. The new one is 100 lines and two files:</p>
+<pre><code class="language-python"># memory/factory.py — that's the whole module
+from agent_framework import AgentSession, MemoryContextProvider, MemoryFileStore
+
+
+def new_session(session_id: str | None = None) -&gt; AgentSession:
+    return AgentSession(session_id=session_id)
+
+
+def make_memory_context_provider(*, owner_state_key, base_path=DEFAULT_MEMORY_DIR,
+                                  recent_turns=0, consolidation_client=None):
+    store = MemoryFileStore(base_path=base_path, owner_state_key=owner_state_key)
+    return MemoryContextProvider(
+        store=store, recent_turns=recent_turns,
+        consolidation_client=consolidation_client,
+    )
+
+
+def make_mem0_context_provider(*, user_id, api_key=None, agent_id=None, application_id=None):
+    from agent_framework_mem0 import Mem0ContextProvider
+    return Mem0ContextProvider(
+        user_id=user_id, api_key=api_key,
+        agent_id=agent_id, application_id=application_id,
+    )
+</code></pre>
+<p>The agent wires it the way MAF expects:</p>
+<pre><code class="language-python">agent = Agent(
+    client=build_chat_client(),
+    name=&quot;researcher&quot;,
+    instructions=&quot;...&quot;,
+    context_providers=[memory],
+)
+session = new_session(&quot;chat-1&quot;)
+response = await agent.run(&quot;...&quot;, session=session)
+</code></pre>
+<p>What I lost by deleting: nothing. What I gained: topic consolidation, durable extraction with a well-tuned default prompt, and the ability to drop in <code>Mem0ContextProvider</code> for hosted LTM without changing agent code.</p>
+<p>There's a separate post on memory in this series.</p>
+<h2 id="delete-communication">Delete: communication</h2>
+<p>The old <code>communication/</code> had:</p>
+<ul>
+<li><code>OrchestratorClient</code> (60 lines) wrapping non-streaming and streaming handlers.</li>
+<li><code>InProcessBroker</code> (90 lines) — <code>asyncio.Queue</code> topics with a <code>request_response</code> helper using correlation IDs.</li>
+</ul>
+<p>The new one has:</p>
+<pre><code class="language-python"># communication/a2a.py
+from agent_framework_a2a import A2AAgent, A2AExecutor
+
+
+def wrap_remote_agent(*, url, name=None, id=None, description=None) -&gt; A2AAgent:
+    return A2AAgent(url=url, name=name, id=id, description=description)
+
+
+def as_workflow_executor(agent, *, stream: bool = False) -&gt; A2AExecutor:
+    return A2AExecutor(agent=agent, stream=stream)
+</code></pre>
+<p>The realisation: for in-process orchestration MAF's workflow runtime <em>is</em> the broker. Routing, back-pressure, error propagation, OpenTelemetry trace context — all already done. The only valuable thing a separate communication module brings is the distributed case, and <code>agent-framework-a2a</code> is what that needs.</p>
+<p>The 150 lines of pub/sub code I'd written did not survive the audit.</p>
+<h2 id="partial-security">Partial: security</h2>
+<p>The Purview tier is the production answer. The integration is one factory:</p>
+<pre><code class="language-python"># security/purview.py
+def make_purview_middleware(*, credential=None, settings=None, cache_provider=None):
+    from agent_framework_purview import PurviewChatPolicyMiddleware, PurviewSettings
+    if credential is None:
+        from azure.identity import DefaultAzureCredential
+        credential = DefaultAzureCredential()
+    if settings is None:
+        settings = PurviewSettings()
+    return PurviewChatPolicyMiddleware(
+        credential=credential, settings=settings, cache_provider=cache_provider,
+    )
+</code></pre>
+<p>Wiring it: <code>Agent(..., middleware=[make_purview_middleware()])</code>. Purview enforces tenant-level chat and DLP policies on every model call.</p>
+<p>I kept the regex-based PII redaction, secret scanning, and in-process audit log because they cover the no-cloud fallback. The chapter doc is explicit:</p>
+<blockquote>
+<p><strong>Tier choice.</strong> Production: <code>make_purview_middleware()</code> — requires Azure tenant. No-cloud fallback: regex stubs + in-process <code>AuditLog</code>. Use the second for dev/CI; do not pretend it substitutes for Purview in production.</p>
+</blockquote>
+<p>That sentence is the whole policy. The fallback code stays small (about 80 lines total) because its purpose is to <em>be obviously not Purview</em>.</p>
+<h2 id="partial-evals">Partial: evals</h2>
+<p>The bespoke <code>MultiTurnScore</code> dataclass and JSON shape from my first eval harness got deleted. The harnesses now emit <code>agent_framework_lab_gaia.TaskResult</code>:</p>
+<pre><code class="language-python">results.append(
+    TaskResult(
+        task_id=case_id,
+        task=Task(task_id=case_id, question=label),
+        prediction=Prediction(prediction=result.text),
+        evaluation=Evaluation(
+            is_correct=is_correct,
+            score=overall,
+            details={&quot;scores&quot;: scores, &quot;tools_used&quot;: result.tools_used,
+                     &quot;tool_call_order&quot;: result.tool_call_order,
+                     &quot;steps&quot;: len(result.steps)},
+        ),
+        runtime_seconds=time() - started,
+    )
+)
+</code></pre>
+<p>Same scorer logic. Different record type. Now any tool that ingests MAF-Lab outputs ingests mine for free.</p>
+<p>What I learned writing this: <code>agent-framework-lab-gaia</code> ships a benchmark <em>runner</em> for the GAIA dataset specifically. But its <em>types</em> (<code>Task</code>, <code>Evaluation</code>, <code>Prediction</code>, <code>TaskResult</code>, <code>Evaluator</code>) are perfectly general. You can use them as the interchange format for any eval harness even if you never run a GAIA benchmark.</p>
+<h2 id="keep-registry">Keep: registry</h2>
+<p>MAF has no general registry. Foundry has <code>AIProjectClient.agents.list()</code> but it sees only Foundry-managed agents.</p>
+<p>I kept the project's <a href="https://github.com/PratikDhanave/microsofagenframework/tree/main/src/multi_agent/registry"><code>registry/</code></a> — 4 files, 200 lines — and flagged it in the chapter doc:</p>
+<blockquote>
+<p><strong>Heads-up:</strong> MAF does not ship a built-in agent registry. This module is the project-level convention. If you're 100% on Foundry hosted agents, you can drop this module and use the catalog instead.</p>
+</blockquote>
+<p>If a future MAF release ships a general agent registry primitive, I delete this module and use the official one. That's the contract.</p>
+<h2 id="keep-governance-lifecycle-rai-checklist">Keep: governance lifecycle + RAI checklist</h2>
+<p>The <code>DRAFT → STAGING → PRODUCTION → RETIRED</code> state machine and the six-field RAI checklist (fairness / reliability / privacy / inclusiveness / transparency / accountability) are project-local. They tie into AGT and Purview but they're not in MAF.</p>
+<p>I kept them for two reasons:</p>
+<ol>
+<li><strong>They're tiny.</strong> Lifecycle is 30 lines, RAI checklist is 30 lines. The cost of keeping them in-tree is approximately zero.</li>
+<li><strong>They sit <em>above</em> MAF.</strong> Lifecycle gates <em>project</em> promotion, not framework primitives. The RAI checklist is a <em>deployment</em> gate, not an SDK feature. These are application-level concerns the framework intentionally leaves to me.</li>
+</ol>
+<p>If MAF eventually publishes opinionated primitives for lifecycle and RAI, I'll port. Until then this is the right place for them.</p>
+<h2 id="what-id-warn-against">What I'd warn against</h2>
+<p>Three honest things, from a week of building this:</p>
+<ol>
+<li><strong>Don't roll your own context-provider interface.</strong> MAF's <code>ContextProvider</code> is the abstraction. Don't fight it. Don't reinvent it. Don't wrap it in your own ABC. Plug in.</li>
+<li><strong>Don't build a pub/sub in front of the workflow.</strong> The workflow IS the pub/sub for in-process orchestration. Bridging trace context through a custom broker is more work than it pays for.</li>
+<li><strong>Don't write your own eval record type.</strong> Use <code>Task</code> / <code>Evaluation</code> / <code>Prediction</code> / <code>TaskResult</code> from <code>agent-framework-lab-gaia</code>. Even if you never run GAIA, the types are right.</li>
+</ol>
+<h2 id="what-id-reach-for-next">What I'd reach for next</h2>
+<p>The two modules I kept (<code>registry/</code>, <code>governance/</code>) are the modules I'd build more carefully if the project scaled. A real registry needs a distributed backing store, a health probe, and a deprecation API. A real governance layer needs an attestation log, a model card store, and integration with whatever evaluation pipeline you'd use for production drift detection.</p>
+<p>But that's <em>future</em> work for a <em>real</em> deployment. For the reference architecture, the current shape is the right shape. The thing I value most after the refactor is the symmetry between what the architecture asks for and what the code does. Less code. Same coverage. Easier to read.</p>
+<h2 id="the-line-count-before-and-after">The line count, before and after</h2>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Before</th>
+<th>After</th>
+<th>Diff</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>memory/</code></td>
+<td>220</td>
+<td>100</td>
+<td>−120</td>
+</tr>
+<tr>
+<td><code>communication/</code></td>
+<td>230</td>
+<td>50</td>
+<td>−180</td>
+</tr>
+<tr>
+<td><code>security/</code></td>
+<td>280</td>
+<td>280</td>
+<td>0 (kept fallback; added Purview factory)</td>
+</tr>
+<tr>
+<td><code>governance/</code></td>
+<td>110</td>
+<td>150</td>
+<td>+40 (added AGT integration)</td>
+</tr>
+<tr>
+<td><code>evals/</code> (legacy)</td>
+<td>200</td>
+<td>220</td>
+<td>+20 (TaskResult emission + multi-turn)</td>
+</tr>
+<tr>
+<td><strong>Net</strong></td>
+<td><strong>1040</strong></td>
+<td><strong>800</strong></td>
+<td><strong>−240</strong></td>
+</tr>
+</tbody>
+</table>
+<p>About 240 fewer lines after the refactor. More functionality covered. Easier to test, because the surfaces I depend on are maintained by Microsoft and Mem0 rather than by me.</p>
+<p>The lesson generalises: when you're integrating with a framework that has separate optional packages, <em>audit each module against the package index before you write a line</em>. Most of what you think you need is already there, under a name you haven't met yet.</p>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>

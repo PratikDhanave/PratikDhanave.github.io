@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-turn evals from first principles — Pratik Dhanave</title>
+<meta name="description" content="Single-turn evals check one decision. Multi-turn evals check the whole trajectory. Here's a Python harness — three evaluators (tool order, forbidden tools, LLM judge) — running against local Ollama with mocked tools.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Multi-turn evals from first principles">
+<meta property="og:description" content="Single-turn evals check one decision. Multi-turn evals check the whole trajectory. Here's a Python harness — three evaluators (tool order, forbidden tools, LLM judge) — running against local Ollama with mocked tools.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/maf-multi-turn-evals-first-principles.html">
+P26-06-06">
+<meta property="article:tag" content="MAF">
+<meta property="article:tag" content="Evaluation">
+<meta property="article:tag" content="LLM-as-Judge">
+<meta property="article:tag" content="Python">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Multi-turn evals from first principles">
+<meta name="twitter:description" content="Single-turn evals check one decision. Multi-turn evals check the whole trajectory. Here's a Python harness — three evaluators (tool order, forbidden tools, LLM judge) — running against local Ollama with mocked tools.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/maf-multi-turn-evals-first-principles.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<main>
+<article>
+  <header>
+    <h1>Multi-turn evals from first principles</h1>
+    <p class="post-subtitle">Single-turn evals check one decision. Multi-turn evals check the whole trajectory. Here's a Python harness — three evaluators (tool order, forbidden tools, LLM judge) — running against local Ollama with mocked tools.</p>
+    <div class="post-meta">
+      <time datetime="2026-06-06">June 6, 2026</time>
+      <span>·</span>
+      <span>Engineers writing agent evaluations</span>
+    </div>
+    <div class="post-tags"><span class="tag">MAF</span><span class="tag">Evaluation</span><span class="tag">LLM-as-Judge</span><span class="tag">Python</span></div>
+  </header>
+
+<p>This post is the implementation companion to the article <em>Multi-Turn Evals: How to Test Whether an AI Agent Actually Works</em>. The article makes the conceptual case — single-turn evals are wonderful but blind to trajectory failures. This post is the harness, in Python, adapted for the Microsoft Agent Framework project and running against local Ollama by default.</p>
+<h2 id="what-youre-catching">What you're catching</h2>
+<p>The interesting agent failures live between turns:</p>
+<ul>
+<li>Right first move, wrong second move. Read the config, write the wrong value.</li>
+<li>Loops. Same tool, same args, six times.</li>
+<li>Misinterpreted results. The tool returns <code>DB_HOST=localhost</code> and the agent reports the host is <code>5432</code>.</li>
+<li>Premature stop. Hit one ambiguous result, declare the task impossible, walk away.</li>
+<li>Not stopping. Accomplish the task on step two and keep "improving" until you break something.</li>
+</ul>
+<p>None of these are catchable by asserting <code>tool_called == "readFile"</code>. You need the <em>trajectory</em> — every tool, every result, every step — and you need to grade the final answer against the original task in light of all of it.</p>
+<h2 id="the-three-evaluators">The three evaluators</h2>
+<p>The project's <a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/evals/multi_turn/evaluators.py"><code>evals/multi_turn/evaluators.py</code></a> ships three:</p>
+<table>
+<thead>
+<tr>
+<th>Evaluator</th>
+<th>Type</th>
+<th>What it asks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tool_order_correct</code></td>
+<td>Deterministic</td>
+<td>Did the expected tools appear, in order? (subsequence match)</td>
+</tr>
+<tr>
+<td><code>tools_avoided</code></td>
+<td>Deterministic</td>
+<td>Did the agent leave the forbidden tools alone?</td>
+</tr>
+<tr>
+<td><code>llm_judge</code></td>
+<td>LLM-as-judge</td>
+<td>Is the final answer correct, given the tools called and their results?</td>
+</tr>
+</tbody>
+</table>
+<p>Each returns a score in <code>[0, 1]</code>. <strong>By convention, an evaluator returns 1.0 when there's nothing for it to check</strong> — a case with no forbidden tools should not spuriously fail the <code>tools_avoided</code> evaluator. There were no rules to break.</p>
+<pre><code class="language-python">def tool_order_correct(output: MultiTurnResult, target: MultiTurnTarget) -&gt; float:
+    expected = target.expected_tool_order
+    if not expected:
+        return 1.0
+    i = 0
+    for name in output.tool_call_order:
+        if i &lt; len(expected) and name == expected[i]:
+            i += 1
+    return 1.0 if i == len(expected) else 0.0
+</code></pre>
+<p>That's subsequence matching — the agent can call <em>extra</em> tools (planning, thinking, retries) as long as the required ones appear in the required relative order. The forbidden-tools evaluator is similarly simple. The judge is where the interesting design choices live.</p>
+<h2 id="the-judge-structured-output-via-pydantic">The judge: structured output via Pydantic</h2>
+<p>The article's strongest point is that an LLM judge is only useful if its output is structured. A free-form judge reply is parsed into a score with regex heroics; a structured one isn't parsed at all.</p>
+<pre><code class="language-python">class JudgeSchema(BaseModel):
+    score: int = Field(..., ge=1, le=10, description=&quot;Score from 1-10 where 10 is perfect&quot;)
+    reason: str = Field(..., description=&quot;Brief explanation for the score&quot;)
+</code></pre>
+<p>The <code>reason</code> field isn't decoration. It forces the judge to think before committing to a number, and gives you something to audit when a score looks wrong.</p>
+<p>The article uses OpenAI's Structured Outputs <code>beta.chat.completions.parse(response_format=JudgeSchema)</code>. For portability across Ollama, vLLM, and other OpenAI-compatible endpoints that don't all support Structured Outputs, the project uses JSON mode + Pydantic validation:</p>
+<pre><code class="language-python">def llm_judge(output, target):
+    kwargs = {
+        &quot;model&quot;: judge_model(),
+        &quot;messages&quot;: [
+            {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: _JUDGE_SYSTEM_PROMPT},
+            {&quot;role&quot;: &quot;user&quot;,   &quot;content&quot;: _judge_user_message(output, target)},
+        ],
+        &quot;temperature&quot;: 0.0,
+    }
+    try:
+        completion = judge_client().chat.completions.create(
+            response_format={&quot;type&quot;: &quot;json_object&quot;}, **kwargs
+        )
+    except Exception:
+        completion = judge_client().chat.completions.create(**kwargs)
+    return _parse_judge_response(completion.choices[0].message.content or &quot;&quot;)
+</code></pre>
+<p>The fallback <code>try/except</code> handles older endpoints that reject <code>response_format</code>. The parser is defensive about local models that wrap JSON in <code>```json … ```</code> fences or trail prose:</p>
+<pre><code class="language-python">def _parse_judge_response(content: str) -&gt; JudgeSchema | None:
+    text = content.strip()
+    if text.startswith(&quot;```&quot;):
+        text = text.split(&quot;```&quot;, 2)[1]
+        if text.startswith(&quot;json&quot;): text = text[len(&quot;json&quot;):]
+        text = text.strip().rstrip(&quot;`&quot;).strip()
+    start, end = text.find(&quot;{&quot;), text.rfind(&quot;}&quot;)
+    if start == -1 or end == -1: return None
+    blob = text[start:end+1]
+    try:
+        return JudgeSchema.model_validate_json(blob)
+    except Exception:
+        return None
+</code></pre>
+<p>Five offline tests in <a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/tests/test_multi_turn_eval.py"><code>tests/test_multi_turn_eval.py</code></a> cover the parser — clean JSON, fenced JSON, trailing prose, out-of-range scores, garbage. The Pydantic schema catches the out-of-range case for free.</p>
+<h2 id="the-executor-explicit-agent-loop">The executor: explicit agent loop</h2>
+<p>The article's TypeScript reference uses <code>generateText({stopWhen: stepCountIs(20)})</code> for the agent loop. The OpenAI Python SDK doesn't have that, so the project's executor drives the loop explicitly. The whole <a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/evals/multi_turn/executors.py"><code>executors.py</code></a> is 130 lines.</p>
+<pre><code class="language-python">def multi_turn_with_mocks(data: MultiTurnEvalData) -&gt; MultiTurnResult:
+    tools_spec, mock_results = build_mocked_tools(data.mock_tools)
+
+    if data.messages is not None:
+        messages = [dict(m) for m in data.messages]
+    else:
+        messages = [
+            {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: SYSTEM_PROMPT},
+            {&quot;role&quot;: &quot;user&quot;,   &quot;content&quot;: data.prompt or &quot;&quot;},
+        ]
+
+    max_steps = (data.config or {}).get(&quot;max_steps&quot;, 20)
+    all_tool_calls, steps, final_text = [], [], &quot;&quot;
+
+    with traced_workflow(&quot;multi_turn_eval&quot;, provider=&quot;openai-compat&quot;, model=model) as span:
+        for step_no in range(max_steps):
+            completion = agent_client().chat.completions.create(
+                model=model, messages=messages,
+                tools=tools_spec if tools_spec else None,
+            )
+            message = completion.choices[0].message
+            tool_calls = message.tool_calls or []
+
+            if not tool_calls:
+                final_text = message.content or &quot;&quot;
+                break
+
+            # Append assistant turn + run tool calls against the mock map.
+            messages.append({&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: message.content,
+                             &quot;tool_calls&quot;: [...]})
+            for tc in tool_calls:
+                all_tool_calls.append(tc.function.name)
+                result = mock_results.get(tc.function.name, &quot;&quot;)
+                messages.append({&quot;role&quot;: &quot;tool&quot;, &quot;tool_call_id&quot;: tc.id, &quot;content&quot;: result})
+
+    return MultiTurnResult(text=final_text, steps=steps,
+                           tools_used=list(dict.fromkeys(all_tool_calls)),
+                           tool_call_order=all_tool_calls)
+</code></pre>
+<p>Two design choices worth flagging:</p>
+<ol>
+<li><strong><code>build_mocked_tools</code> wraps each spec into a real tool schema.</strong> The agent sees a <code>name</code>, <code>description</code>, <code>parameters</code>. It does not know the tool is mocked. The mock just returns a fixed value on call.</li>
+<li><strong><code>for _ in range(max_steps)</code> is the guardrail.</strong> Without it, a misbehaving agent loops forever and burns tokens. With it, the harness stops at step 20 and you see a partial trace — which is itself an interesting failure to score.</li>
+</ol>
+<p>Each run is wrapped in a <code>traced_workflow("multi_turn_eval", ...)</code> span so eval runs show up in Jaeger alongside the production workflows. Same trace shape, different parent.</p>
+<h2 id="three-test-patterns-that-earn-their-keep">Three test patterns that earn their keep</h2>
+<p>The <a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/evals/datasets/multi_turn.json"><code>evals/datasets/multi_turn.json</code></a> ships three cases — one per pattern from the article:</p>
+<pre><code class="language-mermaid">flowchart LR
+    Fresh[&quot;1️⃣ Fresh task&lt;br/&gt;prompt + mocks&quot;]
+    Mid[&quot;2️⃣ Mid-conversation&lt;br/&gt;pre-filled messages&quot;]
+    Neg[&quot;3️⃣ Negative test&lt;br/&gt;trivial prompt, all tools forbidden&quot;]
+
+    Fresh --&gt; Tools[&quot;Tool selection + answer extraction&quot;]
+    Mid --&gt; Context[&quot;Context threading + read-before-write convention&quot;]
+    Neg --&gt; Restraint[&quot;Agent shouldn't reach for a tool it doesn't need&quot;]
+</code></pre>
+<p>The negative test is the one that catches the failure mode "agent surrounded by tools feels compelled to use them." A perfect run uses zero tools and answers <code>"4"</code>. Surprisingly often, agents under poorly-tuned prompts will call <code>readFile</code> to "verify" the answer to a trivial math question.</p>
+<h2 id="running-against-ollama">Running against Ollama</h2>
+<pre><code class="language-bash"># Default config: agent + judge both = local Ollama with granite4.1:3b
+make eval-multi
+
+# Or fully deterministic, no judge
+make eval-multi-fast
+
+# Override per-role for production
+EVAL_AGENT_BASE_URL=https://api.openai.com/v1 \
+EVAL_AGENT_API_KEY=sk-... \
+EVAL_AGENT_MODEL=gpt-5-mini \
+EVAL_JUDGE_MODEL=gpt-5.1 \
+python -m evals.multi_turn.runner --output evals/results.jsonl
+</code></pre>
+<p>The live run against <code>granite4.1:3b</code> on all three cases:</p>
+<pre><code>Case 1: Read config.json and report the API endpoint.
+  tools called  : ['readFile']
+  tool_order    : 1.00
+  tools_avoided : 1.00
+  output_quality: 1.00
+  final answer  : 'The API endpoint is https://api.example.com/v1.'
+
+Case 2: Update the port to 3000 in config.json (after reading current contents).
+  tools called  : ['readFile', 'writeFile']
+  tool_order    : 1.00
+  tools_avoided : 1.00
+  output_quality: 0.70
+  final answer  : 'The port has been updated to 3000 in your config.json file. Let me know if'
+
+Case 3: Answer the trivial arithmetic question without invoking any tools.
+  tools called  : []
+  tool_order    : 1.00
+  tools_avoided : 1.00
+  output_quality: 1.00
+  final answer  : 'The answer is 4.'
+
+Averages: tool_order=1.000, tools_avoided=1.000, output_quality=0.900
+2/3 cases passed (overall &gt;= 0.99)
+</code></pre>
+<p>Case 2 scored 7/10 on output quality. The deterministic checks are clean — read before write, no forbidden tools — but the judge caught a quality issue: the agent finished with "Let me know if there's…" filler the task didn't ask for. That's <em>exactly</em> the kind of soft failure single-turn evals can't see. The judge's score reads as "right work, wrong vibe."</p>
+<h2 id="taskresult-interop">TaskResult interop</h2>
+<p>The runner emits <code>agent_framework_lab_gaia.TaskResult</code> records so the output integrates with MAF's lab tools (and any future MAF Lab features):</p>
+<pre><code class="language-json">{
+  &quot;task_id&quot;: &quot;fresh-task-read-config&quot;,
+  &quot;task&quot;: {&quot;task_id&quot;: &quot;fresh-task-read-config&quot;, &quot;question&quot;: &quot;Read config.json and report the API endpoint.&quot;},
+  &quot;prediction&quot;: {&quot;prediction&quot;: &quot;The API endpoint is https://api.example.com/v1.&quot;},
+  &quot;evaluation&quot;: {
+    &quot;is_correct&quot;: true,
+    &quot;score&quot;: 1.0,
+    &quot;details&quot;: {&quot;scores&quot;: {&quot;tool_order&quot;: 1.0, &quot;tools_avoided&quot;: 1.0, &quot;output_quality&quot;: 1.0},
+                &quot;tools_used&quot;: [&quot;readFile&quot;], &quot;tool_call_order&quot;: [&quot;readFile&quot;], &quot;steps&quot;: 2}
+  },
+  &quot;runtime_seconds&quot;: 2.31
+}
+</code></pre>
+<p>Same shape as the project's other evals (tool-call eval, e2e substring eval). One downstream consumer can ingest all three.</p>
+<h2 id="what-the-harness-cant-do">What the harness can't do</h2>
+<p>Two honest limits:</p>
+<ol>
+<li><strong>It tests the agent's decision-making, not the tools.</strong> The mocked tools always succeed. If your real <code>writeFile</code> has a bug, this harness won't find it. Unit tests do that.</li>
+<li><strong>The judge has noise.</strong> A 7/10 might be a 6/10 on the next run. Treat small score deltas as noise; only act on movements that survive multiple judge passes.</li>
+</ol>
+<h2 id="what-id-add-to-your-harness-if-you-dont-have-one-yet">What I'd add to your harness if you don't have one yet</h2>
+<ul>
+<li>The negative test. Most suites omit it. It catches a real class of failure.</li>
+<li>A <code>max_steps</code> cap. Cheap insurance against runaway loops.</li>
+<li>A schema for the judge output. Goodbye to regex score parsing.</li>
+<li>A consistent "nothing to check → 1.0" convention. Easy to forget.</li>
+</ul>
+<p>The harness is ~600 lines including tests. The hard part is the test data — the article spends two thirds of its length on that, and it's right to. Multi-turn eval <em>is</em> test-data design. The harness is the part you write once.</p>
+<p>The dataset, the runner, the executor, the evaluators, and the offline tests are all in the repo. Fork it; replace the system prompt with yours; replace the mock tools with the ones your agent actually uses; you've got a multi-turn eval harness for your agent in an afternoon.</p>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>
