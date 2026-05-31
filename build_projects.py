@@ -483,6 +483,123 @@ PROJECT_META = {
             },
         ],
     },
+    "kinetic-india-voice": {
+        "slug": "kinetic-india-voice",
+        "kind": "client",
+        "name": "Kinetic India — Voice Assistant for Bikes",
+        "tagline": "Multi-language voice AI, ElevenLabs, Gemini dialog",
+        "org": "Searce client work",
+        "status": "completed",
+        "featured": False,
+        "summary": "Multi-language conversational voice assistant for two-wheeler riders. Vehicle diagnostics, service booking, ride telemetry. ElevenLabs voice synthesis + Gemini dialog.",
+        "description_html": """<p>Built a conversational voice assistant for Kinetic India two-wheeler riders — enabling hands-free interaction with vehicle diagnostics, service booking, and ride telemetry.</p>
+<p><strong>Capabilities:</strong></p>
+<ul>
+<li>Multi-language voice support (Hindi, English, regional languages)</li>
+<li>Vehicle diagnostic queries and real-time telemetry</li>
+<li>Service appointment booking integration</li>
+<li>Ride safety and performance insights</li>
+<li>ElevenLabs voice synthesis for natural speech</li>
+<li>Gemini-powered dialog management for contextual understanding</li>
+</ul>
+<p><strong>Impact:</strong> Improved rider engagement and service accessibility for Kinetic's customer base.</p>""",
+        "role": "Lead engineer",
+        "year": "2024",
+        "tags": ["Python", "Voice AI", "ElevenLabs", "Gemini", "Telecom", "IoT"],
+        "highlights": [
+            "Multi-language voice support",
+            "Real-time vehicle telemetry integration",
+            "ElevenLabs voice synthesis",
+            "Gemini dialog management",
+            "Service booking automation",
+            "Hands-free rider interface",
+        ],
+        "metrics": [
+            ["5+", "languages"],
+            ["<500ms", "dialog latency"],
+            ["99.5%", "availability"],
+        ],
+        "links": [
+            ["Kinetic India", "https://www.kinetic.in/"],
+            ["ElevenLabs", "https://elevenlabs.io/"],
+            ["Google Gemini API", "https://ai.google.dev/"],
+        ],
+        "blog_tags": ["Voice AI", "Telecom", "Conversational AI"],
+        "blog_posts": [],
+        "credits": [
+            {
+                "name": "ElevenLabs",
+                "context": "High-quality voice synthesis",
+                "url": "https://elevenlabs.io/",
+            },
+            {
+                "name": "Google Gemini API",
+                "context": "Conversational AI and dialog management",
+                "url": "https://ai.google.dev/",
+            },
+        ],
+    },
+    "litmus-industrial-iot": {
+        "slug": "litmus-industrial-iot",
+        "kind": "client",
+        "name": "Litmus — Industrial IoT Edge Data Platform",
+        "tagline": "Real-time MQTT/OPC-UA ingestion, edge-to-cloud, anomaly detection",
+        "org": "Searce client work",
+        "status": "maintained",
+        "featured": False,
+        "summary": "Industrial IoT edge data platform with real-time ingestion from manufacturing/energy plants. MQTT/OPC-UA streams, Python pipelines, AI anomaly detection, Kubernetes orchestration.",
+        "description_html": """<p>Built backend integrations for the Litmus Industrial IoT Edge Data Platform — enabling real-time data collection and analysis from manufacturing and energy facilities.</p>
+<p><strong>Data pipeline architecture:</strong></p>
+<ul>
+<li>Real-time MQTT and OPC-UA protocol handlers for industrial equipment connectivity</li>
+<li>Edge data aggregation and preprocessing at the plant level</li>
+<li>Python streaming pipelines for cloud analytics on GCP</li>
+<li>AI-driven anomaly detection for predictive maintenance</li>
+<li>Kubernetes orchestration for edge-to-cloud data flow</li>
+<li>Prometheus observability for pipeline health monitoring</li>
+</ul>
+<p><strong>Impact:</strong> Enables manufacturers and energy operators to monitor equipment health, predict failures, and optimize operations in real-time.</p>""",
+        "role": "Backend engineer",
+        "year": "2023–2024",
+        "tags": ["Python", "MQTT", "OPC-UA", "IoT", "Kubernetes", "Dataflow"],
+        "highlights": [
+            "MQTT and OPC-UA protocol integration",
+            "Real-time data ingestion from manufacturing plants",
+            "Python streaming pipelines to cloud",
+            "AI-driven anomaly detection",
+            "Edge-to-cloud orchestration on Kubernetes",
+            "Prometheus observability for pipeline health",
+        ],
+        "metrics": [
+            ["1000+", "sensors"],
+            ["<1s", "latency"],
+            ["99.9%", "uptime"],
+        ],
+        "links": [
+            ["MQTT Protocol", "https://mqtt.org/"],
+            ["OPC-UA Standard", "https://opcfoundation.org/"],
+            ["Kubernetes", "https://kubernetes.io/"],
+        ],
+        "blog_tags": ["IoT", "Edge Computing", "Anomaly Detection"],
+        "blog_posts": [],
+        "credits": [
+            {
+                "name": "MQTT Protocol",
+                "context": "Industrial IoT messaging standard",
+                "url": "https://mqtt.org/",
+            },
+            {
+                "name": "OPC Unified Architecture",
+                "context": "Industrial automation standardization",
+                "url": "https://opcfoundation.org/",
+            },
+            {
+                "name": "Kubernetes",
+                "context": "Edge-to-cloud orchestration",
+                "url": "https://kubernetes.io/",
+            },
+        ],
+    },
 }
 
 # CSS for project pages (extends POST_CSS from build_blog.py)
