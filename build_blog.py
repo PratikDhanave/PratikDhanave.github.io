@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-build_blog.py — Convert markdown articles in bodh-linkedin/ into themed
+build_blog.py — Convert markdown articles in blog/source/ into themed
 HTML blog posts on PratikDhanave.github.io, plus regenerate the blog index.
 
 This script is run from the site repo root. It expects the source markdown
-files to live in a sibling directory at ../bodh-linkedin/.
+files to live in blog/source/.
 
 Design system aligned with the site's index.html:
   - Same CSS variables (light + dark mode)
@@ -14,7 +14,7 @@ Design system aligned with the site's index.html:
   - Code blocks with --code-bg background
 
 The script:
-  1. Reads each .md file in ../bodh-linkedin/ (skipping README.md and feed-posts.md)
+  1. Reads each .md file in blog/source/ (skipping README.md and feed-posts.md)
   2. Extracts the title (H1) and subtitle (italic line under H1)
   3. Renders the markdown body to HTML via python-markdown
      with tables + fenced_code + sane_lists + toc extensions
@@ -41,7 +41,7 @@ from markdown.extensions.toc import TocExtension
 # ---------------------------------------------------------------------------
 
 SITE_ROOT = Path(__file__).parent.resolve()
-SRC_DIR = SITE_ROOT.parent / "bodh-linkedin"
+SRC_DIR = SITE_ROOT / "blog" / "source"
 POSTS_DIR = SITE_ROOT / "blog" / "posts"
 INDEX_PATH = SITE_ROOT / "blog" / "index.html"
 
