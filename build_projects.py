@@ -790,10 +790,49 @@ def render_project_detail_html(project_slug, all_posts):
   <p><a href="/projects/">← All projects</a></p>
 </section>"""
 
-    return _wrap_page_html(project['name'], body)
+    # Build JSON-LD schemas
+    schema_html = f"""
+<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "{project['name']}",
+  "description": "{project['tagline']}",
+  "url": "https://pratikdhanave.github.io/projects/{project_slug}/",
+  "author": {{
+    "@type": "Person",
+    "name": "Pratik Dhanave"
+  }},
+  "codeRepository": "https://github.com/{project.get('links', [['GitHub', ''][-1]].split('/')[-2] if project.get('links') else 'PratikDhanave'}",
+  "programmingLanguage": "{project.get('language', 'Go')}"
+}}
+</script>
+
+<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {{
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Projects",
+      "item": "https://pratikdhanave.github.io/projects/"
+    }},
+    {{
+      "@type": "ListItem",
+      "position": 2,
+      "name": "{project['name']}",
+      "item": "https://pratikdhanave.github.io/projects/{project_slug}/"
+    }}
+  ]
+}}
+</script>"""
+
+    return _wrap_page_html(project['name'], body, schema_html)
 
 
-def _wrap_page_html(page_title, body_html):
+def _wrap_page_html(page_title, body_html, schema_html=""):
     """Wrap project page body with nav, footer, CSS."""
     active_nav = NAV_HTML.replace(
         '<li><a href="/projects/">Projects</a></li>',
@@ -810,11 +849,16 @@ def _wrap_page_html(page_title, body_html):
 <meta name="author" content="Pratik Dhanave">
 <meta property="og:title" content="Pratik Dhanave — {page_title}">
 <meta property="og:type" content="website">
+<meta property="og:image" content="https://pratikdhanave.github.io/og-default.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Pratik Dhanave — {page_title}">
+<meta name="twitter:image" content="https://pratikdhanave.github.io/og-default.png">
 <link rel="canonical" href="https://pratikdhanave.github.io/projects/">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 <style>
 {PROJECT_CSS}
 </style>
+{schema_html}
 </head>
 <body>
 {active_nav}
