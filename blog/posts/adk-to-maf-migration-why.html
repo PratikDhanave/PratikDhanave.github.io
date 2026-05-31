@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why We Migrated from Google ADK to Microsoft MARA — Pratik Dhanave</title>
+<meta name="description" content="The philosophy, trade-offs, and what we learned converting 18+ agents in 3 months. Provider abstraction as the foundation for portable agents.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Why We Migrated from Google ADK to Microsoft MARA">
+<meta property="og:description" content="The philosophy, trade-offs, and what we learned converting 18+ agents in 3 months. Provider abstraction as the foundation for portable agents.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/adk-to-maf-migration-why.html">
+<meta property="article:published_time" content="2026-06-01">
+<meta property="article:tag" content="ADK">
+<meta property="article:tag" content="MARA">
+<meta property="article:tag" content="Architecture">
+<meta property="article:tag" content="Multi-Agent AI">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Why We Migrated from Google ADK to Microsoft MARA">
+<meta name="twitter:description" content="The philosophy, trade-offs, and what we learned converting 18+ agents in 3 months. Provider abstraction as the foundation for portable agents.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/adk-to-maf-migration-why.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Why We Migrated from Google ADK to Microsoft MARA</h1>
+    <p class="post-subtitle">The philosophy, trade-offs, and what we learned converting 18+ agents in 3 months.</p>
+    <div class="post-meta">
+      <time datetime="2026-06-01">June 01, 2026</time>
+      <span>·</span>
+      <span>Software architects + platform engineers</span>
+    </div>
+    <div class="post-tags"><span class="tag">ADK</span><span class="tag">MARA</span><span class="tag">Architecture</span><span class="tag">Multi-Agent AI</span></div>
+  </header>
+
+  <h2 id="the-story">The Story</h2>
+<p>In early 2025, our multi-agent platform (Genie: a financial advisor, Bodh: a medical AI) lived on Google&rsquo;s Application Development Kit (ADK). It worked. The agents were fast, the orchestration patterns were clear, and Gemini was powerful.</p>
+<p>But we hit a fork in the road:</p>
+<ol>
+<li><strong>ADK&rsquo;s vision</strong>: Tightly coupled to Google Cloud. Vertex AI, Gemini models, Google&rsquo;s tool ecosystem.</li>
+<li><strong>Our vision</strong>: Platform-agnostic multi-agent systems. Swap LLM providers (OpenAI, Azure, local Ollama). Run on any cloud (GCP, Azure, on-prem). Keep agent logic pure; LLM choice should be a config knob.</li>
+</ol>
+<p>So we chose Microsoft&rsquo;s Agent Framework (MAF) — the reference architecture, not the vendor lock-in.</p>
+<h2 id="what-changed-the-mapping">What Changed (The Mapping)</h2>
+<h3 id="agents-minimal-friction">Agents: Minimal friction</h3>
+<ul>
+<li>ADK&rsquo;s <code>LlmAgent(model="gemini-2.5-flash", instruction=, tools=)</code> → MAF&rsquo;s <code>Agent(client=build_chat_client(), instructions=, tools=)</code></li>
+<li>The <code>model=</code> parameter is gone. Instead, <code>build_chat_client()</code> reads <code>PROVIDER=ollama|openai|foundry</code> from <code>.env</code>. <strong>One code path, any LLM.</strong></li>
+</ul>
+<h3 id="orchestration-new-builders">Orchestration: New builders</h3>
+<ul>
+<li>ADK&rsquo;s <code>SequentialAgent([agent1, agent2])</code> → MAF&rsquo;s <code>SequentialBuilder(participants=[...]).build()</code></li>
+<li>We ported all 5 orchestration patterns: Sequential, Concurrent, Handoff, GroupChat, Magentic.</li>
+<li>Result: Same control flow, cleaner abstractions.</li>
+</ul>
+<h3 id="tools-decorator-pattern">Tools: Decorator pattern</h3>
+<ul>
+<li>ADK: <code>tools=[fn]</code> (pass functions directly)</li>
+<li>MAF: <code>@tool</code> decorator + same signature/docstring</li>
+<li>We now have governed wrappers (policy-as-code, OPA sidecar) built on top. Better composability.</li>
+</ul>
+<h3 id="memory-state">Memory &amp; State</h3>
+<ul>
+<li>ADK: <code>session_service.state[key]</code></li>
+<li>MAF: <code>AgentThread</code> for conversation history + <code>MemoryFileStore</code> for long-term memory</li>
+<li>The semantic mapping is 1:1. We kept the same keys; execution is more explicit.</li>
+</ul>
+<h2 id="why-it-matters">Why It Matters</h2>
+<p><strong>Provider portability</strong>: On day 90, we swapped <code>PROVIDER=openai</code> (cost reason) without touching agent code. Try that with ADK.</p>
+<p><strong>Clarity</strong>: MAF separates concerns. An agent is logic. A builder is orchestration. A client is provider. Test each independently.</p>
+<p><strong>Open source credibility</strong>: MAF isn&rsquo;t a Google project. It&rsquo;s Microsoft&rsquo;s reference architecture. We can talk about it, teach it, share examples without vendor politics.</p>
+<h2 id="the-cost">The Cost</h2>
+<ul>
+<li><strong>3 months</strong> to port 18 agents (engineers working part-time on this; not full-time migration)</li>
+<li><strong>~500 lines of code changes</strong> per average agent</li>
+<li><strong>Zero behavioral loss</strong>: Every agent still solves the same problem the same way</li>
+</ul>
+<h2 id="the-thesis">The Thesis</h2>
+<p>If your agents are truly portable (they should be), your orchestration is declarative (it should be), and your tools are pure functions (they should be), then the LLM framework is plumbing. Pick the one that lets you swap plumbing without rewriting your house.</p>
+<p>That&rsquo;s why we chose MAF.</p>
+<hr>
+<p>Next: <a href="/blog/2026/06/02/adk-to-maf-executor-pattern.html">The Executor Pattern</a></p>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>

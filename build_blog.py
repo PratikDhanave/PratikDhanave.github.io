@@ -120,6 +120,62 @@ POST_META = {
         "audience": "Cloud architects + medical AI engineers",
         "excerpt": "Google's GKE AI infrastructure docs list ~40 integrations. Here's a field map of which ones actually matter when the workload is a HIPAA-aware multi-agent medical AI, and where the gaps sit.",
     },
+    "2026-06-01-adk-to-maf-migration-why.md": {
+        "slug": "adk-to-maf-migration-why",
+        "date": "2026-06-01",
+        "tags": ["ADK", "MARA", "Architecture", "Multi-Agent AI"],
+        "audience": "Software architects + platform engineers",
+        "excerpt": "The philosophy, trade-offs, and what we learned converting 18+ agents in 3 months. Provider abstraction as the foundation for portable agents.",
+    },
+    "2026-06-02-adk-to-maf-executor-pattern.md": {
+        "slug": "adk-to-maf-executor-pattern",
+        "date": "2026-06-02",
+        "tags": ["ADK", "MARA", "Orchestration", "Design Pattern"],
+        "audience": "Platform architects",
+        "excerpt": "How to port ADK's orchestration callbacks to MAF builders without losing control. The executor pattern: you own the loop.",
+    },
+    "2026-06-03-adk-to-maf-token-exchange.md": {
+        "slug": "adk-to-maf-token-exchange",
+        "date": "2026-06-03",
+        "tags": ["ADK", "MARA", "State Management", "Token Budgeting"],
+        "audience": "Backend + ML engineers",
+        "excerpt": "Sessions to threads: porting multi-turn state from ADK to MAF. Token budgeting, long-term memory, and conversation audit trails.",
+    },
+    "2026-06-04-adk-to-maf-tool-wrapping.md": {
+        "slug": "adk-to-maf-tool-wrapping",
+        "date": "2026-06-04",
+        "tags": ["ADK", "MARA", "Tools", "Governance", "OPA"],
+        "audience": "Governance + backend engineers",
+        "excerpt": "From ADK functions to MAF governed tools. Adding policy enforcement, DLP, approval gates, and OPA integration.",
+    },
+    "2026-06-05-adk-to-maf-provider-config.md": {
+        "slug": "adk-to-maf-provider-config",
+        "date": "2026-06-05",
+        "tags": ["ADK", "MARA", "Provider Abstraction", "Config"],
+        "audience": "DevOps + platform engineers",
+        "excerpt": "Zero-code provider swaps: Ollama (dev), OpenAI (staging), Azure Foundry (prod). Same agents, different models.",
+    },
+    "2026-06-06-adk-to-maf-callbacks.md": {
+        "slug": "adk-to-maf-callbacks",
+        "date": "2026-06-06",
+        "tags": ["ADK", "MARA", "Middleware", "Observability", "OTel"],
+        "audience": "SRE + observability engineers",
+        "excerpt": "Callbacks to middleware: composable decorators for audit, retry, token enforcement, and OpenTelemetry integration.",
+    },
+    "2026-06-07-adk-to-maf-deployment.md": {
+        "slug": "adk-to-maf-deployment",
+        "date": "2026-06-07",
+        "tags": ["ADK", "MARA", "Deployment", "Cloud Run", "A2A"],
+        "audience": "Cloud architects + SRE",
+        "excerpt": "Cloud Run deployments, agent-to-agent communication, load balancing, and production observability.",
+    },
+    "2026-06-08-adk-to-maf-lessons.md": {
+        "slug": "adk-to-maf-lessons",
+        "date": "2026-06-08",
+        "tags": ["ADK", "MARA", "Case Study", "Lessons Learned"],
+        "audience": "All engineers",
+        "excerpt": "What worked, what was hard, and what we'd do differently. Real numbers: 18 agents, 90 days, 5 governance policies, 4 provider swaps.",
+    },
 }
 
 

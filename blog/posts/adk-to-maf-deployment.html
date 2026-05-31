@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deployment & A2A: From ADK's Web Deploy to MAF's Scalable Architecture — Pratik Dhanave</title>
+<meta name="description" content="Cloud Run deployments, agent-to-agent communication, load balancing, and production observability.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Deployment & A2A: From ADK's Web Deploy to MAF's Scalable Architecture">
+<meta property="og:description" content="Cloud Run deployments, agent-to-agent communication, load balancing, and production observability.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/adk-to-maf-deployment.html">
+<meta property="article:published_time" content="2026-06-07">
+<meta property="article:tag" content="ADK">
+<meta property="article:tag" content="MARA">
+<meta property="article:tag" content="Deployment">
+<meta property="article:tag" content="Cloud Run">
+<meta property="article:tag" content="A2A">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Deployment & A2A: From ADK's Web Deploy to MAF's Scalable Architecture">
+<meta name="twitter:description" content="Cloud Run deployments, agent-to-agent communication, load balancing, and production observability.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/adk-to-maf-deployment.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Deployment & A2A: From ADK's Web Deploy to MAF's Scalable Architecture</h1>
+    <p class="post-subtitle">Running agents on Cloud Run, exposing via A2A, and wiring into production systems.</p>
+    <div class="post-meta">
+      <time datetime="2026-06-07">June 07, 2026</time>
+      <span>·</span>
+      <span>Cloud architects + SRE</span>
+    </div>
+    <div class="post-tags"><span class="tag">ADK</span><span class="tag">MARA</span><span class="tag">Deployment</span><span class="tag">Cloud Run</span><span class="tag">A2A</span></div>
+  </header>
+
+  <h2 id="pattern-1-cloud-run-stateless">Pattern 1: Cloud Run (Stateless)</h2>
+<p>Both ADK and MAF can run on Cloud Run. The main difference: MAF is explicit about state.</p>
+<p><strong>ADK</strong>:</p>
+<pre><code class="language-python">from flask import Flask, request, jsonify
+from google.adk import Agent
+
+app = Flask(__name__)
+agent = Agent(model=&quot;gemini-2.5-flash&quot;, instructions=&quot;...&quot;)  # Singleton
+
+@app.route(&quot;/ask&quot;, methods=[&quot;POST&quot;])
+def ask():
+    prompt = request.json[&quot;prompt&quot;]
+    result = await agent.run(prompt)  # Shares state across requests (problematic)
+    return jsonify({&quot;answer&quot;: result.message.content})
+</code></pre>
+<p>Problem: The agent is stateless, but if you use callbacks or session state, it&rsquo;s confusing.</p>
+<p><strong>MAF</strong>:</p>
+<pre><code class="language-python">from fastapi import FastAPI
+from multi_agent.providers import build_chat_client
+from agent_framework import Agent, AgentThread
+
+app = FastAPI()
+client = build_chat_client()  # Client is lightweight; reusable
+
+@app.post(&quot;/ask&quot;)
+async def ask(request: dict):
+    prompt = request[&quot;prompt&quot;]
+
+    # Each request gets a fresh thread (conversation state)
+    thread = AgentThread()
+
+    agent = Agent(client=client, instructions=&quot;...&quot;)
+    result = await agent.run(prompt, thread=thread)
+
+    return {&quot;answer&quot;: result.message.content}
+</code></pre>
+<p><strong>Clear</strong>: Client is reused. Thread (state) is per-request. No confusion.</p>
+<p>Deploy to Cloud Run:</p>
+<pre><code class="language-bash">gcloud run deploy my-agent \
+    --source . \
+    --port 8000 \
+    --env PROVIDER=foundry \
+    --env FOUNDRY_PROJECT_ENDPOINT=... \
+    --env FOUNDRY_MODEL=gpt-4o-mini
+</code></pre>
+<h2 id="pattern-2-a2a-agent-to-agent-communication">Pattern 2: A2A (Agent-to-Agent Communication)</h2>
+<p>If your agent needs to call another agent (e.g., a backend agent calls a specialist agent), use A2A:</p>
+<p><strong>ADK</strong>:</p>
+<pre><code class="language-python"># Supervisor runs locally; calls specialists over HTTP
+specialist = RemoteAgent(url=&quot;https://specialist-agent.run.app&quot;)
+result = await specialist.ask(&quot;Analyze this&quot;)
+</code></pre>
+<p>No framework support. You roll your own HTTP wrapping.</p>
+<p><strong>MAF</strong>:</p>
+<pre><code class="language-python">from agent_framework_a2a import A2AAgent
+
+# Expose the specialist agent
+specialist = Agent(client=..., instructions=&quot;...&quot;)
+a2a = A2AExecutor(specialist, port=8080)
+await a2a.start()  # Listens on localhost:8080
+
+# Supervisor (remote) calls the specialist
+supervisor_specialist = A2AAgent(url=&quot;http://localhost:8080&quot;)
+
+supervisor = Agent(
+    client=...,
+    instructions=&quot;...&quot;,
+    tools=[
+        tool(
+            async def ask_specialist(q: str) -&gt; str:
+                return await supervisor_specialist.run(q)
+        )
+    ]
+)
+
+result = await supervisor.run(&quot;Delegate to specialist&quot;)
+</code></pre>
+<h2 id="pattern-3-load-balancing-multiple-agents">Pattern 3: Load Balancing Multiple Agents</h2>
+<p>You have one agent model but many requests. Deploy N replicas:</p>
+<pre><code class="language-bash"># Deploy 3 copies of the same agent
+for i in {1..3}; do
+    gcloud run deploy my-agent-$i \
+        --source . \
+        --port 8000 \
+        --memory 512Mi \
+        --env PROVIDER=foundry
+done
+
+# Load balancer distributes requests across replicas
+# Each replica: stateless client + per-request thread
+</code></pre>
+<p>MAF&rsquo;s per-request thread model makes this trivial. ADK&rsquo;s session state would cause issues (which replica owns the session?).</p>
+<h2 id="pattern-4-observability-in-production">Pattern 4: Observability in Production</h2>
+<p>Wire your deployed agents to observability backends:</p>
+<pre><code class="language-python">import logging
+from multi_agent.observability import setup_observability
+
+# Setup OpenTelemetry + auto-wire to Laminar (if LMNR_PROJECT_API_KEY is set)
+setup_observability(service_name=&quot;genie-supervisor&quot;)
+
+# Now every agent.run() emits a trace
+agent = Agent(client=..., instructions=&quot;...&quot;)
+
+# Traces go to:
+# - Local Jaeger (if running)
+# - Laminar (if LMNR_PROJECT_API_KEY is set)
+# - Both (for dual redundancy)
+</code></pre>
+<p>Deploy:</p>
+<pre><code class="language-bash">gcloud run deploy my-agent \
+    --source . \
+    --env LMNR_PROJECT_API_KEY=... \
+    --env LMNR_BASE_URL=https://api.lmnr.ai
+</code></pre>
+<p>Every request is traced. Latency, errors, token usage — all visible in Laminar&rsquo;s dashboard.</p>
+<h2 id="pattern-5-graceful-shutdown">Pattern 5: Graceful Shutdown</h2>
+<p>When you deploy a new version, in-flight requests should finish, not be killed:</p>
+<pre><code class="language-python">import signal
+from contextlib import asynccontextmanager
+
+# Track in-flight requests
+in_flight = 0
+shutdown_event = asyncio.Event()
+
+@app.post(&quot;/ask&quot;)
+async def ask(request: dict):
+    global in_flight
+    in_flight += 1
+
+    try:
+        prompt = request[&quot;prompt&quot;]
+        thread = AgentThread()
+        agent = Agent(client=..., instructions=&quot;...&quot;)
+        result = await agent.run(prompt, thread=thread)
+        return {&quot;answer&quot;: result.message.content}
+    finally:
+        in_flight -= 1
+        if in_flight == 0:
+            shutdown_event.set()
+
+async def shutdown():
+    print(&quot;Shutdown signal received; waiting for in-flight requests...&quot;)
+    await shutdown_event.wait()
+    print(&quot;All requests completed; exiting&quot;)
+
+signal.signal(signal.SIGTERM, lambda *a: asyncio.create_task(shutdown()))
+</code></pre>
+<p>Deploy on Cloud Run — it sends SIGTERM before killing the container. Your agents finish gracefully.</p>
+<h2 id="real-example-genie-in-production">Real Example: Genie in Production</h2>
+<p><strong>Architecture</strong>:
+- 3x Genie supervisor replicas on Cloud Run
+- Each replica: stateless client + per-request thread
+- Specialist agents (analyzer, forecaster, etc.) deployed separately
+- All agents expose A2A endpoints
+- Load balancer distributes /ask requests
+- Every call emitted to Laminar for tracing
+- Graceful shutdown handles rolling deploys</p>
+<p><strong>Deployment</strong>:</p>
+<pre><code class="language-bash"># Build
+docker build -t genie:latest .
+
+# Deploy
+for i in {1..3}; do
+    gcloud run deploy genie-supervisor-$i \
+        --image genie:latest \
+        --memory 512Mi \
+        --timeout 60 \
+        --env PROVIDER=foundry \
+        --env LMNR_PROJECT_API_KEY=...
+done
+
+# Route traffic
+gcloud compute backend-services create genie-backend
+for i in {1..3}; do
+    gcloud compute backend-services add-backend genie-backend \
+        --instance-group genie-supervisor-$i
+done
+</code></pre>
+<p>Result: Scalable, observable, resilient multi-agent system.</p>
+<hr>
+<p>Next: <a href="/blog/2026/06/08/adk-to-maf-lessons.html">Lessons Learned (18 Agents, 90 Days)</a></p>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>
