@@ -56,6 +56,18 @@ POST_META = {
         "tags": ["HIPAA", "Compliance", "Go", "Privacy Engineering"],
         "audience": "Compliance + engineering",
         "excerpt": "What HIPAA looks like when you express it as Go interfaces — governance policies, append-only audit at DB GRANTs, PHI redaction at the logger seam, and HITL as the §3060 CDS carve-out criterion 4.",
+        "citations": [
+            {
+                "title": "HIPAA Technical Safeguards (45 CFR §164.312)",
+                "url": "https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/index.html",
+                "context": "Access controls and audit mechanisms"
+            },
+            {
+                "title": "21st Century Cures Act Clinical Decision Support (§3060)",
+                "url": "https://www.congress.gov/bill/114th-congress/house-bill/34",
+                "context": "Human-in-the-loop requirements for AI-assisted diagnosis"
+            }
+        ]
     },
     "01-bench-42-to-85.md": {
         "slug": "bench-42-to-85",
@@ -77,6 +89,23 @@ POST_META = {
         "tags": ["PostgreSQL", "HIPAA", "Database Security", "Go"],
         "audience": "Backend engineering + security",
         "excerpt": "PostgreSQL row-level security as HIPAA defence in depth. Why fail-open application filtering isn't enough, and how 'append-only at DB GRANTs' carries more of the §164.312(b) burden than people realise.",
+        "citations": [
+            {
+                "title": "PostgreSQL Row-Level Security (RLS) Documentation",
+                "url": "https://www.postgresql.org/docs/current/ddl-rowsecurity.html",
+                "context": "Filtering rows at the database layer"
+            },
+            {
+                "title": "HIPAA § 164.312(a)(2)(i): Access Controls",
+                "url": "https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/index.html",
+                "context": "Unique user identification and session management"
+            },
+            {
+                "title": "PostgreSQL Grant & Permission System",
+                "url": "https://www.postgresql.org/docs/current/sql-grant.html",
+                "context": "Database-level access control enforcement"
+            }
+        ]
     },
     "04-fallback-is-the-contract.md": {
         "slug": "fallback-is-the-contract",
@@ -126,6 +155,23 @@ POST_META = {
         "tags": ["ADK", "MARA", "Architecture", "Multi-Agent AI"],
         "audience": "Software architects + platform engineers",
         "excerpt": "The philosophy, trade-offs, and what we learned converting 18+ agents in 3 months. Provider abstraction as the foundation for portable agents.",
+        "citations": [
+            {
+                "title": "Microsoft Agent Framework Documentation",
+                "url": "https://learn.microsoft.com/en-us/azure/ai-services/agents/",
+                "context": "Official MAF patterns and best practices"
+            },
+            {
+                "title": "Google Agent Driven Kit (ADK) Reference",
+                "url": "https://developers.google.com/assistant/sdk",
+                "context": "ADK orchestration patterns and limitations"
+            },
+            {
+                "title": "Provider Abstraction in Multi-Agent Systems",
+                "url": "https://pratikdhanave.github.io/thank-you/",
+                "context": "Design pattern for portable agent implementations"
+            }
+        ]
     },
     "2026-06-02-adk-to-maf-executor-pattern.md": {
         "slug": "adk-to-maf-executor-pattern",
@@ -446,6 +492,40 @@ footer.site-footer {
 }
 footer.site-footer a { color: var(--text-muted); }
 
+.post-citations {
+  margin: 56px 0 0;
+  padding: 28px 0;
+  border-top: 2px solid var(--accent);
+  border-bottom: 1px solid var(--border);
+}
+.post-citations h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+.citation-item {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.citation-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+.citation-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.citation-title a { color: var(--accent); }
+.citation-title a:hover { color: var(--accent-hover); }
+.citation-context {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 ::selection { background: var(--accent); color: white; }
 """
 
@@ -468,7 +548,7 @@ NAV_HTML = """<nav>
 
 
 SITE_FOOTER = """<footer class="site-footer">
-  <p>© {year} Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  <p>© {year} Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a> · <a href="/thank-you/">Acknowledgments</a></p>
 </footer>""".format(year=datetime.now().year)
 
 
@@ -479,6 +559,21 @@ def render_post_html(meta, title, subtitle, body_html):
     date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%B %d, %Y")
     description = meta["excerpt"]
     canonical = f"https://pratikdhanave.github.io/blog/posts/{meta['slug']}.html"
+
+    # Render citations section if present
+    citations_html = ""
+    if "citations" in meta and meta["citations"]:
+        citations_items = []
+        for citation in meta["citations"]:
+            citations_items.append(f"""    <div class="citation-item">
+      <div class="citation-title"><a href="{citation['url']}" target="_blank">{citation['title']}</a></div>
+      <div class="citation-context">{citation['context']}</div>
+    </div>""")
+        citations_html = f"""
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+{chr(10).join(citations_items)}
+  </section>"""
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -530,8 +625,10 @@ def render_post_html(meta, title, subtitle, body_html):
     </div>
     <p style="margin-top: 10px; font-size: 13px;">Find me on
       <a href="https://github.com/PratikDhanave">GitHub</a> ·
-      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
   </div>
+{citations_html}
 </article>
 </main>
 
