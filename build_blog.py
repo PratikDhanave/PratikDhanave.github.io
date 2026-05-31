@@ -603,6 +603,23 @@ footer.site-footer a { color: var(--text-muted); }
   font-size: 0.95rem;
 }
 
+.project-breadcrumb {
+  background: var(--bg-elev);
+  border-left: 3px solid var(--accent);
+  padding: 12px 16px;
+  margin: 0 0 20px;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.9rem;
+}
+.project-breadcrumb a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.project-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
 .related-posts {
   margin: 40px 0;
   padding: 20px 0;
@@ -663,6 +680,7 @@ NAV_HTML = """<nav>
       <li><a href="/#about">About</a></li>
       <li><a href="/projects/">Projects</a></li>
       <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/resources/">Resources</a></li>
       <li><a href="/#contact">Contact</a></li>
     </ul>
   </div>
@@ -695,6 +713,16 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
         series_html = f"""  <div class="series-breadcrumb">
     <span class="series-label">Part {position} of {total}</span>
     <span class="series-title">{series_name}</span>
+  </div>"""
+
+    # Render project back-link if present
+    project_html = ""
+    if "project" in meta and meta.get("project"):
+        project_slug = meta["project"]
+        project_name = PROJECT_META.get(project_slug, {}).get("name", project_slug)
+        project_url = f"/projects/{project_slug}/"
+        project_html = f"""  <div class="project-breadcrumb">
+    <span>Part of <a href="{project_url}"><strong>{project_name}</strong></a> →</span>
   </div>"""
 
     # Render related posts if available
@@ -745,16 +773,34 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
 <meta property="og:description" content="{description}">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{canonical}">
+<meta property="og:image" content="https://pratikdhanave.github.io/og-default.png">
 <meta property="article:published_time" content="{date_iso}">
 {''.join(f'<meta property="article:tag" content="{t}">' + chr(10) for t in meta['tags'])}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{title}">
 <meta name="twitter:description" content="{description}">
+<meta name="twitter:image" content="https://pratikdhanave.github.io/og-default.png">
 
 <link rel="canonical" href="{canonical}">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
 <style>{POST_CSS}</style>
+
+<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "{title}",
+  "description": "{description}",
+  "datePublished": "{date_iso}",
+  "author": {{
+    "@type": "Person",
+    "name": "Pratik Dhanave"
+  }},
+  "keywords": "{', '.join(meta['tags'])}",
+  "url": "{canonical}"
+}}
+</script>
 </head>
 <body>
 
@@ -776,6 +822,8 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
   </header>
 
 {series_html}
+
+{project_html}
 
   {body_html}
 
@@ -928,9 +976,11 @@ main.blog-index {
 <meta property="og:description" content="Long-form writing on multi-agent AI, medical AI governance, and HIPAA-aware architecture.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://pratikdhanave.github.io/blog/">
+<meta property="og:image" content="https://pratikdhanave.github.io/og-default.png">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pratik Dhanave — Blog">
+<meta name="twitter:image" content="https://pratikdhanave.github.io/og-default.png">
 
 <link rel="canonical" href="https://pratikdhanave.github.io/blog/">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
@@ -1134,6 +1184,11 @@ main.blog-index {
 <meta property="og:title" content="Pratik Dhanave — {tag}">
 <meta property="og:description" content="Posts tagged with {tag}.">
 <meta property="og:type" content="website">
+<meta property="og:image" content="https://pratikdhanave.github.io/og-default.png">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Pratik Dhanave — {tag}">
+<meta name="twitter:image" content="https://pratikdhanave.github.io/og-default.png">
 
 <link rel="canonical" href="https://pratikdhanave.github.io/blog/tags/{tag.lower().replace(' ', '-')}/">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
@@ -1303,6 +1358,11 @@ main.blog-index {
 <meta property="og:title" content="Pratik Dhanave — {title}">
 <meta property="og:description" content="Blog posts from {title}.">
 <meta property="og:type" content="website">
+<meta property="og:image" content="https://pratikdhanave.github.io/og-default.png">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Pratik Dhanave — {title}">
+<meta name="twitter:image" content="https://pratikdhanave.github.io/og-default.png">
 
 <link rel="canonical" href="{canonical}">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
