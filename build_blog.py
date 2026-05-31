@@ -37,6 +37,38 @@ from markdown.extensions.toc import TocExtension
 
 
 # ---------------------------------------------------------------------------
+# Helper Functions
+# ---------------------------------------------------------------------------
+
+def calculate_read_time(html_content):
+    """Estimate reading time from HTML content (avg 200 words/min)."""
+    import re
+    # Strip HTML tags
+    text = re.sub(r'<[^>]+>', '', html_content)
+    # Count words
+    words = len(text.split())
+    # Estimate minutes (200 words per minute)
+    minutes = max(1, round(words / 200))
+    return minutes
+
+
+def find_related_posts(current_slug, all_posts, current_tags, limit=3):
+    """Find posts with tag overlap, excluding current post."""
+    related = []
+    for post in all_posts:
+        if post["meta"]["slug"] == current_slug:
+            continue
+        # Calculate tag overlap
+        overlap = len(set(post["meta"]["tags"]) & set(current_tags))
+        if overlap > 0:
+            related.append((overlap, post))
+
+    # Sort by overlap (desc), then by date (desc), return top N
+    related.sort(key=lambda x: (-x[0], -datetime.strptime(x[1]["meta"]["date"], "%Y-%m-%d").timestamp()))
+    return [post for _, post in related[:limit]]
+
+
+# ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
@@ -155,6 +187,10 @@ POST_META = {
         "tags": ["ADK", "MARA", "Architecture", "Multi-Agent AI"],
         "audience": "Software architects + platform engineers",
         "excerpt": "The philosophy, trade-offs, and what we learned converting 18+ agents in 3 months. Provider abstraction as the foundation for portable agents.",
+        "featured": True,
+        "series": "ADK to MAF Migration",
+        "series_position": 1,
+        "series_total": 8,
         "citations": [
             {
                 "title": "Microsoft Agent Framework Documentation",
@@ -179,6 +215,9 @@ POST_META = {
         "tags": ["ADK", "MARA", "Orchestration", "Design Pattern"],
         "audience": "Platform architects",
         "excerpt": "How to port ADK's orchestration callbacks to MAF builders without losing control. The executor pattern: you own the loop.",
+        "series": "ADK to MAF Migration",
+        "series_position": 2,
+        "series_total": 8,
     },
     "2026-06-03-adk-to-maf-token-exchange.md": {
         "slug": "adk-to-maf-token-exchange",
@@ -186,6 +225,9 @@ POST_META = {
         "tags": ["ADK", "MARA", "State Management", "Token Budgeting"],
         "audience": "Backend + ML engineers",
         "excerpt": "Sessions to threads: porting multi-turn state from ADK to MAF. Token budgeting, long-term memory, and conversation audit trails.",
+        "series": "ADK to MAF Migration",
+        "series_position": 3,
+        "series_total": 8,
     },
     "2026-06-04-adk-to-maf-tool-wrapping.md": {
         "slug": "adk-to-maf-tool-wrapping",
@@ -193,6 +235,9 @@ POST_META = {
         "tags": ["ADK", "MARA", "Tools", "Governance", "OPA"],
         "audience": "Governance + backend engineers",
         "excerpt": "From ADK functions to MAF governed tools. Adding policy enforcement, DLP, approval gates, and OPA integration.",
+        "series": "ADK to MAF Migration",
+        "series_position": 4,
+        "series_total": 8,
     },
     "2026-06-05-adk-to-maf-provider-config.md": {
         "slug": "adk-to-maf-provider-config",
@@ -200,6 +245,9 @@ POST_META = {
         "tags": ["ADK", "MARA", "Provider Abstraction", "Config"],
         "audience": "DevOps + platform engineers",
         "excerpt": "Zero-code provider swaps: Ollama (dev), OpenAI (staging), Azure Foundry (prod). Same agents, different models.",
+        "series": "ADK to MAF Migration",
+        "series_position": 5,
+        "series_total": 8,
     },
     "2026-06-06-adk-to-maf-callbacks.md": {
         "slug": "adk-to-maf-callbacks",
@@ -207,6 +255,9 @@ POST_META = {
         "tags": ["ADK", "MARA", "Middleware", "Observability", "OTel"],
         "audience": "SRE + observability engineers",
         "excerpt": "Callbacks to middleware: composable decorators for audit, retry, token enforcement, and OpenTelemetry integration.",
+        "series": "ADK to MAF Migration",
+        "series_position": 6,
+        "series_total": 8,
     },
     "2026-06-07-adk-to-maf-deployment.md": {
         "slug": "adk-to-maf-deployment",
@@ -214,6 +265,9 @@ POST_META = {
         "tags": ["ADK", "MARA", "Deployment", "Cloud Run", "A2A"],
         "audience": "Cloud architects + SRE",
         "excerpt": "Cloud Run deployments, agent-to-agent communication, load balancing, and production observability.",
+        "series": "ADK to MAF Migration",
+        "series_position": 7,
+        "series_total": 8,
     },
     "2026-06-08-adk-to-maf-lessons.md": {
         "slug": "adk-to-maf-lessons",
@@ -221,6 +275,10 @@ POST_META = {
         "tags": ["ADK", "MARA", "Case Study", "Lessons Learned"],
         "audience": "All engineers",
         "excerpt": "What worked, what was hard, and what we'd do differently. Real numbers: 18 agents, 90 days, 5 governance policies, 4 provider swaps.",
+        "featured": True,
+        "series": "ADK to MAF Migration",
+        "series_position": 8,
+        "series_total": 8,
     },
 }
 
@@ -526,6 +584,70 @@ footer.site-footer a { color: var(--text-muted); }
   font-style: italic;
 }
 
+.series-breadcrumb {
+  background: var(--bg-elev);
+  border-left: 3px solid var(--accent);
+  padding: 12px 16px;
+  margin: 0 0 20px;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.9rem;
+}
+.series-label {
+  font-weight: 600;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 4px;
+}
+.series-title {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+}
+
+.related-posts {
+  margin: 40px 0;
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.related-posts h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+.related-posts ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.related-posts li {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.related-posts li:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+.related-posts a {
+  color: var(--accent);
+  flex: 1;
+}
+.related-posts a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+.related-date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 ::selection { background: var(--accent); color: white; }
 """
 
@@ -552,13 +674,48 @@ SITE_FOOTER = """<footer class="site-footer">
 </footer>""".format(year=datetime.now().year)
 
 
-def render_post_html(meta, title, subtitle, body_html):
+def render_post_html(meta, title, subtitle, body_html, all_posts=None):
     """Wrap rendered markdown body in the post template."""
     tags_html = "".join(f'<span class="tag">{t}</span>' for t in meta["tags"])
     date_iso = meta["date"]
     date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%B %d, %Y")
     description = meta["excerpt"]
     canonical = f"https://pratikdhanave.github.io/blog/posts/{meta['slug']}.html"
+
+    # Calculate read time
+    read_time = calculate_read_time(body_html)
+    read_time_text = f"{read_time} min read"
+
+    # Render series breadcrumbs if present
+    series_html = ""
+    if "series" in meta and meta.get("series"):
+        series_name = meta["series"]
+        position = meta.get("series_position", 0)
+        total = meta.get("series_total", 0)
+        series_html = f"""  <div class="series-breadcrumb">
+    <span class="series-label">Part {position} of {total}</span>
+    <span class="series-title">{series_name}</span>
+  </div>"""
+
+    # Render related posts if available
+    related_html = ""
+    if all_posts and len(all_posts) > 1:
+        related_posts = find_related_posts(meta["slug"], all_posts, meta["tags"], limit=3)
+        if related_posts:
+            related_items = []
+            for post in related_posts:
+                post_date = datetime.strptime(post["meta"]["date"], "%Y-%m-%d").strftime("%b %d")
+                related_items.append(f"""    <li>
+      <a href="/blog/posts/{post['meta']['slug']}.html">{post['title']}</a>
+      <span class="related-date">{post_date}</span>
+    </li>""")
+            related_html = f"""
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+{chr(10).join(related_items)}
+    </ul>
+  </aside>"""
 
     # Render citations section if present
     citations_html = ""
@@ -612,11 +769,17 @@ def render_post_html(meta, title, subtitle, body_html):
       <time datetime="{date_iso}">{date_human}</time>
       <span>·</span>
       <span>{meta['audience']}</span>
+      <span>·</span>
+      <span>{read_time_text}</span>
     </div>
     <div class="post-tags">{tags_html}</div>
   </header>
 
+{series_html}
+
   {body_html}
+
+{related_html}
 
   <div class="post-footer">
     <div class="footer-row">
@@ -646,11 +809,15 @@ def render_index_html(posts):
         tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
         date_iso = p["meta"]["date"]
         date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
-        posts_html.append(f"""    <article class="post-card">
+        is_featured = p["meta"].get("featured", False)
+        featured_badge = '<span class="featured-badge">Featured</span>' if is_featured else ''
+
+        posts_html.append(f"""    <article class="post-card{'  post-card-featured' if is_featured else ''}">
       <div class="post-card-meta">
         <time datetime="{date_iso}">{date_human}</time>
         <span>·</span>
         <span>{p["meta"]["audience"]}</span>
+        {featured_badge}
       </div>
       <h2 class="post-card-title"><a href="posts/{p['meta']['slug']}.html">{p['title']}</a></h2>
       <p class="post-card-subtitle">{p['subtitle']}</p>
@@ -700,12 +867,20 @@ main.blog-index {
   box-shadow: var(--shadow);
   border-color: var(--accent);
 }
+.post-card-featured {
+  border-color: var(--accent);
+  background: var(--bg-elev);
+}
+.post-card-featured:hover {
+  border-color: var(--accent-hover);
+}
 .post-card-meta {
   display: flex;
   gap: 8px;
   font-size: 13px;
   color: var(--text-muted);
   margin-bottom: 8px;
+  align-items: center;
 }
 .post-card-title {
   font-size: 1.35rem;
@@ -726,6 +901,17 @@ main.blog-index {
   font-size: 0.95rem;
   color: var(--text-dim);
   margin-bottom: 14px;
+}
+.featured-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  background: var(--accent);
+  color: white;
+  border-radius: 4px;
+  margin-left: auto;
+  letter-spacing: 0.5px;
 }
 """
 
@@ -1163,7 +1349,9 @@ def main():
 
     POSTS_DIR.mkdir(parents=True, exist_ok=True)
 
+    # First pass: collect all posts
     rendered = []
+    posts_data = {}  # Keep body_html for each post
     for filename, meta in POST_META.items():
         md_path = SRC_DIR / filename
         if not md_path.exists():
@@ -1172,15 +1360,23 @@ def main():
 
         title, subtitle, body_md = parse_post(md_path)
         body_html = to_html(body_md)
-        html = render_post_html(meta, title, subtitle, body_html)
+        rendered.append({"meta": meta, "title": title, "subtitle": subtitle})
+        posts_data[meta["slug"]] = {"body_html": body_html, "title": title, "subtitle": subtitle}
+
+    # Sort newest first by date (for index).
+    rendered.sort(key=lambda p: p["meta"]["date"], reverse=True)
+
+    # Second pass: render posts with access to all posts for related content
+    for post in rendered:
+        meta = post["meta"]
+        title = post["title"]
+        subtitle = post["subtitle"]
+        body_html = posts_data[meta["slug"]]["body_html"]
+        html = render_post_html(meta, title, subtitle, body_html, all_posts=rendered)
 
         out_path = POSTS_DIR / f"{meta['slug']}.html"
         out_path.write_text(html)
-        rendered.append({"meta": meta, "title": title, "subtitle": subtitle})
         print(f"  wrote {out_path.relative_to(SITE_ROOT)}")
-
-    # Sort newest first by date.
-    rendered.sort(key=lambda p: p["meta"]["date"], reverse=True)
 
     # Generate main blog index
     INDEX_PATH.write_text(render_index_html(rendered))
