@@ -722,6 +722,340 @@ def to_html(md_body):
 
 
 # ---------------------------------------------------------------------------
+# Tag & Archive Generation
+# ---------------------------------------------------------------------------
+
+def render_tag_page(tag, posts_with_tag, all_tags):
+    """Generate a page for a single tag listing all posts with that tag."""
+    posts_html = []
+    for p in posts_with_tag:
+        tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
+        date_iso = p["meta"]["date"]
+        date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
+        posts_html.append(f"""    <article class="post-card">
+      <div class="post-card-meta">
+        <time datetime="{date_iso}">{date_human}</time>
+        <span>·</span>
+        <span>{p["meta"]["audience"]}</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/{p['meta']['slug']}.html">{p['title']}</a></h2>
+      <p class="post-card-subtitle">{p['subtitle']}</p>
+      <p class="post-card-excerpt">{p['meta']['excerpt']}</p>
+      <div class="post-tags">{tags_html}</div>
+    </article>""")
+
+    tag_cloud_html = "".join(f'<a href="/blog/tags/{t.lower().replace(" ", "-")}/"><span class="tag-cloud-item">{t}</span></a>' for t in sorted(all_tags))
+
+    tag_page_css = POST_CSS + """
+
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 24px 0 32px;
+}
+.tag-cloud-item {
+  display: inline-block;
+  padding: 8px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.tag-cloud-item:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
+main.blog-index {
+  max-width: 880px;
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
+
+.blog-hero {
+  padding: 56px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 36px;
+}
+.blog-hero h1 {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+.blog-hero p {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  max-width: 640px;
+}
+
+.post-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.post-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 28px;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: var(--accent);
+}
+.post-card-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.post-card-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 0 0 8px;
+}
+.post-card-title a { color: var(--text); }
+.post-card-title a:hover { color: var(--accent); text-decoration: none; }
+.post-card-subtitle {
+  font-size: 0.97rem;
+  font-style: italic;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.post-card-excerpt {
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+"""
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{tag} — Blog — Pratik Dhanave</title>
+<meta name="description" content="Posts tagged with {tag}. By Pratik Dhanave.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Pratik Dhanave — {tag}">
+<meta property="og:description" content="Posts tagged with {tag}.">
+<meta property="og:type" content="website">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/tags/{tag.lower().replace(' ', '-')}/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>{tag_page_css}</style>
+</head>
+<body>
+
+{NAV_HTML}
+
+<main class="blog-index">
+
+<section class="blog-hero">
+  <h1>#{tag}</h1>
+  <p>Posts about {tag.lower()}. <a href="/blog/">← All posts</a></p>
+</section>
+
+<section class="tag-cloud">
+  {tag_cloud_html}
+</section>
+
+<section class="post-list">
+{chr(10).join(posts_html)}
+</section>
+
+</main>
+
+{SITE_FOOTER}
+
+</body>
+</html>
+"""
+
+
+def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
+    """Generate archive pages (by year or month)."""
+    if month:
+        title = f"{datetime(year, month, 1).strftime('%B %Y')}"
+        canonical = f"https://pratikdhanave.github.io/blog/archive/{year}/{month:02d}/"
+    else:
+        title = str(year)
+        canonical = f"https://pratikdhanave.github.io/blog/archive/{year}/"
+
+    posts_html = []
+    if posts_with_date:
+        for p in posts_with_date:
+            tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
+            date_iso = p["meta"]["date"]
+            date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
+            posts_html.append(f"""    <article class="post-card">
+      <div class="post-card-meta">
+        <time datetime="{date_iso}">{date_human}</time>
+        <span>·</span>
+        <span>{p["meta"]["audience"]}</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/{p['meta']['slug']}.html">{p['title']}</a></h2>
+      <p class="post-card-subtitle">{p['subtitle']}</p>
+      <p class="post-card-excerpt">{p['meta']['excerpt']}</p>
+      <div class="post-tags">{tags_html}</div>
+    </article>""")
+
+    # Year/month nav
+    year_nav = "".join(f'<a href="/blog/archive/{y}/" class="tag-cloud-item">{y}</a>' for y in sorted(all_years, reverse=True))
+
+    archive_css = POST_CSS + """
+
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 24px 0 32px;
+}
+.tag-cloud-item {
+  display: inline-block;
+  padding: 8px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.tag-cloud-item:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
+main.blog-index {
+  max-width: 880px;
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
+
+.blog-hero {
+  padding: 56px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 36px;
+}
+.blog-hero h1 {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+.blog-hero p {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  max-width: 640px;
+}
+
+.post-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.post-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 28px;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: var(--accent);
+}
+.post-card-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.post-card-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 0 0 8px;
+}
+.post-card-title a { color: var(--text); }
+.post-card-title a:hover { color: var(--accent); text-decoration: none; }
+.post-card-subtitle {
+  font-size: 0.97rem;
+  font-style: italic;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.post-card-excerpt {
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+"""
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{title} — Archive — Pratik Dhanave</title>
+<meta name="description" content="Blog posts from {title}. By Pratik Dhanave.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Pratik Dhanave — {title}">
+<meta property="og:description" content="Blog posts from {title}.">
+<meta property="og:type" content="website">
+
+<link rel="canonical" href="{canonical}">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>{archive_css}</style>
+</head>
+<body>
+
+{NAV_HTML}
+
+<main class="blog-index">
+
+<section class="blog-hero">
+  <h1>{title}</h1>
+  <p>Blog posts from {title}. <a href="/blog/">← All posts</a></p>
+</section>
+
+<section class="tag-cloud">
+  <strong style="display: block; width: 100%; margin-bottom: 10px;">Years:</strong>
+  {year_nav}
+</section>
+
+<section class="post-list">
+{chr(10).join(posts_html) if posts_html else '<p style="color: var(--text-muted);">No posts found.</p>'}
+</section>
+
+</main>
+
+{SITE_FOOTER}
+
+</body>
+</html>
+"""
+
+
+# ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
 
@@ -751,9 +1085,72 @@ def main():
     # Sort newest first by date.
     rendered.sort(key=lambda p: p["meta"]["date"], reverse=True)
 
+    # Generate main blog index
     INDEX_PATH.write_text(render_index_html(rendered))
     print(f"  wrote {INDEX_PATH.relative_to(SITE_ROOT)}")
-    print(f"\nBuilt {len(rendered)} posts.")
+
+    # Generate tag pages
+    all_tags = set()
+    tag_posts = {}
+    for p in rendered:
+        for tag in p["meta"]["tags"]:
+            all_tags.add(tag)
+            tag_key = tag.lower().replace(" ", "-")
+            if tag_key not in tag_posts:
+                tag_posts[tag_key] = []
+            tag_posts[tag_key].append(p)
+
+    tags_dir = SITE_ROOT / "blog" / "tags"
+    tags_dir.mkdir(parents=True, exist_ok=True)
+
+    for tag_key, posts_with_tag in tag_posts.items():
+        tag_dir = tags_dir / tag_key
+        tag_dir.mkdir(parents=True, exist_ok=True)
+        tag_file = tag_dir / "index.html"
+        tag_name = posts_with_tag[0]["meta"]["tags"][[t.lower().replace(" ", "-") for t in posts_with_tag[0]["meta"]["tags"]].index(tag_key)]
+        tag_file.write_text(render_tag_page(tag_name, posts_with_tag, all_tags))
+        print(f"  wrote {tag_file.relative_to(SITE_ROOT)}")
+
+    # Generate archive pages
+    archive_by_date = {}
+    all_years = set()
+    for p in rendered:
+        date_obj = datetime.strptime(p["meta"]["date"], "%Y-%m-%d")
+        year = date_obj.year
+        month = date_obj.month
+        all_years.add(year)
+
+        if year not in archive_by_date:
+            archive_by_date[year] = {}
+        if month not in archive_by_date[year]:
+            archive_by_date[year][month] = []
+        archive_by_date[year][month].append(p)
+
+    archive_dir = SITE_ROOT / "blog" / "archive"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    # Archive year pages
+    for year in sorted(archive_by_date.keys(), reverse=True):
+        year_dir = archive_dir / str(year)
+        year_dir.mkdir(parents=True, exist_ok=True)
+        year_file = year_dir / "index.html"
+
+        posts_in_year = []
+        for month in sorted(archive_by_date[year].keys()):
+            posts_in_year.extend(archive_by_date[year][month])
+
+        year_file.write_text(render_archive_page(year, None, posts_in_year, all_years))
+        print(f"  wrote {year_file.relative_to(SITE_ROOT)}")
+
+        # Archive month pages
+        for month in sorted(archive_by_date[year].keys()):
+            month_dir = year_dir / f"{month:02d}"
+            month_dir.mkdir(parents=True, exist_ok=True)
+            month_file = month_dir / "index.html"
+            month_file.write_text(render_archive_page(year, month, archive_by_date[year][month], all_years))
+            print(f"  wrote {month_file.relative_to(SITE_ROOT)}")
+
+    print(f"\nBuilt {len(rendered)} posts + {len(tag_posts)} tag pages + {len(archive_by_date)} year archives.")
 
 
 if __name__ == "__main__":
