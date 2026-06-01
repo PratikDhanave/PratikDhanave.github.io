@@ -920,7 +920,7 @@ def render_project_detail_html(project_slug, all_posts):
     "@type": "Person",
     "name": "Pratik Dhanave"
   }},
-  "codeRepository": "https://github.com/{project.get('links', [['GitHub', ''][-1]].split('/')[-2] if project.get('links') else 'PratikDhanave'}",
+  "codeRepository": "https://github.com/PratikDhanave",
   "programmingLanguage": "{project.get('language', 'Go')}"
 }}
 </script>
