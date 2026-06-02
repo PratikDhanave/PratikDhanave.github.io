@@ -282,6 +282,23 @@ POST_META = {
     },
 }
 
+# Post popularity ranking (1-10 scale, 10 = most popular)
+# Used to generate "popular posts" section on homepage
+POST_POPULARITY = {
+    "adk-to-maf-migration-why": 10,         # Featured, core content, most recent
+    "adk-to-maf-lessons": 9,                # Featured case study
+    "hipaa-as-go-interfaces": 8,            # Compliance critical content
+    "postgres-rls-hipaa": 7,                # Database security fundamentals
+    "bench-42-to-85": 7,                    # Performance improvements
+    "mara-five-interfaces": 6,              # Architecture pattern
+    "audit-log-design": 6,                  # Governance + compliance
+    "cures-act-as-code": 5,                 # Regulatory requirements
+    "fallback-is-the-contract": 5,          # Reliability patterns
+    "hl7v2-still-matters": 4,               # Legacy integration
+    "gke-ai-infra-medical-multiagent": 4,   # Cloud infrastructure
+    "aigp-reference-implementation": 3,     # Certification prep
+    "02-cures-act-as-code": 3,              # Duplicate handling
+}
 
 # ---------------------------------------------------------------------------
 # Theme — CSS aligned with the site's index.html design tokens
@@ -679,6 +696,7 @@ NAV_HTML = """<nav>
     <ul class="nav-links">
       <li><a href="/#about">About</a></li>
       <li><a href="/projects/">Projects</a></li>
+      <li><a href="/speaking/">Speaking</a></li>
       <li><a href="/blog/" class="active">Blog</a></li>
       <li><a href="/resources/">Resources</a></li>
       <li><a href="/#contact">Contact</a></li>
@@ -1399,6 +1417,49 @@ main.blog-index {
 
 
 # ---------------------------------------------------------------------------
+# Popular Posts & Feeds
+# ---------------------------------------------------------------------------
+
+def get_popular_posts(all_posts, limit=3):
+    """Extract top popular posts ranked by POST_POPULARITY score."""
+    posts_with_score = []
+    for post in all_posts:
+        slug = post["meta"]["slug"]
+        score = POST_POPULARITY.get(slug, 0)
+        if score > 0:
+            posts_with_score.append({
+                "slug": slug,
+                "score": score,
+                "post": post
+            })
+
+    # Sort by score descending, return top N
+    posts_with_score.sort(key=lambda x: -x["score"])
+    return [item["post"] for item in posts_with_score[:limit]]
+
+
+def render_popular_posts_json(all_posts, limit=3):
+    """Generate JSON feed of popular posts for homepage consumption."""
+    import json
+    popular = get_popular_posts(all_posts, limit)
+
+    items = []
+    for post in popular:
+        items.append({
+            "slug": post["meta"]["slug"],
+            "title": post["title"],
+            "subtitle": post["subtitle"],
+            "excerpt": post["meta"].get("excerpt", ""),
+            "date": post["meta"]["date"],
+            "audience": post["meta"].get("audience", ""),
+            "tags": post["meta"].get("tags", []),
+            "url": f"/blog/posts/{post['meta']['slug']}.html"
+        })
+
+    return json.dumps({"popular_posts": items}, indent=2)
+
+
+# ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
 
@@ -1441,6 +1502,12 @@ def main():
     # Generate main blog index
     INDEX_PATH.write_text(render_index_html(rendered))
     print(f"  wrote {INDEX_PATH.relative_to(SITE_ROOT)}")
+
+    # Generate popular posts JSON feed
+    popular_posts_json = render_popular_posts_json(rendered, limit=3)
+    popular_posts_path = SITE_ROOT / "blog" / "popular-posts.json"
+    popular_posts_path.write_text(popular_posts_json)
+    print(f"  wrote {popular_posts_path.relative_to(SITE_ROOT)}")
 
     # Generate tag pages
     all_tags = set()
