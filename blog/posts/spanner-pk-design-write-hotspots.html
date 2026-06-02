@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Primary-key design for Cloud Spanner — preventing write hotspots, 40-60% performance gains — Pratik Dhanave</title>
+<meta name="description" content="Spanner partitions by primary-key range. A monotonically-increasing PK like a timestamp or UUID-v1 funnels all writes to one server. The fix changes everything from your sequence strategy to your tenant model.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Primary-key design for Cloud Spanner — preventing write hotspots, 40-60% performance gains">
+<meta property="og:description" content="Spanner partitions by primary-key range. A monotonically-increasing PK like a timestamp or UUID-v1 funnels all writes to one server. The fix changes everything from your sequence strategy to your tenant model.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/spanner-pk-design-write-hotspots.html">
+<meta property="article:published_time" content="2026-05-12T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Spanner">
+<meta property="article:tag" content="Database Design">
+<meta property="article:tag" content="Performance">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Primary-key design for Cloud Spanner — preventing write hotspots, 40-60% performance gains">
+<meta name="twitter:description" content="Spanner partitions by primary-key range. A monotonically-increasing PK like a timestamp or UUID-v1 funnels all writes to one server. The fix changes everything from your sequence strategy to your tenant model.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/spanner-pk-design-write-hotspots.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff;
+  --text: #1a1a1a; --text-dim: #555; --text-muted: #888;
+  --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22;
+    --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590;
+    --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7; color: var(--text); background: var(--bg);
+  -webkit-font-smoothing: antialiased; font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-05-12">May 12, 2026</time>
+  <span>·</span>
+  <span>4 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">Spanner</span>
+  <span class="tag">Database Design</span>
+  <span class="tag">Performance</span>
+  <span class="tag">Go</span>
+</div>
+
+<article class="post">
+<h1>PK design for Spanner — the hotspot story</h1>
+<blockquote>
+<p>Spanner partitions data by primary-key range and distributes
+those ranges across servers. A PK that increases monotonically
+sends every new write to whatever server owns the highest range
+— a hotspot. Here is what works instead, and the 40-60% gains we
+measured on migrated workloads.</p>
+</blockquote>
+<h2>The default that breaks Spanner</h2>
+<p>Most relational databases handle a monotonically-increasing PK
+fine. Postgres serial, MySQL auto_increment, SQL Server identity —
+all work because the storage engine is local. The B-tree gets a
+new rightmost leaf and life goes on.</p>
+<p>Spanner doesn&rsquo;t have a single storage engine. The PK range
+[0, A) might live on server 1, [A, B) on server 2, [B, ∞) on
+server 3. A monotonic PK sends every write to server 3 until the
+range splits, then to whichever new server owns the new top end.</p>
+<p>You can hit throughput limits well below what the cluster could
+actually do, just because every write hits one shard.</p>
+<h2>The four reasonable strategies</h2>
+<p>In rough order of how often they&rsquo;re the right answer:</p>
+<h3>1. UUID v4 (random)</h3>
+<pre><code class="language-sql">CREATE TABLE events (
+  id STRING(36) NOT NULL,        -- UUID v4
+  user_id STRING(36) NOT NULL,
+  ...
+) PRIMARY KEY (id);
+</code></pre>
+<p>Random distribution across the key space. Splits well. Spanner is
+happy.</p>
+<p>The cost: UUIDs as the PK are 36 characters of text. Indexes get
+big. Comparison is slower than integer compare. For tables with
+extreme write volumes (10K+ TPS sustained), the per-row overhead
+adds up.</p>
+<h3>2. Hash-prefixed integer</h3>
+<pre><code class="language-sql">CREATE TABLE events (
+  shard INT64 NOT NULL,          -- hash(user_id) MOD 64
+  id INT64 NOT NULL,             -- sequence
+  ...
+) PRIMARY KEY (shard, id);
+</code></pre>
+<p>You keep an integer PK for compactness but prefix it with a
+hash-derived shard column. The shard distributes writes across N
+ranges; within each shard the rows are still ordered.</p>
+<p>Picking the shard count matters. Too few and you still hotspot;
+too many and your range scans hit every shard. We landed on 64
+for most workloads we migrated.</p>
+<h3>3. Reverse the sequence</h3>
+<pre><code class="language-sql">CREATE TABLE events (
+  id INT64 NOT NULL,             -- reverse-bit-order timestamp
+  ...
+) PRIMARY KEY (id);
+</code></pre>
+<p>If you have a sequence source, reverse its bit order before
+storing. A monotonically-increasing source becomes a
+randomly-distributed stored value. Range scans on the original
+ordering become harder but you can keep a secondary index for that.</p>
+<p>This is the right answer when you must keep a single integer PK
+but can&rsquo;t tolerate UUIDs.</p>
+<h3>4. Composite tenant + sequence</h3>
+<pre><code class="language-sql">CREATE TABLE events (
+  tenant_id STRING(36) NOT NULL,
+  id INT64 NOT NULL,             -- sequence within tenant
+  ...
+) PRIMARY KEY (tenant_id, id);
+</code></pre>
+<p>For multi-tenant workloads, the tenant column distributes writes
+across the cluster naturally as long as no single tenant dominates.
+Same-tenant queries stay efficient because all of a tenant&rsquo;s rows
+co-locate.</p>
+<p>Watch out for power-law tenant sizes. One huge tenant becomes a
+within-tenant hotspot. Mitigation: hash-prefix within the dominant
+tenants only.</p>
+<h2>The migration moment</h2>
+<p>When we ported a workload from Postgres to Spanner, the PK was
+usually one of:</p>
+<ul>
+<li>Postgres <code>serial</code> (auto-increment integer)</li>
+<li>Postgres <code>gen_random_uuid()</code> (UUID v4)</li>
+<li>Composite of timestamp + something else</li>
+</ul>
+<p>The first one is the worst for Spanner. The second is fine. The
+third depends.</p>
+<p>The Spanner Migration Tool&rsquo;s schema review step flags monotonic PKs
+and asks the DBA to choose. The choice is usually:</p>
+<ol>
+<li>Add a hash-prefix shard column.</li>
+<li>Reverse-bit the integer.</li>
+<li>Migrate to UUID.</li>
+<li>Accept the hotspot (only for low-write tables).</li>
+</ol>
+<p>In our migrations the most-picked option was the composite hash-
+prefix. It preserved the application&rsquo;s existing notion of a numeric
+ID, kept range scans cheap, and distributed writes.</p>
+<h2>The 40-60% number</h2>
+<p>We measured pre-migration vs post-migration write throughput on
+production-shaped workloads. The improvement came from three
+sources:</p>
+<ol>
+<li><strong>PK redesign</strong> (the big one): hash-prefixed integers, no
+   hotspot, 30-40% of the gain.</li>
+<li><strong>Interleaving children into parents</strong>: row co-location for
+   join-heavy queries, 10-15%.</li>
+<li><strong>Index pruning</strong>: Spanner doesn&rsquo;t like many secondary indexes;
+   pruning the ones added in Postgres for legacy reasons recovered
+   the remaining 5-10%.</li>
+</ol>
+<p>Numbers were workload-dependent. On a write-heavy ledger workload
+we saw closer to 60%. On a read-heavy reporting workload the PK
+change mattered less and we landed at 25-30%.</p>
+<h2>What to do tomorrow</h2>
+<p>If you&rsquo;re about to migrate to Spanner:</p>
+<ol>
+<li>Audit your source PKs. Anything monotonic gets flagged.</li>
+<li>For each flagged table, pick a strategy. Hash-prefix is the
+   safest default for integer PKs.</li>
+<li>Test write throughput on a representative subset before
+   committing. Spanner&rsquo;s behaviour at low row counts doesn&rsquo;t
+   predict its behaviour at scale.</li>
+<li>Plan the interleaving decisions at the same time. The
+   Migration Tool surfaces these in the schema review UI.</li>
+</ol>
+<p>If you&rsquo;re already on Spanner and seeing throughput plateau:</p>
+<ol>
+<li>Look at the per-server CPU. If one is hot and the rest are
+   idle, you have a hotspot.</li>
+<li>The hot server tells you which PK range is taking the writes.</li>
+<li>Schema change to redistribute. Spanner makes this less painful
+   than most databases but it&rsquo;s still a migration.</li>
+</ol>
+<h2>The reading list</h2>
+<ul>
+<li>The Spanner whitepaper (the original OSDI 2012 paper)</li>
+<li>The Cloud Spanner schema design guide (Google docs)</li>
+<li><code>spanner/ddl/recommendations/pk.go</code> in the Migration Tool — the
+  heuristic for what to flag</li>
+</ul>
+<p>The reading is a few hours. The savings if you get this right are
+measured in shards never bought, throughput never throttled, and
+on-call pages never fired.</p>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>

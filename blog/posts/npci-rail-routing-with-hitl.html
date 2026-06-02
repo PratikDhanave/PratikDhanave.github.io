@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NPCI rail routing with human-in-the-loop — Pratik Dhanave</title>
+<meta name="description" content="UPI, IMPS, NEFT, RTGS — which rail to use depends on amount, urgency, window, success-rate history. A deterministic chooser with a HITL gate above ₹2 lakh.">
+<meta name="author" content="Pratik Dhanave">
+
+<!-- Open Graph -->
+<meta property="og:title" content="NPCI rail routing with human-in-the-loop">
+<meta property="og:description" content="UPI, IMPS, NEFT, RTGS — which rail to use depends on amount, urgency, window, success-rate history. A deterministic chooser with a HITL gate above ₹2 lakh.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/npci-rail-routing-with-hitl.html">
+<meta property="article:published_time" content="2026-04-14T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="NPCI">
+<meta property="article:tag" content="FinTech">
+<meta property="article:tag" content="HITL">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="NPCI rail routing with human-in-the-loop">
+<meta name="twitter:description" content="UPI, IMPS, NEFT, RTGS — which rail to use depends on amount, urgency, window, success-rate history. A deterministic chooser with a HITL gate above ₹2 lakh.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/npci-rail-routing-with-hitl.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #555;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #b1bac4;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container {
+  max-width: 800px; margin: 0 auto; padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+}
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+
+.post-meta {
+  font-size: 13px; color: var(--text-muted);
+  margin-bottom: 18px;
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+}
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag {
+  font-size: 12px; font-weight: 500; padding: 3px 10px;
+  border-radius: 12px; background: var(--tag-bg); color: var(--tag-text);
+}
+
+article.post h1 {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 800; letter-spacing: -0.02em; line-height: 1.15;
+  margin-bottom: 16px; color: var(--text);
+}
+article.post h2 {
+  font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px;
+  color: var(--text); letter-spacing: -0.01em;
+}
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+
+article.post blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 4px 0 4px 18px;
+  margin: 18px 0;
+  color: var(--text);
+  font-style: italic;
+  background: var(--bg-elev);
+  border-radius: 0 6px 6px 0;
+}
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+
+article.post code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text);
+}
+article.post pre {
+  background: var(--code-bg);
+  padding: 16px 18px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 18px 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  border: 1px solid var(--border);
+}
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+
+article.post table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 18px 0;
+  font-size: 0.92rem;
+}
+article.post th, article.post td {
+  text-align: left; padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+.post-footer {
+  margin-top: 56px; padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-wrap: wrap; gap: 14px;
+  justify-content: space-between; align-items: center;
+  font-size: 14px;
+}
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+
+footer {
+  text-align: center; padding: 32px 24px;
+  color: var(--text-muted); font-size: 13px;
+  border-top: 1px solid var(--border);
+}
+footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-04-14">April 14, 2026</time>
+  <span>·</span>
+  <span>8 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">Payments</span>
+  <span class="tag">NPCI</span>
+  <span class="tag">FinTech</span>
+  <span class="tag">HITL</span>
+</div>
+
+<article class="post">
+<h1 id="four-rails-one-decision-function-payment-routing-in-the-npci-era">Four Rails, One Decision Function: Payment Routing in the NPCI Era</h1>
+<p><em>Building a payment orchestrator that picks UPI vs IMPS vs NEFT vs RTGS — without losing your job to a duplicate ₹50,000 transfer.</em></p>
+<hr>
+<h2 id="the-boring-problem">The boring problem</h2>
+<p>A user taps &ldquo;Pay ₹3,00,000 to ICICI A/c 00112233.&rdquo;</p>
+<p>What should your system do? On the face of it, this is trivial — pick a rail, submit, done. In practice, it&rsquo;s where AI banking platforms either earn their compliance posture or get an uncomfortable letter from the regulator about money movement without proper controls.</p>
+<p>The decision matrix:</p>
+<ul>
+<li><strong>UPI</strong> — instant, free, ≤₹1L per txn, needs VPA. Not available here (amount too high, no VPA given).</li>
+<li><strong>RTGS</strong> — instant settlement, ≥₹2L, operating window roughly 7am–6pm Mon-Sat. Available now if within window.</li>
+<li><strong>IMPS</strong> — instant, ≤₹5L, 24×7. Available.</li>
+<li><strong>NEFT</strong> — batch-settled, 24×7 since 2019, no real ceiling. Available always.</li>
+</ul>
+<p>For a ₹3L transfer at 10:30 AM on a Tuesday: RTGS is the right answer (instant, no ceiling concerns, operating window open). At 10:30 PM the same Tuesday: RTGS is closed, IMPS becomes the right answer. On a Sunday afternoon: RTGS is closed all day, IMPS is again the right answer. For amounts below ₹2L: RTGS isn&rsquo;t an option regardless of time.</p>
+<p>Now layer in: is this beneficiary trusted? Was a cooling-off period observed? Does the amount need human approval? Is the currency INR? Is there an idempotency key so a retry doesn&rsquo;t duplicate the transfer?</p>
+<p>The orchestrator has to get <strong>all of this right</strong>, deterministically, every time, with an audit trail.</p>
+<hr>
+<h2 id="what-money-movement-deserves">What money movement deserves</h2>
+<p>Three principles I&rsquo;d put before any &ldquo;AI&rdquo; or &ldquo;agent&rdquo; feature:</p>
+<h3 id="1-determinism">1. Determinism</h3>
+<p>Same inputs, same rail selection, every time. No model temperature deciding which way ₹3L flows. A pure function takes the <code>Request</code>, returns an <code>Instruction</code>. The instruction can be replayed for any past payment.</p>
+<h3 id="2-idempotency">2. Idempotency</h3>
+<p>Every payment request requires a client-provided idempotency key. The orchestrator refuses to process without it. <strong>A retry must not duplicate the transfer</strong> — which means the rail layer downstream has to honour the key too.</p>
+<p>This sounds like an obvious feature. It is shockingly often missing in v1 of payment systems.</p>
+<h3 id="3-hitl-gate-at-threshold">3. HITL gate at threshold</h3>
+<p>Above ₹50,000, the system holds the payment for human approval, regardless of rail. Trusted beneficiary or not. The threshold can move via the board-approved policy, but the gate must exist.</p>
+<p>Why ₹50,000? It&rsquo;s the line we picked between low-friction P2P and significant transfers. Your number might be different. The principle: <strong>at some amount, a human&rsquo;s eyes belong on the transaction before it leaves the bank.</strong></p>
+<hr>
+<h2 id="the-rail-selection-function">The rail-selection function</h2>
+<p>Here&rsquo;s the actual function from Genie&rsquo;s <code>agents/payment_orchestrator</code>, abbreviated:</p>
+<pre><code class="language-go">func (a *Agent) chooseRail(req Request) (string, []string) {
+    now := a.Clock()
+    hour := now.Hour()
+
+    // UPI: instant, free, ≤₹1L, requires VPA.
+    if req.BeneficiaryVPA != &quot;&quot; &amp;&amp; req.AmountRupees &lt;= upiPerTxnLimit {
+        return &quot;upi&quot;, []string{&quot;Within UPI per-txn limit&quot;}
+    }
+
+    // RTGS: instant, ≥₹2L, 7-18 Mon-Sat. For high-value transfers this is
+    // the cleanest rail when the window is open, so try it before IMPS.
+    if req.BeneficiaryIFSC != &quot;&quot; &amp;&amp; req.BeneficiaryAcct != &quot;&quot; &amp;&amp;
+        req.AmountRupees &gt;= rtgsMinThreshold &amp;&amp;
+        hour &gt;= 7 &amp;&amp; hour &lt; 18 &amp;&amp; now.Weekday() != time.Sunday {
+        return &quot;rtgs&quot;, []string{&quot;Amount ≥ ₹2L and within RTGS operating window&quot;}
+    }
+
+    // IMPS: instant, 24×7, ≤₹5L, needs IFSC+Account.
+    if req.BeneficiaryIFSC != &quot;&quot; &amp;&amp; req.BeneficiaryAcct != &quot;&quot; &amp;&amp;
+        req.AmountRupees &lt;= impsLimit &amp;&amp; strings.ToLower(req.Urgency) != &quot;any&quot; {
+        return &quot;imps&quot;, []string{&quot;Within IMPS limit and instant credit needed&quot;}
+    }
+
+    // NEFT: 24×7 since 2019, batch-settled, no real ceiling.
+    if req.BeneficiaryIFSC != &quot;&quot; &amp;&amp; req.BeneficiaryAcct != &quot;&quot; {
+        return &quot;neft&quot;, []string{&quot;Falling back to NEFT batch settlement&quot;}
+    }
+    return &quot;&quot;, nil
+}
+</code></pre>
+<p>Three things to notice:</p>
+<ol>
+<li>
+<p><strong>The clock is injectable.</strong> <code>a.Clock()</code> is a field on the struct, not a call to <code>time.Now()</code>. Tests fix the clock and assert &ldquo;at 10 PM, RTGS is closed → IMPS fires.&rdquo; Production wires <code>time.Now</code>.</p>
+</li>
+<li>
+<p><strong>The function returns reasons.</strong> Every rail selection comes with a list of strings explaining <em>why</em> this rail. Those strings end up in the <code>Instruction.Reasons</code> field, then in the audit log, then in the dashboard. When something looks wrong six months from now, you can read the trace.</p>
+</li>
+<li>
+<p><strong>The order matters.</strong> UPI first for small amounts (free, instant), RTGS before IMPS for large amounts in window (real-time finality), NEFT as the catch-all. This ordering is documented and tested.</p>
+</li>
+</ol>
+<hr>
+<h2 id="the-five-hard-rejects">The five hard rejects</h2>
+<p>Before rail selection, five conditions hard-reject:</p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Currency != INR</td>
+<td>The rails this orchestrator knows are NPCI. Cross-border lives elsewhere.</td>
+</tr>
+<tr>
+<td>Amount ≤ 0</td>
+<td>Pathological input.</td>
+</tr>
+<tr>
+<td>Missing idempotency key</td>
+<td>&ldquo;Refusing to risk a duplicate transfer.&rdquo;</td>
+</tr>
+<tr>
+<td>Untrusted beneficiary + amount ≥ ₹50k</td>
+<td>HITL gate, regardless of rail availability.</td>
+</tr>
+<tr>
+<td>No rail matches constraints</td>
+<td>E.g. amount &gt; UPI cap, no IFSC+Acct provided.</td>
+</tr>
+</tbody>
+</table>
+<p>Each reject produces an Annexure VI-shaped incident payload (see <a href="linkedin-article-annexure-vi.md">Annexure VI as a Query</a>). The audit log can be queried six months later: &ldquo;show me every payment we refused, by reason.&rdquo;</p>
+<hr>
+<h2 id="what-the-orchestrator-does-not-do">What the orchestrator does NOT do</h2>
+<p>This is where the design gets opinionated:</p>
+<h3 id="it-does-not-submit-to-the-rail">It does NOT submit to the rail</h3>
+<p>The orchestrator emits an <code>Instruction</code>. A separate PSP adapter — the &ldquo;host concern&rdquo; in our architecture — picks it up from the bus and submits to NPCI. Why the separation?</p>
+<p>Two reasons. First, the rail integration is messy and provider-specific (different PSPs, different APIs, different cert flows); keeping it out of the orchestrator keeps the policy logic clean. Second, <strong>the PSP adapter is where the real money moves</strong> — that&rsquo;s a separate, tightly-controlled service with its own access controls, its own audit, its own approval flow.</p>
+<p>The orchestrator is upstream of money movement. The PSP adapter is at money movement. They have different threat models.</p>
+<h3 id="it-does-not-check-account-balance">It does NOT check account balance</h3>
+<p>That&rsquo;s a core-banking call. The orchestrator trusts the upstream UI / business logic to have checked. If the PSP submission fails on insufficient funds, that&rsquo;s an event the orchestrator hears about but doesn&rsquo;t pre-validate.</p>
+<h3 id="it-does-not-verify-beneficiary-cooling-off">It does NOT verify beneficiary cooling-off</h3>
+<p>The orchestrator trusts the <code>IsTrustedBeneficiary</code> flag. The cooling-off — the period during which a newly-added beneficiary can only receive small amounts — is enforced by the customer-onboarding / beneficiary-management service. Setting that flag to true requires an audited admin action upstream.</p>
+<p>These three &ldquo;does NOT&rdquo; decisions are governance, not laziness. Separation of concerns keeps blast radius small. When the orchestrator misbehaves, balances aren&rsquo;t affected; when the PSP misbehaves, routing logic isn&rsquo;t affected; when the beneficiary service misbehaves, payment math isn&rsquo;t affected.</p>
+<hr>
+<h2 id="tests-that-matter">Tests that matter</h2>
+<p>Unit tests for a payment orchestrator are deliberately boring. They&rsquo;re also load-bearing:</p>
+<pre><code class="language-go">func TestUPISmallTrustedSubmits(t *testing.T) {
+    ins := newAt(midday()).Plan(Request{
+        IdempotencyKey: &quot;k1&quot;, AmountRupees: 5_000,
+        BeneficiaryVPA: &quot;x@upi&quot;, IsTrustedBeneficiary: true,
+    })
+    if ins.Action != &quot;submit&quot; || ins.Rail != &quot;upi&quot; {
+        t.Errorf(&quot;expected submit via upi; got %s/%s&quot;, ins.Action, ins.Rail)
+    }
+}
+
+func TestRTGSClosedFallsBackToIMPS(t *testing.T) {
+    night := time.Date(2026, 5, 14, 22, 0, 0, 0, time.UTC)
+    ins := newAt(night).Plan(Request{
+        IdempotencyKey: &quot;k4&quot;, AmountRupees: 300_000,
+        BeneficiaryIFSC: &quot;HDFC0000001&quot;, BeneficiaryAcct: &quot;00112233&quot;,
+        IsTrustedBeneficiary: true,
+    })
+    if ins.Rail != &quot;imps&quot; {
+        t.Errorf(&quot;RTGS closed should pick IMPS; got %s&quot;, ins.Rail)
+    }
+}
+
+func TestMissingIdempotencyKeyRejected(t *testing.T) {
+    ins := newAt(midday()).Plan(Request{AmountRupees: 100, BeneficiaryVPA: &quot;x@upi&quot;})
+    if ins.Action != &quot;reject&quot; {
+        t.Errorf(&quot;missing idempotency key must reject&quot;)
+    }
+}
+</code></pre>
+<p>When a junior engineer comes along and &ldquo;improves&rdquo; the rail-selection logic, these tests catch the regression before code review.</p>
+<hr>
+<h2 id="what-the-llm-does-and-doesnt">What the LLM does (and doesn&rsquo;t)</h2>
+<p>In this orchestrator: <strong>nothing</strong>. There is no LLM in the rail-selection path. The function is 60 lines of conditional logic over a struct.</p>
+<p>The LLM enters elsewhere:</p>
+<ul>
+<li>The customer-facing app uses an LLM to ask &ldquo;I want to pay rent to Asha&rdquo; and turn that into a structured <code>Request</code> (with VPA/IFSC lookups).</li>
+<li>After the orchestrator emits the <code>Instruction</code>, the LLM drafts the SMS / push confirmation in the customer&rsquo;s preferred language.</li>
+<li>After the payment succeeds, the LLM updates the running spend categorisation.</li>
+</ul>
+<p>The LLM is on the conversational surface. The decision is in the function. This is the <a href="linkedin-article-kyc-deterministic.md">deterministic-decision pattern</a>, applied to payments.</p>
+<hr>
+<h2 id="what-this-earns-under-free-ai">What this earns under FREE-AI</h2>
+<ul>
+<li><strong>Rec 8 (Graded Liability)</strong> — every payment rejection produces a Medium-grade incident; HITL holds are auditable.</li>
+<li><strong>Rec 16 (Autonomous Systems)</strong> — declared <code>RiskHigh</code>; the orchestrator can only execute on messages with <code>advisor</code> or <code>admin</code> role on <code>metadata.user_roles</code>.</li>
+<li><strong>Rec 18 (Disclosure)</strong> — every Instruction carries a Disclaimer (&ldquo;Subject to PSP confirmation, account-balance check, and NPCI / RBI rail availability.&rdquo;)</li>
+<li><strong>Rec 22 (Annexure VI)</strong> — every reject auto-generates the structured incident payload.</li>
+</ul>
+<p>That&rsquo;s four of the 26 recommendations addressed by one 250-line agent. Stacking up.</p>
+<hr>
+<h2 id="the-thesis">The thesis</h2>
+<p>Payment routing is the most boring piece of fintech software, and the easiest to get spectacularly wrong. The patterns that survive:</p>
+<ol>
+<li><strong>Determinism over creativity.</strong> Same input, same rail, every time.</li>
+<li><strong>Idempotency is non-negotiable.</strong> Refuse to process without a key.</li>
+<li><strong>HITL at threshold.</strong> Pick the number, hold the line, audit overrides.</li>
+<li><strong>Separation of concerns.</strong> The orchestrator routes; the PSP adapter moves money.</li>
+<li><strong>The clock is injectable.</strong> Or your tests for &ldquo;RTGS at 10 PM&rdquo; are flaky and you ignore them.</li>
+</ol>
+<p>Each is a five-character decision. Together they&rsquo;re the difference between a payment system that survives an audit and one that doesn&rsquo;t.</p>
+<hr>
+<h2 id="the-repo">The repo</h2>
+<p>Genie is open source under MIT.</p>
+<ul>
+<li><code>agents/payment_orchestrator/payment_orchestrator.go</code> — the worked example</li>
+<li><code>docs/agents/payment_orchestrator.md</code> — the deep-dive doc</li>
+<li>Tests cover every rail × time-of-day × trust × amount combination</li>
+</ul>
+<pre><code class="language-bash">git clone https://github.com/c2siorg/genie.git
+go test ./agents/payment_orchestrator/ -v
+</code></pre>
+<hr>
+<p>If you&rsquo;ve shipped a payment orchestrator with a different shape — different rail preferences, different thresholds, async vs sync flow — I&rsquo;d genuinely like to compare. The most interesting choices in this design are the ones I&rsquo;d second-guess in a different context.</p>
+<h1 id="fintech-payments-npci-upi-rtgs-imps-neft-responsibleai-rbi-freeai-bankingai-fintechindia">FinTech #Payments #NPCI #UPI #RTGS #IMPS #NEFT #ResponsibleAI #RBI #FREEAI #BankingAI #FinTechIndia</h1>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>
