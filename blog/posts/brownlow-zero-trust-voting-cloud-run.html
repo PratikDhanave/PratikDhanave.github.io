@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brownlow — zero-trust voting on Cloud Run during live AFL broadcasts — Pratik Dhanave</title>
+<meta name="description" content="100K+ votes, 10K+ concurrent users during a live AFL Brownlow Medal broadcast. The architecture: Go on Cloud Run, GraphQL + gRPC behind a CDN, vote integrity through Cloud KMS + Security Command Center. Notes on what makes a live-broadcast load shape unusual.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Brownlow — zero-trust voting on Cloud Run during live AFL broadcasts">
+<meta property="og:description" content="100K+ votes, 10K+ concurrent users during a live AFL Brownlow Medal broadcast. The architecture: Go on Cloud Run, GraphQL + gRPC behind a CDN, vote integrity through Cloud KMS + Security Command Center. Notes on what makes a live-broadcast load shape unusual.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/brownlow-zero-trust-voting-cloud-run.html">
+<meta property="article:published_time" content="2026-04-28T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Cloud Run">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="GraphQL">
+<meta property="article:tag" content="gRPC">
+<meta property="article:tag" content="KMS">
+<meta property="article:tag" content="Live Events">
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Brownlow — zero-trust voting on Cloud Run during live AFL broadcasts">
+<meta name="twitter:description" content="100K+ votes, 10K+ concurrent users during a live AFL Brownlow Medal broadcast. The architecture: Go on Cloud Run, GraphQL + gRPC behind a CDN, vote integrity through Cloud KMS + Security Command Center. Notes on what makes a live-broadcast load shape unusual.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/brownlow-zero-trust-voting-cloud-run.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff;
+  --text: #1a1a1a; --text-dim: #555; --text-muted: #888;
+  --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22;
+    --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590;
+    --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7; color: var(--text); background: var(--bg);
+  -webkit-font-smoothing: antialiased; font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-04-28">April 28, 2026</time>
+  <span>·</span>
+  <span>4 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">Cloud Run</span>
+  <span class="tag">Go</span>
+  <span class="tag">GraphQL</span>
+  <span class="tag">gRPC</span>
+  <span class="tag">KMS</span>
+  <span class="tag">Live Events</span>
+</div>
+
+<article class="post">
+<h1>Brownlow — vote integrity at broadcast scale</h1>
+<blockquote>
+<p>The AFL Brownlow Medal vote count is a televised event in
+Australia. The Brownlow platform let voters submit during the
+live broadcast. 100K+ votes, 10K+ concurrent users at peak,
+all inside a 2-hour window, with vote integrity that has to
+survive a regulator audit. Here is the architecture that
+shipped.</p>
+</blockquote>
+<h2>The load shape</h2>
+<p>A normal high-traffic system has a smooth distribution. Brownlow
+didn&rsquo;t. The shape was:</p>
+<ul>
+<li><strong>Pre-broadcast</strong>: trickle of test traffic, ~10 RPS.</li>
+<li><strong>Broadcast start</strong>: ~5,000 RPS over 30 seconds. People who
+  remembered to vote did it now.</li>
+<li><strong>Round-by-round spikes</strong>: ~2,000 RPS for the 60 seconds after
+  each round&rsquo;s votes were revealed.</li>
+<li><strong>Broadcast end</strong>: ~8,000 RPS rush at the final reveal.</li>
+</ul>
+<p>The cluster had to scale from idle to 5K RPS in 30 seconds.
+Cloud Run&rsquo;s per-pod concurrency + revision-level autoscale handled
+this shape better than GKE would have — no node scaling lag, just
+new container instances coming up.</p>
+<h2>Why Cloud Run, not GKE</h2>
+<p>The team had a GKE deployment available; Cloud Run was the explicit
+choice. Reasons:</p>
+<ul>
+<li><strong>Cold-to-hot speed</strong>. Cloud Run can scale to thousands of
+  instances in tens of seconds. GKE needs node provisioning for
+  the same shape and that takes minutes.</li>
+<li><strong>No pod / node management</strong> for the on-call team during the
+  broadcast. The team&rsquo;s attention was on vote integrity, not on
+  Kubernetes resource pressures.</li>
+<li><strong>Per-request billing</strong> matched the load shape exactly. We paid
+  for the broadcast window, not for a permanent cluster.</li>
+</ul>
+<p>The cost was lock-in to Cloud Run&rsquo;s runtime model (stateless
+HTTP/gRPC, no long-lived background processes). For this workload
+the lock-in was acceptable; the platform was rebuilt every season.</p>
+<h2>The vote-submission path</h2>
+<p>The hot path was tight:</p>
+<pre><code>voter → CDN → Cloud Run (Go) → KMS sign → Spanner write → CDN cache invalidate
+                  │
+                  └─► (async) Pub/Sub → analytics
+</code></pre>
+<p>Every step had a budget. Total p95: 280ms. The breakdown:</p>
+<ul>
+<li>CDN: 12ms</li>
+<li>Cloud Run handler: 90ms (most of it the KMS sign)</li>
+<li>Spanner write: 60ms</li>
+<li>CDN invalidate: 20ms</li>
+<li>Wire time + headers: 98ms</li>
+</ul>
+<p>The KMS sign was the biggest single component. Each vote was
+signed with a per-voter ephemeral key derived from a master key in
+Cloud KMS. The signature was the integrity artefact — proof that
+the vote was submitted from a verified session, not replayed or
+forged.</p>
+<h2>Cloud KMS for vote integrity</h2>
+<p>The signing key never left KMS. The Go service called
+<code>Encrypt</code>/<code>Sign</code> via the KMS API; the API returned the signature
+bytes; the bytes went into the Spanner row.</p>
+<p>For audit, the verification flow was:</p>
+<ol>
+<li>Read a vote row from Spanner.</li>
+<li>Extract the signature.</li>
+<li>Call KMS <code>Verify</code> with the original vote payload + signature.</li>
+<li>Verify returns valid / invalid.</li>
+</ol>
+<p>The auditor (the AFL&rsquo;s integrity team) had read access to Spanner
+and read access to KMS verify. They could independently verify any
+vote without trusting the platform team.</p>
+<p>That separation — the platform team can&rsquo;t fake votes because they
+can&rsquo;t fake signatures; the integrity team can verify without
+trusting the platform — was the entire point of using KMS.</p>
+<h2>Security Command Center</h2>
+<p>SCC ran continuously during the broadcast. The monitored
+controls:</p>
+<ul>
+<li><strong>API security findings</strong>: anything anomalous in the API
+  responses (unexpected error rates, unusual headers).</li>
+<li><strong>IAM anomalies</strong>: any IAM change during the broadcast window
+  (there shouldn&rsquo;t be any).</li>
+<li><strong>Network anomalies</strong>: unusual traffic patterns at the load
+  balancer.</li>
+<li><strong>Workload identity drift</strong>: Cloud Run service accounts
+  shouldn&rsquo;t change permissions.</li>
+</ul>
+<p>SCC findings during the broadcast went to a dedicated Slack
+channel staffed by a 2-person security team. Most findings were
+noise (a Looker dashboard rebuilding, a backup job running). The
+non-noise findings — there were maybe 3 across the broadcast —
+were investigated within minutes.</p>
+<h2>What broke (and what didn&rsquo;t)</h2>
+<p>Across the broadcast season, the platform had no integrity
+incidents. The things that went sideways:</p>
+<ol>
+<li>
+<p><strong>CDN cache invalidation lag.</strong> A revealed-round vote tally
+   was occasionally cached longer than intended; users saw stale
+   tallies for ~5 seconds. Fix: shorter TTL on the tally
+   endpoint, accepted the higher origin load.</p>
+</li>
+<li>
+<p><strong>A regional Cloud Run cold start spike.</strong> One region had a
+   slow cold-start window during the broadcast start; latency
+   spiked to 800ms for ~30 seconds. The CDN absorbed most user
+   impact; the in-flight votes succeeded with retries. Fix: keep
+   minimum instances warm in each region during the broadcast
+   window.</p>
+</li>
+<li>
+<p><strong>A partner analytics consumer fell behind.</strong> The Pub/Sub
+   topic backed up; the analytics dashboards lagged real-time
+   by ~10 minutes during peak. No vote impact; the analytics
+   team accepted the lag and added consumers for next season.</p>
+</li>
+</ol>
+<h2>The off-season</h2>
+<p>Between seasons, the platform ran at idle. Cloud Run scaled to
+zero; Spanner stayed warm with minimal nodes; the KMS keys stayed
+in place.</p>
+<p>Annual cost out-of-season was trivial. Annual cost during the
+broadcast windows was the bulk of the bill. The shape matched the
+business; we didn&rsquo;t pay for a permanent infrastructure when the
+load was a six-week window per year.</p>
+<h2>What transfers</h2>
+<p>Three lessons from running a live-event workload:</p>
+<ol>
+<li>
+<p><strong>Cold-to-hot scale speed beats sustained capacity for
+   short-window high-throughput workloads.</strong> Cloud Run was the
+   right shape; GKE wasn&rsquo;t.</p>
+</li>
+<li>
+<p><strong>Move integrity-critical operations into managed services
+   you can&rsquo;t bypass.</strong> KMS signing made vote forgery impossible
+   <em>for us</em>, not just impolite. The auditor could verify
+   independently. That&rsquo;s the strongest integrity story.</p>
+</li>
+<li>
+<p><strong>Run continuous security monitoring with a small dedicated
+   team during the window.</strong> SCC&rsquo;s findings during steady-state
+   are noisy; during a high-stakes window, the signal-to-noise
+   shifts and the findings matter.</p>
+</li>
+</ol>
+<p>The Brownlow platform was the most-watched piece of software I&rsquo;ve
+shipped. The architecture wasn&rsquo;t novel; the discipline around
+integrity and scale was the differentiator.</p>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>

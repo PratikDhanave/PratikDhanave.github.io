@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brownlow — Cloud KMS + Security Command Center for vote integrity — Pratik Dhanave</title>
+<meta name="description" content="Vote integrity needed two things the platform team couldn&#x27;t fake even by accident: signing keys we couldn&#x27;t access, and continuous security monitoring we couldn&#x27;t silence. KMS + SCC delivered both.">
+<meta name="author" content="Pratik Dhanave">
+<meta property="og:title" content="Brownlow — Cloud KMS + Security Command Center for vote integrity">
+<meta property="og:description" content="Vote integrity needed two things the platform team couldn&#x27;t fake even by accident: signing keys we couldn&#x27;t access, and continuous security monitoring we couldn&#x27;t silence. KMS + SCC delivered both.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/brownlow-cloud-kms-security-command-center.html">
+<meta property="article:published_time" content="2026-02-02T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Cloud KMS">
+<meta property="article:tag" content="Security Command Center">
+<meta property="article:tag" content="GCP">
+<meta property="article:tag" content="Voting">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Brownlow — Cloud KMS + Security Command Center for vote integrity">
+<meta name="twitter:description" content="Vote integrity needed two things the platform team couldn&#x27;t fake even by accident: signing keys we couldn&#x27;t access, and continuous security monitoring we couldn&#x27;t silence. KMS + SCC delivered both.">
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/brownlow-cloud-kms-security-command-center.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+<style>
+:root { --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff; --text: #1a1a1a; --text-dim: #555; --text-muted: #888; --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0; --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22; --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590; --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff; --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c; } }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.7; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; font-size: 17px; }
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+<nav><div class="nav-container"><a href="/" class="nav-brand">Pratik Dhanave</a><ul class="nav-links"><li><a href="/#about">About</a></li><li><a href="/blog/">Blog</a></li><li><a href="/#projects">Projects</a></li><li><a href="/#contact">Contact</a></li></ul></div></nav>
+<main>
+<div class="post-meta"><time datetime="2026-02-02">February 2, 2026</time><span>·</span><span>3 min read</span><span>·</span><a href="/blog/">← All posts</a></div>
+<div class="post-tags">  <span class="tag">Cloud KMS</span>
+  <span class="tag">Security Command Center</span>
+  <span class="tag">GCP</span>
+  <span class="tag">Voting</span></div>
+<article class="post"><h2>The integrity requirement</h2>
+<p>The AFL Brownlow Medal is a live-broadcast voting event. Vote integrity has to survive:</p>
+<ul>
+<li>A regulator audit (the AFL&rsquo;s integrity unit).</li>
+<li>A media accusation that votes were tampered with.</li>
+<li>A platform-engineering team that&rsquo;s well-intentioned but human.</li>
+</ul>
+<p>The architecture has to make tampering not just hard, but provably absent — verifiable by parties who don&rsquo;t trust the platform team.</p>
+<h2>Cloud KMS for signing</h2>
+<p>Every vote was signed at submission. The signing key lived in Cloud KMS; the platform code called <code>KMS.Sign(key, voteBytes)</code> and got a signature back.</p>
+<pre><code class="language-go">client := kms.NewKeyManagementClient(ctx, ...)
+resp, _ := client.AsymmetricSign(ctx, &amp;kmspb.AsymmetricSignRequest{
+    Name:   &quot;projects/.../locations/.../keyRings/brownlow/cryptoKeys/vote-signer/cryptoKeyVersions/1&quot;,
+    Digest: &amp;kmspb.Digest{Digest: &amp;kmspb.Digest_Sha256{Sha256: hashVote(vote)}},
+})
+storeVoteWithSignature(vote, resp.Signature)
+</code></pre>
+<p>The key never left KMS. Even the platform team&rsquo;s code couldn&rsquo;t read it. Even a compromised platform host couldn&rsquo;t forge signatures — it could request signatures (which are logged), but not retrieve the key.</p>
+<h2>What this gives the auditor</h2>
+<p>The AFL&rsquo;s integrity team had:</p>
+<ul>
+<li>Read access to the votes table in Spanner.</li>
+<li>Read access to KMS verify (not sign).</li>
+</ul>
+<p>For any vote, they could:</p>
+<pre><code class="language-go">client := kms.NewKeyManagementClient(ctx, integrityCreds)
+verifyResp, _ := client.AsymmetricVerify(ctx, &amp;kmspb.AsymmetricVerifyRequest{
+    Name:      &quot;...vote-signer/cryptoKeyVersions/1&quot;,
+    Signature: vote.Signature,
+    Digest:    &amp;kmspb.Digest{Digest: &amp;kmspb.Digest_Sha256{Sha256: hashVote(vote)}},
+})
+// verifyResp.Success = true → vote is genuine
+</code></pre>
+<p>The auditor verified votes without trusting the platform team. The platform team couldn&rsquo;t fake signatures because the key wasn&rsquo;t accessible. The separation of duties — platform can sign, integrity can verify — was enforced by KMS IAM, not by policy.</p>
+<h2>Security Command Center during the broadcast</h2>
+<p>SCC ran continuously. The monitored controls:</p>
+<ul>
+<li><strong>IAM anomalies.</strong> Any IAM change during the broadcast window (there shouldn&rsquo;t be any).</li>
+<li><strong>API anomalies.</strong> Unusual response patterns from the vote API.</li>
+<li><strong>Network anomalies.</strong> Unusual traffic patterns at the load balancer.</li>
+<li><strong>Workload identity drift.</strong> Cloud Run service accounts shouldn&rsquo;t change permissions during the window.</li>
+</ul>
+<p>SCC findings during the broadcast went to a dedicated Slack channel staffed by a 2-person security team — not the broadcast on-call. Different team; different priorities; integrity not operations.</p>
+<h2>The findings during the broadcast</h2>
+<p>Across the season (multiple broadcast windows):</p>
+<ul>
+<li>0 integrity-affecting findings.</li>
+<li>~12 noise findings (Looker dashboard rebuilds, backup jobs, scheduled rotations).</li>
+<li>3 non-noise findings investigated within 5 minutes.</li>
+</ul>
+<p>The non-noise findings were:
+1. A new IAM binding added by an unrelated team in the same project (out of scope for the broadcast; reviewed and OK).
+2. A Cloud Run revision deployment that hit a brief authentication spike during cold start (resolved within minutes).
+3. A spike in 403s from one geographic region (a known bot scraper; rate-limited).</p>
+<p>None of these affected votes. SCC made them visible; the integrity team had context to decide on the spot.</p>
+<h2>What I&rsquo;d carry forward</h2>
+<p>For any high-integrity workload during a high-stakes event:</p>
+<ul>
+<li><strong>Move integrity-critical operations into managed services you can&rsquo;t bypass.</strong> KMS for signing; the platform team can&rsquo;t fake votes because it can&rsquo;t sign without leaving an audit trail.</li>
+<li><strong>Separate the verifier from the signer.</strong> The platform team signs; the integrity team verifies. Different credentials; different blast radii.</li>
+<li><strong>Run SCC with a dedicated team during the window.</strong> The on-call&rsquo;s attention is on operations; the integrity team&rsquo;s attention is on findings.</li>
+</ul>
+<p>The architecture wasn&rsquo;t novel. The discipline around integrity was the differentiator. Same architecture without the discipline produces the same protections in theory and nothing in practice.</p></article>
+<div class="post-footer"><a class="back" href="/blog/">← Back to all posts</a><div class="share"><a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a><a href="https://github.com/PratikDhanave">GitHub</a></div></div>
+</main>
+<footer><p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p></footer>
+</body>
+</html>

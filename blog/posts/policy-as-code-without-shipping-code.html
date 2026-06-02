@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Policy as code, without the risk team having to ship code — Pratik Dhanave</title>
+<meta name="description" content="A tiny CEL-style DSL plus a board-approved YAML file. The risk team adds a governance rule by editing a config file; engineering ships the rule by restarting the service.">
+<meta name="author" content="Pratik Dhanave">
+
+<!-- Open Graph -->
+<meta property="og:title" content="Policy as code, without the risk team having to ship code">
+<meta property="og:description" content="A tiny CEL-style DSL plus a board-approved YAML file. The risk team adds a governance rule by editing a config file; engineering ships the rule by restarting the service.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/policy-as-code-without-shipping-code.html">
+<meta property="article:published_time" content="2026-04-13T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Governance">
+<meta property="article:tag" content="Policy">
+<meta property="article:tag" content="FREE-AI">
+<meta property="article:tag" content="DSL">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Policy as code, without the risk team having to ship code">
+<meta name="twitter:description" content="A tiny CEL-style DSL plus a board-approved YAML file. The risk team adds a governance rule by editing a config file; engineering ships the rule by restarting the service.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/policy-as-code-without-shipping-code.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #555;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #b1bac4;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container {
+  max-width: 800px; margin: 0 auto; padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+}
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+
+.post-meta {
+  font-size: 13px; color: var(--text-muted);
+  margin-bottom: 18px;
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+}
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag {
+  font-size: 12px; font-weight: 500; padding: 3px 10px;
+  border-radius: 12px; background: var(--tag-bg); color: var(--tag-text);
+}
+
+article.post h1 {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 800; letter-spacing: -0.02em; line-height: 1.15;
+  margin-bottom: 16px; color: var(--text);
+}
+article.post h2 {
+  font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px;
+  color: var(--text); letter-spacing: -0.01em;
+}
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+
+article.post blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 4px 0 4px 18px;
+  margin: 18px 0;
+  color: var(--text);
+  font-style: italic;
+  background: var(--bg-elev);
+  border-radius: 0 6px 6px 0;
+}
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+
+article.post code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text);
+}
+article.post pre {
+  background: var(--code-bg);
+  padding: 16px 18px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 18px 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  border: 1px solid var(--border);
+}
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+
+article.post table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 18px 0;
+  font-size: 0.92rem;
+}
+article.post th, article.post td {
+  text-align: left; padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+.post-footer {
+  margin-top: 56px; padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-wrap: wrap; gap: 14px;
+  justify-content: space-between; align-items: center;
+  font-size: 14px;
+}
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+
+footer {
+  text-align: center; padding: 32px 24px;
+  color: var(--text-muted); font-size: 13px;
+  border-top: 1px solid var(--border);
+}
+footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-04-13">April 13, 2026</time>
+  <span>·</span>
+  <span>7 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">Governance</span>
+  <span class="tag">Policy</span>
+  <span class="tag">FREE-AI</span>
+  <span class="tag">DSL</span>
+</div>
+
+<article class="post">
+<h1 id="how-to-ship-governance-without-shipping-code">How to Ship Governance Without Shipping Code</h1>
+<p><em>Building a tiny policy DSL so the risk team can change a guardrail without filing a Jira ticket — and why CEL was the wrong answer.</em></p>
+<hr>
+<h2 id="the-friday-night-problem">The Friday-night problem</h2>
+<p>It&rsquo;s 8 PM on a Friday. The fraud team has spotted a new mule pattern: small transfers to a fresh beneficiary tier with PAN-mismatched names. They want a rule to deny these at the bus before they reach the recommender.</p>
+<p>Two paths:</p>
+<p><strong>Path A.</strong> Engineering writes a new <code>governance.Policy</code> Go struct, adds a test, opens a PR, gets review, merges, deploys. Best case: Monday morning. Worst case: next sprint.</p>
+<p><strong>Path B.</strong> The risk team edits a YAML file. The system loads it on the next health check. Live by Friday at 9 PM.</p>
+<p>Path B is what <strong>FREE-AI Recommendation 6 (Adaptive Policies)</strong> is asking for. It&rsquo;s also what every CRO I&rsquo;ve talked to says they want and can never get.</p>
+<hr>
+<h2 id="why-most-systems-are-stuck-on-path-a">Why most systems are stuck on Path A</h2>
+<p>The honest reason: governance lives in code. The composite policy in <code>pkg/governance</code> is a Go slice of <code>Policy</code> interfaces. Each policy is a struct. Adding a new rule means writing Go.</p>
+<p>Engineering doesn&rsquo;t <em>want</em> to gatekeep risk rules — they&rsquo;re not the domain experts. But the tool the risk team needs (declarative, safe, reviewable, hot-reloadable) doesn&rsquo;t exist in most codebases. So Friday&rsquo;s mule pattern waits for Monday&rsquo;s sprint.</p>
+<hr>
+<h2 id="why-cel-was-the-wrong-answer-for-me">Why CEL was the wrong answer for me</h2>
+<p>The obvious move was to pull in <strong>Google&rsquo;s CEL</strong> (Common Expression Language). It&rsquo;s production-grade, well-spec&rsquo;d, used by Kubernetes admission controllers, and has Go bindings via <code>cel-go</code>.</p>
+<p>I almost did. Then I looked at the dependency graph.</p>
+<p><code>github.com/google/cel-go</code> pulls in the protobuf runtime, the gnostic OpenAPI generator, parts of grpc-go, and a transitive set of indirect deps that adds ~40 modules to the project. For a system whose entire selling point is &ldquo;minimal dependencies, auditable surface, single Go binary,&rdquo; that&rsquo;s a lot of new attack surface for a feature my risk team will use to write a dozen rules.</p>
+<p>The other option: write a small DSL myself. <strong>CEL covers 100% of expression power; I needed maybe 20%.</strong> Equality, comparison, AND/OR/NOT, string contains/startsWith, dotted metadata access. That&rsquo;s it.</p>
+<p>I wrote it. It&rsquo;s 330 lines of Go, zero new dependencies, and the grammar fits on one screen:</p>
+<pre><code>expr     = orExpr
+orExpr   = andExpr (&quot;OR&quot; andExpr)*
+andExpr  = unary (&quot;AND&quot; unary)*
+unary    = &quot;NOT&quot; unary | primary
+primary  = &quot;(&quot; expr &quot;)&quot; | cmp
+cmp      = term op term
+term     = stringLit | numLit | identifier
+op       = &quot;==&quot; | &quot;!=&quot; | &quot;&lt;&quot; | &quot;&gt;&quot; | &quot;&lt;=&quot; | &quot;&gt;=&quot; | &quot;contains&quot; | &quot;startsWith&quot;
+</code></pre>
+<p>That&rsquo;s the whole language.</p>
+<hr>
+<h2 id="what-the-risk-team-gets">What the risk team gets</h2>
+<p>A YAML file, <code>config/policies/rules.yaml</code>:</p>
+<pre><code class="language-yaml">- id: deny_offshore_pii
+  when: classification == &quot;pii&quot; AND metadata.region != &quot;in&quot;
+  decision: deny
+  reason: &quot;PII bound for non-home region&quot;
+
+- id: block_external_partner_without_trace
+  when: from startsWith &quot;ext-&quot; AND NOT metadata.trace_id == &quot;present&quot;
+  decision: deny
+  reason: &quot;External-partner traffic must carry trace_id&quot;
+
+- id: block_sql_injection_attempt
+  when: content contains &quot;DROP TABLE&quot;
+  decision: deny
+  reason: &quot;Likely SQL injection in user content&quot;
+
+- id: block_large_untrusted_transfer
+  when: type == &quot;payment_request&quot; AND metadata.is_trusted == &quot;false&quot; AND metadata.amount &gt; 50000
+  decision: deny
+  reason: &quot;Large transfer to untrusted beneficiary — refer to fraud team&quot;
+</code></pre>
+<p>The system loads it at boot, compiles each rule once, and wraps each into a <code>governance.Policy</code>. The existing composite picks them up automatically. The risk team&rsquo;s mule rule is live in five minutes.</p>
+<hr>
+<h2 id="the-boring-engineering-parts-that-matter">The boring engineering parts that matter</h2>
+<p>I&rsquo;ll skip the parser code (recursive descent, ~150 lines), but three design choices deserve explanation:</p>
+<h3 id="1-lazy-compilation-eager-validation">1. Lazy compilation, eager validation</h3>
+<p>Every rule is parsed once at boot, not per-message. If a rule has a syntax error, the loader fails loudly — the system refuses to start with a broken policy. You don&rsquo;t get the &ldquo;policy file looked fine, but the typo only fires when message metadata has key X&rdquo; failure mode.</p>
+<h3 id="2-whitelisted-field-references">2. Whitelisted field references</h3>
+<p>The right-hand identifier in a comparison can only resolve to one of:</p>
+<ul>
+<li><code>classification</code>, <code>type</code>, <code>from</code>, <code>to</code>, <code>role</code>, <code>content</code></li>
+<li><code>metadata.&lt;key&gt;</code> (for any string-coerced metadata field)</li>
+</ul>
+<p>That&rsquo;s it. You can&rsquo;t reach into the goroutine pool, the network, or the file system. The DSL evaluator is a pure function over the Message.</p>
+<p>This isn&rsquo;t paranoia — it&rsquo;s threat modeling. A DSL that can express &ldquo;if classification is X, deny&rdquo; must not also be able to express &ldquo;if classification is X, exec curl evil.com.&rdquo; Whitelisted references make the latter impossible by construction.</p>
+<h3 id="3-per-rule-reason-field">3. Per-rule reason field</h3>
+<p>Every rule has a <code>Reason</code> field that ships into the denial event. When the auditor pulls the incident log and sees a deny, they see <em>which named rule</em> fired, not just &ldquo;denied.&rdquo; Attribution is the whole point.</p>
+<hr>
+<h2 id="what-the-dsl-deliberately-does-not-do">What the DSL deliberately does NOT do</h2>
+<p>This is where engineers get tempted to add things. Resist.</p>
+<ul>
+<li><strong>No regex.</strong> Use the existing <code>governance.PIIBlockPolicy</code> (Go-side, well-tested) or write a CEL adapter if you really need it.</li>
+<li><strong>No date / time arithmetic.</strong> &ldquo;Within last 5 minutes&rdquo; needs a Go-side policy with a clock dependency.</li>
+<li><strong>No nested struct walks beyond <code>metadata.&lt;key&gt;</code>.</strong> No <code>metadata.user.roles[0]</code>.</li>
+<li><strong>No mutations.</strong> Decision is allow/deny only. The DSL never modifies the message.</li>
+<li><strong>No external lookups.</strong> No SQL, no HTTP, no Redis. A rule executes in microseconds against in-memory message data.</li>
+</ul>
+<p>If a rule needs any of these, write a Go-side <code>governance.Policy</code>. The DSL is the 80 % case; the long tail belongs in code.</p>
+<hr>
+<h2 id="how-it-composes-with-what-was-already-there">How it composes with what was already there</h2>
+<p>The existing Genie composite stack:</p>
+<pre><code class="language-go">composite := governance.NewComposite(
+    governance.MaxContentLengthPolicy{Max: 262144},
+    governance.RequiredMetadataPolicy{...},
+    governance.RBACPolicy{...},
+    governance.ClassificationPolicy{...},
+    governance.DataResidencyPolicy{HomeRegion: &quot;in&quot;},
+    governance.PIIBlockPolicy{},
+    governance.PromptInjectionPolicy{},
+    // ... etc
+)
+</code></pre>
+<p>Adding the DSL:</p>
+<pre><code class="language-go">raw, _ := os.ReadFile(&quot;config/policies/rules.yaml&quot;)
+var rules []dsl.Rule
+yaml.Unmarshal(raw, &amp;rules)
+compiled, _ := dsl.Compile(rules)
+
+composite := governance.NewComposite(append(coreStack, dsl.AsPolicies(compiled)...)...)
+</code></pre>
+<p>That&rsquo;s the whole integration. Existing policies still fire. The DSL rules fire after them. The composite still denies on the first failure. The audit log gets the rule ID. The Annexure VI form auto-generates on deny.</p>
+<hr>
+<h2 id="what-this-unlocks">What this unlocks</h2>
+<p>A few patterns the risk team can now own:</p>
+<p><strong>Concentration limits.</strong> &ldquo;Deny any single message &gt; ₹10L from a single payer in the last 5 minutes.&rdquo; (Well — the time window needs a Go-side helper, but the threshold lives in YAML.)</p>
+<p><strong>Vendor allowlists.</strong> &ldquo;Allow messages from <code>from = 'partner-a'</code>, <code>from = 'partner-b'</code>; deny all other <code>from startsWith 'partner-'</code>.&rdquo;</p>
+<p><strong>Classification ceilings per agent.</strong> &ldquo;Deny <code>to = 'public_chat'</code> if <code>classification</code> is pii.&rdquo;</p>
+<p><strong>Geographic restrictions.</strong> &ldquo;Deny messages where <code>metadata.geo</code> is in {CU, IR, KP, RU, SY}.&rdquo;</p>
+<p>Each of these used to require a code change. Now each is a YAML edit, reviewed by the risk team, deployed by configuration management.</p>
+<hr>
+<h2 id="the-audit-story">The audit story</h2>
+<p>When the regulator asks &ldquo;show me your policy on PII residency,&rdquo; the answer is:</p>
+<blockquote>
+<p>&ldquo;Open <code>config/policies/rules.yaml</code>. Search for <code>deny_offshore_pii</code>. The <code>when</code> clause expresses the rule in DSL. The board approved this YAML version on 2025-08-13. The hash of the file is logged at every boot, so we can prove which version was active on which date. Every denial event references the rule ID.&rdquo;</p>
+</blockquote>
+<p>That&rsquo;s much harder than &ldquo;let me get back to you on which policy module that lives in&rdquo; — because the regulator can verify it themselves with <code>cat</code>.</p>
+<hr>
+<h2 id="when-youll-outgrow-this">When you&rsquo;ll outgrow this</h2>
+<p>Three signs the DSL has reached its limit:</p>
+<ol>
+<li>You&rsquo;re writing rules with three nested ANDs / ORs to express what would be one SQL JOIN. Use a Go-side policy or move to CEL.</li>
+<li>You need cross-message state (&ldquo;more than 5 messages from X in the last minute&rdquo;). The DSL is per-message; cross-message lives in Go.</li>
+<li>You want time-window math. Add a <code>time_since_&lt;event&gt;</code> helper in Go; expose it as a metadata field; then the DSL rule reads naturally.</li>
+</ol>
+<p>When that day comes, the DSL&rsquo;s design choice pays off: swap the evaluator for <code>cel-go</code> without changing the YAML or the policy interface. The host code doesn&rsquo;t change. The risk team&rsquo;s rule files don&rsquo;t change.</p>
+<hr>
+<h2 id="the-thesis">The thesis</h2>
+<p>The fastest way to ship FREE-AI Rec 6 isn&rsquo;t to install a heavyweight policy engine. It&rsquo;s to write the 20 % of an engine your risk team actually needs, and to leave the 80 % they don&rsquo;t need on the shelf where it can&rsquo;t surprise you.</p>
+<p><strong>Code is debt. The smallest amount that solves the problem is the right amount.</strong></p>
+<p>For us, that was 330 lines and zero new dependencies. Your DSL might need 600 lines and one optional dependency. That&rsquo;s still smaller than CEL plus protobuf plus gnostic plus the rest of the kitchen.</p>
+<hr>
+<h2 id="the-repo">The repo</h2>
+<p>Genie is open source under MIT.</p>
+<ul>
+<li><code>pkg/policy/dsl/dsl.go</code> — the parser + evaluator</li>
+<li><code>pkg/policy/dsl/dsl_test.go</code> — 11 unit tests covering every operator</li>
+<li><code>docs/packages/policy-dsl.md</code> — the deep-dive doc</li>
+<li><code>config/policies/</code> — where the YAML lives in production</li>
+</ul>
+<pre><code class="language-bash">git clone https://github.com/c2siorg/genie.git
+go test ./pkg/policy/dsl/ -v
+</code></pre>
+<hr>
+<p>If you&rsquo;ve solved this problem differently — embedded Lua, Starlark, OPA / Rego, a homegrown rule engine — I&rsquo;d genuinely like to compare notes on what shapes survived contact with a real risk team.</p>
+<h1 id="responsibleai-policyascode-rbi-freeai-fintechindia-governanceascode-bankingcompliance-softwarearchitecture">ResponsibleAI #PolicyAsCode #RBI #FREEAI #FinTechIndia #GovernanceAsCode #BankingCompliance #SoftwareArchitecture</h1>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>

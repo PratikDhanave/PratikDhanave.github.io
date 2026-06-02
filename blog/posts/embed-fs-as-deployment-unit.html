@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>embed.FS as a deployment unit — config, prompts, UI assets — Pratik Dhanave</title>
+<meta name="description" content="Go&#x27;s embed.FS bundles files into the binary at compile time. The pattern collapses what would be a multi-artefact deploy into one binary. Three places it pays back daily.">
+<meta name="author" content="Pratik Dhanave">
+<meta property="og:title" content="embed.FS as a deployment unit — config, prompts, UI assets">
+<meta property="og:description" content="Go&#x27;s embed.FS bundles files into the binary at compile time. The pattern collapses what would be a multi-artefact deploy into one binary. Three places it pays back daily.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/embed-fs-as-deployment-unit.html">
+<meta property="article:published_time" content="2026-02-13T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="embed.FS">
+<meta property="article:tag" content="Deployment">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="embed.FS as a deployment unit — config, prompts, UI assets">
+<meta name="twitter:description" content="Go&#x27;s embed.FS bundles files into the binary at compile time. The pattern collapses what would be a multi-artefact deploy into one binary. Three places it pays back daily.">
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/embed-fs-as-deployment-unit.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+<style>
+:root { --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff; --text: #1a1a1a; --text-dim: #555; --text-muted: #888; --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0; --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22; --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590; --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff; --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c; } }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.7; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; font-size: 17px; }
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+<nav><div class="nav-container"><a href="/" class="nav-brand">Pratik Dhanave</a><ul class="nav-links"><li><a href="/#about">About</a></li><li><a href="/blog/">Blog</a></li><li><a href="/#projects">Projects</a></li><li><a href="/#contact">Contact</a></li></ul></div></nav>
+<main>
+<div class="post-meta"><time datetime="2026-02-13">February 13, 2026</time><span>·</span><span>2 min read</span><span>·</span><a href="/blog/">← All posts</a></div>
+<div class="post-tags">  <span class="tag">Go</span>
+  <span class="tag">embed.FS</span>
+  <span class="tag">Deployment</span></div>
+<article class="post"><h2>What it does</h2>
+<pre><code class="language-go">import &quot;embed&quot;
+
+//go:embed all:web/dist
+var webAssets embed.FS
+
+//go:embed config/prompts/*.md
+var promptTemplates embed.FS
+
+//go:embed migrations/*.sql
+var migrations embed.FS
+</code></pre>
+<p>At compile time, the Go toolchain reads these files into the binary&rsquo;s data section. At runtime, the binary serves them from memory — no filesystem dependency.</p>
+<h2>Three places it pays back</h2>
+<h3>1. UI assets</h3>
+<p>A typical &ldquo;Go API + React SPA&rdquo; deploy has two artefacts: the Go binary and the SPA bundle. They get deployed separately; configured separately; CORS-coordinated.</p>
+<p>With <code>embed.FS</code>, the SPA is part of the binary:</p>
+<pre><code class="language-go">//go:embed all:web/dist
+var webFS embed.FS
+
+func main() {
+    mux := http.NewServeMux()
+    mux.HandleFunc(&quot;/api/&quot;, apiHandler)
+    mux.Handle(&quot;/&quot;, http.FileServer(http.FS(webFS)))
+    http.ListenAndServe(&quot;:8080&quot;, mux)
+}
+</code></pre>
+<p>One artefact. One Docker image. Zero CORS configuration. No &ldquo;did we deploy the right SPA version&rdquo; question.</p>
+<p>For Genie&rsquo;s UI, the React build lands in <code>pkg/web/handlers/ui/</code>. The handler embeds and serves. The on-call doesn&rsquo;t think about it.</p>
+<h3>2. Prompt templates</h3>
+<p>Prompts are versioned content. They should be in the repo, reviewed in PRs, deployed as a unit with the code that uses them.</p>
+<pre><code class="language-go">//go:embed prompts/*.tmpl
+var promptFS embed.FS
+
+func loadPrompt(name string) (*template.Template, error) {
+    data, err := promptFS.ReadFile(&quot;prompts/&quot; + name + &quot;.tmpl&quot;)
+    if err != nil { return nil, err }
+    return template.New(name).Parse(string(data))
+}
+</code></pre>
+<p>The prompts are in version control next to the code that uses them. A prompt change is a PR. A prompt regression is reverted by reverting the PR. No external prompt-storage system to manage.</p>
+<h3>3. SQL migrations</h3>
+<p>The classic Go migration pattern:</p>
+<pre><code class="language-go">//go:embed migrations/*.sql
+var migrationFS embed.FS
+
+func runMigrations(ctx context.Context, db *sql.DB) error {
+    entries, _ := fs.ReadDir(migrationFS, &quot;migrations&quot;)
+    for _, e := range entries {
+        if !strings.HasSuffix(e.Name(), &quot;.sql&quot;) { continue }
+        sql, _ := fs.ReadFile(migrationFS, &quot;migrations/&quot;+e.Name())
+        if _, err := db.ExecContext(ctx, string(sql)); err != nil {
+            return fmt.Errorf(&quot;migration %s: %w&quot;, e.Name(), err)
+        }
+    }
+    return nil
+}
+</code></pre>
+<p>Migrations are part of the binary. The deploy process doesn&rsquo;t need to ship a separate migration script. Schema drifts between binary version and migration version are impossible.</p>
+<h2>When NOT to use it</h2>
+<ul>
+<li><strong>Files that need to be edited after deploy.</strong> Config that an operator changes via a control plane belongs on a filesystem, not embedded.</li>
+<li><strong>Very large files.</strong> Embedding a 500 MB ML model into the binary makes the binary huge and slow to load. Mount it; don&rsquo;t embed it.</li>
+<li><strong>User-uploaded content.</strong> Obviously.</li>
+</ul>
+<h2>The deployment shape it enables</h2>
+<p>For Genie:</p>
+<ul>
+<li>One Docker image, ~30 MB.</li>
+<li>One binary, ~25 MB.</li>
+<li>Health check on <code>/readyz</code> confirms binary loaded.</li>
+<li>No external dependencies for static assets, prompts, or migrations.</li>
+</ul>
+<p>This is the &ldquo;single binary&rdquo; appeal of Go made concrete. The deployment story collapses to one artefact; the operational surface area shrinks accordingly.</p>
+<p>For any Go service: audit your deploy. Are you shipping multiple artefacts that always travel together? If yes, <code>embed.FS</code> is probably the right tool.</p></article>
+<div class="post-footer"><a class="back" href="/blog/">← Back to all posts</a><div class="share"><a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a><a href="https://github.com/PratikDhanave">GitHub</a></div></div>
+</main>
+<footer><p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p></footer>
+</body>
+</html>

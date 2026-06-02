@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UPI integration — the spec quirks no one mentions — Pratik Dhanave</title>
+<meta name="description" content="UPI is the most popular payment rail in India. The spec is precise. The implementation guides are not. Notes on the integration details that ate weeks the first time.">
+<meta name="author" content="Pratik Dhanave">
+<meta property="og:title" content="UPI integration — the spec quirks no one mentions">
+<meta property="og:description" content="UPI is the most popular payment rail in India. The spec is precise. The implementation guides are not. Notes on the integration details that ate weeks the first time.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/upi-integration-spec-quirks.html">
+<meta property="article:published_time" content="2026-02-05T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="UPI">
+<meta property="article:tag" content="NPCI">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="FinTech">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="UPI integration — the spec quirks no one mentions">
+<meta name="twitter:description" content="UPI is the most popular payment rail in India. The spec is precise. The implementation guides are not. Notes on the integration details that ate weeks the first time.">
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/upi-integration-spec-quirks.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+<style>
+:root { --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff; --text: #1a1a1a; --text-dim: #555; --text-muted: #888; --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0; --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22; --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590; --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff; --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c; } }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.7; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; font-size: 17px; }
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+<nav><div class="nav-container"><a href="/" class="nav-brand">Pratik Dhanave</a><ul class="nav-links"><li><a href="/#about">About</a></li><li><a href="/blog/">Blog</a></li><li><a href="/#projects">Projects</a></li><li><a href="/#contact">Contact</a></li></ul></div></nav>
+<main>
+<div class="post-meta"><time datetime="2026-02-05">February 5, 2026</time><span>·</span><span>3 min read</span><span>·</span><a href="/blog/">← All posts</a></div>
+<div class="post-tags">  <span class="tag">UPI</span>
+  <span class="tag">NPCI</span>
+  <span class="tag">Payments</span>
+  <span class="tag">FinTech</span></div>
+<article class="post"><h2>The basics</h2>
+<p>UPI (Unified Payments Interface) is a real-time payment rail built on IMPS. A user authenticates with a UPI PIN; the payment moves between bank accounts in seconds. NPCI runs the central switch.</p>
+<p>Integration: your service is a TPAP (third-party application provider) connected to a sponsoring PSP (payment service provider) bank. The PSP bank handles the NPCI connectivity; you handle the user experience.</p>
+<h2>The quirks</h2>
+<p><strong>Collect requests aren&rsquo;t push notifications.</strong> A &ldquo;collect&rdquo; is your request to the user&rsquo;s app for them to authorise a payment. The user has 30 seconds to act (configurable, max 5 minutes). If they don&rsquo;t, the request expires; your app gets a failure notification — sometimes immediately, sometimes minutes later. The lag is the spec, not the bug.</p>
+<p><strong>Status codes don&rsquo;t always match the actual outcome.</strong> A <code>RC=ZA</code> (deemed approved) means NPCI thinks the payment succeeded; the destination bank might still reject it later. You can&rsquo;t treat ZA as final until you see the consequent credit confirmation.</p>
+<p><strong>Refunds aren&rsquo;t reversals.</strong> A &ldquo;refund&rdquo; via UPI is a new credit transaction from your bank to the user. It uses a different VPA (your business one) and a separate RRN. You can&rsquo;t refund a UPI debit by sending the same transaction reversed.</p>
+<p><strong>The VPA (UPI ID) has rules.</strong> Some PSPs allow <code>@upi</code>, <code>@paytm</code>, <code>@phonepe</code>. Some don&rsquo;t. The integration spec says alphanumeric + dot + hyphen; in practice some PSPs reject underscores. Always validate against your PSP&rsquo;s accepted character set.</p>
+<p><strong>Per-day per-user limits vary by bank.</strong> ₹1 lakh is the spec ceiling; some banks default to ₹25K for new customers. Your app has to handle &ldquo;amount exceeds daily limit&rdquo; gracefully — show the user what their bank&rsquo;s limit is if you can.</p>
+<h2>The webhook surface</h2>
+<p>Your service receives webhooks for:</p>
+<ul>
+<li><code>TXN_INITIATED</code> — request created on NPCI&rsquo;s side</li>
+<li><code>TXN_SUCCESS</code> — payment completed</li>
+<li><code>TXN_FAILED</code> — payment failed (with reason code)</li>
+<li><code>TXN_PENDING</code> — NPCI doesn&rsquo;t know yet (state could change)</li>
+<li><code>REFUND_*</code> — same set for refunds</li>
+</ul>
+<p>The webhook delivery is at-least-once. Idempotent handlers are mandatory; the same notification can arrive 3-5 times for one transaction.</p>
+<h2>What broke first</h2>
+<p>For a P2P lending platform integration:</p>
+<ul>
+<li><strong>Treating PENDING as final.</strong> First implementation marked a loan as disbursed on PENDING. NPCI later moved it to FAILED. Borrower never received funds; the lender&rsquo;s books showed the loan as outstanding. Three operations bugs in week 1.</li>
+<li><strong>Webhook deduplication via in-memory map.</strong> The map cleared on restart; duplicates after a deploy created double-debits. Move dedup to Redis with a 24h TTL.</li>
+<li><strong>No reconciliation against the daily NPCI settlement file.</strong> NPCI publishes a daily file of all transactions for your PSP. Reconciling our local view against this file caught 4 missed transactions in the first month.</li>
+</ul>
+<h2>The reconciliation pattern</h2>
+<p>Every day:</p>
+<ol>
+<li>Fetch the NPCI settlement file (via the PSP).</li>
+<li>For each transaction: compare our local state to the file.</li>
+<li>Flag discrepancies for operator review.</li>
+</ol>
+<p>Most discrepancies are timing (we showed PENDING; file shows SUCCESS). A few are real (we showed SUCCESS; file shows FAILED). The reconciliation is the only way to catch the few.</p>
+<h2>What I&rsquo;d carry forward</h2>
+<p>For UPI specifically:</p>
+<ul>
+<li>Treat PENDING as PENDING. Never marketing as success until SUCCESS.</li>
+<li>Idempotent webhooks. Always.</li>
+<li>Daily reconciliation against the PSP settlement file. Non-negotiable.</li>
+<li>Status codes table embedded in the codebase; not in a wiki.</li>
+<li>A test mode that walks the failure paths, not just the happy path. Most bugs are in the unhappy paths.</li>
+</ul>
+<p>The spec is precise once you&rsquo;ve read it three times. The integration partner&rsquo;s specific quirks are what take the time. Build for the reconciliation case first; the happy path will figure itself out.</p></article>
+<div class="post-footer"><a class="back" href="/blog/">← Back to all posts</a><div class="share"><a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a><a href="https://github.com/PratikDhanave">GitHub</a></div></div>
+</main>
+<footer><p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p></footer>
+</body>
+</html>

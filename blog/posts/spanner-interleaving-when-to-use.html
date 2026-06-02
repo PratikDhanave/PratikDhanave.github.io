@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spanner interleaved tables — when and when not — Pratik Dhanave</title>
+<meta name="description" content="Interleaving a child table into its parent co-locates the rows for fast joins. It also tightens coupling in ways that bite you on the next schema migration. A practitioner&#x27;s decision matrix.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Spanner interleaved tables — when and when not">
+<meta property="og:description" content="Interleaving a child table into its parent co-locates the rows for fast joins. It also tightens coupling in ways that bite you on the next schema migration. A practitioner&#x27;s decision matrix.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/spanner-interleaving-when-to-use.html">
+<meta property="article:published_time" content="2026-05-11T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Spanner">
+<meta property="article:tag" content="Database Design">
+<meta property="article:tag" content="Schema">
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Spanner interleaved tables — when and when not">
+<meta name="twitter:description" content="Interleaving a child table into its parent co-locates the rows for fast joins. It also tightens coupling in ways that bite you on the next schema migration. A practitioner&#x27;s decision matrix.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/spanner-interleaving-when-to-use.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff;
+  --text: #1a1a1a; --text-dim: #555; --text-muted: #888;
+  --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22;
+    --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590;
+    --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7; color: var(--text); background: var(--bg);
+  -webkit-font-smoothing: antialiased; font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-05-11">May 11, 2026</time>
+  <span>·</span>
+  <span>4 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">Spanner</span>
+  <span class="tag">Database Design</span>
+  <span class="tag">Schema</span>
+</div>
+
+<article class="post">
+<h1>Spanner interleaving — when and when not</h1>
+<blockquote>
+<p>Interleaving is one of Spanner&rsquo;s most useful features and one of
+its most over-used. Here is the decision matrix I use, with the
+trade-offs both directions.</p>
+</blockquote>
+<h2>What it does</h2>
+<p>A normal parent-child relationship in Spanner puts the parent and
+child on separate ranges, often on separate servers. A query that
+joins them does a distributed join.</p>
+<p>An interleaved child stores its rows physically next to the parent
+row. Joins become local reads. Throughput on join-heavy workloads
+goes up. Latency on those joins goes down.</p>
+<pre><code class="language-sql">CREATE TABLE customers (
+  customer_id INT64 NOT NULL,
+  ...
+) PRIMARY KEY (customer_id);
+
+CREATE TABLE orders (
+  customer_id INT64 NOT NULL,
+  order_id    INT64 NOT NULL,
+  ...
+) PRIMARY KEY (customer_id, order_id),
+  INTERLEAVE IN PARENT customers ON DELETE CASCADE;
+</code></pre>
+<p><code>orders</code> rows for <code>customer_id = 42</code> live physically next to
+<code>customers</code> row 42.</p>
+<h2>When to interleave</h2>
+<p>Use it when:</p>
+<ol>
+<li><strong>Joins on the parent-child relationship are hot.</strong> The most
+   common query pattern is &ldquo;customer + their orders.&rdquo; Co-location
+   makes those queries cheap.</li>
+<li><strong>Child cardinality is bounded.</strong> A customer with a few hundred
+   orders is fine. A customer with millions of orders puts too
+   much weight on the parent&rsquo;s storage row.</li>
+<li><strong>The lifecycle is shared.</strong> When a customer goes, the orders
+   should too. <code>ON DELETE CASCADE</code> makes this clean.</li>
+<li><strong>The application reads them together.</strong> If 90% of order reads
+   include the customer context, interleaving pays. If 90% don&rsquo;t,
+   you&rsquo;re paying for co-location you don&rsquo;t use.</li>
+</ol>
+<h2>When NOT to interleave</h2>
+<p>Don&rsquo;t, when:</p>
+<ol>
+<li><strong>Child cardinality is unbounded.</strong> One parent with millions of
+   children creates a hot row.</li>
+<li><strong>The child has its own access patterns.</strong> If &ldquo;all orders for
+   product P&rdquo; is a common query and you&rsquo;ve interleaved orders
+   into customers, you&rsquo;ll do a fan-out scan across every customer
+   shard. A non-interleaved child with a secondary index on
+   <code>product_id</code> is faster.</li>
+<li><strong>The relationship might change.</strong> Interleaving is a physical
+   layout decision. Un-interleaving later requires a table rebuild.
+   If you&rsquo;re not certain the relationship is permanent, don&rsquo;t
+   commit physical layout to it.</li>
+<li><strong>You want independent backup / restore.</strong> Interleaved tables
+   travel with the parent. If you need to restore just the order
+   table without touching customers, the interleaving makes that
+   awkward.</li>
+</ol>
+<h2>The migration tool&rsquo;s recommendation</h2>
+<p>The Spanner Migration Tool&rsquo;s schema review surfaces interleaving
+candidates based on:</p>
+<ul>
+<li>Foreign key relationship in the source schema.</li>
+<li>Child table size relative to parent (bounded if child rows
+  per parent &lt; ~10K).</li>
+<li>Whether the source had cascading deletes.</li>
+</ul>
+<p>The tool&rsquo;s recommendation is a starting point. The migration is
+the right moment to make the decision — afterwards it&rsquo;s a table
+rebuild.</p>
+<h2>The hidden tax: secondary indexes</h2>
+<p>Interleaved tables can have interleaved secondary indexes:</p>
+<pre><code class="language-sql">CREATE INDEX orders_by_status
+  ON orders (status)
+  INTERLEAVE IN customers;
+</code></pre>
+<p>This co-locates the index with the parent. Good for &ldquo;all orders
+with status X for customer Y&rdquo; queries. Bad for &ldquo;all orders with
+status X across all customers&rdquo; — the latter is a fan-out across
+every parent shard.</p>
+<p>A non-interleaved index on <code>status</code> alone is faster for the
+cross-customer query but doesn&rsquo;t have the locality for the
+per-customer query.</p>
+<p>Sometimes the right answer is both indexes. It costs storage; it
+buys flexibility.</p>
+<h2>The numbers from one migration</h2>
+<p>For one client we migrated 14 tables. The schema review identified
+6 strong interleaving candidates. After migration, on representative
+workloads:</p>
+<table>
+<thead>
+<tr>
+<th>Query pattern</th>
+<th>Before</th>
+<th>After</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Single-customer history</td>
+<td>180ms</td>
+<td>22ms</td>
+<td>Interleaved orders + payments</td>
+</tr>
+<tr>
+<td>Cross-customer reporting</td>
+<td>1.2s</td>
+<td>1.4s</td>
+<td>Slight regression — the index fan-out cost</td>
+</tr>
+<tr>
+<td>Bulk export</td>
+<td>8.4s</td>
+<td>6.1s</td>
+<td>Locality helped the scan</td>
+</tr>
+</tbody>
+</table>
+<p>We accepted the cross-customer regression because it ran once a
+day off-hours and the single-customer wins ran thousands of times
+per minute.</p>
+<h2>What to verify before you commit</h2>
+<p>Run the actual top-10 queries against a test cluster with both
+shapes (interleaved and not) before deciding. Spanner&rsquo;s behaviour
+on small datasets does not predict its behaviour at scale; do the
+test with at least the realistic production volume.</p>
+<p>The test query I run first:</p>
+<pre><code class="language-sql">SELECT *
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+WHERE c.customer_id = @id;
+</code></pre>
+<p>Look at the execution plan. With interleaving, Spanner should
+report a local read. Without, a distributed scan. The latency
+difference is usually 5-10× on workloads where the join is hot.</p>
+<h2>The summary</h2>
+<p>Interleaving is the right call about a third of the time for
+parent-child relationships. It&rsquo;s wrong half the time because the
+child has independent access patterns; it&rsquo;s wrong the rest of the
+time because the cardinality isn&rsquo;t bounded.</p>
+<p>When you get it right, it&rsquo;s the cheapest performance win in your
+schema. When you get it wrong, you&rsquo;ve baked a wrong physical
+layout into a system that&rsquo;s hard to change. The migration moment
+is the easiest time to decide; do it carefully, and ship the
+decision in the schema review PR with the reasoning written down.</p>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>

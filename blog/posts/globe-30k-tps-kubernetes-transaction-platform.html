@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Globe — running a 30K+ TPS transaction platform on Kubernetes — Pratik Dhanave</title>
+<meta name="description" content="The transaction engine had to absorb 30K+ TPS across partner integrations, never lose a transaction, and survive partial failures. The architecture: Go, Kafka, Pub/Sub, Redis, K8s, with idempotency at every layer.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Globe — running a 30K+ TPS transaction platform on Kubernetes">
+<meta property="og:description" content="The transaction engine had to absorb 30K+ TPS across partner integrations, never lose a transaction, and survive partial failures. The architecture: Go, Kafka, Pub/Sub, Redis, K8s, with idempotency at every layer.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/globe-30k-tps-kubernetes-transaction-platform.html">
+<meta property="article:published_time" content="2026-05-03T00:00:00Z">
+<meta property="article:author" content="Pratik Dhanave">
+<meta property="article:tag" content="Kubernetes">
+<meta property="article:tag" content="Kafka">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Redis">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="PCI">
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Globe — running a 30K+ TPS transaction platform on Kubernetes">
+<meta name="twitter:description" content="The transaction engine had to absorb 30K+ TPS across partner integrations, never lose a transaction, and survive partial failures. The architecture: Go, Kafka, Pub/Sub, Redis, K8s, with idempotency at every layer.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/globe-30k-tps-kubernetes-transaction-platform.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --bg-card: #ffffff;
+  --text: #1a1a1a; --text-dim: #555; --text-muted: #888;
+  --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --bg-card: #161b22;
+    --text: #e6edf3; --text-dim: #b1bac4; --text-muted: #7d8590;
+    --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7; color: var(--text); background: var(--bg);
+  -webkit-font-smoothing: antialiased; font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--border); }
+@media (prefers-color-scheme: dark) { nav { background: rgba(13,17,23,0.85); } }
+.nav-container { max-width: 800px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav-brand { font-weight: 700; font-size: 17px; color: var(--text); white-space: nowrap; }
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links { display: flex; gap: 22px; list-style: none; flex-wrap: nowrap; }
+.nav-links a { color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+@media (max-width: 640px) { .nav-container { padding: 12px 18px; gap: 12px; } .nav-links { gap: 14px; } .nav-links li:nth-child(n+3) { display: none; } }
+main { max-width: 780px; margin: 0 auto; padding: 56px 24px 24px; }
+.post-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.post-meta a { color: var(--text-muted); }
+.post-meta time { font-variant-numeric: tabular-nums; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+.post-tags .tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); }
+article.post h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px; color: var(--text); }
+article.post h2 { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: var(--text); letter-spacing: -0.01em; }
+article.post h3 { font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 10px; color: var(--text); }
+article.post h4 { font-size: 1rem; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: var(--text); }
+article.post p { margin-bottom: 18px; color: var(--text-dim); }
+article.post strong { color: var(--text); font-weight: 600; }
+article.post em { font-style: italic; color: var(--text); }
+article.post ul, article.post ol { margin: 0 0 18px 1.5rem; color: var(--text-dim); }
+article.post li { margin-bottom: 6px; }
+article.post blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin: 18px 0; color: var(--text); font-style: italic; background: var(--bg-elev); border-radius: 0 6px 6px 0; }
+article.post blockquote p { color: var(--text); margin-bottom: 0; }
+article.post code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+article.post pre { background: var(--code-bg); padding: 16px 18px; border-radius: 8px; overflow-x: auto; margin: 18px 0; font-size: 0.85rem; line-height: 1.55; border: 1px solid var(--border); }
+article.post pre code { background: none; padding: 0; font-size: inherit; }
+article.post table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.92rem; }
+article.post th, article.post td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+article.post th { font-weight: 700; color: var(--text); background: var(--bg-elev); }
+article.post tr:hover td { background: var(--bg-elev); }
+article.post hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.post-footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 14px; }
+.post-footer .back { color: var(--text-muted); }
+.post-footer .share { display: flex; gap: 14px; }
+.post-footer .share a { color: var(--text-muted); }
+footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+footer a { color: var(--text-muted); }
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/blog/">Blog</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<div class="post-meta">
+  <time datetime="2026-05-03">May 3, 2026</time>
+  <span>·</span>
+  <span>5 min read</span>
+  <span>·</span>
+  <a href="/blog/">← All posts</a>
+</div>
+
+<div class="post-tags">
+  <span class="tag">Kubernetes</span>
+  <span class="tag">Kafka</span>
+  <span class="tag">Go</span>
+  <span class="tag">Redis</span>
+  <span class="tag">Payments</span>
+  <span class="tag">PCI</span>
+</div>
+
+<article class="post">
+<h1>Globe — 30K+ TPS, never lose a transaction</h1>
+<blockquote>
+<p>The Globe transaction engine processed payments and adjacent
+events across multiple telco/FinTech partner integrations.
+Throughput peaked at 30K+ TPS during settlement windows. The
+contract was strict: no transaction can be lost, no transaction
+can be processed twice. Here is the architecture that delivered
+on it.</p>
+</blockquote>
+<h2>The shape</h2>
+<pre><code>┌──────────────┐   ┌──────────┐   ┌─────────────┐   ┌──────────┐
+│ partner APIs │ ─►│ ingest   │─► │ Kafka topic │─► │ workers  │
+│ (REST/gRPC)  │   │ service  │   │             │   │ (Go pods)│
+└──────────────┘   └────┬─────┘   └─────────────┘   └────┬─────┘
+                        │                                │
+                        ▼                                ▼
+                   Redis (idempotency keys)        Spanner (ledger)
+                                                        │
+                                                        ▼
+                                                  Pub/Sub (downstream events)
+</code></pre>
+<p>Five Go services. Two data stores (Spanner + Redis). One Kafka.
+One Pub/Sub. K8s for orchestration. About 30K LoC across the
+services.</p>
+<h2>Idempotency as the only invariant</h2>
+<p>Everything else in the system can fail. The one thing that cannot
+fail is processing a transaction twice. We enforced this in three
+places:</p>
+<ol>
+<li>
+<p><strong>At ingest.</strong> Every incoming request carried an
+   <code>idempotency-key</code> header. The ingest service wrote it to Redis
+   with a TTL slightly longer than the partner&rsquo;s retry window. A
+   duplicate request hit Redis, found the key, and returned the
+   cached response.</p>
+</li>
+<li>
+<p><strong>At the worker.</strong> Workers consumed Kafka events. Each event
+   had a <code>transaction_id</code>. The worker wrote the transaction_id to
+   the ledger table with a unique constraint. A duplicate event
+   hit the constraint and the worker treated it as success
+   (already-processed).</p>
+</li>
+<li>
+<p><strong>At downstream emit.</strong> Outbound events to Pub/Sub also carried
+   a deduplication ID. Pub/Sub&rsquo;s built-in deduplication caught
+   duplicates within a 10-minute window; the ledger&rsquo;s audit table
+   caught duplicates outside that window.</p>
+</li>
+</ol>
+<p>Three layers. A bug in any one of them is caught by the next.</p>
+<h2>Why we paid the Spanner price</h2>
+<p>The ledger was on Cloud Spanner. Spanner is expensive compared to
+single-region Postgres. We paid for it because of two properties:</p>
+<ul>
+<li>
+<p><strong>External consistency.</strong> Spanner&rsquo;s TrueTime gives globally
+  consistent ordering. A transaction committed in one region is
+  visible everywhere immediately. For a multi-region ledger that
+  partners read, this is the difference between a working system
+  and a system that needs to be explained.</p>
+</li>
+<li>
+<p><strong>Horizontal scale.</strong> 30K TPS sustained writes is past the
+  ceiling of any single-instance Postgres we&rsquo;d reasonably run.
+  Spanner scales horizontally; we added shards by adding nodes.</p>
+</li>
+</ul>
+<p>Spanner&rsquo;s PK design was a months-long argument. We landed on a
+composite (<code>partner_id</code>, <code>bucket</code>, <code>txn_id</code>) where <code>bucket</code> was a
+hash of the transaction id mod 32. This distributed writes across
+the cluster while keeping per-partner range scans efficient.</p>
+<h2>DLQ + exponential backoff</h2>
+<p>When a worker couldn&rsquo;t process an event, it didn&rsquo;t crash; it sent
+the event to a dead-letter queue with the error and a retry
+count. The DLQ topic fed into a separate consumer that:</p>
+<ul>
+<li>Retried with exponential backoff (1s, 2s, 4s, 8s, &hellip;).</li>
+<li>Stopped after 7 retries (covering ~2 hours of partner outage).</li>
+<li>Wrote the final failure to a <code>failed_transactions</code> table for
+  operator review.</li>
+</ul>
+<p>The operator review flow was a daily report. Most failures were
+the partner having transient issues; the retries handled them.
+The ones that landed in the failed_transactions table were
+typically real partner contract violations (wrong currency, bad
+account number) that needed a human conversation.</p>
+<h2>Error-code orchestration</h2>
+<p>Early in the project, the dispatch was status-code based — every
+worker had a long switch over HTTP status codes. As partner count
+grew, the switches grew, and the dispatch logic became unreadable.</p>
+<p>We re-architected to error-code driven orchestration. The partner
+adapters normalised every partner-specific error into an enumerated
+set:</p>
+<pre><code class="language-go">type ErrorCode int
+
+const (
+    ErrTransient ErrorCode = iota   // retry
+    ErrInsufficientFunds            // notify, no retry
+    ErrInvalidAccount               // DLQ, operator review
+    ErrPartnerOutage                // back off harder
+    ErrFatal                        // page
+    // ... about 20 codes total ...
+)
+</code></pre>
+<p>The orchestration layer dispatched on the enum. Adding a new
+partner became: write the adapter, map its errors to the enum.
+The orchestration layer didn&rsquo;t change.</p>
+<h2>Dual-layer auth</h2>
+<p>Partners authenticated with two layers:</p>
+<ol>
+<li><strong>API key</strong> in a header — identified the partner.</li>
+<li><strong>JWT</strong> in a header — identified the request.</li>
+</ol>
+<p>Both were required. The API key was a long-lived shared secret
+(rotated quarterly). The JWT was a short-lived token (15-minute
+TTL) the partner generated for each request, signed with the
+partner&rsquo;s private key.</p>
+<p>The dual layer protected against two attack classes:</p>
+<ul>
+<li>Leaked API key — useless without the JWT signing key.</li>
+<li>Leaked JWT — useless after 15 minutes.</li>
+</ul>
+<p>The rotation cadence for the API keys was the security-team&rsquo;s
+contract. Rotation was a banner in the partner portal and a
+deprecation window of 30 days; we never had a partner miss a
+rotation in the windows I was on the project.</p>
+<h2>PCI-aligned data protection</h2>
+<p>The transactions carried no card data — partners handled card
+collection on their side and sent us tokenised references. That
+significantly reduced our PCI scope; we were only handling the
+non-card transaction metadata.</p>
+<p>What we did carry was protected by:</p>
+<ul>
+<li>Encryption at rest (Spanner&rsquo;s default, plus column-level KMS for
+  the sensitive metadata fields).</li>
+<li>Encryption in transit (mTLS between every internal service, TLS
+  1.3 to partners).</li>
+<li>Access logging on every read of the protected columns.</li>
+<li>A quarterly scoping review with the security team to confirm we
+  hadn&rsquo;t accidentally taken on more PCI scope.</li>
+</ul>
+<h2>What the on-call experience felt like</h2>
+<p>Most days, nothing pages. The 30K TPS load is well within the
+cluster&rsquo;s headroom; the workers process events with sub-second
+latency; the DLQ rate sits below 0.01%.</p>
+<p>The exceptions were partner outages. A partner goes down; the DLQ
+fills with their transactions; the operator-review queue grows.
+The on-call playbook was: check the partner&rsquo;s status page,
+confirm the outage is on their end, let the retries continue, and
+watch the DLQ drain when the partner came back.</p>
+<p>About once a quarter, something interesting happened:</p>
+<ul>
+<li>A partner deployed a breaking API change without notice.</li>
+<li>The Kafka cluster lost a broker.</li>
+<li>A Spanner regional outage caused elevated latency.</li>
+</ul>
+<p>For each of those, the playbook was: degrade gracefully (DLQ
+absorbs the burst, retries take over when capacity returns), then
+incident review afterwards to make the next instance smoother.</p>
+<h2>What I&rsquo;d carry forward</h2>
+<p>Three patterns that earned their keep:</p>
+<ol>
+<li><strong>Idempotency at three layers.</strong> Single-layer dedup will
+   eventually fail. Three layers gives you a margin.</li>
+<li><strong>Error codes, not status codes.</strong> The orchestration layer
+   becomes maintainable when error semantics are explicit.</li>
+<li><strong>DLQ before retry logic gets clever.</strong> The DLQ is your
+   pressure valve. Without it, the cleverness in retry logic
+   becomes a source of bugs.</li>
+</ol>
+<p>30K+ TPS is not actually that high in 2026 terms. The architecture
+that survives it isn&rsquo;t exotic. The discipline around idempotency,
+error handling, and graceful degradation is what makes it boring
+to operate.</p>
+</article>
+
+<div class="post-footer">
+  <a class="back" href="/blog/">← Back to all posts</a>
+  <div class="share">
+    <a href="https://www.linkedin.com/in/pratikdhanave/">Discuss on LinkedIn →</a>
+    <a href="https://github.com/PratikDhanave">GitHub</a>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <p>© 2026 Pratik Dhanave · <a href="/">pratikdhanave.github.io</a> · Source on <a href="https://github.com/PratikDhanave/PratikDhanave.github.io">GitHub</a></p>
+</footer>
+
+</body>
+</html>
