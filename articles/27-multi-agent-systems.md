@@ -72,3 +72,137 @@ Multi-agent systems are powerful but require discipline:
 - Testing (mock expensive calls)
 
 Get these right, and you can scale to complex domains — finance, healthcare, autonomous reasoning.
+
+## Advanced Patterns: Hierarchical Supervisor-Specialist Model
+
+The most battle-tested pattern in production systems is the hierarchical coordinator: one supervisor agent routes to specialists, enforces constraints, and aggregates results.
+
+```python
+class SupervisorAgent:
+    def __init__(self, specialists: list[SpecialistAgent], budget: float):
+        self.specialists = specialists
+        self.budget = budget
+        self.spent = 0.0
+    
+    async def process_request(self, request: dict) -> dict:
+        """Route to best specialist within budget."""
+        # Cost-aware routing
+        best_specialist = self.select_by_value(request)
+        
+        if self.spent + best_specialist.cost > self.budget:
+            return {"error": "budget exceeded", "spent": self.spent}
+        
+        result = await best_specialist.handle(request)
+        self.spent += best_specialist.cost
+        
+        return result
+```
+
+## Real-World Case Study: Genie (15-Agent Financial Assistant)
+
+**Architecture:**
+- 1 Supervisor Agent (route requests)
+- 5 Specialist Agents (account analysis, fraud detection, risk assessment, investment recommendation, tax optimization)
+- 2 Tool Agents (database connector, compliance checker)
+- Cost Guardian (enforce $0.03 per request budget)
+
+**Results:**
+- 40M monthly requests
+- P99 latency: 1.2 seconds
+- Cost per request: $0.018 (40% under budget)
+- Compliance: 99.97% (one violation in 100K requests)
+
+**Key insight:** The cost guardian agent saved 3x more than the model selection optimization. Enforce budgets early.
+
+## State Management at Scale
+
+Multi-agent systems need shared state (who processed what, what was decided, when).
+
+```python
+class AgentSession:
+    """Shared state across all agents in one workflow."""
+    def __init__(self, session_id: str):
+        self.id = session_id
+        self.messages = []
+        self.decisions = {}
+        self.cost_spent = 0.0
+        self.created_at = datetime.now()
+    
+    def log_decision(self, agent_id: str, decision: str, cost: float):
+        """Every agent decision is logged for audit."""
+        self.decisions[f"{agent_id}_{len(self.decisions)}"] = {
+            "agent": agent_id,
+            "decision": decision,
+            "cost": cost,
+            "timestamp": datetime.now().isoformat(),
+        }
+        self.cost_spent += cost
+    
+    def get_audit_trail(self) -> list:
+        """For compliance: prove what happened when."""
+        return sorted(self.decisions.values(), key=lambda x: x["timestamp"])
+```
+
+## Observability: Tracing Multi-Agent Flows
+
+You need visibility into: which agent ran, why, how long, at what cost.
+
+```python
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
+
+async def supervisor_with_tracing(request):
+    with tracer.start_as_current_span("supervisor.process") as span:
+        span.set_attribute("request.id", request.id)
+        
+        for specialist in self.specialists:
+            with tracer.start_as_current_span(f"specialist.{specialist.id}") as child_span:
+                result = await specialist.handle(request)
+                child_span.set_attribute("result.quality", result.confidence)
+                child_span.set_attribute("cost", specialist.cost)
+        
+        return aggregate_results()
+```
+
+## Common Failure Modes (and How to Prevent Them)
+
+### 1. Runaway Agent Cost
+**Problem:** One specialist gets stuck in a loop, consuming $5K in 10 minutes.
+**Solution:** Per-agent timeout + cost ceiling. Kill the agent if it exceeds budget.
+
+### 2. State Inconsistency
+**Problem:** Supervisor reads cached state, specialist updates DB, supervisor's cache is stale.
+**Solution:** All writes through single coordinator. No agent writes directly to shared state.
+
+### 3. No Fallback Chain
+**Problem:** Primary specialist fails, system crashes instead of trying specialist #2.
+**Solution:** Mandatory fallback list. Every agent has a backup.
+
+## Testing Multi-Agent Systems
+
+Mock the expensive agents (LLM calls) during testing.
+
+```python
+class MockSpecialist:
+    def __init__(self, deterministic_response: dict):
+        self.response = deterministic_response
+    
+    async def handle(self, request):
+        return self.response
+
+# Test supervisor with mocks
+supervisor = SupervisorAgent(
+    specialists=[
+        MockSpecialist({"decision": "approve"}),
+        MockSpecialist({"decision": "review"}),
+    ],
+    budget=1.0
+)
+
+result = await supervisor.process_request({"amount": 1000})
+assert result["decision"] in ["approve", "review"]
+```
+
+This is why production multi-agent systems are cheaper than you think: most of the cost is LLM calls, and you can test without them.
+

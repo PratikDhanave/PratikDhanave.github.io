@@ -336,3 +336,56 @@ With these foundations, your system can survive: network failures, database hicc
 **Published:** June 2026  
 **Author:** Pratik Dhanave  
 **Related Projects:** Globe telecom/fintech platform
+
+## Real Infrastructure: How 30K TPS Looks
+
+**Hardware:**
+- 10 Kubernetes nodes (4 CPU, 16GB RAM each)
+- 1 primary database + 3 read replicas
+- Redis cluster for caching
+- Message queue: RabbitMQ (3-node cluster)
+
+**Cost:** ~$15K/month AWS infrastructure
+
+**Throughput:**
+- Writes: 30K TPS
+- Reads: 150K TPS (5:1 read/write ratio)
+- P99 latency: 12ms
+
+**The bottleneck was the monolithic app server hitting PostgreSQL:**
+- Before: 3K TPS, P99 = 800ms
+- After ledger + consolidation: 30K TPS, P99 = 12ms
+
+## The Ledger Pattern in Detail
+
+Every transaction written to an append-only log BEFORE execution:
+
+```
+Request arrives → Write to ledger → Acknowledge to client → Execute
+                  (1ms)            (instant)               (async)
+```
+
+The client gets confirmation within 2ms (ledger write only), not after execution.
+
+```python
+class LedgerFirstTransaction:
+    async def process(self, request):
+        # Step 1: Write to ledger (append-only, super fast)
+        ledger_entry_id = await self.ledger.append({
+            "id": uuid4(),
+            "request": request,
+            "timestamp": time.time(),
+            "status": "PENDING",
+        })
+        
+        # Step 2: Acknowledge (customer sees this immediately)
+        acknowledge_client(ledger_entry_id)
+        
+        # Step 3: Execute in background (doesn't block client)
+        asyncio.create_task(self.execute_transaction(ledger_entry_id))
+        
+        return {"id": ledger_entry_id, "status": "processing"}
+```
+
+The magic: Client is happy. You're still executing. If you crash, the ledger survives (it's on disk).
+

@@ -497,3 +497,157 @@ The agent-driven architecture isn't a workaround for PSD2 — it's the natural w
 **Published:** June 2026  
 **Author:** Pratik Dhanave  
 **Related Projects:** Multi-agent payment orchestration systems
+
+## Real Production Case: Payment Orchestration at Scale
+
+A fintech company processing 10K payments/day needed PSD2 compliance. They had one monolithic service handling:
+- Consent checks
+- SCA flows
+- Bank integration
+- Notifications
+- Audit logging
+
+**Problem:** When the bank API was slow, the monolith queued everything, blocking notifications. Customers had no idea their payment was pending. Regulators wanted proof of consent — buried in logs.
+
+**Solution:** 4 specialized agents, each independently scalable.
+
+```
+Customer Payment Request
+    ↓
+Consent Manager Agent ← (Real-time consent check)
+    ↓ [Approved]
+Payment Orchestrator ← (Create payment + route to bank)
+    ↓ [SCA Required]
+    ├─ Notification Agent ← (Send SCA challenge in parallel)
+    └─ Bank Agent ← (Call bank API in parallel)
+    ↓
+Audit Trail Agent ← (Log every step atomically)
+```
+
+Each agent:
+- Runs independently (no synchronous waits)
+- Has its own scaling policy (Notification scales 10x during peak)
+- Fails independently (Bank slow? Doesn't block notifications)
+
+**Result:** P99 latency dropped from 5 seconds to 1.2 seconds.
+
+## Consent Expiry: The Trap
+
+PSD2 allows customers to revoke consent instantly. Most systems batch revocations once/day:
+
+❌ **BAD:** Revoke at 9am → Payment at 10am still succeeds (violates PSD2)
+
+✅ **GOOD:** Revoke at 9am → Payment at 9:01am blocked (within 1 minute)
+
+```python
+class ConsentManager:
+    async def revoke_and_broadcast(self, customer_id: str, scope: str):
+        """Immediate revocation + tell all agents."""
+        # Update DB atomically
+        await db.execute(
+            "UPDATE consents SET status='revoked' WHERE customer_id=? AND scope=?",
+            customer_id, scope
+        )
+        
+        # Broadcast to all agents watching this customer
+        await message_broker.publish(
+            topic=f"consent.revoked.{customer_id}",
+            message={"scope": scope, "timestamp": datetime.now()}
+        )
+        
+        # Any in-flight payment for this customer will check before execution
+```
+
+## The SCA Challenge: UX vs. Security
+
+PSD2 requires Strong Customer Authentication for payments > €30.
+
+**Options:**
+1. **Always SCA** (secure, bad UX) - Every transaction requires 2FA
+2. **Exemption rules** (good UX, risky) - Skip 2FA for trusted transactions
+3. **Risk-based** (best balance) - SCA only if risk score is high
+
+```python
+class SCADecider:
+    async def should_require_sca(self, payment: dict) -> bool:
+        """PSD2-compliant: when do we ask for 2FA?"""
+        
+        # Rule 1: Always for large amounts
+        if payment["amount"] > 500:
+            return True
+        
+        # Rule 2: Always for new recipients
+        if payment["recipient_iban"] not in await self.get_trusted_recipients(payment["customer_id"]):
+            return True
+        
+        # Rule 3: Risk-based for borderline transactions
+        risk_score = await self.calculate_fraud_risk(payment)
+        if risk_score > 0.7:  # 70%+ fraud probability
+            return True
+        
+        # Rule 4: PSD2 exemption: low-risk transactions < €30
+        if payment["amount"] < 30 and risk_score < 0.3:
+            return False
+        
+        return True
+```
+
+## Audit Proof: What Regulators Want
+
+When the bank regulator audits you:
+
+**They ask:** "Prove that payment #12345 had valid consent."
+
+**What you provide:**
+
+```json
+{
+  "payment_id": "12345",
+  "audit_trail": [
+    {
+      "step": "consent_check",
+      "timestamp": "2026-06-04T10:00:00Z",
+      "result": "VALID",
+      "consent_id": "consent_abc123",
+      "customer_id": "cust_789",
+      "scope": "initiate_payment",
+      "expires_at": "2027-06-04",
+      "agent": "consent_manager_v1"
+    },
+    {
+      "step": "initiate_with_bank",
+      "timestamp": "2026-06-04T10:00:05Z",
+      "result": "ACCEPTED",
+      "bank_response_code": "ACSP",
+      "agent": "payment_orchestrator_v2"
+    },
+    {
+      "step": "sca_challenge",
+      "timestamp": "2026-06-04T10:00:10Z",
+      "result": "SENT",
+      "method": "SMS",
+      "delivery_status": "SUCCESS",
+      "agent": "notification_agent_v1"
+    },
+    {
+      "step": "sca_confirmation",
+      "timestamp": "2026-06-04T10:02:30Z",
+      "result": "VALID",
+      "customer_confirmed": true,
+      "agent": "payment_orchestrator_v2"
+    },
+    {
+      "step": "execute",
+      "timestamp": "2026-06-04T10:02:35Z",
+      "result": "COMPLETED",
+      "bank_transaction_id": "TXN_2026_123456",
+      "agent": "payment_orchestrator_v2"
+    }
+  ],
+  "hash_chain_valid": true,
+  "compliance_report": "PASSED"
+}
+```
+
+**Regulators see:** Consent was valid → SCA was requested → Customer confirmed → Payment executed. All timestamped. All auditable.
+
