@@ -1,3 +1,13 @@
+---
+title: "FHIR R4 + HL7 v2 in Production Medical AI: Building Bodh"
+description: "Production-grade technical deep-dive on FHIRR4+HL7v2inProductionMedicalAI:BuildingBodh"
+keywords: ["cloud architecture", "multi-agent", "devops", "29-fhir-hl7-medical-ai"]
+author: "Pratik Dhanave"
+date: "2026-06-04"
+readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/29-fhir-hl7-medical-ai.html"
+---
+
 # FHIR R4 + HL7 v2 in Production Medical AI: Building Bodh
 
 *How to architect medical AI systems that interoperate with legacy health systems while maintaining modern safety constraints.*
