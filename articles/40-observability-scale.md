@@ -26,6 +26,8 @@ schema: {
 
 At 30K TPS (Globe), 1M+ users (Picnic), or millions of customers (Bancnet), you can't manually debug. You need observability: structured logging, distributed tracing, and metrics that automatically alert you to problems.
 
+**Cross-reference:** [High-throughput systems](/articles/34-globe-30k-tps/) | [Latency optimization](/articles/35-picnic-latency/) | [Cloud Spanner](/articles/36-cloud-spanner/) | [Kubernetes deployment](/articles/39-kubernetes-operators/) | [GDPR audit trails](/articles/31-gdpr-agentic-ai/)
+
 The difference between finding a bug in minutes vs. hours vs. days is observability.
 
 ---

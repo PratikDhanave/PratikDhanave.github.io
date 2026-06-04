@@ -24,6 +24,8 @@ schema: {
 
 **Manufacturing plants produce data at machine speed.** A single assembly line has 50+ sensors: temperature, vibration, pressure, humidity. Each sends a reading every 100ms. That's 500 data points per second, per line. At Litmus, we built the backend to ingest this in real-time and surface anomalies before machines fail.
 
+**See also:** [Cloud Spanner](/articles/36-cloud-spanner/) | [Observability patterns](/articles/40-observability-scale/) | [Database migrations](/articles/43-database-migrations/) | [Voice AI](/articles/42-voice-ai/) | [High-throughput systems](/articles/34-globe-30k-tps/)
+
 ---
 
 ## The Challenge

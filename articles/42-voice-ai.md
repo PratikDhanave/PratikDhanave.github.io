@@ -26,6 +26,8 @@ schema: {
 
 Kinetic India's voice assistant handles 10K+ two-wheeler riders asking about vehicle diagnostics, service bookings, and ride telemetry — all in Hindi, English, and regional languages.
 
+**Related:** [Multi-agent systems](/articles/27-multi-agent-systems/) | [Vector databases](/articles/37-vector-databases/) | [Industrial IoT](/articles/41-industrial-iot/) | [Healthcare AI](/articles/29-fhir-hl7-medical-ai/) | [Observability](/articles/40-observability-scale/)
+
 ---
 
 ## The Voice AI Pipeline

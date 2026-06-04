@@ -24,6 +24,8 @@ schema: {
 
 **30,000 transactions per second.** That's 2.6 billion transactions per day. At that scale, traditional database transactions don't work anymore — you need a distributed ledger mindset: every transaction is logged durably *before* it's executed, and idempotency isn't optional, it's the foundation.
 
+**Cross-reference:** [PSD2 payments](/articles/32-psd2-agent-orchestration/) | [Latency optimization](/articles/35-picnic-latency/) | [Cloud Spanner](/articles/36-cloud-spanner/) | [Observability](/articles/40-observability-scale/)
+
 Globe is a Kubernetes-native transaction platform built to handle telecom and fintech at scale. Here's what we learned about building systems that don't lose money even when they break.
 
 ---

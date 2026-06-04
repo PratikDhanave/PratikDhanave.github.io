@@ -24,6 +24,8 @@ schema: {
 
 *How query refactoring, capacity planning, and slot-based pricing optimization delivered $XXM in savings at Tata Group scale.*
 
+**See also:** [Vector databases](/articles/37-vector-databases/) | [Database migrations](/articles/43-database-migrations/) | [Observability](/articles/40-observability-scale/) | [High-throughput systems](/articles/34-globe-30k-tps/) | [News platform case study](/articles/44-news-platform/)
+
 ## The Problem
 
 BigQuery pricing is deceptive:

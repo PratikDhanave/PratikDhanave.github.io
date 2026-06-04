@@ -24,6 +24,8 @@ schema: {
 
 **Go is fast, concurrent, and simple. It's great for microservices. But it's underrated for AI/ML workloads.**
 
+**Related:** [Multi-agent architecture](/articles/27-multi-agent-systems/) | [Zero-trust agents](/articles/30-zero-trust-ai-agents/) | [High-throughput systems](/articles/34-globe-30k-tps/) | [Kubernetes operators](/articles/39-kubernetes-operators/) | [Observability patterns](/articles/40-observability-scale/)
+
 Most teams reach for Python because "that's where the AI libraries are." But Go has advantages for agent orchestration that Python struggles with: simplicity, concurrency, and operational ease.
 
 ---
