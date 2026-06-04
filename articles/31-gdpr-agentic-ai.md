@@ -400,3 +400,169 @@ If you do this, you'll pass a GDPR audit. And your agents will be faster, becaus
 **Published:** June 2026  
 **Author:** Pratik Dhanave  
 **Related Projects:** MAF-based systems processing EU user data
+
+## Real-World: Data Minimization in a Customer Support Workflow
+
+Imagine a support agent that handles refunds:
+
+**What NOT to do:**
+```
+Agent gets: {customer_id: 123}
+Agent queries: SELECT * FROM customers  -- Gets 50 fields
+Agent has: email, phone, SSN, payment history, browsing data
+Agent only needs: email
+GDPR Violation: 49 unnecessary fields processed
+```
+
+**What TO do:**
+```python
+@tool(scope="gdpr:refund_email_only")
+def get_customer_email_for_refund(customer_id: str) -> str:
+    """Get ONLY email to send refund confirmation."""
+    return db.query(
+        "SELECT email FROM customers WHERE id = ? LIMIT 1",
+        customer_id
+    )
+```
+
+**Result:** Agent accesses 1 field. GDPR compliant. Faster query. Win-win.
+
+## Multi-Agent Accountability: Who's Liable?
+
+When your Supervisor Agent delegates to 3 Specialist Agents:
+
+```
+Supervisor (Controller)
+  ├─ Analyst Agent (Processor 1) - reads customer data
+  ├─ Approver Agent (Processor 2) - makes decision
+  └─ Notifier Agent (Processor 3) - sends email
+```
+
+Each processor handles different data:
+- Analyst: customer_id, transaction_history
+- Approver: customer_id, transaction_id, risk_score
+- Notifier: customer_id, email_address
+
+If an Analyst accidentally leaks transaction_history to Notifier, GDPR says:
+1. Controller (you) is liable
+2. Processor (Analyst) is also liable
+3. You need to prove the breach in <72 hours
+
+**Solution: Document processor agreements in code.**
+
+```python
+PROCESSOR_AGREEMENTS = {
+    "analyst_agent": {
+        "data_categories": ["customer_id", "transaction_history"],
+        "processing_purpose": "Analyze refund eligibility",
+        "retention_days": 7,
+        "sub_processors": [],
+    },
+    "approver_agent": {
+        "data_categories": ["customer_id", "transaction_id", "risk_score"],
+        "processing_purpose": "Make refund decision",
+        "retention_days": 30,  # Longer for dispute resolution
+        "sub_processors": [],
+    },
+}
+
+def validate_delegation(from_agent: str, to_agent: str, data_keys: list[str]):
+    """Ensure processor agreement covers this data."""
+    agreement = PROCESSOR_AGREEMENTS[to_agent]
+    for key in data_keys:
+        if key not in agreement["data_categories"]:
+            raise PermissionError(
+                f"Agent {to_agent} not authorized to access {key}"
+            )
+```
+
+## Automated Compliance Monitoring
+
+Instead of manual audits, code that enforces GDPR:
+
+```python
+class ComplianceMonitor:
+    def __init__(self):
+        self.violations = []
+    
+    def monitor_agent_access(self, agent_id: str, accessed_fields: list[str]):
+        """Real-time: Did this agent access unauthorized data?"""
+        agreement = PROCESSOR_AGREEMENTS.get(agent_id)
+        if not agreement:
+            self.violations.append(f"No processor agreement for {agent_id}")
+            return
+        
+        for field in accessed_fields:
+            if field not in agreement["data_categories"]:
+                self.violations.append({
+                    "agent": agent_id,
+                    "unauthorized_field": field,
+                    "timestamp": datetime.now(),
+                })
+                # ALERT: potential GDPR violation
+                alert_compliance_team(agent_id, field)
+    
+    def generate_audit_report(self) -> dict:
+        """For regulators: prove no violations occurred."""
+        return {
+            "period": "2026-06-01 to 2026-06-30",
+            "violations": len(self.violations),
+            "details": self.violations,
+        }
+```
+
+## Consent as a Live Resource
+
+GDPR consent isn't a checkbox you collect once. It's a resource that changes:
+
+```python
+class ConsentManager:
+    async def verify_consent(self, user_id: str, data_category: str) -> bool:
+        """Before EVERY agent access, check if consent is still valid."""
+        consent = await db.get_consent(user_id, data_category)
+        
+        if not consent:
+            log_violation(f"No consent for {user_id} to access {data_category}")
+            return False
+        
+        if consent.expired:
+            log_violation(f"Consent expired for {user_id}")
+            return False
+        
+        if consent.revoked:
+            log_violation(f"Consent revoked for {user_id}")
+            return False
+        
+        return True
+
+# In your agent:
+async def refund_agent(customer_id: str):
+    if not await consent_mgr.verify_consent(customer_id, "email"):
+        return {"error": "no consent to send email"}
+    
+    return send_refund_email(customer_id)
+```
+
+## Azure + GDPR: Compliance-as-Code
+
+```python
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
+
+# 1. Key Vault: never store encryption keys in code
+vault = SecretClient(vault_url="https://my-vault.vault.azure.net")
+encryption_key = vault.get_secret("gdpr-encryption-key").value
+
+# 2. Purview: track data lineage
+# User Data → Agent 1 → Agent 2 → Database
+# (automatic audit trail for regulators)
+
+# 3. Managed Identity: no API keys
+# Agent runs as Azure service principal, automatically authenticated
+
+# 4. Encryption in transit + at rest
+from cryptography.fernet import Fernet
+cipher = Fernet(encryption_key.encode())
+encrypted_pii = cipher.encrypt(sensitive_data.encode())
+```
+

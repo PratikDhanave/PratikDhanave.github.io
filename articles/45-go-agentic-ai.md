@@ -141,3 +141,101 @@ func (a *Agent) Execute(ctx context.Context, input *AgentInput) (*AgentOutput, e
 **Published:** June 2026  
 **Author:** Pratik Dhanave  
 **Related Projects:** Genie, Globe, Bodh
+
+## Production Genie: Built in Go
+
+The financial assistant I mentioned runs entirely in Go. Here's why:
+
+**Problem with Python:**
+- Dynamic typing = mistakes at runtime
+- GIL = can't use more than 1 CPU core per process
+- Virtual env = dependency hell
+- Slow startup = 5-10 second latency before first request
+
+**Go solution:**
+- Static typing = mistakes caught at compile time
+- Goroutines = true concurrency on all cores
+- Single binary = no virtual env needed
+- Fast startup = <500ms to first request
+
+```go
+// Concurrency that Python struggles with
+func (s *SupervisorAgent) ProcessPayments(ctx context.Context, payments []*Payment) ([]*Result, error) {
+    results := make([]*Result, len(payments))
+    var wg sync.WaitGroup
+    
+    // Process 100 payments in parallel, 1 per goroutine
+    for i, payment := range payments {
+        wg.Add(1)
+        go func(idx int, p *Payment) {
+            defer wg.Done()
+            // Each runs in its own lightweight thread
+            results[idx] = s.processPayment(ctx, p)
+        }(i, payment)
+    }
+    
+    wg.Wait()
+    return results, nil
+}
+```
+
+In Python, this would hit the GIL and run sequentially. In Go, all 100 run truly parallel.
+
+## Cost Savings: Go vs Python
+
+**Python infrastructure:**
+- 10 servers × 4 CPU each = 40 logical CPUs
+- Each server runs 1 Python process (GIL limits to ~1 CPU)
+- Only 10 CPUs actually used
+- Cost: 90% waste
+
+**Go infrastructure:**
+- 3 servers × 4 CPU each = 12 logical CPUs
+- Each server runs 1 Go process
+- All 12 CPUs utilized
+- Cost: 70% savings, same throughput
+
+## Observability in Go
+
+Go has first-class OpenTelemetry support. Your agents are automatically traced:
+
+```go
+import "go.opentelemetry.io/otel"
+
+func (a *Agent) Execute(ctx context.Context, input *AgentInput) (*AgentOutput, error) {
+    tracer := otel.Tracer("agent")
+    ctx, span := tracer.Start(ctx, fmt.Sprintf("agent.%s", a.ID))
+    defer span.End()
+    
+    // Automatic tracing
+    output, err := a.handler(ctx, input)
+    
+    span.SetAttribute("agent.id", a.ID)
+    span.SetAttribute("result.latency_ms", time.Since(start).Milliseconds())
+    span.SetAttribute("result.cost", a.LastCost)
+    
+    if err != nil {
+        span.RecordError(err)
+    }
+    
+    return output, nil
+}
+```
+
+No magic. Just attributes on the span. Jaeger/Datadog picks it up.
+
+## When NOT to Use Go
+
+- **Very early prototyping** - Python is faster to write initially
+- **Heavy ML/NumPy work** - Python has better ML libraries
+- **Small single-machine scripts** - Overkill
+
+## When Go Shines
+
+- **Agent orchestration** - Concurrency, reliability, observability
+- **Data pipelines** - Fast, memory-efficient, no GIL
+- **Microservices** - Single binary, fast startup, easy deployment
+- **Production systems** - Static typing catches bugs early
+
+Most teams start with Python (prototyping) then migrate to Go (production).
+
