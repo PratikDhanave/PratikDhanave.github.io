@@ -1,3 +1,13 @@
+---
+title: "BigQuery FinOps: 57% Cost Reduction in Production"
+description: "Production-grade technical deep-dive on BigQueryFinOps:57%CostReductioninProduction"
+keywords: ["cloud architecture", "multi-agent", "devops", "28-bigquery-finops"]
+author: "Pratik Dhanave"
+date: "2026-06-04"
+readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/28-bigquery-finops.html"
+---
+
 # BigQuery FinOps: 57% Cost Reduction in Production
 
 *How query refactoring, capacity planning, and slot-based pricing optimization delivered $XXM in savings at Tata Group scale.*

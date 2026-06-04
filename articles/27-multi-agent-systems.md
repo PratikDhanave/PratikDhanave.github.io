@@ -1,3 +1,13 @@
+---
+title: "Architecting Production Multi-Agent Systems: Patterns, Orchestration & Cost Constraints"
+description: "Production-grade technical deep-dive on ArchitectingProductionMulti-AgentSystems:Patterns,Orchestration&CostConstraints"
+keywords: ["cloud architecture", "multi-agent", "devops", "27-multi-agent-systems"]
+author: "Pratik Dhanave"
+date: "2026-06-04"
+readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/27-multi-agent-systems.html"
+---
+
 # Architecting Production Multi-Agent Systems: Patterns, Orchestration & Cost Constraints
 
 *Deep-dive into building scalable, cost-aware multi-agent systems in production. Case study: Genie (15-agent financial assistant on Microsoft MARA).*

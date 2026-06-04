@@ -1,3 +1,13 @@
+---
+title: "Zero Trust Isn't Optional Anymore: Securing AI Agents in the Enterprise"
+description: "Production-grade technical deep-dive on ZeroTrustIsn'tOptionalAnymore:SecuringAIAgentsintheEnterprise"
+keywords: ["cloud architecture", "multi-agent", "devops", "30-zero-trust-ai-agents"]
+author: "Pratik Dhanave"
+date: "2026-06-04"
+readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/30-zero-trust-ai-agents.html"
+---
+
 # Zero Trust Isn't Optional Anymore: Securing AI Agents in the Enterprise
 
 **Enterprise AI security just entered a new era.** AI is collapsing the gap between vulnerability discovery and exploitation — what once took attackers months now takes hours, at almost no cost. Anthropic's new eBook, *Zero Trust for AI Agents*, argues this acceleration hits enterprises twice: the infrastructure running your agents faces AI-accelerated offense, and the agents themselves introduce a new attack surface through their autonomy to interpret goals, choose tools, and execute multi-step operations.
