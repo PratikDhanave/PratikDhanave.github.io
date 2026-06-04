@@ -1,10 +1,23 @@
 ---
 title: "News Platform at Scale: Dainik Bhaskar's 5M+ Daily Readers"
-description: "Production-grade technical deep-dive on NewsPlatformatScale:DainikBhaskar's5M+DailyReaders"
-keywords: ["44-news-platform"]
+description: "High-scale news platform architecture: 5M+ daily readers, 60K concurrent users, multi-edition Go APIs, Redis caching, BigQuery analytics, and ad monetization."
+keywords: ["news platform", "high-traffic", "content delivery", "caching", "Go APIs", "BigQuery", "multi-edition", "media architecture"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/44-news-platform/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "News Platform at Scale: Dainik Bhaskar's 5M+ Daily Readers",
+  "description": "Architecture guide for news platform serving 5M+ daily readers and 60K concurrent users",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["news platform", "high-traffic", "caching", "BigQuery"],
+  "articleSection": "Case Studies"
+}
 ---
 
 # News Platform at Scale: Dainik Bhaskar's 5M+ Daily Readers

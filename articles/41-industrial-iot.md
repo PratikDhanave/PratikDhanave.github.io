@@ -1,10 +1,23 @@
 ---
 title: "Industrial IoT: Real-Time Data From Manufacturing Plants to Cloud Analytics"
-description: "Production-grade technical deep-dive on IndustrialIoT:Real-TimeDataFromManufacturingPlantstoCloudAnalytics"
-keywords: ["41-industrial-iot"]
+description: "Industrial IoT architecture guide: real-time sensor data processing, MQTT, OPC-UA, edge buffering, anomaly detection, and cloud analytics for manufacturing at scale."
+keywords: ["Industrial IoT", "IoT", "MQTT", "OPC-UA", "sensor data", "edge computing", "real-time analytics", "manufacturing"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/41-industrial-iot/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Industrial IoT: Real-Time Data From Manufacturing Plants to Cloud Analytics",
+  "description": "Production guide to building Industrial IoT systems for real-time manufacturing data",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["Industrial IoT", "MQTT", "sensor data", "edge computing"],
+  "articleSection": "IoT & Edge Computing"
+}
 ---
 
 # Industrial IoT: Real-Time Data From Manufacturing Plants to Cloud Analytics

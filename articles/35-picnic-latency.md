@@ -1,10 +1,23 @@
 ---
 title: "Picnic: Achieving 47% Latency Reduction Through Protocol Buffers and Service Consolidation"
-description: "Production-grade technical deep-dive on Picnic:Achieving47%LatencyReductionThroughProtocolBuffersandServiceConsolidation"
-keywords: ["35-picnic-latency"]
+description: "Latency optimization guide: Protocol Buffers vs JSON, service consolidation, P99 reduction strategies, and real case study achieving 47% latency improvement."
+keywords: ["latency optimization", "Protocol Buffers", "gRPC", "performance", "serialization", "P99 latency", "service consolidation", "microservices"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/35-picnic-latency/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Picnic: Achieving 47% Latency Reduction Through Protocol Buffers",
+  "description": "Production guide to latency optimization achieving 47% P99 reduction with Protocol Buffers",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["latency optimization", "Protocol Buffers", "performance", "gRPC"],
+  "articleSection": "Performance & Optimization"
+}
 ---
 
 # Picnic: Achieving 47% Latency Reduction Through Protocol Buffers and Service Consolidation
