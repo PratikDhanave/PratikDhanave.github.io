@@ -1,6 +1,8 @@
 ---
 title: "News Platform at Scale: Dainik Bhaskar's 5M+ Daily Readers"
 description: "High-scale news platform architecture: 5M+ daily readers, 60K concurrent users, multi-edition Go APIs, Redis caching, BigQuery analytics, and ad monetization."
+
+**See also:** [BigQuery analytics](/articles/28-bigquery-finops/) | [Cloud Spanner database](/articles/36-cloud-spanner/) | [Observability metrics](/articles/40-observability-scale/) | [Kubernetes deployment](/articles/39-kubernetes-operators/) | [Go concurrency](/articles/45-go-agentic-ai/)
 keywords: ["news platform", "high-traffic", "content delivery", "caching", "Go APIs", "BigQuery", "multi-edition", "media architecture"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
@@ -11,6 +13,8 @@ schema: {
   "@type": "BlogPosting",
   "headline": "News Platform at Scale: Dainik Bhaskar's 5M+ Daily Readers",
   "description": "Architecture guide for news platform serving 5M+ daily readers and 60K concurrent users",
+
+**See also:** [BigQuery analytics](/articles/28-bigquery-finops/) | [Cloud Spanner database](/articles/36-cloud-spanner/) | [Observability metrics](/articles/40-observability-scale/) | [Kubernetes deployment](/articles/39-kubernetes-operators/) | [Go concurrency](/articles/45-go-agentic-ai/)
   "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
   "datePublished": "2026-06-04",
   "dateModified": "2026-06-04",
@@ -23,6 +27,8 @@ schema: {
 # News Platform at Scale: Dainik Bhaskar's 5M+ Daily Readers
 
 **Dainik Bhaskar is India's largest Hindi newspaper (5M+ daily readers).** When Bhaskar went digital, they needed a backend that could handle peak traffic (60K concurrent readers), deliver fresh content in < 500ms, and monetize through targeted advertising.
+
+**See also:** [BigQuery analytics](/articles/28-bigquery-finops/) | [Cloud Spanner database](/articles/36-cloud-spanner/) | [Observability metrics](/articles/40-observability-scale/) | [Kubernetes deployment](/articles/39-kubernetes-operators/) | [Go concurrency](/articles/45-go-agentic-ai/)
 
 ---
 

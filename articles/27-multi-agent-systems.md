@@ -35,6 +35,8 @@ When you move beyond single-agent systems, you enter a different class of proble
 
 Over the past 18 months, I've architected and shipped **Genie** — a 15-agent financial assistant on Microsoft's Multi-Agent Reference Architecture (MARA). This article distills lessons from that journey and other production deployments.
 
+For security-first design, see [zero-trust architecture for AI agents](/articles/30-zero-trust-ai-agents/). For payment orchestration patterns, check [PSD2 multi-agent workflows](/articles/32-psd2-agent-orchestration/). For production Go implementations, read [Go for agentic AI](/articles/45-go-agentic-ai/).
+
 ## Core Patterns
 
 ### 1. Hierarchical Coordinator Pattern

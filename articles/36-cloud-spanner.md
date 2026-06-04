@@ -24,6 +24,8 @@ schema: {
 
 **Cloud Spanner is Google's globally distributed SQL database that looks like a relational database but thinks like a distributed system.** It offers ACID transactions across continents, millisecond latency, and 99.999% availability — but only if you design your schema for it.
 
+**Related:** [High-throughput systems](/articles/34-globe-30k-tps/) | [Latency optimization](/articles/35-picnic-latency/) | [Database migrations](/articles/43-database-migrations/) | [Terraform infrastructure](/articles/38-terraform-regulated/) | [Observability](/articles/40-observability-scale/)
+
 The moment you put a monotonically increasing counter in your primary key, Spanner's performance drops from 10K TPS to 100 TPS. This is the story of what we learned migrating systems onto Spanner and why primary key design is the most critical performance lever you have.
 
 ---

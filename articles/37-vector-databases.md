@@ -24,6 +24,8 @@ schema: {
 
 **You built a RAG pipeline. Now you need to decide where to store embeddings.** Three options dominate: pgvector (self-hosted on PostgreSQL), AlloyDB AI (Google Cloud managed), and Pinecone (fully managed SaaS). Each makes a different trade-off between cost, latency, and operational burden.
 
+**See also:** [BigQuery analytics](/articles/28-bigquery-finops/) | [Cloud Spanner design](/articles/36-cloud-spanner/) | [Voice AI embeddings](/articles/42-voice-ai/) | [Healthcare AI](/articles/29-fhir-hl7-medical-ai/) | [RAG patterns](/articles/43-database-migrations/)
+
 The decision is nuanced, and it depends on whether you want to own the infrastructure or rent it.
 
 ---

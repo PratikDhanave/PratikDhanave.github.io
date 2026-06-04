@@ -26,6 +26,8 @@ schema: {
 
 A Kubernetes Operator is a custom controller that embeds domain knowledge. Instead of manually managing a database cluster ("create replica sets, handle failover, manage keys"), you declare: "I want a MySQL cluster with 3 replicas," and the Operator handles the rest.
 
+**Related:** [Terraform IaC](/articles/38-terraform-regulated/) | [Observability at scale](/articles/40-observability-scale/) | [High-throughput systems](/articles/34-globe-30k-tps/) | [Latency optimization](/articles/35-picnic-latency/) | [Zero-trust security](/articles/30-zero-trust-ai-agents/)
+
 Operators are how enterprise platforms scale without hiring a DBA per customer.
 
 ---
