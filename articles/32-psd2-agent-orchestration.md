@@ -1,10 +1,28 @@
 ---
 title: "PSD2 Open Banking with Multi-Agent Orchestration: Consent-Driven Payment Workflows"
-description: "Production-grade technical deep-dive on PSD2OpenBankingwithMulti-AgentOrchestration:Consent-DrivenPaymentWorkflows"
-keywords: ["32-psd2-agent-orchestration"]
+description: "Production-grade guide to PSD2 compliance for multi-agent payment systems. Real-time consent management, payment agent orchestration, Strong Customer Authentication (SCA), and audit trails."
+keywords: ["PSD2", "open banking", "payment orchestration", "multi-agent systems", "consent management", "Strong Customer Authentication", "payment compliance", "fintech"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/32-psd2-agent-orchestration/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "PSD2 Open Banking with Multi-Agent Orchestration: Consent-Driven Payment Workflows",
+  "description": "Technical guide to building PSD2-compliant payment systems using multi-agent orchestration",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.github.io"
+  },
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "inLanguage": "en",
+  "keywords": ["PSD2", "open banking", "payment orchestration", "consent management"],
+  "articleSection": "Compliance & Governance"
+}
 ---
 
 # PSD2 Open Banking with Multi-Agent Orchestration: Consent-Driven Payment Workflows

@@ -1,10 +1,28 @@
 ---
 title: "eIDAS Digital Identity in Agent Systems: Qualifying Signatures for Enterprise Trust"
-description: "Production-grade technical deep-dive on eIDASDigitalIdentityinAgentSystems:QualifyingSignaturesforEnterpriseTrust"
-keywords: ["33-eidas-digital-identity"]
+description: "eIDAS compliance guide for multi-agent systems. Qualified electronic signatures, digital identity verification, cryptographic signing, and enterprise trust for regulated systems."
+keywords: ["eIDAS", "digital identity", "qualified signatures", "cryptography", "compliance", "enterprise trust", "authentication", "regulatory"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/33-eidas-digital-identity/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "eIDAS Digital Identity in Agent Systems: Qualifying Signatures for Enterprise Trust",
+  "description": "Technical guide to eIDAS-compliant digital identity and qualified signatures for multi-agent systems",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.github.io"
+  },
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "inLanguage": "en",
+  "keywords": ["eIDAS", "digital identity", "qualified signatures", "compliance"],
+  "articleSection": "Compliance & Identity"
+}
 ---
 
 # eIDAS Digital Identity in Agent Systems: Qualifying Signatures for Enterprise Trust
