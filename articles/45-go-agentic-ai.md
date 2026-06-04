@@ -1,10 +1,23 @@
 ---
 title: "Go for Agentic AI: Why Go is Underrated for Agent Orchestration"
-description: "Production-grade technical deep-dive on GoforAgenticAI:WhyGoisUnderratedforAgentOrchestration"
-keywords: ["45-go-agentic-ai"]
+description: "Go for AI systems: goroutines, concurrency, low memory footprint, fast startup, gRPC, and operational simplicity for cost-aware agent orchestration at scale."
+keywords: ["Go", "agentic AI", "agent orchestration", "goroutines", "concurrency", "gRPC", "distributed systems", "cost optimization"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/45-go-agentic-ai/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Go for Agentic AI: Why Go is Underrated for Agent Orchestration",
+  "description": "Why Go is the ideal language for building cost-aware agentic AI systems at scale",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["Go", "agentic AI", "agent orchestration", "concurrency"],
+  "articleSection": "Programming Languages & AI"
+}
 ---
 
 # Go for Agentic AI: Why Go is Underrated for Agent Orchestration

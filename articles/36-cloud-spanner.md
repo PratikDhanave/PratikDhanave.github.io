@@ -1,10 +1,23 @@
 ---
 title: "Cloud Spanner: Schema Design, Write Hotspots, and Minimal-Downtime Migrations"
-description: "Production-grade technical deep-dive on CloudSpanner:SchemaDesign,WriteHotspots,andMinimal-DowntimeMigrations"
-keywords: ["36-cloud-spanner"]
+description: "Cloud Spanner architecture guide: schema design, write hotspot prevention, primary key patterns, interleaving, and zero-downtime migrations for globally distributed databases."
+keywords: ["Cloud Spanner", "database design", "schema design", "write hotspots", "distributed database", "primary key", "interleaving", "database migration"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/36-cloud-spanner/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Cloud Spanner: Schema Design, Write Hotspots, and Minimal-Downtime Migrations",
+  "description": "Production guide to Cloud Spanner schema design, avoiding write hotspots, and executing zero-downtime migrations",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["Cloud Spanner", "database design", "schema design", "distributed database"],
+  "articleSection": "Cloud Infrastructure"
+}
 ---
 
 # Cloud Spanner: Schema Design, Write Hotspots, and Minimal-Downtime Migrations

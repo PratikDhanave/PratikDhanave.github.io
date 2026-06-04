@@ -1,10 +1,23 @@
 ---
 title: "Terraform for Regulated Environments: Infrastructure as Compliance Code"
-description: "Production-grade technical deep-dive on TerraformforRegulatedEnvironments:InfrastructureasComplianceCode"
-keywords: ["38-terraform-regulated"]
+description: "Infrastructure-as-code for compliance: Terraform patterns for SOC 2, ISO 27001, HIPAA. Policy enforcement, guardrails, and compliance automation for regulated cloud."
+keywords: ["Terraform", "infrastructure as code", "compliance", "SOC 2", "ISO 27001", "HIPAA", "policy enforcement", "cloud security"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/38-terraform-regulated/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Terraform for Regulated Environments: Infrastructure as Compliance Code",
+  "description": "Guide to using Terraform for compliance enforcement in regulated cloud environments",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["Terraform", "compliance", "infrastructure as code", "SOC 2"],
+  "articleSection": "DevSecOps & Governance"
+}
 ---
 
 # Terraform for Regulated Environments: Infrastructure as Compliance Code

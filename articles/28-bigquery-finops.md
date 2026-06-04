@@ -1,11 +1,23 @@
 ---
 title: "BigQuery FinOps: 57% Cost Reduction in Production"
-description: "Production-grade technical deep-dive on BigQueryFinOps:57%CostReductioninProduction"
-keywords: ["cloud architecture", "multi-agent", "devops", "28-bigquery-finops"]
+description: "BigQuery cost optimization guide: query refactoring, slot reservations, partitioning, and clustering for 57% cost reduction at scale. Real case study: Tata Group."
+keywords: ["BigQuery", "FinOps", "cost optimization", "data warehouse", "query optimization", "slot reservations", "partitioning", "clustering"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
-canonical: "https://pratikdhanave.github.io/articles/28-bigquery-finops.html"
+canonical: "https://pratikdhanave.github.io/articles/28-bigquery-finops/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "BigQuery FinOps: 57% Cost Reduction in Production",
+  "description": "Production guide to BigQuery cost optimization with real case study achieving 57% reduction",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["BigQuery", "FinOps", "cost optimization", "data warehouse"],
+  "articleSection": "Cloud & Data"
+}
 ---
 
 # BigQuery FinOps: 57% Cost Reduction in Production

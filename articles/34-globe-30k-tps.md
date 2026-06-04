@@ -1,10 +1,23 @@
 ---
 title: "Globe: Building a 30K+ TPS Transaction Engine — Idempotency, Ledgers, and Error Orchestration"
-description: "Production-grade technical deep-dive on Globe:Buildinga30K+TPSTransactionEngine—Idempotency,Ledgers,andErrorOrchestration"
-keywords: ["34-globe-30k-tps"]
+description: "High-throughput transaction engine design: 30K+ TPS, idempotency patterns, distributed ledgers, error orchestration, and Kubernetes-native transaction processing."
+keywords: ["transaction engine", "high-throughput", "idempotency", "distributed ledger", "TPS", "fintech", "payment systems", "error handling"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/34-globe-30k-tps/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Globe: Building a 30K+ TPS Transaction Engine",
+  "description": "Architecture guide for building high-throughput transaction engines with 30K+ transactions per second",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["transaction engine", "high-throughput", "idempotency", "distributed systems"],
+  "articleSection": "High-Performance Systems"
+}
 ---
 
 # Globe: Building a 30K+ TPS Transaction Engine — Idempotency, Ledgers, and Error Orchestration

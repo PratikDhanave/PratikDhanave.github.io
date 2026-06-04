@@ -1,10 +1,23 @@
 ---
 title: "Observability at Scale: From Manual Debugging to Automated Detection"
-description: "Production-grade technical deep-dive on ObservabilityatScale:FromManualDebuggingtoAutomatedDetection"
-keywords: ["40-observability-scale"]
+description: "Observability architecture guide: metrics, logs, traces, OpenTelemetry, structured logging, alert rules, and automated anomaly detection for production systems."
+keywords: ["observability", "OpenTelemetry", "metrics", "logging", "distributed tracing", "monitoring", "alerting", "production systems"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/40-observability-scale/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Observability at Scale: From Manual Debugging to Automated Detection",
+  "description": "Production guide to building observability systems for scale: metrics, logs, and traces",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["observability", "OpenTelemetry", "metrics", "logging", "tracing"],
+  "articleSection": "Observability & Monitoring"
+}
 ---
 
 # Observability at Scale: From Manual Debugging to Automated Detection

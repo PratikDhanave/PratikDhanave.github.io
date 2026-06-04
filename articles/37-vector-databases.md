@@ -1,10 +1,23 @@
 ---
 title: "Vector Databases Head-to-Head: pgvector vs AlloyDB AI vs Pinecone"
-description: "Production-grade technical deep-dive on VectorDatabasesHead-to-Head:pgvectorvsAlloyDBAIvsPinecone"
-keywords: ["37-vector-databases"]
+description: "Vector database comparison guide: pgvector vs AlloyDB AI vs Pinecone. Cost analysis, operational overhead, latency, and recommendations for embeddings storage."
+keywords: ["vector database", "pgvector", "AlloyDB", "Pinecone", "embeddings", "RAG", "vector search", "semantic search"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/37-vector-databases/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Vector Databases Head-to-Head: pgvector vs AlloyDB AI vs Pinecone",
+  "description": "Detailed comparison of vector database options for embeddings and semantic search",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["vector database", "pgvector", "embeddings", "RAG", "semantic search"],
+  "articleSection": "Data & AI"
+}
 ---
 
 # Vector Databases Head-to-Head: pgvector vs AlloyDB AI vs Pinecone

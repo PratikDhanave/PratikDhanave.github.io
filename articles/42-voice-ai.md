@@ -1,10 +1,23 @@
 ---
 title: "Voice AI: Building Multilingual Dialog Systems with ElevenLabs"
-description: "Production-grade technical deep-dive on VoiceAI:BuildingMultilingualDialogSystemswithElevenLabs"
-keywords: ["42-voice-ai"]
+description: "Voice AI system guide: speech-to-text, dialogue management, text-to-speech, multilingual support, and real-world case study of 10K+ users on voice assistants."
+keywords: ["voice AI", "speech-to-text", "dialogue management", "text-to-speech", "ElevenLabs", "multilingual", "conversational AI", "voice assistant"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/42-voice-ai/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Voice AI: Building Multilingual Dialog Systems with ElevenLabs",
+  "description": "Production guide to building multilingual voice AI systems with real-world case study",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["voice AI", "speech-to-text", "text-to-speech", "multilingual"],
+  "articleSection": "Voice & NLU"
+}
 ---
 
 # Voice AI: Building Multilingual Dialog Systems with ElevenLabs

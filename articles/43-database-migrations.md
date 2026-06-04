@@ -1,10 +1,23 @@
 ---
 title: "Minimal-Downtime Database Migrations: The HarbourBridge Pattern"
-description: "Production-grade technical deep-dive on Minimal-DowntimeDatabaseMigrations:TheHarbourBridgePattern"
-keywords: ["43-database-migrations"]
+description: "Zero-downtime database migration guide: bulk load, dual-write, validation, cutover, and cleanup patterns using HarbourBridge and Google Cloud Datastream."
+keywords: ["database migration", "zero-downtime", "HarbourBridge", "dual-write", "Datastream", "data sync", "minimal-downtime", "CDC"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/43-database-migrations/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Minimal-Downtime Database Migrations: The HarbourBridge Pattern",
+  "description": "Production guide to zero-downtime database migrations using HarbourBridge patterns",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["database migration", "zero-downtime", "HarbourBridge", "CDC"],
+  "articleSection": "Data Engineering"
+}
 ---
 
 # Minimal-Downtime Database Migrations: The HarbourBridge Pattern

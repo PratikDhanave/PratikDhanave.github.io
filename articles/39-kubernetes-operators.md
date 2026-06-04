@@ -1,10 +1,23 @@
 ---
 title: "Kubernetes Operators: Automating Cloud Lifecycle Management for Enterprise"
-description: "Production-grade technical deep-dive on KubernetesOperators:AutomatingCloudLifecycleManagementforEnterprise"
-keywords: ["39-kubernetes-operators"]
+description: "Kubernetes Operators guide: Custom Resource Definitions, controller patterns, stateful workload automation, and enterprise lifecycle management at scale."
+keywords: ["Kubernetes operators", "Kubernetes", "CRD", "custom controllers", "stateful workloads", "cloud automation", "lifecycle management", "container orchestration"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/39-kubernetes-operators/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Kubernetes Operators: Automating Cloud Lifecycle Management for Enterprise",
+  "description": "Guide to building and using Kubernetes Operators for automated lifecycle management",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["Kubernetes operators", "CRD", "custom controllers", "automation"],
+  "articleSection": "Container & Orchestration"
+}
 ---
 
 # Kubernetes Operators: Automating Cloud Lifecycle Management for Enterprise

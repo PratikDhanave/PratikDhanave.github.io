@@ -1,11 +1,23 @@
 ---
 title: "FHIR R4 + HL7 v2 in Production Medical AI: Building Bodh"
-description: "Production-grade technical deep-dive on FHIRR4+HL7v2inProductionMedicalAI:BuildingBodh"
-keywords: ["cloud architecture", "multi-agent", "devops", "29-fhir-hl7-medical-ai"]
+description: "Healthcare AI architecture guide: FHIR R4 and HL7 v2 interoperability, clinical data standards, medical AI compliance, and EHR integration patterns."
+keywords: ["FHIR", "HL7", "healthcare AI", "medical AI", "clinical data", "EHR integration", "health information exchange", "medical standards"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
-canonical: "https://pratikdhanave.github.io/articles/29-fhir-hl7-medical-ai.html"
+canonical: "https://pratikdhanave.github.io/articles/29-fhir-hl7-medical-ai/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "FHIR R4 + HL7 v2 in Production Medical AI: Building Bodh",
+  "description": "Healthcare AI system design with FHIR R4 and HL7 v2 interoperability standards",
+  "author": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.github.io"},
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "keywords": ["FHIR", "HL7", "healthcare AI", "medical standards"],
+  "articleSection": "Healthcare & Medical AI"
+}
 ---
 
 # FHIR R4 + HL7 v2 in Production Medical AI: Building Bodh
