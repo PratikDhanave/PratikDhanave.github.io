@@ -1,11 +1,28 @@
 ---
 title: "Architecting Production Multi-Agent Systems: Patterns, Orchestration & Cost Constraints"
-description: "Production-grade technical deep-dive on ArchitectingProductionMulti-AgentSystems:Patterns,Orchestration&CostConstraints"
-keywords: ["cloud architecture", "multi-agent", "devops", "27-multi-agent-systems"]
+description: "Production-grade guide to multi-agent system architecture. Orchestration patterns, cost control, state management, and observability for scalable agentic systems."
+keywords: ["multi-agent systems", "agent orchestration", "architecture patterns", "cost optimization", "agent frameworks", "distributed systems", "agentic AI"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
-canonical: "https://pratikdhanave.github.io/articles/27-multi-agent-systems.html"
+canonical: "https://pratikdhanave.github.io/articles/27-multi-agent-systems/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Architecting Production Multi-Agent Systems: Patterns, Orchestration & Cost Constraints",
+  "description": "Technical guide to production-grade multi-agent system architecture and orchestration",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.github.io"
+  },
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "inLanguage": "en",
+  "keywords": ["multi-agent systems", "agent orchestration", "architecture", "cost optimization"],
+  "articleSection": "Multi-Agent Architecture"
+}
 ---
 
 # Architecting Production Multi-Agent Systems: Patterns, Orchestration & Cost Constraints

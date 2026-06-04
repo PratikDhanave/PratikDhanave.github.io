@@ -1,17 +1,35 @@
 ---
 title: "GDPR for Agentic AI Systems: Data Minimization in Multi-Agent Workflows"
-description: "Production-grade technical deep-dive on GDPRforAgenticAISystems:DataMinimizationinMulti-AgentWorkflows"
-keywords: ["31-gdpr-agentic-ai"]
+description: "Production-grade technical deep-dive on GDPR compliance for multi-agent AI systems. Data minimization patterns, processor agreements, Azure integration, and audit trails."
+keywords: ["GDPR", "agentic AI", "compliance", "data protection", "multi-agent systems", "AI governance", "privacy engineering", "data minimization"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
+canonical: "https://pratikdhanave.github.io/articles/31-gdpr-agentic-ai/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "GDPR for Agentic AI Systems: Data Minimization in Multi-Agent Workflows",
+  "description": "Production-grade technical guide to GDPR compliance for multi-agent AI systems, covering data minimization patterns, processor agreements, and Azure integration.",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.github.io"
+  },
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "inLanguage": "en",
+  "keywords": ["GDPR", "agentic AI", "compliance", "data minimization", "multi-agent"],
+  "articleSection": "Compliance & Governance"
+}
 ---
 
 # GDPR for Agentic AI Systems: Data Minimization in Multi-Agent Workflows
 
-**The moment your agent touches personal data, you're no longer just an engineer — you're a processor under GDPR Article 28.** This shift from "build fast, comply later" to "compliance is architecture" hits harder in agent systems because agents are *autonomous interpreters of goals*, which means they can inadvertently collect, infer, or share personal data without explicit permission.
+**The moment your agent touches personal data, you're no longer just an engineer — you're a processor under GDPR Article 28.** This shift from "build fast, comply later" to "compliance is architecture" hits harder in [multi-agent systems](/articles/27-multi-agent-systems/) because agents are *autonomous interpreters of goals*, which means they can inadvertently collect, infer, or share personal data without explicit permission.
 
-Having built agentic systems on Microsoft Agent Framework (MAF) processing EU user data, here's what every architect needs to know before your first agent touches PII.
+Having built agentic systems on Microsoft Agent Framework (MAF) processing EU user data, here's what every architect needs to know before your first agent touches PII. For broader governance patterns, see our guide on [zero-trust architecture for AI agents](/articles/30-zero-trust-ai-agents/).
 
 ---
 
@@ -27,7 +45,7 @@ This creates three immediate tensions:
 
 2. **Tool Access vs. Data Minimization** — An agent with access to `read_customer_database()` might query 100 fields to fulfill one request. GDPR says you must return only the fields necessary. This isn't a logging problem; it's an architecture problem.
 
-3. **Multi-Agent Delegation & Accountability** — When Supervisor Agent → Specialist Agent → Database Tool, who's responsible for the data? GDPR requires *clear processor-to-processor contracts*. With agents, it's blurry.
+3. **Multi-Agent Delegation & Accountability** — When Supervisor Agent → Specialist Agent → Database Tool, who's responsible for the data? GDPR requires *clear processor-to-processor contracts*. With agents, it's blurry. This becomes critical in regulated domains like [payment orchestration](/articles/32-psd2-agent-orchestration/) where data lineage is legally required.
 
 ---
 
@@ -254,7 +272,7 @@ supervisor_to_specialist = ProcessorAgreement(
 
 ## Azure Integration: Leverage Built-In Compliance
 
-Microsoft Azure provides GDPR controls that integrate with agent workflows:
+Microsoft Azure provides GDPR controls that integrate with agent workflows. For infrastructure-as-code patterns that enforce compliance, see our guide on [Terraform for regulated environments](/articles/38-terraform-regulated/). For auditing and observability at scale, refer to [observability patterns](/articles/40-observability-scale/):
 
 ### **1. Azure Information Protection (AIP)**
 

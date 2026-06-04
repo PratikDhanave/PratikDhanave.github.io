@@ -1,11 +1,28 @@
 ---
 title: "Zero Trust Isn't Optional Anymore: Securing AI Agents in the Enterprise"
-description: "Production-grade technical deep-dive on ZeroTrustIsn'tOptionalAnymore:SecuringAIAgentsintheEnterprise"
-keywords: ["cloud architecture", "multi-agent", "devops", "30-zero-trust-ai-agents"]
+description: "Production-grade guide to zero-trust architecture for AI agents. Defense-in-depth patterns, network policies, identity verification, and compliance for enterprise agentic systems."
+keywords: ["zero-trust", "AI security", "agent security", "defense-in-depth", "multi-agent systems", "cloud security", "network policies", "compliance"]
 author: "Pratik Dhanave"
 date: "2026-06-04"
 readtime: "10-15 min"
-canonical: "https://pratikdhanave.github.io/articles/30-zero-trust-ai-agents.html"
+canonical: "https://pratikdhanave.github.io/articles/30-zero-trust-ai-agents/"
+schema: {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Zero Trust Isn't Optional Anymore: Securing AI Agents in the Enterprise",
+  "description": "Enterprise security guide for zero-trust architecture in multi-agent AI systems",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.github.io"
+  },
+  "datePublished": "2026-06-04",
+  "dateModified": "2026-06-04",
+  "image": "https://pratikdhanave.github.io/og-default.png",
+  "inLanguage": "en",
+  "keywords": ["zero-trust", "AI security", "agent security", "defense-in-depth"],
+  "articleSection": "Security & Compliance"
+}
 ---
 
 # Zero Trust Isn't Optional Anymore: Securing AI Agents in the Enterprise
