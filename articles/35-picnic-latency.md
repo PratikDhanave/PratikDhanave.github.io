@@ -26,6 +26,14 @@ schema: {
 
 The lesson: sometimes the bottleneck isn't the algorithm, it's the protocol.
 
+## Protobuf vs JSON Performance
+
+| Metric | JSON | Protobuf | Improvement |
+|--------|------|----------|-------------|
+| Payload Size | 80 KB | 8 KB | 90% reduction |
+| Parsing Time | 450ms | 120ms | 73% faster |
+| P99 Latency | 900ms | 476ms | 47% reduction |
+
 ---
 
 ## The Latency Problem at 1M+ Users

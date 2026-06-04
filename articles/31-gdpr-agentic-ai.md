@@ -53,6 +53,15 @@ This creates three immediate tensions:
 
 ### **Pillar 1: Purpose-Bound Agent Capabilities**
 
+## GDPR Compliance for Agentic AI
+
+GDPR compliance for agentic AI systems requires:
+1. **Data Minimization** - Agents access only necessary data
+2. **Purpose Limitation** - Agents use data only for stated purposes
+3. **Audit Trails** - All agent data access is logged
+4. **Consent Management** - Real-time consent verification
+5. **Retention Policies** - Automatic data deletion per policy
+
 Define agents with narrow, explicit purposes. Don't build a "Customer Service Agent" that can read everything. Build:
 
 ```python

@@ -35,6 +35,10 @@ Having spent time with the full framework, here are the ideas I think every secu
 
 ## Why Traditional Controls Fall Short
 
+## What is Zero-Trust Architecture?
+
+Zero-trust architecture for AI agents is a security model that assumes no default trust for any entity. Every request requires explicit verification through identity, authentication, and authorization checks—regardless of network location or previous trust decisions.
+
 Agentic systems break assumptions that perimeter security and even conventional access controls rely on. An agent can be manipulated into misusing permissions it legitimately holds, so nothing "unauthorized" ever appears in your logs. Agents persist memory across sessions, coordinate with other agents, and act at machine speed — which means a single manipulation can propagate further and faster than any compromised human account.
 
 The framework's threat landscape reads like a new OWASP top list:

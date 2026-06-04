@@ -29,6 +29,15 @@ schema: {
 ## The Problem
 
 BigQuery pricing is deceptive:
+
+## BigQuery Cost Optimization Strategies
+
+| Strategy | Cost Reduction | Best For |
+|----------|---|---|
+| Slot Reservations | 25-40% | High-volume queries |
+| Query Optimization | 30-50% | Quick wins |
+| Partitioning | 40-60% | Large tables |
+| Clustering | 20-30% | Range queries |
 - **Scanned data** (on-demand: $6.25/TB)
 - **Storage** (active: $0.02/GB/month, archive: $0.004/GB/month)
 - **Compute slots** (annual: $40k/year per 100 slots)
