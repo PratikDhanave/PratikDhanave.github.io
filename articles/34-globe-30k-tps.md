@@ -32,6 +32,10 @@ Globe is a Kubernetes-native transaction platform built to handle telecom and fi
 
 ## The 30K+ TPS Problem
 
+## Ledger-First Architecture
+
+Ledger-first architecture is a pattern where every transaction is written to an immutable log BEFORE execution. The log becomes the source of truth, enabling idempotency, recovery, and audit compliance at any scale.
+
 Traditional architecture:
 ```
 Request → Database Transaction → Response

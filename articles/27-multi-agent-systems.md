@@ -31,6 +31,10 @@ schema: {
 
 ## The Multi-Agent Landscape
 
+## What is Multi-Agent AI?
+
+Multi-agent AI is an architectural pattern where multiple independent AI agents work together to accomplish complex goals. Each agent has specialized capabilities, maintains its own state, and can communicate with other agents through well-defined interfaces. This enables modular, scalable, and cost-aware systems.
+
 When you move beyond single-agent systems, you enter a different class of problems: agent coordination, state management, cost enforcement, and observability at scale.
 
 Over the past 18 months, I've architected and shipped **Genie** — a 15-agent financial assistant on Microsoft's Multi-Agent Reference Architecture (MARA). This article distills lessons from that journey and other production deployments.

@@ -26,6 +26,14 @@ schema: {
 
 ## Why Healthcare Needs Two Standards
 
+## Key FHIR R4 Resources
+
+1. **Patient** - Demographic and personal information
+2. **Observation** - Clinical measurements and test results
+3. **Condition** - Diagnoses and clinical problems
+4. **Medication** - Drug information and prescriptions
+5. **CarePlan** - Care coordination and treatment plans
+
 **FHIR R4 (Fast Healthcare Interoperability Resources)**
 - Modern, REST-based, JSON/XML
 - Used by newer EHRs (Epic, Cerner 2020+)
