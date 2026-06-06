@@ -1,5 +1,13 @@
 # SEO Audit & Fixes — Full Context for Continuation
 
+> **NEXT STEP FOR NEW SESSION:** The user needs to set up Google Analytics 4 and Google Search Console. Both require signing into Google services in a browser. If using Claude Desktop with Chrome MCP, help the user navigate to:
+> 1. https://analytics.google.com — create a property, get the GA4 Measurement ID (format: `G-XXXXXXXXXX`)
+> 2. https://search.google.com/search-console — add property, get HTML tag verification code
+>
+> Then replace the placeholders across the codebase. See **PENDING TASK 1** and **PENDING TASK 2** sections below for full step-by-step details, exact files, and replacement commands.
+>
+> If using Claude Code CLI, the user will need to get these values from the browser themselves and paste them in.
+
 > **Purpose:** This file captures the complete state of the SEO overhaul performed on pratikdhanave.github.io so that any future Claude session (including Claude Desktop with Chrome MCP) can pick up exactly where we left off.
 
 ---
