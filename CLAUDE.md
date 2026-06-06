@@ -1,165 +1,462 @@
-# SEO Audit & Fixes — Context for Continuation
+# SEO Audit & Fixes — Full Context for Continuation
+
+> **Purpose:** This file captures the complete state of the SEO overhaul performed on pratikdhanave.github.io so that any future Claude session (including Claude Desktop with Chrome MCP) can pick up exactly where we left off.
+
+---
 
 ## Project Overview
 
 - **Site:** https://pratikdhanave.github.io
-- **Type:** Custom static site (NOT Jekyll/Hugo) with Python build pipeline
-- **Build scripts:** `build_blog.py` (generates 147 blog posts + 232 tag pages), `build_sitemap.py` (generates split sitemaps)
-- **Hosting:** GitHub Pages (master branch)
-- **Repo:** PratikDhanave/PratikDhanave.github.io
+- **Owner:** Pratik Dhanave
+- **Type:** Custom static site (NOT Jekyll/Hugo) with a Python build pipeline
+- **Hosting:** GitHub Pages, deployed from `master` branch
+- **Repo:** https://github.com/PratikDhanave/PratikDhanave.github.io
+- **Last commit:** `010810f` — "Deep audit fixes: escaping, schema, sitemaps, content accuracy"
 
-## What Was Done (Complete SEO Overhaul)
+---
 
-### Phase 0 — Critical Fixes
-- Created `og-default.png` (1200x630 branded Open Graph image)
-- Created `build_sitemap.py` for split sitemap generation
-- Added GA4 placeholders to all templates and static pages (STILL PLACEHOLDER — see pending below)
-- Added noindex logic for thin tag pages (<3 posts)
+## Architecture — How the Site Works
 
-### Phase 1 — Schema & Metadata
-- Fixed BlogPosting JSON-LD: added dateModified, publisher, inLanguage, mainEntityOfPage
-- Added JSON/HTML escaping for titles and descriptions in JSON-LD and meta attributes
-- Added `hasCredential` (was incorrectly `credential`) across index.html, about/index.html, resume/index.html
-- Fixed `award` property (was invalid `@type: "Award"`, now plain strings)
-- Added CollectionPage schema to tag pages with 5+ posts
-- Added meta robots to all pages
-- Added rel="noopener noreferrer" to external links
-- Fixed `article:published_time` to full ISO 8601 format
+### Build Pipeline
 
-### Phase 2 — Robots & Crawl
-- Rewrote robots.txt (unblocked crawlers, removed invalid Disallow for 404.html)
-- Removed legacy sitemap.xml (invalid, stale)
-- Removed orphaned articles/sitemap.xml (all 19 URLs were 404s)
-- Fixed duplicate sitemap URLs (284 → 147 unique)
+The site uses two Python scripts to generate HTML:
 
-### Phase 3 — Content & E-E-A-T
-- Created real About page (replaced meta-refresh redirect)
-- Created custom 404.html
-- Added RSS feed generation
-- Fixed GDPR FAQ legal error ("data processor" → "data controller")
-- Fixed 6 truncated excerpts in POST_META
-- Fixed RSS `&mdash;` double-encoding
-- Fixed SOMA → SAMA typo on projects page
-- Fixed GCN 2022 talk description on resources page
-- Fixed placeholder YouTube/Slides URLs on speaking page
-- Added missing og:image/twitter:image on articles page
-- Added missing og:url/twitter:description on resume page
-- Removed stale worksFor from resume schema
-- Fixed double active nav on projects page
-- Fixed nav brand href="#" → "/" on index.html
+1. **`build_blog.py`** (~2500 lines) — The single most important file
+   - Reads markdown files from `blog/source/*.md`
+   - Uses a `POST_META` dict (keyed by filename) with slug, date, tags, audience, excerpt, citations
+   - Renders each post to `blog/posts/<slug>.html` using f-string templates
+   - Generates `blog/index.html` (blog listing with tag cloud, search, pagination)
+   - Generates `blog/tags/<tag>/index.html` for each tag (232 tag pages)
+   - Generates `blog/archive/<year>/` and `blog/archive/<year>/<month>/` pages
+   - Generates `blog/feed.xml` (RSS 2.0 feed, 20 most recent posts)
+   - Generates `blog/popular-posts.json`
+   - Key functions:
+     - `render_post_html()` (~line 1618) — individual post template with JSON-LD BlogPosting schema
+     - `render_tag_page()` (~line 2008) — tag listing with optional CollectionPage schema
+     - `render_index_html()` (~line 1780) — blog index
+     - `render_rss_feed()` (~line 2438) — RSS feed generation
+     - `main()` (~line 2474) — orchestrates everything
+   - **147 posts** are generated from POST_META (mix of markdown-source and HTML-only posts)
+   - **232 tag pages** are generated
 
-### Phase 4 — Build System
-- Added `PROJECT_META = {}` (was undefined, latent NameError)
-- Added `import json` and `html.escape` for safe template rendering
-- Added `html.unescape()` for HTML-only post title extraction
-- Added stderr warning in `git_last_modified()` fallback
-- Added GA4 to 404.html
+2. **`build_sitemap.py`** (~230 lines) — Generates split sitemaps
+   - `sitemap-pages.xml` — 9 main static pages
+   - `sitemap-blog.xml` — 147 blog post URLs
+   - `sitemap-tags.xml` — 48 tag pages (only those with 3+ posts)
+   - `sitemap-index.xml` — index pointing to the 3 sub-sitemaps
+   - Uses `git log` to determine `lastmod` dates
+   - Falls back to today's date with stderr warning if no git history
 
-## PENDING — What Needs to Be Done Next
+### Static Pages (Manually Edited)
 
-### 1. GA4 Measurement ID (CRITICAL)
+These pages are NOT generated by the build scripts. They must be edited directly:
 
-**Current state:** All pages have `G-XXXXXXXXXX` placeholder.
+| File | Description | Schema |
+|------|-------------|--------|
+| `index.html` | Homepage — hero, projects, social proof, contact | Person (JSON-LD) |
+| `about/index.html` | Full E-E-A-T about page with bio, highlights | Person (JSON-LD) |
+| `resume/index.html` | Resume/CV with experience, skills, certs | Person + BreadcrumbList |
+| `projects/index.html` | Project showcase (Genie, Bodh, HarbourBridge, etc.) | WebPage + SoftwareApplication |
+| `speaking/index.html` | Speaking engagements, conferences, podcasts | — |
+| `resources/index.html` | Curated learning resources | — |
+| `articles/index.html` | Technical articles listing (45 articles) | CollectionPage |
+| `certifications/index.html` | Certifications page | — |
+| `404.html` | Custom 404 error page | — |
 
-**Steps to get the ID:**
-1. Go to https://analytics.google.com
-2. Sign in with Google account
-3. Admin (gear icon) → Create → Property
-4. Property name: "Pratik Dhanave Blog", set timezone/currency
-5. Next → select business info → Create
-6. Data collection → Web
-7. Website URL: `https://pratikdhanave.github.io`, Stream name: "Main Site"
-8. Create stream → copy the Measurement ID (format: `G-ABC123XYZ`)
+### Generated Files (Output of Build Scripts)
 
-**Files to update (replace `G-XXXXXXXXXX` with real ID):**
+| Directory/File | Count | Generated By |
+|---------------|-------|-------------|
+| `blog/posts/*.html` | 147 files | `build_blog.py` |
+| `blog/tags/*/index.html` | 232 files | `build_blog.py` |
+| `blog/archive/*/index.html` | 8 files | `build_blog.py` |
+| `blog/index.html` | 1 file | `build_blog.py` |
+| `blog/feed.xml` | 1 file | `build_blog.py` |
+| `blog/popular-posts.json` | 1 file | `build_blog.py` |
+| `sitemap-*.xml` | 4 files | `build_sitemap.py` |
 
-Static pages (manual edit):
-- `index.html` (lines 15-16)
-- `about/index.html`
-- `resume/index.html`
-- `projects/index.html`
-- `speaking/index.html`
-- `resources/index.html`
-- `articles/index.html`
-- `404.html`
-- `certifications/index.html`
+### Legacy Files (From Old Jekyll Era)
 
-Build template (auto-propagates to all blog posts):
-- `build_blog.py` — search for `G-XXXXXXXXXX` (appears 4 times: 2 in render_post_html, 2 in render_tag_page)
+The site has 137 legacy blog posts at `blog/YYYY/MM/DD/slug/index.html` from a previous Jekyll-based setup. These are standalone HTML files not managed by `build_blog.py`. They are served by GitHub Pages but are NOT included in the sitemaps (intentionally — they're duplicates of `blog/posts/*.html` entries).
 
-After editing build_blog.py, run:
-```bash
-python3 build_blog.py
-python3 build_sitemap.py
+---
+
+## Complete List of All SEO Changes Made
+
+### Commit 1: `c4fafd5` — "Execute full SEO plan"
+
+**Phase 0 — Critical Bug Fixes:**
+- Created `og-default.png` using Python Pillow (1200x630px, branded image with name + tagline, 28KB)
+- Created `build_sitemap.py` for comprehensive split sitemap generation
+- Added Google Analytics 4 snippet to ALL templates in `build_blog.py` and all static pages (placeholder `G-XXXXXXXXXX`)
+- Added Google Search Console verification meta tag to `index.html` (placeholder `YOUR_VERIFICATION_CODE`)
+- Added noindex logic to `render_tag_page()` — tags with <3 posts get `<meta name="robots" content="noindex, follow">`
+
+**Phase 1 — Schema & Metadata Hardening:**
+- Enhanced BlogPosting JSON-LD in `render_post_html()`:
+  - Added `dateModified` (same as `datePublished`)
+  - Added `publisher` (Person type, Pratik Dhanave)
+  - Added `inLanguage: "en"`
+  - Added `mainEntityOfPage` (WebPage with canonical URL)
+- Added `<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">` to all generated pages
+- Added `rel="noopener noreferrer"` to all external links in templates (citations, footer)
+- Added CollectionPage JSON-LD schema to tag pages with 5+ posts (includes `hasPart` array)
+
+**Phase 2 — Robots & Crawl Optimization:**
+- Completely rewrote `robots.txt`:
+  - Removed `Crawl-delay` directive (was slowing crawlers)
+  - Unblocked AhrefsBot and SemrushBot (were blocked, preventing SEO tool analysis)
+  - Changed Sitemap directive from `sitemap.xml` to `sitemap-index.xml`
+
+**Phase 3 — Content & E-E-A-T:**
+- Created real `about/index.html` (was a meta-refresh redirect to `/#about`):
+  - Full page with professional bio, career highlights, certifications
+  - Person JSON-LD schema
+  - Connect links (GitHub, LinkedIn, Twitter)
+- Created custom `404.html`:
+  - Recovery navigation links
+  - `<meta name="robots" content="noindex, follow">`
+  - Site-consistent styling with dark mode support
+- Added RSS feed generation (`render_rss_feed()` function in `build_blog.py`):
+  - RSS 2.0 with Atom namespace
+  - 20 most recent posts
+  - Proper XML escaping via `xml.sax.saxutils.escape()`
+  - `<link rel="alternate" type="application/rss+xml">` added to all page templates
+- Added FAQ schema (`faqSchema` in YAML frontmatter) to 5 top articles:
+  - `27-multi-agent-systems.md`
+  - `28-bigquery-finops.md`
+  - `30-zero-trust-ai-agents.md`
+  - `31-gdpr-agentic-ai.md`
+  - `36-cloud-spanner.md`
+  - NOTE: The `faqSchema` key is stored in YAML frontmatter but is NOT consumed by any build template. The FAQ data is embedded directly in the `.md` files and rendered into the articles page. It is NOT injected into blog post HTML.
+
+### Commit 2: `010810f` — "Deep audit fixes"
+
+**build_blog.py — Critical Escaping Fixes:**
+- Added `import json as _json` and `from html import escape as _html_escape` at top of file
+- In `render_post_html()`:
+  - Added `title_html = _html_escape(title, quote=True)` for HTML meta attributes
+  - Added `desc_html = _html_escape(description, quote=True)` for HTML meta attributes
+  - Added `title_json = _json.dumps(title)[1:-1]` for JSON-LD (strips outer quotes from json.dumps)
+  - Added `desc_json = _json.dumps(description)[1:-1]` for JSON-LD
+  - Changed all `<meta content="{title}">` → `<meta content="{title_html}">`
+  - Changed all `<meta content="{description}">` → `<meta content="{desc_html}">`
+  - Changed JSON-LD `"headline": "{title}"` → `"headline": "{title_json}"`
+  - Changed JSON-LD `"description": "{description}"` → `"description": "{desc_json}"`
+  - Changed `article:tag` meta to use `_html_escape(t, quote=True)`
+- In `render_tag_page()`:
+  - Changed CollectionPage `hasPart` items to use `_json.dumps(p["title"])[1:-1]` for post titles
+  - Changed `"name"` and `"description"` to use `_json.dumps(tag)[1:-1]` for tag names
+- Changed `article:published_time` from bare date (`2026-06-01`) to ISO 8601 (`2026-06-01T00:00:00+00:00`)
+
+**build_blog.py — Other Fixes:**
+- Added `PROJECT_META = {}` definition (was referenced at line 1643 but never defined — would cause NameError)
+- Fixed 6 truncated excerpts in POST_META:
+  - `maf-agent-registry-convention`: "Here" → full sentence about @register decorator pattern
+  - `maf-memory-done-right`: "Here" → full sentence about framework boundary
+  - `maf-multi-turn-evals-first-principles`: "Here" → full sentence about Python harness
+  - `maf-refactor-to-native-packages`: "Here" → full sentence about audit and deletions
+  - `maf-a2a-workflow-is-broker`: "MAF" → full sentence about workflow runtime as broker
+  - `maf-observability-traces-metrics`: "OpenTelemetry through MAF" → full sentence about configure_otel_providers and Grafana
+- Fixed HTML-only post title extraction (line ~2497): added `html.unescape()` before `.replace()` to handle `&mdash;` entities — this fixed the RSS double-encoding of `&amp;mdash;`
+
+**build_sitemap.py — Fixes:**
+- Removed date-based URL collection from `collect_blog_posts()` (lines 127-134 deleted):
+  - Was scanning `blog/20??/??/??/*/index.html` and adding 137 URLs that duplicated `blog/posts/*.html`
+  - Sitemap went from 284 blog URLs → 147 unique URLs
+- Added `import sys` and stderr warning in `git_last_modified()` fallback:
+  - Now prints `WARNING: no git history for <filename>, using today` when falling back
+
+**Static Page Fixes:**
+
+`index.html`:
+- Changed `"credential"` → `"hasCredential"` in Person schema (Schema.org fix)
+- Changed `"award"` from array of `@type: "Award"` objects → plain string array (Award is not a valid Schema.org type)
+- Changed nav brand `<a href="#">` → `<a href="/">`
+
+`about/index.html`:
+- Same `credential` → `hasCredential` fix
+- Same `award` → plain strings fix
+
+`resume/index.html`:
+- Same `credential` → `hasCredential` fix
+- Same `award` → plain strings fix
+- Removed `worksFor: Searce Cosourcing Services Pvt Ltd` (employment ended Oct 2025, stale data)
+- Added missing `<meta property="og:url" content="https://pratikdhanave.github.io/resume/">`
+- Added missing `<meta name="twitter:description" content="...">`
+
+`projects/index.html`:
+- Removed `class="active"` from Blog nav link (Projects page had both Projects AND Blog marked active)
+- Fixed "SOMA compliant" → "SAMA compliant" (Saudi Arabian Monetary Authority typo)
+
+`speaking/index.html`:
+- Replaced placeholder `https://www.youtube.com/watch?v=placeholder` and `https://docs.google.com/presentation/placeholder` with real Google Drive link: `https://drive.google.com/drive/folders/1ny-2QsHxhrtlYofbCN3WL2TbVJXDsnxz`
+
+`resources/index.html`:
+- Fixed GCN 2022 talk description: "Spanner migration strategies, performance tuning, and zero-downtime deployments" → "Migrating Monolith Applications into Microservices on Google Cloud" (was factually wrong)
+
+`articles/index.html`:
+- Added missing `<meta property="og:image" content="https://pratikdhanave.github.io/og-default.png">`
+- Added missing `<meta name="twitter:image" content="https://pratikdhanave.github.io/og-default.png">`
+
+`articles/31-gdpr-agentic-ai.md`:
+- Fixed FAQ answer: "data processor under GDPR Article 28" → "data controller under GDPR Article 24" (legal error — the organization deploying the AI agent is the controller, not the processor)
+- Fixed article body text: same "processor" → "controller" fix in opening paragraph
+
+`robots.txt`:
+- Removed `Disallow: /404.html` (conflicted with noindex meta on the page — Google recommends allowing crawl + using noindex meta, not blocking crawl entirely)
+
+`404.html`:
+- Added GA4 snippet (was the only page missing it — 404 traffic was invisible in analytics)
+
+**Deleted Files:**
+- `sitemap.xml` (legacy, superseded by `sitemap-index.xml`, contained invalid `quarterly` changefreq)
+- `articles/sitemap.xml` (orphaned, listed 19 `.html` URLs that all return 404 — only `.md` files exist)
+
+---
+
+## PENDING TASK 1: GA4 Measurement ID (CRITICAL)
+
+### Current State
+Every page has the placeholder `G-XXXXXXXXXX` in two places:
+```html
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
 ```
+This means NO analytics data is being collected.
 
-**Quick replace command:**
+### How to Get the GA4 Measurement ID (Free)
+
+1. Open https://analytics.google.com in Chrome
+2. Sign in with your Google account
+3. If first time: Accept terms → click "Start measuring"
+4. If existing account: Click **Admin** (gear icon, bottom-left sidebar)
+5. Click **Create** → **Property**
+6. Fill in:
+   - **Property name:** `Pratik Dhanave Blog` (or any name you want)
+   - **Reporting time zone:** India (UTC+5:30) or your preference
+   - **Currency:** INR or your preference
+7. Click **Next**
+8. Select business category (e.g., "Technology") and size ("Small")
+9. Click **Create**
+10. Under "Choose a platform", click **Web**
+11. Fill in:
+    - **Website URL:** `https://pratikdhanave.github.io`
+    - **Stream name:** `Main Site`
+12. Click **Create stream**
+13. You'll see a page with **"Measurement ID"** at the top — it looks like `G-ABC123XYZ`
+14. **Copy this ID**
+
+### Files That Need the GA4 ID Replaced
+
+**Static pages (9 files — each has `G-XXXXXXXXXX` twice):**
+1. `index.html`
+2. `about/index.html`
+3. `resume/index.html`
+4. `projects/index.html`
+5. `speaking/index.html`
+6. `resources/index.html`
+7. `articles/index.html`
+8. `certifications/index.html`
+9. `404.html`
+
+**Build template (1 file — has `G-XXXXXXXXXX` four times: 2 in render_post_html template, 2 in render_tag_page template):**
+10. `build_blog.py`
+
+### How to Replace
+
+**Option A: One command (recommended):**
 ```bash
-# Replace in all HTML files and build_blog.py
-grep -rl "G-XXXXXXXXXX" . --include="*.html" --include="*.py" | xargs sed -i '' 's/G-XXXXXXXXXX/G-YOUR_REAL_ID/g'
-# Then rebuild
-python3 build_blog.py && python3 build_sitemap.py
-```
+cd /Users/genesis/Developer/goworkspace/src/github.com/PratikDhanave/PratikDhanave.github.io
 
-### 2. Google Search Console Verification (CRITICAL)
+# Replace placeholder with real ID in ALL files
+grep -rl "G-XXXXXXXXXX" . --include="*.html" --include="*.py" | xargs sed -i '' 's/G-XXXXXXXXXX/G-YOUR_REAL_ID_HERE/g'
 
-**Current state:** `index.html` has `YOUR_VERIFICATION_CODE` placeholder.
-
-**Steps to get the code:**
-1. Go to https://search.google.com/search-console
-2. Add property → URL prefix → enter `https://pratikdhanave.github.io`
-3. Choose HTML tag verification method
-4. Copy the `content` value from the meta tag they provide
-
-**File to update:**
-- `index.html` — line 12: replace `YOUR_VERIFICATION_CODE` with actual code
-
-**After deploying, go back to Search Console and click Verify.**
-
-Then submit the sitemap:
-1. In Search Console sidebar → Sitemaps
-2. Enter: `sitemap-index.xml`
-3. Click Submit
-
-### 3. Content Decisions Still Pending (LOW PRIORITY)
-
-These are not bugs but content inconsistencies the audit flagged:
-- **Post count:** `index.html` says "All 127 posts" but also "29+ Published Articles" — pick one accurate number
-- **Mentee count:** "40+ students" vs "10+ students" across pages — standardize
-- **articles/index.html:** All article links point to `.md` files (will 404 in browser) — needs build step or route change
-- **speaking/index.html:** "Cloud Architecture Magazine" links to own blog post — either get real external link or change label
-- **speaking/index.html:** "Coming Soon" podcast placeholder — remove if no real podcast
-
-## Build Commands
-
-```bash
-# Rebuild all blog posts (147 posts + 232 tag pages)
+# Rebuild blog (propagates to all 147 posts + 232 tag pages)
 python3 build_blog.py
 
-# Rebuild sitemaps (run AFTER build_blog.py)
+# Rebuild sitemaps
 python3 build_sitemap.py
 
 # Commit and push
-git add -A && git commit -m "message" && git push origin master
+git add -A
+git commit -m "Add GA4 Measurement ID"
+git push origin master
 ```
 
-## Key File Locations
+**Option B: Manual edit in each file:**
+Search for `G-XXXXXXXXXX` and replace with your real ID. Then run `python3 build_blog.py && python3 build_sitemap.py`.
 
-| File | Purpose |
-|------|---------|
-| `build_blog.py` | Main build script — generates all blog HTML from markdown |
-| `build_sitemap.py` | Generates split sitemaps from HTML files |
-| `blog/source/*.md` | Markdown source for blog posts |
-| `blog/posts/*.html` | Generated blog post HTML |
-| `blog/feed.xml` | Generated RSS feed |
-| `sitemap-index.xml` | Sitemap index (points to 3 sub-sitemaps) |
-| `robots.txt` | Crawler directives |
-| `og-default.png` | Default Open Graph image (1200x630) |
-| `index.html` | Homepage (manually edited) |
-| `about/index.html` | About page |
-| `resume/index.html` | Resume page |
-| `projects/index.html` | Projects page |
-| `speaking/index.html` | Speaking page |
-| `resources/index.html` | Resources page |
-| `articles/index.html` | Articles listing page |
-| `404.html` | Custom 404 page |
+---
+
+## PENDING TASK 2: Google Search Console Verification (CRITICAL)
+
+### Current State
+`index.html` line 12 has:
+```html
+<meta name="google-site-verification" content="YOUR_VERIFICATION_CODE">
+```
+This is a placeholder — Search Console verification will fail until replaced.
+
+### How to Get the Verification Code (Free)
+
+1. Open https://search.google.com/search-console in Chrome
+2. Sign in with the same Google account used for GA4
+3. Click **"Add property"** (or "Start now" if first time)
+4. Choose **"URL prefix"** (right panel)
+5. Enter: `https://pratikdhanave.github.io`
+6. Click **Continue**
+7. On the verification page, expand **"HTML tag"** method
+8. You'll see a meta tag like:
+   ```html
+   <meta name="google-site-verification" content="aBcDeFgHiJkLmNoPqRsTuVwXyZ123456789">
+   ```
+9. **Copy just the `content` value** (the long alphanumeric string)
+10. **DO NOT click "Verify" yet** — you need to deploy the code first
+
+### File to Update
+
+**Only 1 file:**
+- `index.html` — line 12: replace `YOUR_VERIFICATION_CODE` with the actual code
+
+```bash
+# Example (replace with your real code):
+sed -i '' 's/YOUR_VERIFICATION_CODE/aBcDeFgHiJkLmNoPqRsTuVwXyZ123456789/g' index.html
+```
+
+### After Deploying
+
+1. Commit and push:
+   ```bash
+   git add index.html
+   git commit -m "Add Google Search Console verification"
+   git push origin master
+   ```
+2. Wait 1-2 minutes for GitHub Pages to deploy
+3. Go back to Search Console and click **Verify**
+4. Once verified, go to **Sitemaps** in the left sidebar
+5. Enter: `sitemap-index.xml`
+6. Click **Submit**
+
+Search Console will start crawling and indexing your site. It takes 2-7 days for data to appear.
+
+---
+
+## PENDING TASK 3: Content Inconsistencies (LOW PRIORITY)
+
+These are not bugs — they're content decisions only the site owner can make:
+
+### 3a. Post Count Inconsistency
+- `index.html` has a link saying "All 127 posts →" pointing to `/blog/archive/`
+- Same page's social-proof section says "29+ Published Articles"
+- Actual count: 147 blog posts + 45 articles = different things
+- **Decision needed:** Clarify what "127" refers to, or update to accurate number
+
+### 3b. Mentee Count Inconsistency
+- `index.html` credibility section: "Mentored 40+ students across multiple cohorts"
+- `index.html` recognition section: "guided 10+ students"
+- `resume/index.html`: "Guided 10+ students"
+- **Decision needed:** Pick one accurate number and use it everywhere
+
+### 3c. Articles Page Links to .md Files
+- `articles/index.html` has links like `<a href="27-multi-agent-systems.md">` which will 404 in the browser
+- The `.md` files exist on disk but GitHub Pages doesn't render them as HTML
+- **Decision needed:** Either build a pipeline to convert articles to HTML, or link to the blog equivalents
+
+### 3d. Speaking Page Content
+- "Cloud Architecture Magazine" entry links to own blog post (`/blog/posts/adk-to-maf-migration-why.html`) — implies external publication
+- "Coming Soon" podcast entry with "Engineering Leadership Podcast" — appears to be placeholder
+- **Decision needed:** Fix the magazine attribution or remove it; remove podcast placeholder if not real
+
+### 3e. projects/index.html Missing CSS
+- `.projects-grid`, `.project`, `.project-header` CSS classes are used in HTML but not defined in the page's `<style>` block
+- The classes exist in `index.html` but were not copied to `projects/index.html`
+- This causes the project cards to render without proper grid layout
+- **Decision needed:** Copy the CSS from `index.html` to `projects/index.html`
+
+---
+
+## Build & Deploy Commands
+
+```bash
+# Navigate to repo
+cd /Users/genesis/Developer/goworkspace/src/github.com/PratikDhanave/PratikDhanave.github.io
+
+# Rebuild all blog posts (147 posts + 232 tag pages + RSS + popular posts JSON)
+python3 build_blog.py
+
+# Rebuild sitemaps (MUST run after build_blog.py)
+python3 build_sitemap.py
+
+# Check what changed
+git status -s
+
+# Commit and push
+git add <specific files>
+git commit -m "message"
+git push origin master
+
+# GitHub Pages deploys automatically from master (takes ~1 min)
+```
+
+---
+
+## Key File Map
+
+```
+pratikdhanave.github.io/
+├── index.html                    # Homepage (manual edit)
+├── about/index.html              # About page (manual edit)
+├── resume/index.html             # Resume (manual edit)
+├── projects/index.html           # Projects (manual edit)
+├── speaking/index.html           # Speaking (manual edit)
+├── resources/index.html          # Resources (manual edit)
+├── articles/index.html           # Articles listing (manual edit)
+├── articles/*.md                 # Article source files (45 articles)
+├── certifications/index.html     # Certifications (manual edit)
+├── 404.html                      # Custom 404 (manual edit)
+├── robots.txt                    # Crawler directives
+├── og-default.png                # Open Graph default image (1200x630)
+├── build_blog.py                 # Blog build script (THE key file)
+├── build_sitemap.py              # Sitemap generator
+├── blog/
+│   ├── source/*.md               # Markdown blog post sources
+│   ├── posts/*.html              # Generated blog post HTML (147 files)
+│   ├── tags/*/index.html         # Generated tag pages (232 files)
+│   ├── archive/*/index.html      # Generated archive pages
+│   ├── index.html                # Generated blog index
+│   ├── feed.xml                  # Generated RSS feed
+│   └── popular-posts.json        # Generated popular posts data
+├── sitemap-index.xml             # Generated sitemap index
+├── sitemap-pages.xml             # Generated pages sitemap (9 URLs)
+├── sitemap-blog.xml              # Generated blog sitemap (147 URLs)
+├── sitemap-tags.xml              # Generated tags sitemap (48 URLs)
+└── CLAUDE.md                     # This file
+```
+
+---
+
+## Structured Data Summary
+
+| Page | Schema Type | Status |
+|------|-------------|--------|
+| `index.html` | `Person` | Fixed: hasCredential, plain award strings |
+| `about/index.html` | `Person` | Fixed: hasCredential, plain award strings |
+| `resume/index.html` | `Person` + `BreadcrumbList` | Fixed: hasCredential, plain awards, removed stale worksFor |
+| `projects/index.html` | `WebPage` + `SoftwareApplication` hasPart | Verify `/projects/bodh/` and `/projects/harbourbridge/` URLs exist |
+| `articles/index.html` | `CollectionPage` | Working |
+| `blog/posts/*.html` | `BlogPosting` | Fixed: JSON-escaped headline/description, ISO 8601 dates |
+| `blog/tags/*/index.html` | `CollectionPage` (5+ posts only) | Fixed: JSON-escaped tag names and post titles |
+| Articles `.md` files | `FAQPage` in YAML frontmatter | Data exists but NOT consumed by any template |
+
+---
+
+## Git History (Recent)
+
+```
+010810f Deep audit fixes: escaping, schema, sitemaps, content accuracy
+c4fafd5 Execute full SEO plan: critical fixes, schema hardening, crawl optimization, content & E-E-A-T
+4d0c781 COMPLETE MONTH 1 BACKLINK PLAN: Week 3-4 + Full Roadmap
+5778b1b BACKLINK EXECUTION: Week 1 + Week 2 Guest Posts Ready
+3e91a69 COMPLETE SEO PACKAGE: Article Expansion + Blog Schema + Backlink Strategy
+```
