@@ -27,6 +27,8 @@ The script:
 import os
 import re
 import sys
+import json as _json
+from html import escape as _html_escape
 from pathlib import Path
 from datetime import datetime
 import markdown
@@ -831,14 +833,14 @@ POST_META = {
         "date": "2026-06-03",
         "tags": ['MAF', 'A2A', 'Communication', 'Architecture'],
         "audience": "Engineering",
-        "excerpt": "The reference architecture distinguishes request-based and message-driven agent communication. For in-process orchestration, MAF",
+        "excerpt": "The reference architecture distinguishes request-based and message-driven agent communication. For in-process orchestration, MAF's workflow runtime IS the broker. For distributed agent-to-agent, agent-framework-a2a is what you reach for.",
     },
     "auto-079-maf-agent-registry-convention.md": {
         "slug": "maf-agent-registry-convention",
         "date": "2026-06-01",
         "tags": ['MAF', 'Architecture', 'Python', 'Registry'],
         "audience": "Engineering",
-        "excerpt": "The Microsoft Agent Framework deliberately does not ship an agent registry. Here",
+        "excerpt": "The Microsoft Agent Framework deliberately does not ship an agent registry. Here's why that's the right call, and what the @register decorator pattern looks like when you build one yourself.",
     },
     "auto-080-maf-five-patterns-group-chat-magentic.md": {
         "slug": "maf-five-patterns-group-chat-magentic",
@@ -866,21 +868,21 @@ POST_META = {
         "date": "2026-06-02",
         "tags": ['MAF', 'Memory', 'Python', 'Architecture'],
         "audience": "Engineering",
-        "excerpt": "AgentSession is short-term memory. MemoryContextProvider + MemoryFileStore is long-term memory. Mem0 is long-term memory when you want it hosted. Here",
+        "excerpt": "AgentSession is short-term memory. MemoryContextProvider + MemoryFileStore is long-term memory. Mem0 is long-term memory when you want it hosted. Here's the shape — and the one boundary the framework gets right that your custom memory layer probably doesn't.",
     },
     "auto-084-maf-multi-turn-evals-first-principles.md": {
         "slug": "maf-multi-turn-evals-first-principles",
         "date": "2026-06-06",
         "tags": ['MAF', 'Evaluation', 'LLM-as-Judge', 'Python'],
         "audience": "Engineering",
-        "excerpt": "Single-turn evals check one decision. Multi-turn evals check the whole trajectory. Here",
+        "excerpt": "Single-turn evals check one decision. Multi-turn evals check the whole trajectory. Here's a Python harness — three evaluators (tool order, forbidden tools, LLM judge) — running against local Ollama with mocked tools.",
     },
     "auto-085-maf-observability-traces-metrics.md": {
         "slug": "maf-observability-traces-metrics",
         "date": "2026-06-04",
         "tags": ['MAF', 'Observability', 'OpenTelemetry', 'Grafana'],
         "audience": "Engineering",
-        "excerpt": "OpenTelemetry through MAF",
+        "excerpt": "OpenTelemetry through MAF's configure_otel_providers, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector to Prometheus + Jaeger, and a Grafana dashboard you can actually use.",
     },
     "auto-086-maf-ollama-as-default.md": {
         "slug": "maf-ollama-as-default",
@@ -894,7 +896,7 @@ POST_META = {
         "date": "2026-06-08",
         "tags": ['MAF', 'Refactor', 'Engineering'],
         "audience": "Engineering",
-        "excerpt": "I built memory, communication, security, governance, and evals from scratch first. Then I deleted most of it and used the official MAF packages. Here",
+        "excerpt": "I built memory, communication, security, governance, and evals from scratch first. Then I deleted most of it and used the official MAF packages. Here's the audit, the deletions, and the result.",
     },
     "auto-088-maf-reference-architecture-overview.md": {
         "slug": "maf-reference-architecture-overview",
@@ -1184,6 +1186,10 @@ POST_META = {
         "excerpt": "Moving a workload from Azure to GCP while it continues to authenticate against on-prem Azure AD (Entra ID). Federation lets the GCP workload assume a GCP service account based on its Azure identity.",
     },
 }
+
+# Project metadata (slug → name). Posts with "project" in their meta
+# use this to render a back-link breadcrumb.
+PROJECT_META = {}
 
 # Post popularity ranking (1-10 scale, 10 = most popular)
 # Used to generate "popular posts" section on homepage
@@ -1621,6 +1627,12 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
     description = meta["excerpt"]
     canonical = f"https://pratikdhanave.github.io/blog/posts/{meta['slug']}.html"
 
+    # Escape for safe embedding in HTML attributes and JSON-LD
+    title_html = _html_escape(title, quote=True)
+    desc_html = _html_escape(description, quote=True)
+    title_json = _json.dumps(title)[1:-1]   # strip outer quotes
+    desc_json = _json.dumps(description)[1:-1]
+
     # Calculate read time
     read_time = calculate_read_time(body_html)
     read_time_text = f"{read_time} min read"
@@ -1686,21 +1698,21 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{title} — Pratik Dhanave</title>
-<meta name="description" content="{description}">
+<title>{title_html} — Pratik Dhanave</title>
+<meta name="description" content="{desc_html}">
 <meta name="author" content="Pratik Dhanave">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 
-<meta property="og:title" content="{title}">
-<meta property="og:description" content="{description}">
+<meta property="og:title" content="{title_html}">
+<meta property="og:description" content="{desc_html}">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{canonical}">
 <meta property="og:image" content="https://pratikdhanave.github.io/og-default.png">
-<meta property="article:published_time" content="{date_iso}">
-{''.join(f'<meta property="article:tag" content="{t}">' + chr(10) for t in meta['tags'])}
+<meta property="article:published_time" content="{date_iso}T00:00:00+00:00">
+{''.join(f'<meta property="article:tag" content="{_html_escape(t, quote=True)}">' + chr(10) for t in meta['tags'])}
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{title}">
-<meta name="twitter:description" content="{description}">
+<meta name="twitter:title" content="{title_html}">
+<meta name="twitter:description" content="{desc_html}">
 <meta name="twitter:image" content="https://pratikdhanave.github.io/og-default.png">
 
 <link rel="canonical" href="{canonical}">
@@ -1717,8 +1729,8 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
 {{
   "@context": "https://schema.org",
   "@type": "BlogPosting",
-  "headline": "{title}",
-  "description": "{description}",
+  "headline": "{title_json}",
+  "description": "{desc_json}",
   "datePublished": "{date_iso}",
   "dateModified": "{date_iso}",
   "inLanguage": "en",
@@ -2018,16 +2030,17 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
     collection_schema = ""
     if post_count >= 5:
         schema_items = ", ".join(
-            f'{{"@type": "BlogPosting", "headline": "{p["title"]}", "url": "https://pratikdhanave.github.io/blog/posts/{p["meta"]["slug"]}.html"}}'
+            f'{{"@type": "BlogPosting", "headline": "{_json.dumps(p["title"])[1:-1]}", "url": "https://pratikdhanave.github.io/blog/posts/{p["meta"]["slug"]}.html"}}'
             for p in posts_with_tag
         )
+        tag_json = _json.dumps(tag)[1:-1]
         collection_schema = f"""
 <script type="application/ld+json">
 {{
   "@context": "https://schema.org",
   "@type": "CollectionPage",
-  "name": "{tag}",
-  "description": "Posts tagged with {tag}. By Pratik Dhanave.",
+  "name": "{tag_json}",
+  "description": "Posts tagged with {tag_json}. By Pratik Dhanave.",
   "url": "https://pratikdhanave.github.io/blog/tags/{tag.lower().replace(' ', '-')}/",
   "numberOfItems": {post_count},
   "hasPart": [{schema_items}]
@@ -2479,9 +2492,10 @@ def main():
             # HTML-only post (already in blog/posts/, no source .md)
             html_path = POSTS_DIR / f"{meta['slug']}.html"
             if html_path.exists():
+                from html import unescape as _html_unescape
                 raw = html_path.read_text(errors="ignore")
                 m = re.search(r"<title>([^<]+)</title>", raw, re.I)
-                post_title = m.group(1).replace(" — Pratik Dhanave", "").strip() if m else meta["slug"]
+                post_title = _html_unescape(m.group(1)).replace(" — Pratik Dhanave", "").strip() if m else meta["slug"]
                 rendered.append({"meta": meta, "title": post_title, "subtitle": ""})
             else:
                 print(f"SKIP missing: {md_path} and {html_path}", file=sys.stderr)
