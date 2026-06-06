@@ -1609,7 +1609,7 @@ NAV_HTML = """<nav>
 
 
 SITE_FOOTER = """<footer class="site-footer">
-  <p>© {year} Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a> · <a href="/thank-you/">Acknowledgments</a></p>
+  <p>© {year} Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer">LinkedIn</a> · <a href="/thank-you/">Acknowledgments</a></p>
 </footer>""".format(year=datetime.now().year)
 
 
@@ -1672,7 +1672,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
         citations_items = []
         for citation in meta["citations"]:
             citations_items.append(f"""    <div class="citation-item">
-      <div class="citation-title"><a href="{citation['url']}" target="_blank">{citation['title']}</a></div>
+      <div class="citation-title"><a href="{citation['url']}" target="_blank" rel="noopener noreferrer">{citation['title']}</a></div>
       <div class="citation-context">{citation['context']}</div>
     </div>""")
         citations_html = f"""
@@ -1689,6 +1689,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
 <title>{title} — Pratik Dhanave</title>
 <meta name="description" content="{description}">
 <meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{description}">
@@ -1703,7 +1704,12 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
 <meta name="twitter:image" content="https://pratikdhanave.github.io/og-default.png">
 
 <link rel="canonical" href="{canonical}">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.github.io/blog/feed.xml">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 — replace G-XXXXXXXXXX with your GA4 Measurement ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
 
 <style>{POST_CSS}</style>
 
@@ -1714,12 +1720,24 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
   "headline": "{title}",
   "description": "{description}",
   "datePublished": "{date_iso}",
+  "dateModified": "{date_iso}",
+  "inLanguage": "en",
   "author": {{
     "@type": "Person",
-    "name": "Pratik Dhanave"
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.github.io"
+  }},
+  "publisher": {{
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.github.io"
   }},
   "keywords": "{', '.join(meta['tags'])}",
-  "url": "{canonical}"
+  "url": "{canonical}",
+  "mainEntityOfPage": {{
+    "@type": "WebPage",
+    "@id": "{canonical}"
+  }}
 }}
 </script>
 </head>
@@ -1756,8 +1774,8 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
       <a href="/blog/">← All posts</a>
     </div>
     <p style="margin-top: 10px; font-size: 13px;">Find me on
-      <a href="https://github.com/PratikDhanave">GitHub</a> ·
-      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a> ·
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer">LinkedIn</a> ·
       <a href="/thank-you/">Acknowledgments</a></p>
   </div>
 {citations_html}
@@ -1892,6 +1910,7 @@ main.blog-index {
 <title>Blog — Pratik Dhanave</title>
 <meta name="description" content="Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. By Pratik Dhanave.">
 <meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 
 <meta property="og:title" content="Pratik Dhanave — Blog">
 <meta property="og:description" content="Long-form writing on multi-agent AI, medical AI governance, and HIPAA-aware architecture.">
@@ -1904,7 +1923,12 @@ main.blog-index {
 <meta name="twitter:image" content="https://pratikdhanave.github.io/og-default.png">
 
 <link rel="canonical" href="https://pratikdhanave.github.io/blog/">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.github.io/blog/feed.xml">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 — replace G-XXXXXXXXXX with your GA4 Measurement ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
 
 <style>{index_css}</style>
 </head>
@@ -1979,8 +2003,37 @@ def to_html(md_body):
 # Tag & Archive Generation
 # ---------------------------------------------------------------------------
 
-def render_tag_page(tag, posts_with_tag, all_tags):
+def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
     """Generate a page for a single tag listing all posts with that tag."""
+    if post_count is None:
+        post_count = len(posts_with_tag)
+
+    # Phase 0.4: noindex thin tags (<3 posts), index qualifying tags
+    if post_count < 3:
+        robots_meta = '<meta name="robots" content="noindex, follow">'
+    else:
+        robots_meta = '<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">'
+
+    # Phase 1.4: CollectionPage schema for tags with 5+ posts
+    collection_schema = ""
+    if post_count >= 5:
+        schema_items = ", ".join(
+            f'{{"@type": "BlogPosting", "headline": "{p["title"]}", "url": "https://pratikdhanave.github.io/blog/posts/{p["meta"]["slug"]}.html"}}'
+            for p in posts_with_tag
+        )
+        collection_schema = f"""
+<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "{tag}",
+  "description": "Posts tagged with {tag}. By Pratik Dhanave.",
+  "url": "https://pratikdhanave.github.io/blog/tags/{tag.lower().replace(' ', '-')}/",
+  "numberOfItems": {post_count},
+  "hasPart": [{schema_items}]
+}}
+</script>"""
+
     posts_html = []
     for p in posts_with_tag:
         tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
@@ -2101,6 +2154,7 @@ main.blog-index {
 <title>{tag} — Blog — Pratik Dhanave</title>
 <meta name="description" content="Posts tagged with {tag}. By Pratik Dhanave.">
 <meta name="author" content="Pratik Dhanave">
+{robots_meta}
 
 <meta property="og:title" content="Pratik Dhanave — {tag}">
 <meta property="og:description" content="Posts tagged with {tag}.">
@@ -2112,9 +2166,15 @@ main.blog-index {
 <meta name="twitter:image" content="https://pratikdhanave.github.io/og-default.png">
 
 <link rel="canonical" href="https://pratikdhanave.github.io/blog/tags/{tag.lower().replace(' ', '-')}/">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.github.io/blog/feed.xml">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
+<!-- Google Analytics 4 — replace G-XXXXXXXXXX with your GA4 Measurement ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+
 <style>{tag_page_css}</style>
+{collection_schema}
 </head>
 <body>
 
@@ -2362,6 +2422,38 @@ def render_popular_posts_json(all_posts, limit=3):
     return json.dumps({"popular_posts": items}, indent=2)
 
 
+def render_rss_feed(posts, limit=20):
+    """Generate RSS 2.0 XML feed of recent blog posts."""
+    from xml.sax.saxutils import escape
+    items = []
+    for p in posts[:limit]:
+        pub_date = datetime.strptime(p["meta"]["date"], "%Y-%m-%d").strftime("%a, %d %b %Y 00:00:00 +0000")
+        url = f"https://pratikdhanave.github.io/blog/posts/{p['meta']['slug']}.html"
+        categories = "".join(f"      <category>{escape(t)}</category>\n" for t in p["meta"]["tags"])
+        items.append(f"""    <item>
+      <title>{escape(p['title'])}</title>
+      <link>{url}</link>
+      <guid isPermaLink="true">{url}</guid>
+      <pubDate>{pub_date}</pubDate>
+      <description>{escape(p['meta'].get('excerpt', ''))}</description>
+{categories}    </item>""")
+
+    build_date = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S +0000")
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Pratik Dhanave — Blog</title>
+    <link>https://pratikdhanave.github.io/blog/</link>
+    <description>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems.</description>
+    <language>en</language>
+    <lastBuildDate>{build_date}</lastBuildDate>
+    <atom:link href="https://pratikdhanave.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
+{chr(10).join(items)}
+  </channel>
+</rss>
+"""
+
+
 # ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
@@ -2421,6 +2513,12 @@ def main():
     popular_posts_path.write_text(popular_posts_json)
     print(f"  wrote {popular_posts_path.relative_to(SITE_ROOT)}")
 
+    # Generate RSS feed
+    rss_xml = render_rss_feed(rendered, limit=20)
+    rss_path = SITE_ROOT / "blog" / "feed.xml"
+    rss_path.write_text(rss_xml)
+    print(f"  wrote {rss_path.relative_to(SITE_ROOT)}")
+
     # Generate tag pages
     all_tags = set()
     tag_posts = {}
@@ -2440,7 +2538,7 @@ def main():
         tag_dir.mkdir(parents=True, exist_ok=True)
         tag_file = tag_dir / "index.html"
         tag_name = posts_with_tag[0]["meta"]["tags"][[t.lower().replace(" ", "-") for t in posts_with_tag[0]["meta"]["tags"]].index(tag_key)]
-        tag_file.write_text(render_tag_page(tag_name, posts_with_tag, all_tags))
+        tag_file.write_text(render_tag_page(tag_name, posts_with_tag, all_tags, post_count=len(posts_with_tag)))
         print(f"  wrote {tag_file.relative_to(SITE_ROOT)}")
 
     # Generate archive pages

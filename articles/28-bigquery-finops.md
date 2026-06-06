@@ -18,6 +18,15 @@ schema: {
   "keywords": ["BigQuery", "FinOps", "cost optimization", "data warehouse"],
   "articleSection": "Cloud & Data"
 }
+faqSchema: {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "How can I reduce BigQuery costs by 50% or more?", "acceptedAnswer": {"@type": "Answer", "text": "The four biggest levers are: slot reservations (25-40% savings for high-volume), query optimization using SELECT only needed columns (30-50%), table partitioning by date (40-60%), and clustering on frequently filtered columns (20-30%). Combined, these delivered 57% reduction at Tata Group scale."}},
+    {"@type": "Question", "name": "Should I use on-demand or slot reservations for BigQuery?", "acceptedAnswer": {"@type": "Answer", "text": "If you spend more than $10K/month on on-demand BigQuery, slot reservations almost always save money. Use flex slots for burst workloads and annual commitments for steady-state. Monitor slot utilization to right-size."}},
+    {"@type": "Question", "name": "What is BigQuery FinOps?", "acceptedAnswer": {"@type": "Answer", "text": "BigQuery FinOps applies cloud financial management principles to data warehouse costs. It combines query optimization, capacity planning, storage tiering, and organizational accountability to maximize value per dollar spent on BigQuery."}}
+  ]
+}
 ---
 
 # BigQuery FinOps: 57% Cost Reduction in Production
