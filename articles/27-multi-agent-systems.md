@@ -23,6 +23,16 @@ schema: {
   "keywords": ["multi-agent systems", "agent orchestration", "architecture", "cost optimization"],
   "articleSection": "Multi-Agent Architecture"
 }
+faqSchema: {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "What is a multi-agent AI system?", "acceptedAnswer": {"@type": "Answer", "text": "A multi-agent AI system is an architectural pattern where multiple independent AI agents collaborate to accomplish complex goals. Each agent has specialized capabilities, maintains its own state, and communicates through well-defined interfaces — enabling modular, scalable, and cost-aware systems."}},
+    {"@type": "Question", "name": "When should you use multi-agent vs single-agent architecture?", "acceptedAnswer": {"@type": "Answer", "text": "Use multi-agent when tasks require different specializations (e.g., research + analysis + writing), when you need cost control per sub-task, or when reliability requires fallback chains. Single-agent is simpler and sufficient for focused, well-defined tasks."}},
+    {"@type": "Question", "name": "What are the main orchestration patterns for multi-agent systems?", "acceptedAnswer": {"@type": "Answer", "text": "The three primary patterns are: sequential pipeline (agents run in order), parallel fan-out/fan-in (agents run concurrently with results merged), and hierarchical delegation (a supervisor agent routes tasks to specialist agents)."}},
+    {"@type": "Question", "name": "How do you control costs in multi-agent AI systems?", "acceptedAnswer": {"@type": "Answer", "text": "Cost control techniques include token budgeting per agent, cascade routing (try cheaper models first), semantic caching to avoid redundant LLM calls, and governance policies that enforce budget limits at the orchestrator level."}}
+  ]
+}
 ---
 
 # Architecting Production Multi-Agent Systems: Patterns, Orchestration & Cost Constraints

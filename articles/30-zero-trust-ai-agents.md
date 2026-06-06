@@ -23,6 +23,15 @@ schema: {
   "keywords": ["zero-trust", "AI security", "agent security", "defense-in-depth"],
   "articleSection": "Security & Compliance"
 }
+faqSchema: {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "What is zero-trust architecture for AI agents?", "acceptedAnswer": {"@type": "Answer", "text": "Zero-trust for AI agents assumes no default trust for any entity — including the agents themselves. Every request requires explicit verification through identity, authentication, and authorization checks regardless of network location. Agents are treated as untrusted principals that must prove authorization for each action."}},
+    {"@type": "Question", "name": "Why do traditional security controls fail for AI agents?", "acceptedAnswer": {"@type": "Answer", "text": "Traditional controls assume predictable, deterministic behavior. AI agents are autonomous interpreters of goals — they choose tools, make multi-step decisions, and can escalate privileges through tool chains. Perimeter-based security doesn't work when the threat comes from inside the agent loop."}},
+    {"@type": "Question", "name": "How do you implement defense-in-depth for multi-agent AI systems?", "acceptedAnswer": {"@type": "Answer", "text": "Layer security across: network policies (restrict agent-to-agent communication), tool-level RBAC (each tool requires explicit authorization), output sanitization (prevent data exfiltration via crafted responses), escalation budgets (cap tool-calling depth), and audit trails (record every agent decision for forensic analysis)."}}
+  ]
+}
 ---
 
 # Zero Trust Isn't Optional Anymore: Securing AI Agents in the Enterprise

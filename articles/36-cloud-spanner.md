@@ -18,6 +18,15 @@ schema: {
   "keywords": ["Cloud Spanner", "database design", "schema design", "distributed database"],
   "articleSection": "Cloud Infrastructure"
 }
+faqSchema: {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "What causes write hotspots in Cloud Spanner?", "acceptedAnswer": {"@type": "Answer", "text": "Write hotspots occur when primary keys are monotonically increasing (auto-increment IDs, timestamps). Spanner distributes data by key range across splits, so sequential keys force all writes to the same split. Use UUIDs, bit-reversed sequences, or composite keys with high-cardinality prefixes instead."}},
+    {"@type": "Question", "name": "How do you migrate to Cloud Spanner with zero downtime?", "acceptedAnswer": {"@type": "Answer", "text": "Use a dual-write pattern: write to both source and Spanner simultaneously, backfill historical data in batches, validate consistency with checksums, then cut reads over to Spanner. HarbourBridge (open-source) automates schema conversion from PostgreSQL/MySQL to Spanner."}},
+    {"@type": "Question", "name": "When should you use Cloud Spanner vs Cloud SQL?", "acceptedAnswer": {"@type": "Answer", "text": "Use Spanner when you need global distribution, 99.999% availability, or horizontal write scaling beyond what a single node handles. Use Cloud SQL for regional workloads under 10TB where cost matters more than global distribution. Spanner's minimum cost is significantly higher than Cloud SQL."}}
+  ]
+}
 ---
 
 # Cloud Spanner: Schema Design, Write Hotspots, and Minimal-Downtime Migrations

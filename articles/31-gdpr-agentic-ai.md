@@ -23,6 +23,15 @@ schema: {
   "keywords": ["GDPR", "agentic AI", "compliance", "data minimization", "multi-agent"],
   "articleSection": "Compliance & Governance"
 }
+faqSchema: {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "Does GDPR apply to AI agents that process personal data?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The moment an AI agent touches personal data of EU residents, the organization operating it becomes a data processor under GDPR Article 28. This applies regardless of whether the agent explicitly requests the data or infers it during autonomous operation."}},
+    {"@type": "Question", "name": "How do you implement data minimization in multi-agent AI systems?", "acceptedAnswer": {"@type": "Answer", "text": "Implement data minimization by: restricting each agent's data access to only what its current task requires, using purpose-bound data envelopes that expire, redacting PII before passing context between agents, and enforcing retention limits at the agent framework level."}},
+    {"@type": "Question", "name": "What GDPR rights must AI agent systems support?", "acceptedAnswer": {"@type": "Answer", "text": "AI agent systems must support all GDPR data subject rights: access (Article 15), rectification (Article 16), erasure/right to be forgotten (Article 17), restriction of processing (Article 18), data portability (Article 20), and the right not to be subject to solely automated decision-making (Article 22)."}}
+  ]
+}
 ---
 
 # GDPR for Agentic AI Systems: Data Minimization in Multi-Agent Workflows
