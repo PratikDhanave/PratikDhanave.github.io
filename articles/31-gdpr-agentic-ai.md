@@ -27,7 +27,7 @@ faqSchema: {
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    {"@type": "Question", "name": "Does GDPR apply to AI agents that process personal data?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The moment an AI agent touches personal data of EU residents, the organization operating it becomes a data processor under GDPR Article 28. This applies regardless of whether the agent explicitly requests the data or infers it during autonomous operation."}},
+    {"@type": "Question", "name": "Does GDPR apply to AI agents that process personal data?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The moment an AI agent touches personal data of EU residents, the organization operating it becomes a data controller under GDPR Article 24. This applies regardless of whether the agent explicitly requests the data or infers it during autonomous operation."}},
     {"@type": "Question", "name": "How do you implement data minimization in multi-agent AI systems?", "acceptedAnswer": {"@type": "Answer", "text": "Implement data minimization by: restricting each agent's data access to only what its current task requires, using purpose-bound data envelopes that expire, redacting PII before passing context between agents, and enforcing retention limits at the agent framework level."}},
     {"@type": "Question", "name": "What GDPR rights must AI agent systems support?", "acceptedAnswer": {"@type": "Answer", "text": "AI agent systems must support all GDPR data subject rights: access (Article 15), rectification (Article 16), erasure/right to be forgotten (Article 17), restriction of processing (Article 18), data portability (Article 20), and the right not to be subject to solely automated decision-making (Article 22)."}}
   ]
@@ -36,7 +36,7 @@ faqSchema: {
 
 # GDPR for Agentic AI Systems: Data Minimization in Multi-Agent Workflows
 
-**The moment your agent touches personal data, you're no longer just an engineer — you're a processor under GDPR Article 28.** This shift from "build fast, comply later" to "compliance is architecture" hits harder in [multi-agent systems](/articles/27-multi-agent-systems/) because agents are *autonomous interpreters of goals*, which means they can inadvertently collect, infer, or share personal data without explicit permission.
+**The moment your agent touches personal data, you're no longer just an engineer — you're a data controller under GDPR Article 24.** This shift from "build fast, comply later" to "compliance is architecture" hits harder in [multi-agent systems](/articles/27-multi-agent-systems/) because agents are *autonomous interpreters of goals*, which means they can inadvertently collect, infer, or share personal data without explicit permission.
 
 Having built agentic systems on Microsoft Agent Framework (MAF) processing EU user data, here's what every architect needs to know before your first agent touches PII. For broader governance patterns, see our guide on [zero-trust architecture for AI agents](/articles/30-zero-trust-ai-agents/).
 

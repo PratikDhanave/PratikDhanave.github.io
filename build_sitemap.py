@@ -14,6 +14,7 @@ Run from the site repo root after build_blog.py.
 
 import os
 import re
+import sys
 import subprocess
 from pathlib import Path
 from datetime import datetime
@@ -34,6 +35,7 @@ def git_last_modified(file_path):
             return result.stdout.strip()[:10]  # YYYY-MM-DD
     except Exception:
         pass
+    print(f"  WARNING: no git history for {Path(file_path).name}, using today", file=sys.stderr)
     return datetime.now().strftime("%Y-%m-%d")
 
 
@@ -102,7 +104,13 @@ def collect_main_pages():
 
 
 def collect_blog_posts():
-    """Collect all blog posts from blog/posts/ directory."""
+    """Collect all blog posts from blog/posts/ directory.
+
+    Only includes blog/posts/*.html URLs. Legacy date-based URLs
+    (blog/YYYY/MM/DD/slug/) are excluded to avoid duplicate entries
+    in the sitemap — they point to separate HTML files that already
+    have canonical links back to the main posts.
+    """
     posts_dir = SITE_ROOT / "blog" / "posts"
     urls = []
     if not posts_dir.exists():
@@ -122,15 +130,6 @@ def collect_blog_posts():
         else:
             priority = "0.6"
 
-        urls.append((url, lastmod, "monthly", priority))
-
-    # Also collect date-based blog URLs (blog/YYYY/MM/DD/slug/)
-    for index_html in sorted(SITE_ROOT.glob("blog/20??/??/??/*/index.html")):
-        rel = index_html.relative_to(SITE_ROOT)
-        url = f"{SITE_URL}/{rel.parent}/"
-        lastmod = git_last_modified(index_html)
-        year = int(lastmod[:4]) if lastmod else 2024
-        priority = "0.8" if year >= 2026 else "0.7" if year >= 2025 else "0.6"
         urls.append((url, lastmod, "monthly", priority))
 
     return urls
