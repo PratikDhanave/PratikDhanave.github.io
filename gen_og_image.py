@@ -13,13 +13,14 @@ import os
 W, H = 1200, 630
 
 # ── Colours ─────────────────────────────────────────────────────────────────
-BG_TOP      = (10,  18,  40)   # deep navy
-BG_BOTTOM   = (20,  36,  72)   # slightly lighter navy
-ACCENT      = (99, 179, 237)   # sky blue  (#63B3ED)
-ACCENT2     = (154, 117, 234)  # soft purple (#9A75EA)
+BG_TOP      = (255, 255, 255)  # white
+BG_BOTTOM   = (245, 247, 252)  # very light blue-white
+ACCENT      = (37,  99, 235)   # vivid blue  (#2563EB)
+ACCENT2     = (109, 40, 217)   # vivid purple (#6D28D9)
 WHITE       = (255, 255, 255)
-LIGHT_GREY  = (180, 195, 215)
-DIM_GREY    = (100, 120, 150)
+DARK        = (15,  23,  42)   # near-black for text (#0F172A)
+MID_GREY    = (71,  85, 105)   # slate-500
+DIM_GREY    = (100, 116, 139)  # slate-400
 
 # ── Font helper ──────────────────────────────────────────────────────────────
 FONT_PATHS = [
@@ -64,7 +65,7 @@ for y in range(120, 510):
 # ── Subtle dot-grid pattern (top-right quadrant) ─────────────────────────────
 for gx in range(700, 1160, 36):
     for gy in range(60, 340, 36):
-        draw.ellipse([(gx-1, gy-1), (gx+1, gy+1)], fill=(40, 65, 110))
+        draw.ellipse([(gx-1, gy-1), (gx+1, gy+1)], fill=(210, 220, 240))
 
 # ── Fonts ─────────────────────────────────────────────────────────────────────
 f_tag    = load_font(20)
@@ -79,14 +80,14 @@ draw.text((100, 138), TAG, font=f_tag, fill=ACCENT)
 
 # ── Name ──────────────────────────────────────────────────────────────────────
 NAME = "Pratik Dhanave"
-draw.text((100, 172), NAME, font=f_name, fill=WHITE)
+draw.text((100, 172), NAME, font=f_name, fill=DARK)
 
 # ── Title ─────────────────────────────────────────────────────────────────────
 TITLE = "Multi-Agent AI Engineer  ·  Distributed Systems  ·  Cloud Architect"
-draw.text((100, 272), TITLE, font=f_title, fill=LIGHT_GREY)
+draw.text((100, 272), TITLE, font=f_title, fill=MID_GREY)
 
 # ── Thin separator line ───────────────────────────────────────────────────────
-draw.line([(100, 336), (900, 336)], fill=(50, 75, 120), width=1)
+draw.line([(100, 336), (900, 336)], fill=(210, 218, 235), width=1)
 
 # ── Skill chips ───────────────────────────────────────────────────────────────
 chips = ["Go", "HIPAA-grade AI", "MARA", "GCP", "FinTech", "Healthcare AI"]
@@ -99,16 +100,17 @@ for chip in chips:
     tw = bbox[2] - bbox[0]
     th = bbox[3] - bbox[1]
     box = [cx, cy, cx + tw + pad_x * 2, cy + th + pad_y * 2]
-    draw.rounded_rectangle(box, radius=radius, fill=(30, 52, 95), outline=(60, 90, 140))
+    draw.rounded_rectangle(box, radius=radius, fill=(239, 246, 255), outline=(191, 219, 254))
     draw.text((cx + pad_x, cy + pad_y), chip, font=f_chips, fill=ACCENT)
     cx += tw + pad_x * 2 + 14
 
 # ── Bottom strip ──────────────────────────────────────────────────────────────
-draw.rectangle([(0, H - 58), (W, H)], fill=(8, 15, 35))
+draw.rectangle([(0, H - 58), (W, H)], fill=(241, 245, 249))
+draw.line([(0, H - 58), (W, H - 58)], fill=(215, 225, 240), width=1)
 draw.text((100, H - 40), "Building production-grade AI systems · 147 articles · Open Source", font=f_url, fill=DIM_GREY)
 
 # ── Small accent circle (bottom-right branding dot) ──────────────────────────
-draw.ellipse([(1110, H - 58 - 60), (1170, H - 58)], fill=(20, 40, 80), outline=ACCENT, width=2)
+draw.ellipse([(1110, H - 58 - 60), (1170, H - 58)], fill=(239, 246, 255), outline=ACCENT, width=2)
 draw.text((1122, H - 58 - 38), "PD", font=load_font(22, bold=True), fill=ACCENT)
 
 # ── Save ──────────────────────────────────────────────────────────────────────
