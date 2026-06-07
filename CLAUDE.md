@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Site Overview
 
-- **URL:** https://pratikdhanave.github.io
+- **URL:** https://pratikdhanave.com
 - **Type:** Custom Python-based static site generator (not Jekyll, Hugo, or any off-the-shelf SSG)
 - **Hosting:** GitHub Pages from `master` branch
 - **CI/CD:** `.github/workflows/publish-blog.yml` auto-runs `build_blog.py` when `blog/source/*.md` changes

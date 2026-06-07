@@ -915,7 +915,7 @@ def render_project_detail_html(project_slug, all_posts):
   "@type": "SoftwareSourceCode",
   "name": "{project['name']}",
   "description": "{project['tagline']}",
-  "url": "https://pratikdhanave.github.io/projects/{project_slug}/",
+  "url": "https://pratikdhanave.com/projects/{project_slug}/",
   "author": {{
     "@type": "Person",
     "name": "Pratik Dhanave"
@@ -934,13 +934,13 @@ def render_project_detail_html(project_slug, all_posts):
       "@type": "ListItem",
       "position": 1,
       "name": "Projects",
-      "item": "https://pratikdhanave.github.io/projects/"
+      "item": "https://pratikdhanave.com/projects/"
     }},
     {{
       "@type": "ListItem",
       "position": 2,
       "name": "{project['name']}",
-      "item": "https://pratikdhanave.github.io/projects/{project_slug}/"
+      "item": "https://pratikdhanave.com/projects/{project_slug}/"
     }}
   ]
 }}
@@ -966,11 +966,11 @@ def _wrap_page_html(page_title, body_html, schema_html=""):
 <meta name="author" content="Pratik Dhanave">
 <meta property="og:title" content="Pratik Dhanave — {page_title}">
 <meta property="og:type" content="website">
-<meta property="og:image" content="https://pratikdhanave.github.io/og-default.png">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pratik Dhanave — {page_title}">
-<meta name="twitter:image" content="https://pratikdhanave.github.io/og-default.png">
-<link rel="canonical" href="https://pratikdhanave.github.io/projects/">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+<link rel="canonical" href="https://pratikdhanave.com/projects/">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 <style>
 {PROJECT_CSS}
