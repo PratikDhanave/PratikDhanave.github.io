@@ -1449,6 +1449,7 @@ NAV_HTML = """<nav>
       <li><a href="/projects/">Projects</a></li>
       <li><a href="/speaking/">Speaking</a></li>
       <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
       <li><a href="/gallery/">Gallery</a></li>
       <li><a href="/blog/" class="active">Blog</a></li>
       <li><a href="/#contact">Contact</a></li>
