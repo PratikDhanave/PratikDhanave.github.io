@@ -341,8 +341,80 @@ Week 3+ (Ongoing):
 - **No local SEO** (Google Business Profile — not applicable)
 - **No international SEO** (single language site)
 - **No content rewriting** (existing content quality is strong)
-- **No custom domain setup** (staying on github.io)
 - **No JavaScript framework migration** (static HTML is ideal for SEO)
+
+---
+
+## Part 7: Custom Domain Migration (pratikdhanave.com)
+
+**Status:** Code changes DONE. Domain not yet purchased.
+
+All URLs in the codebase have been migrated from `pratikdhanave.github.io` → `pratikdhanave.com`. The CNAME file has been removed until the domain is purchased to prevent redirect to an unresolvable domain.
+
+### When Ready to Activate
+
+#### Step 1: Buy the Domain
+- **Registrar:** Namecheap (recommended for ease of use + 24/7 human support)
+- **Domain:** `pratikdhanave.com` (confirmed available as of June 7, 2026)
+- **Cost:** ~$10-12/year
+- Enable auto-renew and free WHOIS privacy
+
+#### Step 2: Configure DNS at Namecheap
+Set these DNS records (Advanced DNS → Add New Record):
+
+| Type | Host | Value |
+|------|------|-------|
+| A | @ | 185.199.108.153 |
+| A | @ | 185.199.109.153 |
+| A | @ | 185.199.110.153 |
+| A | @ | 185.199.111.153 |
+| CNAME | www | pratikdhanave.github.io |
+
+#### Step 3: Add CNAME File to Repo
+```bash
+echo "pratikdhanave.com" > CNAME
+git add CNAME
+git commit -m "Add CNAME for pratikdhanave.com custom domain"
+git push
+```
+
+#### Step 4: Enable in GitHub
+- Go to: github.com/PratikDhanave/PratikDhanave.github.io → Settings → Pages
+- Custom domain: enter `pratikdhanave.com`
+- Check "Enforce HTTPS"
+- Wait ~10 minutes for SSL certificate provisioning
+
+#### Step 5: Set Up Email (Free)
+- In Namecheap dashboard → Email Forwarding (or use Cloudflare Email Routing if DNS is moved)
+- Create: `pratik@pratikdhanave.com` → forwards to your Gmail
+- Set up Gmail "Send As" to reply from the custom address
+
+#### Step 6: Update Google Search Console
+- Add `pratikdhanave.com` as a new property in Search Console
+- Submit `sitemap-index.xml`
+- Request indexing for top pages
+- The old `pratikdhanave.github.io` property will show redirect data
+
+### What's Already Done (code changes committed)
+- [x] All canonical URLs updated to pratikdhanave.com
+- [x] All Open Graph URLs updated
+- [x] All Twitter Card URLs updated
+- [x] All JSON-LD schema URLs updated
+- [x] All RSS feed URLs updated
+- [x] All sitemap URLs updated
+- [x] robots.txt updated
+- [x] build_blog.py SITE_ROOT updated (affects 200+ generated pages)
+- [x] build_sitemap.py updated
+- [x] build_projects.py updated
+- [x] 245 legacy blog HTML files updated
+- [x] blog/feed.json updated
+- [x] CLAUDE.md updated
+
+### Optional: Also Buy pratikdhanave.ai
+- Available as of June 7, 2026
+- Cost: ~$70-80/year
+- Set up as redirect to pratikdhanave.com
+- Reinforces AI positioning in conversations
 
 ---
 
