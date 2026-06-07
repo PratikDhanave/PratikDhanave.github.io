@@ -9,6 +9,7 @@ Architecture:
 - /projects/client-work/ — client portfolio overview
 """
 
+import re
 from pathlib import Path
 from datetime import datetime
 from build_blog import (
@@ -64,7 +65,7 @@ PROJECT_META = {
             {
                 "name": "Ollama Community",
                 "context": "Local LLM inference for development and deployment",
-                "url": "https://ollama.ai/",
+                "url": "https://ollama.com/",
             },
             {
                 "name": "c2siorg Community",
@@ -1008,7 +1009,7 @@ def render_project_detail_html(project_slug, all_posts):
     "@type": "Person",
     "name": "Pratik Dhanave"
   }},
-  "codeRepository": "https://github.com/PratikDhanave",
+  "codeRepository": "{project.get('links', [[None, 'https://github.com/PratikDhanave']])[0][1]}",
   "programmingLanguage": "{project.get('language', 'Go')}"
 }}
 </script>
@@ -1064,10 +1065,12 @@ def _wrap_page_html(page_title, body_html, schema_html="", slug=""):
 <meta name="description" content="{page_title}. Portfolio projects and client work by Pratik Dhanave.">
 <meta name="author" content="Pratik Dhanave">
 <meta property="og:title" content="Pratik Dhanave — {page_title}">
+<meta property="og:description" content="{page_title}. Portfolio projects and client work by Pratik Dhanave — multi-agent AI, cloud infrastructure, and production systems.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://pratikdhanave.com/og-default.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pratik Dhanave — {page_title}">
+<meta name="twitter:description" content="{page_title}. Portfolio projects and client work by Pratik Dhanave — multi-agent AI, cloud infrastructure, and production systems.">
 <meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
 <link rel="canonical" href="{canonical}">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
@@ -1090,6 +1093,17 @@ def main():
     """Generate all project pages."""
     # Import POST_META for related posts linking
     from build_blog import POST_META as blog_posts_meta
+
+    # Enrich POST_META with titles from generated HTML files
+    for meta in blog_posts_meta.values():
+        if "title" not in meta:
+            slug = meta.get("slug", "")
+            post_file = SITE_ROOT / "blog" / "posts" / f"{slug}.html"
+            if post_file.exists():
+                html_head = post_file.read_text()[:500]
+                m = re.search(r"<title>(.*?)(?:\s*—\s*Pratik Dhanave)?</title>", html_head)
+                if m:
+                    meta["title"] = m.group(1).strip()
 
     # Convert POST_META values to list format for find_related_posts
     all_posts = [
