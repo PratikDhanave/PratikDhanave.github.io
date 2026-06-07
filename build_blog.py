@@ -29,6 +29,9 @@ import os
 import re
 import sys
 import json as _json
+import subprocess
+import urllib.request
+import urllib.error
 from html import escape as _html_escape
 from pathlib import Path
 from datetime import datetime
@@ -1446,6 +1449,7 @@ NAV_HTML = """<nav>
       <li><a href="/projects/">Projects</a></li>
       <li><a href="/speaking/">Speaking</a></li>
       <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
       <li><a href="/blog/" class="active">Blog</a></li>
       <li><a href="/#contact">Contact</a></li>
     </ul>
@@ -1577,7 +1581,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
 <link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.github.io/blog/feed.xml">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
-<!-- Google Analytics 4 — replace G-3BZ8MDPHE1 with your GA4 Measurement ID -->
+<!-- Google Analytics 4 -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
 
@@ -1835,13 +1839,26 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pratik Dhanave — Blog">
+<meta name="twitter:description" content="Technical articles on multi-agent AI, cloud architecture, security, and production systems. {total_posts} posts and counting.">
 <meta name="twitter:image" content="https://pratikdhanave.github.io/og-default.png">
 
 <link rel="canonical" href="https://pratikdhanave.github.io/blog/">
 <link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.github.io/blog/feed.xml">
+
+<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://pratikdhanave.github.io"}},
+    {{"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pratikdhanave.github.io/blog/"}}
+  ]
+}}
+</script>
+
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
-<!-- Google Analytics 4 — replace G-3BZ8MDPHE1 with your GA4 Measurement ID -->
+<!-- Google Analytics 4 -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
 
@@ -2035,7 +2052,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
 <link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.github.io/blog/feed.xml">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
-<!-- Google Analytics 4 — replace G-3BZ8MDPHE1 with your GA4 Measurement ID -->
+<!-- Google Analytics 4 -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
 
@@ -2243,7 +2260,7 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
 <link rel="canonical" href="{canonical}">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
-<!-- Google Analytics 4 — replace G-3BZ8MDPHE1 with your GA4 Measurement ID -->
+<!-- Google Analytics 4 -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
 
@@ -2528,5 +2545,81 @@ def main():
     print(f"\nBuilt {len(rendered)} posts + {len(tag_posts)} tag pages + {len(archive_by_date)} year archives + {total_pages} archive pages.")
 
 
+INDEXNOW_KEY  = "b6b1ed31366b46ad8a801ad9bc6e5613"
+INDEXNOW_HOST = "https://pratikdhanave.github.io"
+INDEXNOW_API  = "https://api.indexnow.org/indexnow"
+
+
+def indexnow_ping(new_urls: list[str]) -> None:
+    """POST newly published URLs to IndexNow (Bing + Yandex + more).
+
+    Only fires when there are URLs to submit.  Skips silently if the
+    network is unavailable (e.g. offline CI runs) — never breaks the build.
+    """
+    if not new_urls:
+        return
+
+    payload = _json.dumps({
+        "host":        "pratikdhanave.github.io",
+        "key":         INDEXNOW_KEY,
+        "keyLocation": f"{INDEXNOW_HOST}/{INDEXNOW_KEY}.txt",
+        "urlList":     new_urls,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        INDEXNOW_API,
+        data=payload,
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            status = resp.status
+    except urllib.error.HTTPError as exc:
+        status = exc.code
+    except Exception as exc:
+        print(f"  [IndexNow] skipped — {exc}", file=sys.stderr)
+        return
+
+    if status in (200, 202):
+        print(f"  [IndexNow] ✅ pinged {len(new_urls)} URL(s) → HTTP {status}")
+    else:
+        print(f"  [IndexNow] ⚠️  unexpected HTTP {status}", file=sys.stderr)
+
+
+def _new_post_urls() -> list[str]:
+    """Return site URLs for blog posts added/modified since the last git commit.
+
+    Compares git index (staged + working tree changes) against HEAD so that
+    URLs are collected right after the build writes the HTML but before the
+    user commits — matching real-world CI usage where build → commit happens
+    in the same pipeline step.
+
+    Falls back to an empty list if git is unavailable.
+    """
+    try:
+        # Files changed vs HEAD (staged or unstaged)
+        result = subprocess.run(
+            ["git", "diff", "--name-only", "HEAD"],
+            capture_output=True, text=True, timeout=10,
+            cwd=str(SITE_ROOT),
+        )
+        changed = result.stdout.splitlines()
+    except Exception:
+        return []
+
+    urls = []
+    for path in changed:
+        # Only blog post HTML files: blog/posts/<slug>.html
+        if path.startswith("blog/posts/") and path.endswith(".html"):
+            slug = path[len("blog/posts/"):-len(".html")]
+            urls.append(f"{INDEXNOW_HOST}/blog/posts/{slug}.html")
+    return urls
+
+
 if __name__ == "__main__":
     main()
+    new_urls = _new_post_urls()
+    if new_urls:
+        print(f"\nPinging IndexNow for {len(new_urls)} new/updated post(s)...")
+        indexnow_ping(new_urls)
