@@ -24,6 +24,7 @@ The script:
   7. Leaves the root index.html for separate manual editing (Blog nav link)
 """
 
+import math
 import os
 import re
 import sys
@@ -1966,7 +1967,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
 """
 
 
-def _render_post_card(p, link_prefix="posts/"):
+def _render_post_card(p, link_prefix="/blog/posts/"):
     """Render a single post card HTML block."""
     tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
     date_iso = p["meta"]["date"]
@@ -2487,16 +2488,20 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
 # Paginated Archive
 # ---------------------------------------------------------------------------
 
+def _archive_page_url(n):
+    """Return canonical URL path for archive page n (page 1 = /blog/archive/)."""
+    return "/blog/archive/" if n == 1 else f"/blog/archive/page/{n}/"
+
+
 def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
     """Generate a paginated archive page."""
-    import math
 
     cards = [_render_post_card(p, link_prefix="/blog/posts/") for p in page_posts]
 
     # Pagination nav
     pages = []
     if page_num > 1:
-        pages.append(f'<a href="/blog/archive/page/{page_num - 1}/">&larr; Newer</a>')
+        pages.append(f'<a href="{_archive_page_url(page_num - 1)}">&larr; Newer</a>')
     else:
         pages.append('<span class="disabled">&larr; Newer</span>')
 
@@ -2504,12 +2509,12 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
         if i == page_num:
             pages.append(f'<span class="current">{i}</span>')
         elif abs(i - page_num) <= 2 or i == 1 or i == total_pages:
-            pages.append(f'<a href="/blog/archive/page/{i}/">{i}</a>')
+            pages.append(f'<a href="{_archive_page_url(i)}">{i}</a>')
         elif abs(i - page_num) == 3:
             pages.append('<span class="ellipsis">&hellip;</span>')
 
     if page_num < total_pages:
-        pages.append(f'<a href="/blog/archive/page/{page_num + 1}/">Older &rarr;</a>')
+        pages.append(f'<a href="{_archive_page_url(page_num + 1)}">Older &rarr;</a>')
     else:
         pages.append('<span class="disabled">Older &rarr;</span>')
 
@@ -2518,12 +2523,13 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
     # SEO: noindex page 2+ to avoid duplicate content
     robots = '<meta name="robots" content="noindex, follow">' if page_num > 1 else '<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">'
 
-    # Prev/next links for SEO
+    # Canonical and prev/next links for SEO
+    canonical = f"https://pratikdhanave.github.io{_archive_page_url(page_num)}"
     link_tags = ""
     if page_num > 1:
-        link_tags += f'\n<link rel="prev" href="https://pratikdhanave.github.io/blog/archive/page/{page_num - 1}/">'
+        link_tags += f'\n<link rel="prev" href="https://pratikdhanave.github.io{_archive_page_url(page_num - 1)}">'
     if page_num < total_pages:
-        link_tags += f'\n<link rel="next" href="https://pratikdhanave.github.io/blog/archive/page/{page_num + 1}/">'
+        link_tags += f'\n<link rel="next" href="https://pratikdhanave.github.io{_archive_page_url(page_num + 1)}">'
 
     page_css = POST_CSS + BLOG_LAYOUT_CSS + CARD_CSS + PAGINATION_CSS
 
@@ -2532,7 +2538,7 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Archive — Page {page_num} — Pratik Dhanave</title>
+<title>Archive{f' — Page {page_num}' if page_num > 1 else ''} — Pratik Dhanave</title>
 <meta name="description" content="All blog posts by Pratik Dhanave. Page {page_num} of {total_pages} ({total_posts} posts).">
 <meta name="author" content="Pratik Dhanave">
 {robots}
@@ -2542,7 +2548,7 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://pratikdhanave.github.io/og-default.png">
 
-<link rel="canonical" href="https://pratikdhanave.github.io/blog/archive/page/{page_num}/">
+<link rel="canonical" href="{canonical}">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
 <!-- Google Analytics 4 — replace G-XXXXXXXXXX with your GA4 Measurement ID -->
@@ -2809,7 +2815,6 @@ def main():
             print(f"  wrote {month_file.relative_to(SITE_ROOT)}")
 
     # Generate paginated archive
-    import math
     posts_per_page = 12
     total_pages = math.ceil(len(rendered) / posts_per_page)
     for page_num in range(1, total_pages + 1):
@@ -2818,13 +2823,15 @@ def main():
         page_html = render_paginated_archive(page_posts, page_num, total_pages, len(rendered))
 
         if page_num == 1:
+            # Page 1 lives at /blog/archive/ (canonical entry point)
             (archive_dir / "index.html").write_text(page_html)
             print(f"  wrote {(archive_dir / 'index.html').relative_to(SITE_ROOT)}")
-
-        page_dir = archive_dir / "page" / str(page_num)
-        page_dir.mkdir(parents=True, exist_ok=True)
-        (page_dir / "index.html").write_text(page_html)
-        print(f"  wrote {(page_dir / 'index.html').relative_to(SITE_ROOT)}")
+        else:
+            # Pages 2+ live at /blog/archive/page/N/
+            page_dir = archive_dir / "page" / str(page_num)
+            page_dir.mkdir(parents=True, exist_ok=True)
+            (page_dir / "index.html").write_text(page_html)
+            print(f"  wrote {(page_dir / 'index.html').relative_to(SITE_ROOT)}")
 
     print(f"\nBuilt {len(rendered)} posts + {len(tag_posts)} tag pages + {len(archive_by_date)} year archives + {total_pages} archive pages.")
 
