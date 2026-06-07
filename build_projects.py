@@ -733,6 +733,94 @@ PROJECT_CSS = POST_CSS + """
   background: var(--bg-elev);
   text-decoration: none;
 }
+
+/* Gallery page hero */
+.blog-hero {
+  padding: 56px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 36px;
+}
+.blog-hero h1 {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+.blog-hero p {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  max-width: 640px;
+}
+
+/* Project gallery grid */
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+.project {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.project:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+.project-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.project-name {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.project-name a {
+  color: var(--text);
+}
+.project-name a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.project-org {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.project-desc {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+  line-height: 1.55;
+  flex: 1;
+}
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.project-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.project-links a {
+  white-space: nowrap;
+}
 """
 
 
@@ -946,22 +1034,33 @@ def render_project_detail_html(project_slug, all_posts):
 }}
 </script>"""
 
-    return _wrap_page_html(project['name'], body, schema_html)
+    return _wrap_page_html(project['name'], body, schema_html, slug=project_slug)
 
 
-def _wrap_page_html(page_title, body_html, schema_html=""):
+def _wrap_page_html(page_title, body_html, schema_html="", slug=""):
     """Wrap project page body with nav, footer, CSS."""
     active_nav = NAV_HTML.replace(
         '<li><a href="/projects/">Projects</a></li>',
         '<li><a href="/projects/" class="active">Projects</a></li>',
+    ).replace(
+        '<li><a href="/blog/" class="active">Blog</a></li>',
+        '<li><a href="/blog/">Blog</a></li>',
     )
+
+    # For the gallery page, use "Projects" directly; for detail pages, append " — Projects"
+    if page_title == "Projects":
+        full_title = "Projects — Pratik Dhanave"
+        canonical = "https://pratikdhanave.com/projects/"
+    else:
+        full_title = f"{page_title} — Projects — Pratik Dhanave"
+        canonical = f"https://pratikdhanave.com/projects/{slug}/" if slug else "https://pratikdhanave.com/projects/"
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{page_title} — Projects — Pratik Dhanave</title>
+<title>{full_title}</title>
 <meta name="description" content="{page_title}. Portfolio projects and client work by Pratik Dhanave.">
 <meta name="author" content="Pratik Dhanave">
 <meta property="og:title" content="Pratik Dhanave — {page_title}">
@@ -970,7 +1069,7 @@ def _wrap_page_html(page_title, body_html, schema_html=""):
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pratik Dhanave — {page_title}">
 <meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
-<link rel="canonical" href="https://pratikdhanave.com/projects/">
+<link rel="canonical" href="{canonical}">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 <style>
 {PROJECT_CSS}
