@@ -1446,7 +1446,6 @@ NAV_HTML = """<nav>
       <li><a href="/projects/">Projects</a></li>
       <li><a href="/speaking/">Speaking</a></li>
       <li><a href="/blog/" class="active">Blog</a></li>
-      <li><a href="/resources/">Resources</a></li>
       <li><a href="/#contact">Contact</a></li>
     </ul>
   </div>
