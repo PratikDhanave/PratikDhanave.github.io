@@ -75,7 +75,7 @@ f_chips  = load_font(22)
 f_url    = load_font(20)
 
 # ── Tag line above name ───────────────────────────────────────────────────────
-TAG = "pratikdhanave.github.io"
+TAG = "pratikdhanave.com"
 draw.text((100, 138), TAG, font=f_tag, fill=ACCENT)
 
 # ── Name ──────────────────────────────────────────────────────────────────────
