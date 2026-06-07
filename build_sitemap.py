@@ -93,6 +93,7 @@ def collect_main_pages():
         ("/about/", "about/index.html", "monthly", "0.7"),
         ("/speaking/", "speaking/index.html", "monthly", "0.7"),
         ("/mentoring/", "mentoring/index.html", "monthly", "0.7"),
+        ("/gsoc/", "gsoc/index.html", "monthly", "0.7"),
         ("/gallery/", "gallery/index.html", "monthly", "0.6"),
         ("/certifications/", "certifications/index.html", "monthly", "0.5"),
     ]
