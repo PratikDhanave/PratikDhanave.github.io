@@ -1445,6 +1445,7 @@ NAV_HTML = """<nav>
       <li><a href="/#about">About</a></li>
       <li><a href="/projects/">Projects</a></li>
       <li><a href="/speaking/">Speaking</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
       <li><a href="/blog/" class="active">Blog</a></li>
       <li><a href="/#contact">Contact</a></li>
     </ul>
@@ -1576,9 +1577,9 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
 <link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.github.io/blog/feed.xml">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
-<!-- Google Analytics 4 — replace G-XXXXXXXXXX with your GA4 Measurement ID -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+<!-- Google Analytics 4 — replace G-3BZ8MDPHE1 with your GA4 Measurement ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
 
 <style>{POST_CSS}</style>
 
@@ -1840,9 +1841,9 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 <link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.github.io/blog/feed.xml">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
-<!-- Google Analytics 4 — replace G-XXXXXXXXXX with your GA4 Measurement ID -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+<!-- Google Analytics 4 — replace G-3BZ8MDPHE1 with your GA4 Measurement ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
 
 <style>{index_css}</style>
 </head>
@@ -2034,9 +2035,9 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
 <link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.github.io/blog/feed.xml">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
-<!-- Google Analytics 4 — replace G-XXXXXXXXXX with your GA4 Measurement ID -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+<!-- Google Analytics 4 — replace G-3BZ8MDPHE1 with your GA4 Measurement ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
 
 <style>{tag_page_css}</style>
 {collection_schema}
@@ -2242,9 +2243,9 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
 <link rel="canonical" href="{canonical}">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
-<!-- Google Analytics 4 — replace G-XXXXXXXXXX with your GA4 Measurement ID -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+<!-- Google Analytics 4 — replace G-3BZ8MDPHE1 with your GA4 Measurement ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
 
 <style>{page_css}</style>
 </head>
