@@ -92,6 +92,7 @@ def collect_main_pages():
         ("/resume/", "resume/index.html", "monthly", "0.7"),
         ("/about/", "about/index.html", "monthly", "0.7"),
         ("/speaking/", "speaking/index.html", "monthly", "0.7"),
+        ("/mentoring/", "mentoring/index.html", "monthly", "0.7"),
         ("/certifications/", "certifications/index.html", "monthly", "0.5"),
     ]
     urls = []
