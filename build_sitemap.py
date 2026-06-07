@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-build_sitemap.py — Generate comprehensive split sitemaps for pratikdhanave.github.io.
+build_sitemap.py — Generate comprehensive split sitemaps for pratikdhanave.com.
 
 Scans all HTML files, extracts dates from paths/content, and generates:
   - sitemap-pages.xml   (main pages)
@@ -21,7 +21,7 @@ from datetime import datetime
 from xml.sax.saxutils import escape
 
 SITE_ROOT = Path(__file__).parent.resolve()
-SITE_URL = "https://pratikdhanave.github.io"
+SITE_URL = "https://pratikdhanave.com"
 
 
 def git_last_modified(file_path):
