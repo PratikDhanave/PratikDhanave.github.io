@@ -1528,6 +1528,23 @@ footer.site-footer a { color: var(--text-muted); }
   color: var(--text-dim);
   font-size: 0.95rem;
 }
+.series-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.series-nav a {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--accent);
+}
+.series-nav a:hover { color: var(--accent-hover); }
+.series-prev { text-align: left; }
+.series-next { text-align: right; margin-left: auto; }
 
 .project-breadcrumb {
   background: var(--bg-elev);
@@ -1594,6 +1611,135 @@ footer.site-footer a { color: var(--text-muted); }
 ::selection { background: var(--accent); color: white; }
 """
 
+# ---------------------------------------------------------------------------
+# Shared CSS components (used across index, tag, archive pages)
+# ---------------------------------------------------------------------------
+
+BLOG_LAYOUT_CSS = """
+main.blog-index {
+  max-width: 880px;
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
+
+.blog-hero {
+  padding: 56px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 36px;
+}
+.blog-hero h1 {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+.blog-hero p {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  max-width: 640px;
+}
+"""
+
+CARD_CSS = """
+.post-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.post-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 28px;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: var(--accent);
+}
+.post-card-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  align-items: center;
+}
+.post-card-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 0 0 8px;
+}
+.post-card-title a { color: var(--text); }
+.post-card-title a:hover { color: var(--accent); text-decoration: none; }
+.post-card-subtitle {
+  font-size: 0.97rem;
+  font-style: italic;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.post-card-excerpt {
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+"""
+
+TAG_CLOUD_CSS = """
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 24px 0 32px;
+}
+.tag-cloud-item {
+  display: inline-block;
+  padding: 8px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.tag-cloud-item:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  text-decoration: none;
+}
+"""
+
+PAGINATION_CSS = """
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 40px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+.pagination a, .pagination span {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-dim);
+  background: var(--bg-card);
+  text-decoration: none;
+  transition: all 0.15s;
+  min-width: 40px;
+  text-align: center;
+}
+.pagination a:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+.pagination .current { background: var(--accent); color: white; border-color: var(--accent); font-weight: 600; }
+.pagination .disabled { color: var(--text-muted); background: var(--bg-elev); cursor: not-allowed; }
+.pagination .ellipsis { border: none; background: transparent; color: var(--text-muted); padding: 8px 4px; }
+"""
+
 
 # ---------------------------------------------------------------------------
 # Templates
@@ -1637,15 +1783,34 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
     read_time = calculate_read_time(body_html)
     read_time_text = f"{read_time} min read"
 
-    # Render series breadcrumbs if present
+    # Render series breadcrumbs with prev/next navigation if present
     series_html = ""
     if "series" in meta and meta.get("series"):
         series_name = meta["series"]
         position = meta.get("series_position", 0)
         total = meta.get("series_total", 0)
+
+        # Find prev/next posts in the same series
+        series_nav = ""
+        if all_posts:
+            series_posts = sorted(
+                [p for p in all_posts if p["meta"].get("series") == series_name],
+                key=lambda p: p["meta"].get("series_position", 0)
+            )
+            nav_items = []
+            for sp in series_posts:
+                sp_pos = sp["meta"].get("series_position", 0)
+                if sp_pos == position - 1:
+                    nav_items.insert(0, f'<a href="/blog/posts/{sp["meta"]["slug"]}.html" class="series-prev">&larr; Part {sp_pos}: {sp["title"]}</a>')
+                elif sp_pos == position + 1:
+                    nav_items.append(f'<a href="/blog/posts/{sp["meta"]["slug"]}.html" class="series-next">Part {sp_pos}: {sp["title"]} &rarr;</a>')
+            if nav_items:
+                series_nav = f'<div class="series-nav">{chr(10).join(nav_items)}</div>'
+
         series_html = f"""  <div class="series-breadcrumb">
     <span class="series-label">Part {position} of {total}</span>
     <span class="series-title">{series_name}</span>
+    {series_nav}
   </div>"""
 
     # Render project back-link if present
@@ -1801,117 +1966,162 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
 """
 
 
-def render_index_html(posts):
-    """Build the blog landing page listing all posts (newest first)."""
-    posts_html = []
-    for p in posts:
-        tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
-        date_iso = p["meta"]["date"]
-        date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
-        is_featured = p["meta"].get("featured", False)
-        featured_badge = '<span class="featured-badge">Featured</span>' if is_featured else ''
-
-        posts_html.append(f"""    <article class="post-card{'  post-card-featured' if is_featured else ''}">
+def _render_post_card(p, link_prefix="posts/"):
+    """Render a single post card HTML block."""
+    tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
+    date_iso = p["meta"]["date"]
+    date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
+    read_time = p.get("read_time", 0)
+    read_time_html = f'<span>·</span><span>{read_time} min read</span>' if read_time > 0 else ''
+    return f"""    <article class="post-card">
       <div class="post-card-meta">
         <time datetime="{date_iso}">{date_human}</time>
         <span>·</span>
         <span>{p["meta"]["audience"]}</span>
-        {featured_badge}
+        {read_time_html}
       </div>
-      <h2 class="post-card-title"><a href="posts/{p['meta']['slug']}.html">{p['title']}</a></h2>
+      <h2 class="post-card-title"><a href="{link_prefix}{p['meta']['slug']}.html">{p['title']}</a></h2>
       <p class="post-card-subtitle">{p['subtitle']}</p>
       <p class="post-card-excerpt">{p['meta']['excerpt']}</p>
       <div class="post-tags">{tags_html}</div>
-    </article>""")
+    </article>"""
 
-    index_css = POST_CSS + """
 
-main.blog-index {
-  max-width: 880px;
-  padding-top: 32px;
-  padding-bottom: 32px;
-}
+def render_index_html(posts, tag_counts=None, popular_posts=None):
+    """Build the blog landing page with curated sections."""
+    if tag_counts is None:
+        tag_counts = {}
+    if popular_posts is None:
+        popular_posts = []
 
-.blog-hero {
-  padding: 56px 0 32px;
+    total_posts = len(posts)
+
+    # --- Featured posts ---
+    featured = [p for p in posts if p["meta"].get("featured", False)]
+    featured_slugs = {p["meta"]["slug"] for p in featured}
+
+    featured_html = ""
+    if featured:
+        cards = []
+        for p in featured:
+            cards.append(_render_post_card(p))
+        featured_html = f"""
+<section class="blog-section">
+  <h2 class="section-heading">Featured</h2>
+  <div class="featured-grid">
+{chr(10).join(cards)}
+  </div>
+</section>"""
+
+    # --- Popular posts ---
+    popular_slugs = set()
+    popular_html = ""
+    if popular_posts:
+        # Exclude featured from popular to avoid duplication
+        pop_filtered = [p for p in popular_posts if p["meta"]["slug"] not in featured_slugs][:6]
+        popular_slugs = {p["meta"]["slug"] for p in pop_filtered}
+        if pop_filtered:
+            cards = []
+            for p in pop_filtered:
+                cards.append(_render_post_card(p))
+            popular_html = f"""
+<section class="blog-section">
+  <h2 class="section-heading">Popular</h2>
+  <div class="popular-grid">
+{chr(10).join(cards)}
+  </div>
+</section>"""
+
+    # --- Tag cloud (tags with 3+ posts, sorted by count) ---
+    tag_cloud_html = ""
+    if tag_counts:
+        qualified = [(t, c) for t, c in tag_counts.items() if c >= 3]
+        qualified.sort(key=lambda x: (-x[1], x[0]))
+        if qualified:
+            tag_items = "".join(
+                f'<a href="/blog/tags/{t.lower().replace(" ", "-")}/"><span class="tag-cloud-item">{t} <span class="tag-count">({c})</span></span></a>'
+                for t, c in qualified
+            )
+            tag_cloud_html = f"""
+<section class="blog-section">
+  <h2 class="section-heading">Browse by Topic</h2>
+  <div class="tag-cloud">
+    {tag_items}
+  </div>
+</section>"""
+
+    # --- Recent posts (12, excluding featured & popular) ---
+    shown_slugs = featured_slugs | popular_slugs
+    recent = [p for p in posts if p["meta"]["slug"] not in shown_slugs][:12]
+    recent_cards = [_render_post_card(p) for p in recent]
+
+    recent_html = f"""
+<section class="blog-section">
+  <h2 class="section-heading">Recent</h2>
+  <div class="post-list">
+{chr(10).join(recent_cards)}
+  </div>
+  <div class="view-all-cta">
+    <a href="/blog/archive/">View all {total_posts} posts &rarr;</a>
+  </div>
+</section>"""
+
+    index_css = POST_CSS + BLOG_LAYOUT_CSS + CARD_CSS + TAG_CLOUD_CSS + """
+.blog-section { margin-bottom: 48px; }
+.section-heading {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 36px;
 }
-.blog-hero h1 {
-  font-size: clamp(1.8rem, 4vw, 2.5rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin-bottom: 14px;
-}
-.blog-hero p {
-  font-size: 1.05rem;
-  color: var(--text-dim);
-  max-width: 640px;
-}
-
-.post-list {
-  display: flex;
-  flex-direction: column;
+.featured-grid, .popular-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
   gap: 18px;
 }
-.post-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px 28px;
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-}
-.post-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-  border-color: var(--accent);
-}
-.post-card-featured {
-  border-color: var(--accent);
-  background: var(--bg-elev);
-}
-.post-card-featured:hover {
-  border-color: var(--accent-hover);
-}
-.post-card-meta {
-  display: flex;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  align-items: center;
-}
-.post-card-title {
-  font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
-  margin: 0 0 8px;
-}
-.post-card-title a { color: var(--text); }
-.post-card-title a:hover { color: var(--accent); text-decoration: none; }
-.post-card-subtitle {
-  font-size: 0.97rem;
-  font-style: italic;
-  color: var(--text-dim);
-  margin-bottom: 8px;
-}
-.post-card-excerpt {
-  font-size: 0.95rem;
-  color: var(--text-dim);
-  margin-bottom: 14px;
-}
-.featured-badge {
+@media (max-width: 640px) { .featured-grid, .popular-grid { grid-template-columns: 1fr; } }
+.popular-grid .post-card { border-left: 3px solid var(--accent); }
+.tag-count { font-size: 11px; color: var(--text-muted); }
+.view-all-cta { text-align: center; margin-top: 28px; }
+.view-all-cta a {
   display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  background: var(--accent);
-  color: white;
-  border-radius: 4px;
-  margin-left: auto;
-  letter-spacing: 0.5px;
+  padding: 12px 28px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.15s;
 }
+.view-all-cta a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* Search */
+.search-box { position: relative; margin-bottom: 32px; }
+.search-box input {
+  width: 100%; padding: 14px 18px; font-size: 1rem;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); outline: none;
+  font-family: inherit;
+}
+.search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,115,232,0.15); }
+.search-results {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; margin-top: 4px; max-height: 400px; overflow-y: auto;
+  box-shadow: var(--shadow);
+}
+.search-result-item { padding: 14px 18px; border-bottom: 1px solid var(--border); display: block; color: var(--text); }
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover { background: var(--bg-elev); text-decoration: none; }
+.search-result-title { font-weight: 600; color: var(--text); }
+.search-result-meta { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 """
 
     return f"""<!DOCTYPE html>
@@ -1952,16 +2162,54 @@ main.blog-index {
 
 <section class="blog-hero">
   <h1>Blog</h1>
-  <p>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. Most posts grow out of work on <a href="https://github.com/PratikDhanave/bodh">Bodh</a> — an open-source Go implementation of Microsoft's MARA pattern tuned for medical sequential diagnosis.</p>
+  <p>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. Most posts grow out of work on <a href="https://github.com/PratikDhanave/bodh">Bodh</a> &mdash; an open-source Go implementation of Microsoft's MARA pattern tuned for medical sequential diagnosis.</p>
 </section>
 
-<section class="post-list">
-{chr(10).join(posts_html)}
-</section>
+<div class="search-box">
+  <input type="search" id="blog-search" placeholder="Search {total_posts} posts..." autocomplete="off">
+  <div id="search-results" class="search-results" hidden></div>
+</div>
+
+{featured_html}
+
+{popular_html}
+
+{tag_cloud_html}
+
+{recent_html}
 
 </main>
 
 {SITE_FOOTER}
+
+<script>
+(function(){{
+  var input=document.getElementById('blog-search');
+  var box=document.getElementById('search-results');
+  var idx=null;
+  function mk(tag,cls){{var e=document.createElement(tag);if(cls)e.className=cls;return e}}
+  input.addEventListener('focus',function(){{
+    if(!idx){{fetch('/blog/search-index.json').then(function(r){{return r.json()}}).then(function(d){{idx=d}}).catch(function(){{}})}}
+  }});
+  input.addEventListener('input',function(){{
+    var q=this.value.toLowerCase().trim();
+    if(!q||!idx){{box.hidden=true;return}}
+    var m=idx.filter(function(p){{
+      return p.t.toLowerCase().indexOf(q)!==-1||p.e.toLowerCase().indexOf(q)!==-1||p.g.some(function(g){{return g.toLowerCase().indexOf(q)!==-1}})
+    }}).slice(0,8);
+    box.textContent='';
+    if(m.length===0){{var d=mk('div','search-result-item');var s=mk('span','search-result-title');s.textContent='No results found.';d.appendChild(s);box.appendChild(d)}}
+    else{{m.forEach(function(p){{
+      var a=mk('a','search-result-item');a.href=p.u;
+      var t=mk('span','search-result-title');t.textContent=p.t;a.appendChild(t);
+      var meta=mk('div','search-result-meta');meta.textContent=p.d+(p.r?' \u00b7 '+p.r+' min read':'')+' \u00b7 '+p.g.join(', ');
+      a.appendChild(meta);box.appendChild(a)
+    }})}}
+    box.hidden=false
+  }});
+  document.addEventListener('click',function(e){{if(!input.contains(e.target)&&!box.contains(e.target))box.hidden=true}})
+}})();
+</script>
 
 </body>
 </html>
@@ -2052,11 +2300,14 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
         tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
         date_iso = p["meta"]["date"]
         date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
+        read_time = p.get("read_time", 0)
+        read_time_html = f'<span>·</span><span>{read_time} min read</span>' if read_time > 0 else ''
         posts_html.append(f"""    <article class="post-card">
       <div class="post-card-meta">
         <time datetime="{date_iso}">{date_human}</time>
         <span>·</span>
         <span>{p["meta"]["audience"]}</span>
+        {read_time_html}
       </div>
       <h2 class="post-card-title"><a href="/blog/posts/{p['meta']['slug']}.html">{p['title']}</a></h2>
       <p class="post-card-subtitle">{p['subtitle']}</p>
@@ -2066,98 +2317,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
 
     tag_cloud_html = "".join(f'<a href="/blog/tags/{t.lower().replace(" ", "-")}/"><span class="tag-cloud-item">{t}</span></a>' for t in sorted(all_tags))
 
-    tag_page_css = POST_CSS + """
-
-.tag-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 24px 0 32px;
-}
-.tag-cloud-item {
-  display: inline-block;
-  padding: 8px 14px;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 14px;
-  transition: all 0.15s;
-}
-.tag-cloud-item:hover {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
-  text-decoration: none;
-}
-
-main.blog-index {
-  max-width: 880px;
-  padding-top: 32px;
-  padding-bottom: 32px;
-}
-
-.blog-hero {
-  padding: 56px 0 32px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 36px;
-}
-.blog-hero h1 {
-  font-size: clamp(1.8rem, 4vw, 2.5rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin-bottom: 14px;
-}
-.blog-hero p {
-  font-size: 1.05rem;
-  color: var(--text-dim);
-  max-width: 640px;
-}
-
-.post-list {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.post-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px 28px;
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-}
-.post-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-  border-color: var(--accent);
-}
-.post-card-meta {
-  display: flex;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-.post-card-title {
-  font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
-  margin: 0 0 8px;
-}
-.post-card-title a { color: var(--text); }
-.post-card-title a:hover { color: var(--accent); text-decoration: none; }
-.post-card-subtitle {
-  font-size: 0.97rem;
-  font-style: italic;
-  color: var(--text-dim);
-  margin-bottom: 8px;
-}
-.post-card-excerpt {
-  font-size: 0.95rem;
-  color: var(--text-dim);
-  margin-bottom: 14px;
-}
-"""
+    tag_page_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -2228,15 +2388,27 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
 
     posts_html = []
     if posts_with_date:
+        current_month_label = None
         for p in posts_with_date:
             tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
             date_iso = p["meta"]["date"]
             date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
+            read_time = p.get("read_time", 0)
+            read_time_html = f'<span>·</span><span>{read_time} min read</span>' if read_time > 0 else ''
+
+            # Add month heading for year pages (Change 8)
+            if not month:
+                post_month = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%B")
+                if post_month != current_month_label:
+                    current_month_label = post_month
+                    posts_html.append(f'    <h3 class="month-heading">{post_month}</h3>')
+
             posts_html.append(f"""    <article class="post-card">
       <div class="post-card-meta">
         <time datetime="{date_iso}">{date_human}</time>
         <span>·</span>
         <span>{p["meta"]["audience"]}</span>
+        {read_time_html}
       </div>
       <h2 class="post-card-title"><a href="/blog/posts/{p['meta']['slug']}.html">{p['title']}</a></h2>
       <p class="post-card-subtitle">{p['subtitle']}</p>
@@ -2247,97 +2419,16 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
     # Year/month nav
     year_nav = "".join(f'<a href="/blog/archive/{y}/" class="tag-cloud-item">{y}</a>' for y in sorted(all_years, reverse=True))
 
-    archive_css = POST_CSS + """
-
-.tag-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 24px 0 32px;
-}
-.tag-cloud-item {
-  display: inline-block;
-  padding: 8px 14px;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 14px;
-  transition: all 0.15s;
-}
-.tag-cloud-item:hover {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
-  text-decoration: none;
-}
-
-main.blog-index {
-  max-width: 880px;
-  padding-top: 32px;
-  padding-bottom: 32px;
-}
-
-.blog-hero {
-  padding: 56px 0 32px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 36px;
-}
-.blog-hero h1 {
-  font-size: clamp(1.8rem, 4vw, 2.5rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin-bottom: 14px;
-}
-.blog-hero p {
-  font-size: 1.05rem;
-  color: var(--text-dim);
-  max-width: 640px;
-}
-
-.post-list {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.post-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px 28px;
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-}
-.post-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-  border-color: var(--accent);
-}
-.post-card-meta {
-  display: flex;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-.post-card-title {
-  font-size: 1.35rem;
+    archive_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS + """
+.month-heading {
+  font-size: 1rem;
   font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
-  margin: 0 0 8px;
+  color: var(--text-muted);
+  margin: 28px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
 }
-.post-card-title a { color: var(--text); }
-.post-card-title a:hover { color: var(--accent); text-decoration: none; }
-.post-card-subtitle {
-  font-size: 0.97rem;
-  font-style: italic;
-  color: var(--text-dim);
-  margin-bottom: 8px;
-}
-.post-card-excerpt {
-  font-size: 0.95rem;
-  color: var(--text-dim);
-  margin-bottom: 14px;
-}
+.month-heading:first-child { margin-top: 0; }
 """
 
     return f"""<!DOCTYPE html>
@@ -2393,6 +2484,100 @@ main.blog-index {
 
 
 # ---------------------------------------------------------------------------
+# Paginated Archive
+# ---------------------------------------------------------------------------
+
+def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
+    """Generate a paginated archive page."""
+    import math
+
+    cards = [_render_post_card(p, link_prefix="/blog/posts/") for p in page_posts]
+
+    # Pagination nav
+    pages = []
+    if page_num > 1:
+        pages.append(f'<a href="/blog/archive/page/{page_num - 1}/">&larr; Newer</a>')
+    else:
+        pages.append('<span class="disabled">&larr; Newer</span>')
+
+    for i in range(1, total_pages + 1):
+        if i == page_num:
+            pages.append(f'<span class="current">{i}</span>')
+        elif abs(i - page_num) <= 2 or i == 1 or i == total_pages:
+            pages.append(f'<a href="/blog/archive/page/{i}/">{i}</a>')
+        elif abs(i - page_num) == 3:
+            pages.append('<span class="ellipsis">&hellip;</span>')
+
+    if page_num < total_pages:
+        pages.append(f'<a href="/blog/archive/page/{page_num + 1}/">Older &rarr;</a>')
+    else:
+        pages.append('<span class="disabled">Older &rarr;</span>')
+
+    pagination_html = f'<nav class="pagination" aria-label="Pagination">{" ".join(pages)}</nav>'
+
+    # SEO: noindex page 2+ to avoid duplicate content
+    robots = '<meta name="robots" content="noindex, follow">' if page_num > 1 else '<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">'
+
+    # Prev/next links for SEO
+    link_tags = ""
+    if page_num > 1:
+        link_tags += f'\n<link rel="prev" href="https://pratikdhanave.github.io/blog/archive/page/{page_num - 1}/">'
+    if page_num < total_pages:
+        link_tags += f'\n<link rel="next" href="https://pratikdhanave.github.io/blog/archive/page/{page_num + 1}/">'
+
+    page_css = POST_CSS + BLOG_LAYOUT_CSS + CARD_CSS + PAGINATION_CSS
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Archive — Page {page_num} — Pratik Dhanave</title>
+<meta name="description" content="All blog posts by Pratik Dhanave. Page {page_num} of {total_pages} ({total_posts} posts).">
+<meta name="author" content="Pratik Dhanave">
+{robots}
+{link_tags}
+
+<meta property="og:title" content="Archive — Pratik Dhanave">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://pratikdhanave.github.io/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/archive/page/{page_num}/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 — replace G-XXXXXXXXXX with your GA4 Measurement ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+
+<style>{page_css}</style>
+</head>
+<body>
+
+{NAV_HTML}
+
+<main class="blog-index">
+
+<section class="blog-hero">
+  <h1>Archive</h1>
+  <p>{total_posts} posts &middot; Page {page_num} of {total_pages}. <a href="/blog/">← Blog</a></p>
+</section>
+
+<section class="post-list">
+{chr(10).join(cards)}
+</section>
+
+{pagination_html}
+
+</main>
+
+{SITE_FOOTER}
+
+</body>
+</html>
+"""
+
+
+# ---------------------------------------------------------------------------
 # Popular Posts & Feeds
 # ---------------------------------------------------------------------------
 
@@ -2433,6 +2618,22 @@ def render_popular_posts_json(all_posts, limit=3):
         })
 
     return json.dumps({"popular_posts": items}, indent=2)
+
+
+def render_search_index(all_posts):
+    """Generate lightweight JSON search index for client-side search."""
+    import json
+    index = []
+    for p in all_posts:
+        index.append({
+            "t": p["title"],
+            "e": p["meta"].get("excerpt", ""),
+            "u": f"/blog/posts/{p['meta']['slug']}.html",
+            "d": p["meta"]["date"],
+            "g": p["meta"].get("tags", []),
+            "r": p.get("read_time", 0),
+        })
+    return json.dumps(index, separators=(',', ':'))
 
 
 def render_rss_feed(posts, limit=20):
@@ -2486,7 +2687,8 @@ def main():
         if md_path.exists():
             title, subtitle, body_md = parse_post(md_path)
             body_html = to_html(body_md)
-            rendered.append({"meta": meta, "title": title, "subtitle": subtitle})
+            read_time = calculate_read_time(body_html)
+            rendered.append({"meta": meta, "title": title, "subtitle": subtitle, "read_time": read_time})
             posts_data[meta["slug"]] = {"body_html": body_html, "title": title, "subtitle": subtitle}
         else:
             # HTML-only post (already in blog/posts/, no source .md)
@@ -2496,7 +2698,8 @@ def main():
                 raw = html_path.read_text(errors="ignore")
                 m = re.search(r"<title>([^<]+)</title>", raw, re.I)
                 post_title = _html_unescape(m.group(1)).replace(" — Pratik Dhanave", "").strip() if m else meta["slug"]
-                rendered.append({"meta": meta, "title": post_title, "subtitle": ""})
+                read_time = calculate_read_time(raw)
+                rendered.append({"meta": meta, "title": post_title, "subtitle": "", "read_time": read_time})
             else:
                 print(f"SKIP missing: {md_path} and {html_path}", file=sys.stderr)
 
@@ -2517,9 +2720,31 @@ def main():
         out_path.write_text(html)
         print(f"  wrote {out_path.relative_to(SITE_ROOT)}")
 
+    # Compute tag counts for tag cloud
+    tag_counts = {}
+    tag_posts = {}
+    all_tags = set()
+    for p in rendered:
+        for tag in p["meta"]["tags"]:
+            all_tags.add(tag)
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+            tag_key = tag.lower().replace(" ", "-")
+            if tag_key not in tag_posts:
+                tag_posts[tag_key] = []
+            tag_posts[tag_key].append(p)
+
+    # Get popular posts for index
+    popular = get_popular_posts(rendered, limit=6)
+
     # Generate main blog index
-    INDEX_PATH.write_text(render_index_html(rendered))
+    INDEX_PATH.write_text(render_index_html(rendered, tag_counts, popular))
     print(f"  wrote {INDEX_PATH.relative_to(SITE_ROOT)}")
+
+    # Generate search index JSON
+    search_index = render_search_index(rendered)
+    search_path = SITE_ROOT / "blog" / "search-index.json"
+    search_path.write_text(search_index)
+    print(f"  wrote {search_path.relative_to(SITE_ROOT)}")
 
     # Generate popular posts JSON feed
     popular_posts_json = render_popular_posts_json(rendered, limit=3)
@@ -2532,17 +2757,6 @@ def main():
     rss_path = SITE_ROOT / "blog" / "feed.xml"
     rss_path.write_text(rss_xml)
     print(f"  wrote {rss_path.relative_to(SITE_ROOT)}")
-
-    # Generate tag pages
-    all_tags = set()
-    tag_posts = {}
-    for p in rendered:
-        for tag in p["meta"]["tags"]:
-            all_tags.add(tag)
-            tag_key = tag.lower().replace(" ", "-")
-            if tag_key not in tag_posts:
-                tag_posts[tag_key] = []
-            tag_posts[tag_key].append(p)
 
     tags_dir = SITE_ROOT / "blog" / "tags"
     tags_dir.mkdir(parents=True, exist_ok=True)
@@ -2580,7 +2794,7 @@ def main():
         year_file = year_dir / "index.html"
 
         posts_in_year = []
-        for month in sorted(archive_by_date[year].keys()):
+        for month in sorted(archive_by_date[year].keys(), reverse=True):
             posts_in_year.extend(archive_by_date[year][month])
 
         year_file.write_text(render_archive_page(year, None, posts_in_year, all_years))
@@ -2594,7 +2808,25 @@ def main():
             month_file.write_text(render_archive_page(year, month, archive_by_date[year][month], all_years))
             print(f"  wrote {month_file.relative_to(SITE_ROOT)}")
 
-    print(f"\nBuilt {len(rendered)} posts + {len(tag_posts)} tag pages + {len(archive_by_date)} year archives.")
+    # Generate paginated archive
+    import math
+    posts_per_page = 12
+    total_pages = math.ceil(len(rendered) / posts_per_page)
+    for page_num in range(1, total_pages + 1):
+        start = (page_num - 1) * posts_per_page
+        page_posts = rendered[start:start + posts_per_page]
+        page_html = render_paginated_archive(page_posts, page_num, total_pages, len(rendered))
+
+        if page_num == 1:
+            (archive_dir / "index.html").write_text(page_html)
+            print(f"  wrote {(archive_dir / 'index.html').relative_to(SITE_ROOT)}")
+
+        page_dir = archive_dir / "page" / str(page_num)
+        page_dir.mkdir(parents=True, exist_ok=True)
+        (page_dir / "index.html").write_text(page_html)
+        print(f"  wrote {(page_dir / 'index.html').relative_to(SITE_ROOT)}")
+
+    print(f"\nBuilt {len(rendered)} posts + {len(tag_posts)} tag pages + {len(archive_by_date)} year archives + {total_pages} archive pages.")
 
 
 if __name__ == "__main__":
