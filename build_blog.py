@@ -732,7 +732,7 @@ POST_META = {
         "date": "2026-05-26",
         "tags": ['GDPR', 'Privacy Engineering', 'AI Governance', 'Go'],
         "audience": "Engineering",
-        "excerpt": "How a 200-line Go handler turns an audit log and an eval store into a regulator-friendly answer to",
+        "excerpt": "How a 200-line Go handler turns an audit log and an eval store into a regulator-friendly answer to 'why did the AI decide that?'",
     },
     "auto-108-saga-rollback-half-succeeded.md": {
         "slug": "saga-rollback-half-succeeded",
@@ -902,7 +902,6 @@ POST_POPULARITY = {
     "hl7v2-still-matters": 4,               # Legacy integration
     "gke-ai-infra-medical-multiagent": 4,   # Cloud infrastructure
     "aigp-reference-implementation": 3,     # Certification prep
-    "02-cures-act-as-code": 3,              # Duplicate handling
 }
 
 # ---------------------------------------------------------------------------
@@ -2471,7 +2470,7 @@ def main():
     print(f"  wrote {popular_posts_path.relative_to(SITE_ROOT)}")
 
     # Generate RSS feed
-    rss_xml = render_rss_feed(rendered, limit=20)
+    rss_xml = render_rss_feed(rendered, limit=50)
     rss_path = SITE_ROOT / "blog" / "feed.xml"
     rss_path.write_text(rss_xml)
     print(f"  wrote {rss_path.relative_to(SITE_ROOT)}")
