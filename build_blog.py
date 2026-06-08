@@ -293,12 +293,12 @@ POST_META = {
         "audience": "Engineering",
         "excerpt": "Google publishes a 12-pattern taxonomy for agent design. Most of them have direct corollaries in production code; one or two are best ignored. The mapping I\'ve used.",
     },
-    "auto-001-57-percent-bigquery-cost-reduction-tata.md": {
+    "2026-05-17-57-percent-bigquery-cost-reduction-tata.md": {
         "slug": "57-percent-bigquery-cost-reduction-tata",
         "date": "2026-05-17",
-        "tags": ['BigQuery', 'FinOps', 'GCP', 'Tata Group', 'Cost Optimisation'],
+        "tags": ['BigQuery', 'FinOps', 'Cloud Architecture', 'Solution Architecture', 'Data Warehouse'],
         "audience": "Engineering",
-        "excerpt": "₹100 Cr / ~$12M in proven savings across a year-plus engagement. The four levers that did the heavy lifting, the lever I expected to win that didn\'t, and the post-engagement playbook that became a Searce managed service.",
+        "excerpt": "Architecture decisions that delivered 57% cost reduction on a Fortune 500 BigQuery data warehouse. The MERGE anti-pattern fix, partition strategy, capacity model, and the trust gap I'd handle differently next time.",
     },
     "auto-002-a2a-protocol-go-client.md": {
         "slug": "a2a-protocol-go-client",
