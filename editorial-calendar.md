@@ -68,7 +68,7 @@ Every package, agent, and security primitive in `c2siorg/genie`. Each post cites
 
 ## Series 2 — Bodh deep dives (30 posts)
 
-Medical AI on MARA, FHIR R4, HL7 v2 — from the `PratikDhanave/bodh` repo.
+Medical AI on MAF, FHIR R4, HL7 v2 — from the `PratikDhanave/bodh` repo.
 
 1. Bodh — what MAI-DxO + SD-Bench taught us about diagnostic agents
 2. The five-role panel — intake, questioner, test_planner, cost_guardian, diagnostician, reasoning_verifier
@@ -293,7 +293,7 @@ The wrappers that make LLM calls survive contact with production.
 14. Function calling vs tool use vs MCP — three names for the same idea
 15. MCP server in Go — a worked example
 16. MCP client — the policy you wrap around every tool call
-17. Bedrock Agents vs ADK vs MARA — when to pick which
+17. Bedrock Agents vs ADK vs MAF — when to pick which
 18. Vertex AI Agent Engine — what it gives you that you'd otherwise build
 19. Fine-tuning OSS models on AWS Bedrock
 20. Ollama on-prem — production patterns
@@ -344,7 +344,7 @@ Everything from "vector + BM25 + RRF" to BigQuery Knowledge Graph.
 
 ## Series 10 — Multi-agent patterns and orchestration (30 posts)
 
-Every pattern from the Google Cloud catalog, the ADK, MCP, A2A, MARA.
+Every pattern from the Google Cloud catalog, the ADK, MCP, A2A, MAF.
 
 1. The 12 Google Cloud agent design patterns mapped to Genie's agents
 2. Single-agent vs multi-agent — pick the lower one first

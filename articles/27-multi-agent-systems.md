@@ -37,7 +37,7 @@ faqSchema: {
 
 # Architecting Production Multi-Agent Systems: Patterns, Orchestration & Cost Constraints
 
-*Deep-dive into building scalable, cost-aware multi-agent systems in production. Case study: Genie (15-agent financial assistant on Microsoft MARA).*
+*Deep-dive into building scalable, cost-aware multi-agent systems in production. Case study: Genie (15-agent financial assistant on Microsoft MAF).*
 
 ## The Multi-Agent Landscape
 
@@ -47,7 +47,7 @@ Multi-agent AI is an architectural pattern where multiple independent AI agents 
 
 When you move beyond single-agent systems, you enter a different class of problems: agent coordination, state management, cost enforcement, and observability at scale.
 
-Over the past 18 months, I've architected and shipped **Genie** — a 15-agent financial assistant on Microsoft's Multi-Agent Reference Architecture (MARA). This article distills lessons from that journey and other production deployments.
+Over the past 18 months, I've architected and shipped **Genie** — a 15-agent financial assistant on Microsoft's Agent Framework (MAF). This article distills lessons from that journey and other production deployments.
 
 For security-first design, see [zero-trust architecture for AI agents](/articles/30-zero-trust-ai-agents/). For payment orchestration patterns, check [PSD2 multi-agent workflows](/articles/32-psd2-agent-orchestration/). For production Go implementations, read [Go for agentic AI](/articles/45-go-agentic-ai/).
 

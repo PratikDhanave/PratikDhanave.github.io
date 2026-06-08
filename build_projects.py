@@ -27,17 +27,17 @@ PROJECT_META = {
         "slug": "genie",
         "kind": "oss",
         "name": "Genie",
-        "tagline": "Multi-agent financial assistant on Microsoft MARA",
+        "tagline": "Multi-agent financial assistant on Microsoft MAF",
         "org": "Open Source · c2siorg",
         "status": "active",
         "featured": True,
         "summary": "Go-based multi-agent financial assistant with 15 role-specialized agents, JWT + RBAC, AES-256-GCM encryption, and full OpenTelemetry tracing.",
-        "description_html": """<p>Genie is a comprehensive multi-agent financial advisory platform built on Microsoft's Multi-Agent Reference Architecture (MARA). The system orchestrates 15 role-specialized agents (supervisor, analyzer, forecaster, anomaly_detector, recommender, llm_auditor, and more) to deliver financial insights, risk analysis, and recommendations.</p>
+        "description_html": """<p>Genie is a comprehensive multi-agent financial advisory platform built on Microsoft's Agent Framework (MAF). The system orchestrates 15 role-specialized agents (supervisor, analyzer, forecaster, anomaly_detector, recommender, llm_auditor, and more) to deliver financial insights, risk analysis, and recommendations.</p>
 <p>The platform implements enterprise-grade security (JWT + RBAC), transparent encryption (AES-256-GCM envelope), and production observability (full OpenTelemetry tracing). It serves as a reference implementation for multi-agent coordination patterns and agent specialization.</p>""",
         "language": "Go",
         "role": "Author / maintainer",
         "year": "2025–2026",
-        "tags": ["Go", "MARA", "Postgres", "OpenTelemetry", "Multi-Agent AI", "Security"],
+        "tags": ["Go", "MAF", "Postgres", "OpenTelemetry", "Multi-Agent AI", "Security"],
         "highlights": [
             "15 role-specialized agents with clear separation of concerns",
             "JWT + RBAC authentication, AES-256-GCM envelope encryption",
@@ -54,12 +54,12 @@ PROJECT_META = {
             ["Source on GitHub", "https://github.com/c2siorg/genie"],
             ["Documentation", "https://github.com/c2siorg/genie#readme"],
         ],
-        "blog_tags": ["MARA", "Multi-Agent AI", "Architecture", "Security", "Governance"],
+        "blog_tags": ["MAF", "Multi-Agent AI", "Architecture", "Security", "Governance"],
         "blog_posts": ["/blog/posts/adk-to-maf-migration-why.html"],
         "credits": [
             {
                 "name": "Microsoft Agent Framework Team",
-                "context": "MARA patterns and SDK documentation",
+                "context": "MAF patterns and SDK documentation",
                 "url": "https://learn.microsoft.com/en-us/azure/ai-services/agents/",
             },
             {
@@ -82,13 +82,13 @@ PROJECT_META = {
         "org": "Open Source · Original",
         "status": "active",
         "featured": False,
-        "summary": "Virtual physician panel on MARA, inspired by Microsoft's MAI-DxO. FHIR R4 + HL7 v2 aware with role-specialized diagnostic agents.",
-        "description_html": """<p>Bodh is an open-source medical AI platform that orchestrates a virtual physician panel on Microsoft's MARA. The system is inspired by Microsoft's <a href="https://microsoft.ai/news/the-path-to-medical-superintelligence/">MAI-DxO</a> and SD-Bench, implementing role-specialized agents for intake, questioning, test planning, diagnostician analysis, and reasoning verification.</p>
+        "summary": "Virtual physician panel on MAF, inspired by Microsoft's MAI-DxO. FHIR R4 + HL7 v2 aware with role-specialized diagnostic agents.",
+        "description_html": """<p>Bodh is an open-source medical AI platform that orchestrates a virtual physician panel on Microsoft's MAF. The system is inspired by Microsoft's <a href="https://microsoft.ai/news/the-path-to-medical-superintelligence/">MAI-DxO</a> and SD-Bench, implementing role-specialized agents for intake, questioning, test planning, diagnostician analysis, and reasoning verification.</p>
 <p>The platform is fully aware of healthcare standards (FHIR R4 for structured medical data, HL7 v2 for clinical messaging) and implements cost-aware diagnostic budget enforcement to optimize care delivery while managing expenses.</p>""",
         "language": "Go",
         "role": "Author / maintainer",
         "year": "2025–2026",
-        "tags": ["Go", "MARA", "FHIR R4", "HL7 v2", "Medical AI", "Healthcare"],
+        "tags": ["Go", "MAF", "FHIR R4", "HL7 v2", "Medical AI", "Healthcare"],
         "highlights": [
             "Virtual physician panel with 6+ role-specialized diagnostic agents",
             "FHIR R4 and HL7 v2 standards compliance for healthcare interoperability",
@@ -104,7 +104,7 @@ PROJECT_META = {
         "links": [
             ["Source on GitHub", "https://github.com/PratikDhanave/bodh"],
         ],
-        "blog_tags": ["MARA", "Medical AI", "Architecture", "Healthcare"],
+        "blog_tags": ["MAF", "Medical AI", "Architecture", "Healthcare"],
         "blog_posts": [],
         "credits": [
             {
@@ -871,7 +871,7 @@ def render_project_gallery_html(all_projects):
 
 <section>
   <h2>Featured Open Source</h2>
-  <p>Marquee projects showcasing multi-agent architecture, governance, and production AI systems. Both Genie and Bodh are reference implementations of Microsoft's Agent Framework (MARA).</p>
+  <p>Marquee projects showcasing multi-agent architecture, governance, and production AI systems. Both Genie and Bodh are reference implementations of Microsoft's Agent Framework (MAF).</p>
   <div class="projects-grid" style="margin-top: 24px;">
 {project_cards_oss}
   </div>
