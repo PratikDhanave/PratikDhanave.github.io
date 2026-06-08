@@ -84,7 +84,7 @@ This script imports `SITE_ROOT`, `NAV_HTML`, `SITE_FOOTER`, `POST_CSS`, and `POS
 
 `build_sitemap.py` generates three sub-sitemaps + an index:
 - `sitemap-pages.xml` — 9 static pages
-- `sitemap-blog.xml` — all 147 blog post URLs
+- `sitemap-blog.xml` — all 117 blog post URLs
 - `sitemap-tags.xml` — only tag pages with ≥3 posts (avoids thin-content indexing)
 
 `lastmod` dates come from `git log` per file; falls back to today with a stderr warning if a file has no git history.

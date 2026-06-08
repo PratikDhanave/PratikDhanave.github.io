@@ -107,7 +107,7 @@ for chip in chips:
 # ── Bottom strip ──────────────────────────────────────────────────────────────
 draw.rectangle([(0, H - 58), (W, H)], fill=(241, 245, 249))
 draw.line([(0, H - 58), (W, H - 58)], fill=(215, 225, 240), width=1)
-draw.text((100, H - 40), "Building production-grade AI systems · 147 articles · Open Source", font=f_url, fill=DIM_GREY)
+draw.text((100, H - 40), "Building production-grade AI systems · 117 articles · Open Source", font=f_url, fill=DIM_GREY)
 
 # ── Small accent circle (bottom-right branding dot) ──────────────────────────
 draw.ellipse([(1110, H - 58 - 60), (1170, H - 58)], fill=(239, 246, 255), outline=ACCENT, width=2)
