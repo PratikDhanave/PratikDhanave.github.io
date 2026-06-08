@@ -98,6 +98,7 @@ def collect_main_pages():
         ("/certifications/", "certifications/index.html", "monthly", "0.5"),
         ("/open-source/", "open-source/index.html", "monthly", "0.7"),
         ("/google-cloud-next/", "google-cloud-next/index.html", "monthly", "0.7"),
+        ("/featured/", "featured/index.html", "weekly", "0.85"),
     ]
     urls = []
     for path, file_rel, changefreq, priority in pages:
