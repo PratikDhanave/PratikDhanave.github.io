@@ -164,7 +164,7 @@ def collect_articles():
             index_html = article_dir / "index.html"
             if index_html.exists():
                 rel = article_dir.relative_to(SITE_ROOT)
-                url = f"{SITE_URL}/{rel}/"
+                url = f"{SITE_URL}/{rel.as_posix()}/"
                 lastmod = git_last_modified(index_html)
                 urls.append((url, lastmod, "monthly", "0.8"))
 
@@ -191,7 +191,7 @@ def collect_tag_pages(min_posts=3):
 
         if post_count >= min_posts:
             rel = tag_dir.relative_to(SITE_ROOT)
-            url = f"{SITE_URL}/{rel}/"
+            url = f"{SITE_URL}/{rel.as_posix()}/"
             lastmod = git_last_modified(index_html)
             urls.append((url, lastmod, "weekly", "0.5"))
 

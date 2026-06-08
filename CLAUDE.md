@@ -52,7 +52,7 @@ All output in `blog/posts/`, `blog/tags/`, `blog/archive/`, `blog/feed.xml`, and
 - **`POST_META` dict** — keyed by source filename (e.g. `"2026-06-01-my-post.md"`), contains `slug`, `date`, `tags`, `audience`, `excerpt`, `citations`. Adding a new post requires a new entry here.
 - **`POST_POPULARITY` dict** — maps slug → rank, used to build `blog/popular-posts.json`.
 - Markdown source files live in `blog/source/` following the naming convention `YYYY-MM-DD-slug.md`.
-- 139 legacy posts exist only as HTML (no markdown source); their metadata is still in `POST_META` with an empty or missing source file — the script handles this gracefully.
+- 108 legacy posts exist only as HTML (no markdown source); their metadata is still in `POST_META` with an empty or missing source file — the script handles this gracefully.
 - HTML templates are f-strings inside the script (`POST_CSS`, `NAV_HTML`, `SITE_FOOTER`, `render_post_html()`, `render_tag_page()`, `render_index_html()`, `render_rss_feed()`). To change layout or design, edit these functions — there is no separate template file.
 
 ### Adding a new blog post

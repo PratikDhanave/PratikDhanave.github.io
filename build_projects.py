@@ -1089,6 +1089,7 @@ def _wrap_page_html(page_title, body_html, schema_html="", slug=""):
 <meta property="og:type" content="website">
 <meta property="og:url" content="{canonical}">
 <meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://pratikdhanave.com/og-default.png">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <meta name="twitter:card" content="summary_large_image">
