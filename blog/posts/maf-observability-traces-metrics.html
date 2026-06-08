@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observability for multi-agent: traces and metrics — Pratik Dhanave</title>
+<meta name="description" content="OpenTelemetry through MAF's `configure_otel_providers`, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector → Prometheus + Jaeger, and a Grafana dashboard you can actually use.">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Observability for multi-agent: traces and metrics">
+<meta property="og:description" content="OpenTelemetry through MAF's `configure_otel_providers`, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector → Prometheus + Jaeger, and a Grafana dashboard you can actually use.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/maf-observability-traces-metrics.html">
+P26-06-04">
+<meta property="article:tag" content="MAF">
+<meta property="article:tag" content="Observability">
+<meta property="article:tag" content="OpenTelemetry">
+<meta property="article:tag" content="Grafana">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Observability for multi-agent: traces and metrics">
+<meta name="twitter:description" content="OpenTelemetry through MAF's `configure_otel_providers`, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector → Prometheus + Jaeger, and a Grafana dashboard you can actually use.">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/maf-observability-traces-metrics.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<main>
+<article>
+  <header>
+    <h1>Observability for multi-agent: traces and metrics</h1>
+    <p class="post-subtitle">OpenTelemetry through MAF's `configure_otel_providers`, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector → Prometheus + Jaeger, and a Grafana dashboard you can actually use.</p>
+    <div class="post-meta">
+      <time datetime="2026-06-04">June 4, 2026</time>
+      <span>·</span>
+      <span>Engineers running multi-agent systems in production</span>
+    </div>
+    <div class="post-tags"><span class="tag">MAF</span><span class="tag">Observability</span><span class="tag">OpenTelemetry</span><span class="tag">Grafana</span></div>
+  </header>
+
+<p>The reference architecture's Chapter 7 on Observability calls out four areas worth measuring in a multi-agent system: agent communication, performance, errors, and security/compliance. This post is about how each of those falls out of wiring MAF's OpenTelemetry support correctly.</p>
+<p>The headline: MAF's auto-instrumentation gives you most of it. The project's <a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/src/multi_agent/observability.py"><code>observability.py</code></a> adds three things on top — a <code>traced_workflow</code> context manager, a <code>WorkflowMetrics</code> recorder, and test helpers for an in-memory exporter — and the result is a span + metric set that survives the round-trip through an OTel Collector to Jaeger and Prometheus.</p>
+<h2 id="what-maf-emits-for-free">What MAF emits for free</h2>
+<p><code>configure_otel_providers()</code> is one call. It picks up standard <code>OTEL_*</code> env vars (endpoint, protocol, service name, headers) and sets up trace, metric, and log providers globally.</p>
+<pre><code class="language-python">def setup_observability(settings=None, *, extra_exporters=None, enable_console_exporters=None) -&gt; bool:
+    from agent_framework.observability import configure_otel_providers
+    configure_otel_providers(
+        enable_sensitive_data=settings.enable_sensitive_data,
+        enable_console_exporters=enable_console_exporters,
+        exporters=extra_exporters,
+    )
+    return True
+</code></pre>
+<p>After that, every MAF agent run emits OpenTelemetry GenAI semantic-convention spans automatically: <code>gen_ai.client.operation.duration</code>, <code>gen_ai.client.token.usage</code>, <code>gen_ai.provider.name</code>, <code>gen_ai.request.model</code>. Every workflow edge emits <code>executor.process &lt;name&gt;</code>. Every tool call emits a span tagged with the tool name.</p>
+<p>What it doesn't emit is a <em>workflow-level</em> parent span that ties an entire <code>workflow.run(prompt)</code> together with project-specific attributes. That's what <code>traced_workflow</code> is for.</p>
+<h2 id="a-workflow-level-parent-span">A workflow-level parent span</h2>
+<p><code>traced_workflow</code> is a context manager that wraps <code>create_workflow_span</code> from MAF, attaches OTel GenAI attributes, records workflow-level metrics, and captures exceptions:</p>
+<pre><code class="language-python">@contextmanager
+def traced_workflow(name, *, provider=None, model=None, extra=None):
+    from agent_framework.observability import capture_exception, create_workflow_span
+    attrs = {&quot;multi_agent.workflow.name&quot;: name}
+    if provider: attrs[&quot;gen_ai.provider.name&quot;] = provider
+    if model:    attrs[&quot;gen_ai.request.model&quot;] = model
+    if extra:    attrs.update(extra)
+
+    metrics = get_workflow_metrics()
+    metric_attrs = {&quot;workflow&quot;: name, &quot;provider&quot;: provider or &quot;unknown&quot;}
+    started = time.perf_counter()
+    status = &quot;ok&quot;
+    with create_workflow_span(f&quot;workflow.{name}&quot;, attributes=attrs) as span:
+        try:
+            yield span
+        except Exception as exc:
+            status = &quot;error&quot;; capture_exception(span, exc); raise
+        finally:
+            duration = time.perf_counter() - started
+            metrics.runs.add(1, {**metric_attrs, &quot;status&quot;: status})
+            metrics.duration.record(duration, metric_attrs)
+</code></pre>
+<p>Each workflow's <code>run_*</code> function wraps its body in it:</p>
+<pre><code class="language-python">async def run_sequential(prompt: str, *, client=None) -&gt; list[Message]:
+    settings = load_settings()
+    model = settings.ollama_model if settings.provider == &quot;ollama&quot; else ...
+    get_workflow_metrics().prompt_chars.record(
+        len(prompt), {&quot;workflow&quot;: &quot;sequential&quot;, &quot;provider&quot;: settings.provider}
+    )
+    with traced_workflow(
+        &quot;sequential&quot;, provider=settings.provider, model=model,
+        extra={&quot;multi_agent.prompt.length&quot;: len(prompt)},
+    ) as span:
+        ...
+</code></pre>
+<p>After one run you get a trace with <strong>18 spans</strong> in it (verified live): your <code>workflow.sequential</code> parent + MAF's 17 auto-instrumented children.</p>
+<h2 id="custom-metrics-worth-capturing">Custom metrics worth capturing</h2>
+<p><code>WorkflowMetrics</code> is a lazy singleton over MAF's <code>get_meter()</code>. Five instruments:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Tags</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>multi_agent.workflow.runs</code></td>
+<td>counter</td>
+<td>workflow, provider, status</td>
+</tr>
+<tr>
+<td><code>multi_agent.workflow.duration</code></td>
+<td>histogram (s)</td>
+<td>workflow, provider</td>
+</tr>
+<tr>
+<td><code>multi_agent.agent.invocations</code></td>
+<td>counter</td>
+<td>agent, capability</td>
+</tr>
+<tr>
+<td><code>multi_agent.prompt.length</code></td>
+<td>histogram (char)</td>
+<td>workflow, provider</td>
+</tr>
+<tr>
+<td><code>multi_agent.policy.decisions</code></td>
+<td>counter</td>
+<td>tool, action, rule</td>
+</tr>
+</tbody>
+</table>
+<p>The last one is bridged from the Agent Governance Toolkit — there's a separate post on that.</p>
+<h2 id="wiring-app-collector-prometheus-jaeger">Wiring: app → collector → Prometheus + Jaeger</h2>
+<pre><code class="language-mermaid">flowchart LR
+    App[multi-agent app] --&gt;|OTLP gRPC :4317| Coll[OTel Collector]
+    Coll --&gt;|otlp/jaeger| Jaeger[(Jaeger)]
+    Coll --&gt;|prometheus exporter :8889| Prom[(Prometheus)]
+    Prom --&gt; Graf[Grafana]
+    Jaeger --&gt; Graf
+    Browser[👤] --&gt; Graf
+</code></pre>
+<p>The collector config in <a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/docs/otel-collector.yaml"><code>docs/otel-collector.yaml</code></a> declares an OTLP receiver, a batch processor, and two exporters (<code>debug</code> + <code>otlp/jaeger</code> for traces, <code>debug</code> + <code>prometheus</code> for metrics). Two real configuration choices were needed:</p>
+<ol>
+<li>
+<p><strong>Jaeger 1.57 accepts OTLP natively on port 4317.</strong> The legacy <code>14250</code> endpoint isn't OTLP; pointing the collector there gives you a <code>rpc error: code = Unimplemented</code> once per batch and dropped spans. Use <code>endpoint: jaeger:4317</code> and set <code>COLLECTOR_OTLP_ENABLED=true</code> on the Jaeger container.</p>
+</li>
+<li>
+<p><strong>Don't double the metric prefix.</strong> My instrument names already start with <code>multi_agent.*</code>, so the Prometheus exporter's <code>namespace: multi_agent</code> setting gives you series like <code>multi_agent_multi_agent_workflow_runs_total</code>. Remove the namespace.</p>
+</li>
+</ol>
+<h2 id="verified-end-to-end">Verified end-to-end</h2>
+<p>A live run of <code>make custom_graph PROMPT="hello otel"</code> flows through to:</p>
+<pre><code>=== Jaeger ===
+services: ['agent_framework', 'multi-agent-maf']
+traces: 1 — trace f1ddb9c302a7a009...: 18 spans
+  - executor.process classify
+  - executor.process finalize
+  - executor.process long_path
+  - executor.process normalize
+  - executor.process short_path
+  - message.send
+  - workflow.build
+  - workflow.custom_graph         ← my parent span
+  - workflow.run                  ← MAF's auto span
+
+=== Prometheus ===
+multi_agent_workflow_runs_total{workflow=&quot;custom_graph&quot;, status=&quot;ok&quot;, provider=&quot;unknown&quot;} = 1
+multi_agent_workflow_duration_seconds_count{workflow=&quot;custom_graph&quot;} = 1
+multi_agent_prompt_length_char_sum{workflow=&quot;custom_graph&quot;} = 8
+</code></pre>
+<p>Custom attributes survive the collector → Jaeger pipeline:</p>
+<pre><code>workflow.custom_graph attributes:
+  multi_agent.workflow.name   = custom_graph
+  multi_agent.prompt.length   = 10
+  multi_agent.outputs.count   = 1
+  span.kind                   = internal
+</code></pre>
+<h2 id="the-grafana-dashboard">The Grafana dashboard</h2>
+<p><a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/docs/grafana/dashboards/multi-agent.json"><code>docs/grafana/dashboards/multi-agent.json</code></a> ships with 10 panels:</p>
+<ul>
+<li>Workflow runs per second by workflow + status</li>
+<li>Workflow duration p50 / p95</li>
+<li>Agent invocations per second</li>
+<li>Prompt-length distribution</li>
+<li>Total runs (15m)</li>
+<li>Error rate (15m) with green/orange/red thresholds at 5% and 20%</li>
+<li>AGT policy decisions per second by tool + action</li>
+<li>Policy denies table by rule + tool</li>
+<li>Policy deny rate (15m) with green/orange/red thresholds at 1% and 10%</li>
+<li>Total policy decisions (15m)</li>
+</ul>
+<p>The Grafana container is provisioned with the dashboard and a Prometheus + Jaeger datasource via the <code>docs/grafana/provisioning/</code> folder, so a <code>make docker-up</code> gives you the dashboard at <code>http://localhost:3001</code> with no clicks.</p>
+<h2 id="testing-all-of-this-offline">Testing all of this offline</h2>
+<p>You don't need a collector to test instrumentation. MAF accepts span/metric exporters into <code>configure_otel_providers</code>, so the project's tests use OpenTelemetry's in-memory exporters and assert on captured spans:</p>
+<pre><code class="language-python">def test_traced_workflow_emits_span_with_attributes(exporter) -&gt; None:
+    exporter.clear()
+    with traced_workflow(&quot;unit-test-wf&quot;, provider=&quot;ollama&quot;, model=&quot;llama3.2&quot;) as span:
+        span.set_attribute(&quot;multi_agent.foo&quot;, &quot;bar&quot;)
+    get_tracer_provider().force_flush(5000)
+
+    spans = [s for s in exporter.get_finished_spans() if s.name == &quot;workflow.unit-test-wf&quot;]
+    assert spans
+    span = spans[-1]
+    assert span.attributes.get(&quot;multi_agent.workflow.name&quot;) == &quot;unit-test-wf&quot;
+    assert span.attributes.get(&quot;gen_ai.provider.name&quot;) == &quot;ollama&quot;
+    assert span.attributes.get(&quot;gen_ai.request.model&quot;) == &quot;llama3.2&quot;
+    assert span.attributes.get(&quot;multi_agent.foo&quot;) == &quot;bar&quot;
+</code></pre>
+<p>There are seven of these — three for spans, four for metrics — and they catch instrumentation regressions in ~150ms.</p>
+<h2 id="the-set-once-latch-nobody-mentions">The set-once latch nobody mentions</h2>
+<p>One real gotcha that took an afternoon: OpenTelemetry's global meter provider has a <em>set-once</em> latch (<code>_METER_PROVIDER_SET_ONCE</code>). Tests that swap providers between modules silently fail to install the second one. The latch lives in <code>opentelemetry.metrics._internal</code>, <em>not</em> on the public <code>opentelemetry.metrics</code> facade. The fix is one line, but you have to know where to look:</p>
+<pre><code class="language-python">from opentelemetry.metrics import _internal as _otel_metrics_internal
+once = getattr(_otel_metrics_internal, &quot;_METER_PROVIDER_SET_ONCE&quot;, None)
+if once is not None and hasattr(once, &quot;_done&quot;):
+    once._done = False
+_metrics.set_meter_provider(provider)
+</code></pre>
+<p>That's only safe in test code. Don't do that in production.</p>
+<h2 id="two-things-worth-tagging-your-spans-with">Two things worth tagging your spans with</h2>
+<p>Project-local attributes that have actually paid for themselves:</p>
+<ul>
+<li><code>multi_agent.workflow.name</code> — lets Jaeger filter to one workflow type in one click.</li>
+<li><code>multi_agent.prompt.length</code> — lets you correlate big spikes in latency or token usage with input size, on the same trace.</li>
+</ul>
+<p>Pick a small set of project-local labels and use them consistently. Don't try to enrich every span with every interesting attribute — the operations that matter are the ones tagged with the same field across spans you'll group on later.</p>
+<h2 id="whats-next">What's next</h2>
+<p>The next post in the series is about the Agent Governance Toolkit. The <code>policy_decisions</code> counter mentioned here is bridged from AGT's <code>govern_tool()</code> wrapper — every allow/deny gets a metric increment, and the Grafana dashboard's policy panel shows you the deny rate over time.</p>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>&copy; 2026 Pratik Dhanave &middot; <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> &middot; <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer">LinkedIn</a> &middot; <a href="tel:+917276469649">+91 7276469649</a> &middot; <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
