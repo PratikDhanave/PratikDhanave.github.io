@@ -1674,7 +1674,8 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
 <meta property="og:url" content="{canonical}">
 <meta property="og:site_name" content="Pratik Dhanave">
 <meta property="og:image" content="https://pratikdhanave.com/og-default.png">
-<meta property="article:published_time" content="{date_iso}T00:00:00+00:00">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="{date_iso}T00:00:00Z">
 {''.join(f'<meta property="article:tag" content="{_html_escape(t, quote=True)}">' + chr(10) for t in meta['tags'])}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{title_html}">
@@ -2110,6 +2111,21 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
 }}
 </script>"""
 
+    # BreadcrumbList for all tag pages
+    tag_json_bc = _json.dumps(tag)[1:-1]
+    collection_schema += f"""
+<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://pratikdhanave.com/"}},
+    {{"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pratikdhanave.com/blog/"}},
+    {{"@type": "ListItem", "position": 3, "name": "{tag_json_bc}", "item": "https://pratikdhanave.com/blog/tags/{tag.lower().replace(' ', '-')}/"}}
+  ]
+}}
+</script>"""
+
     posts_html = []
     for p in posts_with_tag:
         tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
@@ -2139,18 +2155,22 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{tag} — Blog — Pratik Dhanave</title>
-<meta name="description" content="Posts tagged with {tag}. By Pratik Dhanave.">
+<title>{_html_escape(tag)} — Blog — Pratik Dhanave</title>
+<meta name="description" content="Posts tagged with {_html_escape(tag)}. By Pratik Dhanave.">
 <meta name="author" content="Pratik Dhanave">
 {robots_meta}
 
-<meta property="og:title" content="Pratik Dhanave — {tag}">
-<meta property="og:description" content="Posts tagged with {tag}.">
+<meta property="og:title" content="Pratik Dhanave — {_html_escape(tag)}">
+<meta property="og:description" content="Posts tagged with {_html_escape(tag)}.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://pratikdhanave.com/blog/tags/{tag.lower().replace(' ', '-')}/">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://pratikdhanave.com/og-default.png">
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Pratik Dhanave — {tag}">
+<meta name="twitter:title" content="Pratik Dhanave — {_html_escape(tag)}">
+<meta name="twitter:description" content="Posts tagged with {_html_escape(tag)}.">
 <meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
 
 <link rel="canonical" href="https://pratikdhanave.com/blog/tags/{tag.lower().replace(' ', '-')}/">
@@ -2171,8 +2191,8 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
 <main class="blog-index">
 
 <section class="blog-hero">
-  <h1>#{tag}</h1>
-  <p>Posts about {tag.lower()}. <a href="/blog/">← All posts</a></p>
+  <h1>#{_html_escape(tag)}</h1>
+  <p>Posts about {_html_escape(tag).lower()}. <a href="/blog/">← All posts</a></p>
 </section>
 
 <section class="tag-cloud">
@@ -2255,13 +2275,18 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
 <meta name="description" content="Blog posts from {title}. By Pratik Dhanave.">
 <meta name="author" content="Pratik Dhanave">
 
+<meta name="robots" content="noindex, follow">
 <meta property="og:title" content="Pratik Dhanave — {title}">
 <meta property="og:description" content="Blog posts from {title}.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="{canonical}">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://pratikdhanave.com/og-default.png">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pratik Dhanave — {title}">
+<meta name="twitter:description" content="Blog posts from {title}.">
 <meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
 
 <link rel="canonical" href="{canonical}">
@@ -2581,11 +2606,19 @@ def main():
     tags_dir = SITE_ROOT / "blog" / "tags"
     tags_dir.mkdir(parents=True, exist_ok=True)
 
+    # Build tag key → display name mapping (safe lookup, no .index())
+    tag_display_map = {}
+    for p in rendered:
+        for t in p["meta"]["tags"]:
+            key = t.lower().replace(" ", "-")
+            if key not in tag_display_map:
+                tag_display_map[key] = t
+
     for tag_key, posts_with_tag in tag_posts.items():
         tag_dir = tags_dir / tag_key
         tag_dir.mkdir(parents=True, exist_ok=True)
         tag_file = tag_dir / "index.html"
-        tag_name = posts_with_tag[0]["meta"]["tags"][[t.lower().replace(" ", "-") for t in posts_with_tag[0]["meta"]["tags"]].index(tag_key)]
+        tag_name = tag_display_map.get(tag_key, tag_key)
         tag_file.write_text(render_tag_page(tag_name, posts_with_tag, all_tags, post_count=len(posts_with_tag)))
         print(f"  wrote {tag_file.relative_to(SITE_ROOT)}")
 
@@ -2620,8 +2653,8 @@ def main():
         year_file.write_text(render_archive_page(year, None, posts_in_year, all_years))
         print(f"  wrote {year_file.relative_to(SITE_ROOT)}")
 
-        # Archive month pages
-        for month in sorted(archive_by_date[year].keys()):
+        # Archive month pages (newest first)
+        for month in sorted(archive_by_date[year].keys(), reverse=True):
             month_dir = year_dir / f"{month:02d}"
             month_dir.mkdir(parents=True, exist_ok=True)
             month_file = month_dir / "index.html"
