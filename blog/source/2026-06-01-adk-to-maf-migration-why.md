@@ -1,4 +1,4 @@
-# Why We Migrated from Google ADK to Microsoft MARA
+# Why We Migrated from Google ADK to Microsoft MAF
 
 *The philosophy, trade-offs, and what we learned converting 18+ agents in 3 months.*
 

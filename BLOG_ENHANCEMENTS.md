@@ -110,7 +110,7 @@ Add to POST_META:
 - Right-aligned for visual prominence
 
 **Currently featured**:
-- "Why We Migrated from Google ADK to Microsoft MARA" (Series intro)
+- "Why We Migrated from Google ADK to Microsoft MAF" (Series intro)
 - "Lessons from Converting 18 Agents in 90 Days" (Series conclusion)
 
 **User benefit**: Important starting/ending posts are immediately visible

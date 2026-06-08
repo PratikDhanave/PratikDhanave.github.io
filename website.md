@@ -21,7 +21,7 @@ Your portfolio has **strong technical content** but three systemic problems:
 **What's strong:**
 - Hero layout with photo is professional
 - "Delivered Impact at Scale" section is compelling
-- ADK-to-MARA migration series is well-positioned
+- ADK-to-MAF migration series is well-positioned
 - Skills grid is comprehensive
 
 **What's underselling you:**

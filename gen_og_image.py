@@ -90,7 +90,7 @@ draw.text((100, 272), TITLE, font=f_title, fill=MID_GREY)
 draw.line([(100, 336), (900, 336)], fill=(210, 218, 235), width=1)
 
 # ── Skill chips ───────────────────────────────────────────────────────────────
-chips = ["Go", "HIPAA-grade AI", "MARA", "GCP", "FinTech", "Healthcare AI"]
+chips = ["Go", "HIPAA-grade AI", "MAF", "GCP", "FinTech", "Healthcare AI"]
 cx = 100
 cy = 362
 pad_x, pad_y, radius = 18, 10, 8

@@ -47,7 +47,7 @@ You need to support BOTH because your healthcare customers use both.
 
 ## Bodh: Medical AI Panel Architecture
 
-Bodh is an open-source medical AI panel on Microsoft's MARA with:
+Bodh is an open-source medical AI panel on Microsoft's MAF with:
 
 - **7 role-specialized agents**: intake, supervisor, questioner, test_planner, cost_guardian, diagnostician, reasoning_verifier
 - **FHIR R4 schemas** for EHR interoperability

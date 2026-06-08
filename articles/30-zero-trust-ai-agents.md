@@ -234,7 +234,7 @@ If you're deploying agents in production, or planning to, Anthropic's full eBook
 ## Further Reading
 
 - **Anthropic Security Blog** — [Zero Trust for AI Agents eBook](https://claude.com/blog/zero-trust-for-ai-agents)
-- **Microsoft's Multi-Agent Reference Architecture (MARA)** — Governance and compliance patterns for enterprise AI
+- **Microsoft's Agent Framework (MAF)** — Governance and compliance patterns for enterprise AI
 - **OPA/Rego for Policy as Code** — Declarative access control for AI systems
 - **SPIFFE/OIDC Workload Identity** — Cryptographic agent authentication
 - **Audit Trail Immutability** — Hash-chain and append-only logging for forensics

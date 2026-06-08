@@ -155,7 +155,7 @@ POST_META = {
     "05-mara-five-interfaces.md": {
         "slug": "mara-five-interfaces",
         "date": "2026-05-23",
-        "tags": ["Software Architecture", "Multi-Agent", "MARA", "Go"],
+        "tags": ["Software Architecture", "Multi-Agent", "MAF", "Go"],
         "audience": "Software architects",
         "excerpt": "Five interfaces hold the whole platform together. The 30-line orchestrator closure that makes the rest of the architecture testable, auditable, and safe to evolve.",
     },
@@ -190,7 +190,7 @@ POST_META = {
     "2026-06-01-adk-to-maf-migration-why.md": {
         "slug": "adk-to-maf-migration-why",
         "date": "2026-06-01",
-        "tags": ["ADK", "MARA", "Architecture", "Multi-Agent AI"],
+        "tags": ["ADK", "MAF", "Architecture", "Multi-Agent AI"],
         "audience": "Software architects + platform engineers",
         "excerpt": "The philosophy, trade-offs, and what we learned converting 18+ agents in 3 months. Provider abstraction as the foundation for portable agents.",
         "featured": True,
@@ -218,7 +218,7 @@ POST_META = {
     "2026-06-02-adk-to-maf-executor-pattern.md": {
         "slug": "adk-to-maf-executor-pattern",
         "date": "2026-06-02",
-        "tags": ["ADK", "MARA", "Orchestration", "Design Pattern"],
+        "tags": ["ADK", "MAF", "Orchestration", "Design Pattern"],
         "audience": "Platform architects",
         "excerpt": "How to port ADK's orchestration callbacks to MAF builders without losing control. The executor pattern: you own the loop.",
         "series": "ADK to MAF Migration",
@@ -228,7 +228,7 @@ POST_META = {
     "2026-06-03-adk-to-maf-token-exchange.md": {
         "slug": "adk-to-maf-token-exchange",
         "date": "2026-06-03",
-        "tags": ["ADK", "MARA", "State Management", "Token Budgeting"],
+        "tags": ["ADK", "MAF", "State Management", "Token Budgeting"],
         "audience": "Backend + ML engineers",
         "excerpt": "Sessions to threads: porting multi-turn state from ADK to MAF. Token budgeting, long-term memory, and conversation audit trails.",
         "series": "ADK to MAF Migration",
@@ -238,7 +238,7 @@ POST_META = {
     "2026-06-04-adk-to-maf-tool-wrapping.md": {
         "slug": "adk-to-maf-tool-wrapping",
         "date": "2026-06-04",
-        "tags": ["ADK", "MARA", "Tools", "Governance", "OPA"],
+        "tags": ["ADK", "MAF", "Tools", "Governance", "OPA"],
         "audience": "Governance + backend engineers",
         "excerpt": "From ADK functions to MAF governed tools. Adding policy enforcement, DLP, approval gates, and OPA integration.",
         "series": "ADK to MAF Migration",
@@ -248,7 +248,7 @@ POST_META = {
     "2026-06-05-adk-to-maf-provider-config.md": {
         "slug": "adk-to-maf-provider-config",
         "date": "2026-06-05",
-        "tags": ["ADK", "MARA", "Provider Abstraction", "Config"],
+        "tags": ["ADK", "MAF", "Provider Abstraction", "Config"],
         "audience": "DevOps + platform engineers",
         "excerpt": "Zero-code provider swaps: Ollama (dev), OpenAI (staging), Azure Foundry (prod). Same agents, different models.",
         "series": "ADK to MAF Migration",
@@ -258,7 +258,7 @@ POST_META = {
     "2026-06-06-adk-to-maf-callbacks.md": {
         "slug": "adk-to-maf-callbacks",
         "date": "2026-06-06",
-        "tags": ["ADK", "MARA", "Middleware", "Observability", "OTel"],
+        "tags": ["ADK", "MAF", "Middleware", "Observability", "OTel"],
         "audience": "SRE + observability engineers",
         "excerpt": "Callbacks to middleware: composable decorators for audit, retry, token enforcement, and OpenTelemetry integration.",
         "series": "ADK to MAF Migration",
@@ -268,7 +268,7 @@ POST_META = {
     "2026-06-07-adk-to-maf-deployment.md": {
         "slug": "adk-to-maf-deployment",
         "date": "2026-06-07",
-        "tags": ["ADK", "MARA", "Deployment", "Cloud Run", "A2A"],
+        "tags": ["ADK", "MAF", "Deployment", "Cloud Run", "A2A"],
         "audience": "Cloud architects + SRE",
         "excerpt": "Cloud Run deployments, agent-to-agent communication, load balancing, and production observability.",
         "series": "ADK to MAF Migration",
@@ -278,7 +278,7 @@ POST_META = {
     "2026-06-08-adk-to-maf-lessons.md": {
         "slug": "adk-to-maf-lessons",
         "date": "2026-06-08",
-        "tags": ["ADK", "MARA", "Case Study", "Lessons Learned"],
+        "tags": ["ADK", "MAF", "Case Study", "Lessons Learned"],
         "audience": "All engineers",
         "excerpt": "What worked, what was hard, and what we'd do differently. Real numbers: 18 agents, 90 days, 5 governance policies, 4 provider swaps.",
         "featured": True,
@@ -310,7 +310,7 @@ POST_META = {
     "auto-003-agentic-architecture-on-mara.md": {
         "slug": "agentic-architecture-on-mara",
         "date": "2026-04-10",
-        "tags": ['Architecture', 'MARA', 'Go', 'Multi-Agent AI'],
+        "tags": ['Architecture', 'MAF', 'Go', 'Multi-Agent AI'],
         "audience": "Engineering",
         "excerpt": "Microsoft\'s Multi-Agent Reference Architecture in Go. Protocol, registry, bus, governance, orchestration, observability, evaluation — and how the seven hold each other up.",
     },
@@ -1975,7 +1975,7 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 
 <section class="blog-hero">
   <h1>Blog</h1>
-  <p>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. Most posts grow out of work on <a href="https://github.com/PratikDhanave/bodh">Bodh</a> &mdash; an open-source Go implementation of Microsoft's MARA pattern tuned for medical sequential diagnosis.</p>
+  <p>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. Most posts grow out of work on <a href="https://github.com/PratikDhanave/bodh">Bodh</a> &mdash; an open-source Go implementation of Microsoft's MAF pattern tuned for medical sequential diagnosis.</p>
 </section>
 
 <div class="search-box">
