@@ -204,13 +204,13 @@ POST_META = {
                 "context": "Official MAF patterns and best practices"
             },
             {
-                "title": "Google Agent Driven Kit (ADK) Reference",
-                "url": "https://developers.google.com/assistant/sdk",
+                "title": "Google Agent Development Kit (ADK) Documentation",
+                "url": "https://google.github.io/adk-docs/",
                 "context": "ADK orchestration patterns and limitations"
             },
             {
                 "title": "Provider Abstraction in Multi-Agent Systems",
-                "url": "https://pratikdhanave.com/thank-you/",
+                "url": "https://github.com/c2siorg/genie",
                 "context": "Design pattern for portable agent implementations"
             }
         ]
@@ -305,7 +305,7 @@ POST_META = {
         "date": "2026-02-20",
         "tags": ['A2A', 'Agents', 'Go', 'Protocols'],
         "audience": "Engineering",
-        "excerpt": "Anthropic\'s A2A spec standardises how agents talk to other agents (not just tools). The Go client is small; the conceptual shift is what matters.",
+        "excerpt": "Google\'s A2A spec standardises how agents talk to other agents (not just tools). The Go client is small; the conceptual shift is what matters.",
     },
     "auto-003-agentic-architecture-on-mara.md": {
         "slug": "agentic-architecture-on-mara",
@@ -807,7 +807,7 @@ POST_META = {
     "auto-118-spiffe-spire-workload-identity-basics.md": {
         "slug": "spiffe-spire-workload-identity-basics",
         "date": "2026-02-28",
-        "tags": ['SPIFFE', 'SPIRE', 'Workload Identity', 'Zero-Trust'],
+        "tags": ['SPIFFE', 'SPIRE', 'Workload Identity', 'Zero Trust'],
         "audience": "Engineering",
         "excerpt": "Services need identity too, not just users. SPIFFE issues SVIDs (verifiable identity documents) to workloads; SPIRE is the reference issuer. The shape and the first deploy.",
     },
@@ -1672,6 +1672,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
 <meta property="og:description" content="{desc_html}">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{canonical}">
+<meta property="og:site_name" content="Pratik Dhanave">
 <meta property="og:image" content="https://pratikdhanave.com/og-default.png">
 <meta property="article:published_time" content="{date_iso}T00:00:00+00:00">
 {''.join(f'<meta property="article:tag" content="{_html_escape(t, quote=True)}">' + chr(10) for t in meta['tags'])}
@@ -1702,7 +1703,8 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
   "author": {{
     "@type": "Person",
     "name": "Pratik Dhanave",
-    "url": "https://pratikdhanave.com"
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
   }},
   "publisher": {{
     "@type": "Person",
@@ -2454,7 +2456,7 @@ def render_search_index(all_posts):
     return json.dumps(index, separators=(',', ':'))
 
 
-def render_rss_feed(posts, limit=20):
+def render_rss_feed(posts, limit=50):
     """Generate RSS 2.0 XML feed of recent blog posts."""
     from xml.sax.saxutils import escape
     items = []
@@ -2701,13 +2703,20 @@ def _new_post_urls() -> list[str]:
     Falls back to an empty list if git is unavailable.
     """
     try:
-        # Files changed vs HEAD (staged or unstaged)
+        # Files changed vs HEAD (staged or unstaged) + untracked new files
         result = subprocess.run(
             ["git", "diff", "--name-only", "HEAD"],
             capture_output=True, text=True, timeout=10,
             cwd=str(SITE_ROOT),
         )
         changed = result.stdout.splitlines()
+        # Also pick up brand-new (untracked) files
+        result2 = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard"],
+            capture_output=True, text=True, timeout=10,
+            cwd=str(SITE_ROOT),
+        )
+        changed += result2.stdout.splitlines()
     except Exception:
         return []
 

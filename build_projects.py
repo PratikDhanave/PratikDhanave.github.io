@@ -141,7 +141,7 @@ PROJECT_META = {
 </ul>""",
         "language": "Go",
         "role": "Core contributor",
-        "year": "2024–2025",
+        "year": "2022",
         "tags": ["Go", "Cloud Spanner", "Datastream", "CDC", "Google Cloud"],
         "highlights": [
             "40–60% post-migration query performance improvement",
@@ -207,7 +207,7 @@ PROJECT_META = {
             ["10K+", "queries analyzed"],
         ],
         "links": [
-            ["Tata Group", "https://www.tatasteel.com/"],
+            ["Tata Group", "https://www.tata.com/"],
             ["Google BigQuery Docs", "https://cloud.google.com/bigquery/docs"],
             ["BigQuery Pricing", "https://cloud.google.com/bigquery/pricing"],
         ],
@@ -238,7 +238,7 @@ PROJECT_META = {
         "description_html": """<p>Architected and led the engineering of a high-throughput transaction processing platform for Globe, the Philippines' leading telecom operator. The system handles <strong>30,000+ transactions per second</strong> for telecom and FinTech partner integrations.</p>
 <p><strong>Key responsibilities:</strong> Team leadership (10 engineers), PCI-DSS compliance architecture, idempotent transaction semantics, sophisticated error-code orchestration with exponential backoff, and Dead Letter Queue (DLQ) resilience for failed transactions.</p>""",
         "role": "Tech lead / architect",
-        "year": "Ongoing",
+        "year": "2022–2024",
         "tags": ["Go", "Kubernetes", "Kafka", "Pub/Sub", "PCI", "High-throughput"],
         "highlights": [
             "30,000+ transactions per second sustained throughput",
@@ -409,7 +409,7 @@ PROJECT_META = {
         "metrics": [
             ["37%", "latency ↓"],
             ["3", "markets"],
-            ["SOMA", "compliant"],
+            ["SAMA", "compliant"],
         ],
         "links": [
             ["Bancnet", "https://www.bancnet.com.ph/"],
@@ -890,7 +890,23 @@ def render_project_gallery_html(all_projects):
   <p>Open to collaboration on multi-agent systems, cloud architecture, and production AI challenges. <a href="/#contact">Get in touch →</a></p>
 </section>"""
 
-    return _wrap_page_html("Projects", body)
+    gallery_schema = """
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Projects — Pratik Dhanave",
+  "description": "Portfolio projects and client work by Pratik Dhanave — multi-agent AI, cloud infrastructure, and production systems.",
+  "url": "https://pratikdhanave.com/projects/",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  }
+}
+</script>"""
+    return _wrap_page_html("Projects", body, gallery_schema)
 
 
 def render_project_detail_html(project_slug, all_posts):
@@ -931,18 +947,22 @@ def render_project_detail_html(project_slug, all_posts):
             related_posts_html = '<section class="related-posts" style="margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--border);">'
             related_posts_html += '<h3>Related Writing</h3>'
 
-            # Explicit pins first
+            # Explicit pins first (track slugs to avoid duplicates)
+            pinned_slugs = set()
             for post_path in project.get("blog_posts", []):
                 # Try to find in POST_META
                 for meta in POST_META.values():
                     if meta.get("slug") in post_path:
                         related_posts_html += f'<div style="margin-bottom: 12px;"><a href="{post_path}">{meta.get("title", "Untitled")}</a></div>'
+                        pinned_slugs.add(meta.get("slug"))
                         break
 
-            # Then auto-related
+            # Then auto-related (skip already-pinned)
             for post in related:
                 post_date = post["meta"]["date"]
                 post_slug = post["meta"]["slug"]
+                if post_slug in pinned_slugs:
+                    continue
                 related_posts_html += f'<div style="margin-bottom: 12px;"><a href="/blog/posts/{post_slug}.html">{post["meta"].get("title", "Untitled")}</a> <span style="color: var(--text-muted); font-size: 0.9rem;">({post_date})</span></div>'
 
             related_posts_html += '</section>'
@@ -1067,7 +1087,10 @@ def _wrap_page_html(page_title, body_html, schema_html="", slug=""):
 <meta property="og:title" content="Pratik Dhanave — {page_title}">
 <meta property="og:description" content="{page_title}. Portfolio projects and client work by Pratik Dhanave — multi-agent AI, cloud infrastructure, and production systems.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="{canonical}">
+<meta property="og:site_name" content="Pratik Dhanave">
 <meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pratik Dhanave — {page_title}">
 <meta name="twitter:description" content="{page_title}. Portfolio projects and client work by Pratik Dhanave — multi-agent AI, cloud infrastructure, and production systems.">
