@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent registry as a project-local convention — Pratik Dhanave</title>
+<meta name="description" content="The Microsoft Agent Framework deliberately does not ship an agent registry. Here's why that's the right call, and what the @register decorator pattern looks like when you build one yourself.">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Agent registry as a project-local convention">
+<meta property="og:description" content="The Microsoft Agent Framework deliberately does not ship an agent registry. Here's why that's the right call, and what the @register decorator pattern looks like when you build one yourself.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/maf-agent-registry-convention.html">
+P26-06-01">
+<meta property="article:tag" content="MAF">
+<meta property="article:tag" content="Architecture">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="Registry">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Agent registry as a project-local convention">
+<meta name="twitter:description" content="The Microsoft Agent Framework deliberately does not ship an agent registry. Here's why that's the right call, and what the @register decorator pattern looks like when you build one yourself.">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/maf-agent-registry-convention.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<main>
+<article>
+  <header>
+    <h1>Agent registry as a project-local convention</h1>
+    <p class="post-subtitle">The Microsoft Agent Framework deliberately does not ship an agent registry. Here's why that's the right call, and what the @register decorator pattern looks like when you build one yourself.</p>
+    <div class="post-meta">
+      <time datetime="2026-06-01">June 1, 2026</time>
+      <span>·</span>
+      <span>Engineers building agent platforms</span>
+    </div>
+    <div class="post-tags"><span class="tag">MAF</span><span class="tag">Architecture</span><span class="tag">Python</span><span class="tag">Registry</span></div>
+  </header>
+
+<p>The reference architecture's Chapter 4 is <em>Agent Registry</em>. The opening line says it's the "source of truth describing every specialized agent: identity, capabilities, version, lifecycle state." That sounds important. So I went looking for it in the Microsoft Agent Framework and didn't find one.</p>
+<p>This is on purpose. The closest thing MAF has is Azure AI Foundry's hosted agent catalog (<code>AIProjectClient.agents.list()</code>), but it only sees agents managed by Foundry. If you're running Ollama locally, or you mix Foundry-hosted with OpenAI-direct, or you want one canonical map of every agent your platform exposes regardless of provider, you build it.</p>
+<h2 id="the-shape-that-works">The shape that works</h2>
+<p>The whole thing is four files in <a href="https://github.com/PratikDhanave/microsofagenframework/tree/main/src/multi_agent/registry"><code>src/multi_agent/registry/</code></a>:</p>
+<pre><code>registry/
+├── __init__.py
+├── models.py          # AgentDescriptor, CapabilityManifest, LifecycleState
+├── registry.py        # in-memory AgentRegistry
+└── self_register.py   # @register(...) decorator
+</code></pre>
+<p>The data model is small enough to fit on one screen:</p>
+<pre><code class="language-python">@dataclass(frozen=True)
+class CapabilityManifest:
+    name: str
+    description: str
+    tags: tuple[str, ...] = ()
+    input_schema: dict[str, Any] | None = None
+    output_schema: dict[str, Any] | None = None
+
+
+@dataclass
+class AgentDescriptor:
+    id: str
+    name: str
+    version: str
+    capabilities: tuple[CapabilityManifest, ...]
+    lifecycle: LifecycleState = &quot;draft&quot;
+    owner: str | None = None
+    factory: Callable[..., Any] | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+</code></pre>
+<p><code>LifecycleState</code> is a <code>Literal["draft", "staging", "production", "retired"]</code>. The <code>factory</code> field is what makes this useful at runtime: it's how the registry produces a live <code>Agent</code> instance.</p>
+<h2 id="two-register-patterns">Two register patterns</h2>
+<p>The reference architecture's Chapter 4 calls out two paths into a registry. Both are real choices with real trade-offs.</p>
+<h3 id="pattern-a-agent-initiated-self-register">Pattern A — Agent-Initiated Self-Register</h3>
+<pre><code class="language-mermaid">sequenceDiagram
+    autonumber
+    Import-&gt;&gt;Decorator: load agents/researcher.py
+    Decorator-&gt;&gt;Registry: register(AgentDescriptor)
+    Registry--&gt;&gt;Decorator: stored
+    Note over Registry: lifecycle = &quot;draft&quot; by default
+</code></pre>
+<p>The factory carries the metadata; importing the module registers the agent. Zero boot-time configuration. The <code>@register(...)</code> decorator in <a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/src/multi_agent/registry/self_register.py"><code>registry/self_register.py</code></a> is what does it:</p>
+<pre><code class="language-python">@register(
+    id=&quot;researcher&quot;,
+    name=&quot;Researcher&quot;,
+    version=&quot;0.1.0&quot;,
+    capabilities=[
+        CapabilityManifest(
+            name=&quot;research&quot;,
+            description=&quot;Gather facts and citations; can call web_search and calculator tools.&quot;,
+            tags=(&quot;research&quot;, &quot;facts&quot;, &quot;citations&quot;),
+        )
+    ],
+    lifecycle=&quot;production&quot;,
+)
+def make_researcher(client: Any, *, name: str = &quot;researcher&quot;, **agent_kwargs: Any) -&gt; Agent:
+    return Agent(
+        client=client,
+        name=name,
+        instructions=RESEARCHER_INSTRUCTIONS,
+        tools=[governed_web_search, governed_calculator],
+        **agent_kwargs,
+    )
+</code></pre>
+<p>The agent <em>is</em> the decorator's argument list. The factory is the function body. They never drift because there's nowhere for them to drift to — they live in the same definition.</p>
+<p>A useful side-effect: <code>make registry</code> in the project dumps every registered agent in one line:</p>
+<pre><code>classifier     v0.1.0  [production] caps=classify_intent
+critic         v0.1.0  [production] caps=review
+orchestrator   v0.1.0  [production] caps=orchestrate
+planner        v0.1.0  [production] caps=plan
+researcher     v0.1.0  [production] caps=research
+writer         v0.1.0  [production] caps=write
+</code></pre>
+<p>This is the answer to "what does my platform expose?" without grepping the codebase.</p>
+<h3 id="pattern-b-registry-initiated-discovery">Pattern B — Registry-Initiated Discovery</h3>
+<pre><code class="language-mermaid">sequenceDiagram
+    autonumber
+    Registry-&gt;&gt;AgentA: GET /agent-info
+    AgentA--&gt;&gt;Registry: AgentDescriptor JSON
+    Registry-&gt;&gt;AgentB: GET /agent-info
+    AgentB--&gt;&gt;Registry: AgentDescriptor JSON
+    Note over Registry: store both
+</code></pre>
+<p>For microservices deployments each service exposes its descriptor at a well-known URL; a registry-side daemon polls and updates. This is what the reference architecture's Chapter 4 calls "Dynamic Agent Registry (Service Mesh for Agents)". I didn't implement it because the project ships as a modular monolith — but the data model is the same, and the migration is a swap of storage backend, not a rewrite of the consumer code.</p>
+<h2 id="find-by-capability">Find by capability</h2>
+<p>The orchestrator's job is to pick the right specialist. <code>find_by_capability</code> is what makes that one line:</p>
+<pre><code class="language-python">class AgentRegistry:
+    def find_by_capability(self, capability: str) -&gt; list[AgentDescriptor]:
+        return [a for a in self.list() if a.has_capability(capability)]
+
+    def find_by_tag(self, tag: str) -&gt; list[AgentDescriptor]:
+        return [a for a in self.list() if a.matches_tag(tag)]
+</code></pre>
+<p>When the orchestrator gets "I need a researched summary of CAP theorem", it can ask the registry for capability <code>"research"</code>, get back <code>[Researcher]</code>, and stop there. Or it can broaden the query to a tag and get the full set. The query API is small on purpose; the value is in <em>what's stored</em>, not in clever queries.</p>
+<h2 id="lifecycle-as-the-promotion-gate">Lifecycle as the promotion gate</h2>
+<p><code>AgentRegistry.promote(agent_id, state)</code> is the <em>only</em> way an agent transitions between lifecycle states. That's the whole point of having the registry hold the lifecycle field — it becomes the gate. The state machine in <a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/src/multi_agent/governance/lifecycle.py"><code>governance/lifecycle.py</code></a> refuses illegal transitions:</p>
+<pre><code class="language-python">_ALLOWED: dict[AgentLifecycle, set[AgentLifecycle]] = {
+    AgentLifecycle.DRAFT:      {AgentLifecycle.STAGING, AgentLifecycle.RETIRED},
+    AgentLifecycle.STAGING:    {AgentLifecycle.PRODUCTION, AgentLifecycle.DRAFT, AgentLifecycle.RETIRED},
+    AgentLifecycle.PRODUCTION: {AgentLifecycle.STAGING, AgentLifecycle.RETIRED},
+    AgentLifecycle.RETIRED:    set(),  # terminal
+}
+
+
+def transition(current: AgentLifecycle, target: AgentLifecycle) -&gt; AgentLifecycle:
+    if target not in _ALLOWED.get(current, set()):
+        raise IllegalTransition(f&quot;{current.value} -&gt; {target.value} not permitted&quot;)
+    return target
+</code></pre>
+<p>A separate Responsible AI checklist gates promotions to <code>production</code>. That's covered in the governance post later in this series.</p>
+<h2 id="what-maf-gives-you-that-i-didnt-reinvent">What MAF gives you that I didn't reinvent</h2>
+<p><code>Agent.id</code>, <code>Agent.name</code>, <code>Agent.description</code>. Every MAF <code>Agent</code> has these natively. The registry doesn't reinvent agent identity — it <em>references</em> it, by <code>factory()</code> returning the configured <code>Agent</code> whose <code>.id</code> and <code>.name</code> are already there.</p>
+<p>The architectural value of the registry is the <em>layer above</em> MAF's <code>Agent</code>: capability declarations, lifecycle, and a uniform discovery surface. Those are what the reference architecture asks for, and those are what MAF deliberately leaves to the application.</p>
+<h2 id="falling-back-to-foundry">Falling back to Foundry</h2>
+<p>If you eventually go all-in on Foundry hosted agents, you can throw away the registry. <code>AIProjectClient.agents.list()</code> returns the catalog, and Foundry's own UI tracks lifecycle. The migration is a one-import swap because the registry was a <em>project-local convention</em> the whole time. It looked like a primitive; it never was.</p>
+<p>The whole <a href="https://github.com/PratikDhanave/microsofagenframework/tree/main/src/multi_agent/registry"><code>registry/</code></a> directory is 200-something lines of Python. The investment is in <em>thinking</em> about what an agent registry is for. The code falls out.</p>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>&copy; 2026 Pratik Dhanave &middot; <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> &middot; <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer">LinkedIn</a> &middot; <a href="tel:+917276469649">+91 7276469649</a> &middot; <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
