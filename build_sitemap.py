@@ -99,6 +99,10 @@ def collect_main_pages():
         ("/open-source/", "open-source/index.html", "monthly", "0.7"),
         ("/google-cloud-next/", "google-cloud-next/index.html", "monthly", "0.7"),
         ("/featured/", "featured/index.html", "weekly", "0.85"),
+        ("/thank-you/", "thank-you/index.html", "monthly", "0.4"),
+        ("/projects/genie/", "projects/genie/index.html", "monthly", "0.7"),
+        ("/projects/bodh/", "projects/bodh/index.html", "monthly", "0.7"),
+        ("/projects/harbourbridge/", "projects/harbourbridge/index.html", "monthly", "0.7"),
     ]
     urls = []
     for path, file_rel, changefreq, priority in pages:
