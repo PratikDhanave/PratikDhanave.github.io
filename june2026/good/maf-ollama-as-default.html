@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ollama as the default LLM for enterprise-shaped systems — Pratik Dhanave</title>
+<meta name="description" content="PROVIDER=ollama, granite4.1:3b, zero API keys, no Azure account. How to make a multi-agent project that demonstrates enterprise patterns run end-to-end on a laptop in 90 seconds.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Ollama as the default LLM for enterprise-shaped systems">
+<meta property="og:description" content="PROVIDER=ollama, granite4.1:3b, zero API keys, no Azure account. How to make a multi-agent project that demonstrates enterprise patterns run end-to-end on a laptop in 90 seconds.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.github.io/blog/posts/maf-ollama-as-default.html">
+P26-06-07">
+<meta property="article:tag" content="MAF">
+<meta property="article:tag" content="Ollama">
+<meta property="article:tag" content="Local AI">
+<meta property="article:tag" content="Developer Experience">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ollama as the default LLM for enterprise-shaped systems">
+<meta name="twitter:description" content="PROVIDER=ollama, granite4.1:3b, zero API keys, no Azure account. How to make a multi-agent project that demonstrates enterprise patterns run end-to-end on a laptop in 90 seconds.">
+
+<link rel="canonical" href="https://pratikdhanave.github.io/blog/posts/maf-ollama-as-default.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-elev: #f7f8fa;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-dim: #444;
+  --text-muted: #888;
+  --border: #e5e7eb;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --tag-bg: #eef3fb;
+  --tag-text: #1557b0;
+  --code-bg: #f3f4f6;
+  --code-border: #e1e4e8;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-card: #161b22;
+    --text: #e6edf3;
+    --text-dim: #c4ccd5;
+    --text-muted: #7d8590;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a;
+    --tag-text: #79b8ff;
+    --code-bg: #1e242c;
+    --code-border: #2d333b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  nav { background: rgba(13,17,23,0.85); }
+}
+.nav-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.nav-brand {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.nav-brand:hover { text-decoration: none; color: var(--text); }
+.nav-links {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.nav-links a { color: var(--text-dim); }
+.nav-links a:hover { color: var(--accent); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+@media (max-width: 640px) {
+  .nav-container { padding: 12px 18px; }
+  .nav-links { gap: 14px; }
+  .nav-links li:nth-child(n+4) { display: none; }
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+article header {
+  padding: 64px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+article h1 {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+.post-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.post-meta time { font-weight: 500; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+article h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 48px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+article h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+article h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+article p {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+}
+article strong { color: var(--text); font-weight: 600; }
+article em { font-style: italic; }
+article ul, article ol {
+  margin: 0 0 20px;
+  padding-left: 24px;
+  color: var(--text-dim);
+}
+article li { margin-bottom: 6px; }
+article blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  padding: 12px 18px;
+  margin: 0 0 20px;
+  color: var(--text-dim);
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+article blockquote p:last-child { margin-bottom: 0; }
+article hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 36px 0;
+}
+
+article code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+}
+article pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 0 0 20px;
+  line-height: 1.55;
+  font-size: 13.5px;
+}
+article pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--text);
+}
+
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 22px;
+  font-size: 0.93rem;
+}
+article th, article td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+article th {
+  background: var(--bg-elev);
+  font-weight: 700;
+  color: var(--text);
+}
+article td { color: var(--text-dim); }
+article tr:hover td { background: var(--bg-elev); }
+
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+
+.post-footer {
+  padding: 36px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.post-footer a { color: var(--accent); }
+.post-footer .footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+footer.site-footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+footer.site-footer a { color: var(--text-muted); }
+
+::selection { background: var(--accent); color: white; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#projects">Projects</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<main>
+<article>
+  <header>
+    <h1>Ollama as the default LLM for enterprise-shaped systems</h1>
+    <p class="post-subtitle">PROVIDER=ollama, granite4.1:3b, zero API keys, no Azure account. How to make a multi-agent project that demonstrates enterprise patterns run end-to-end on a laptop in 90 seconds.</p>
+    <div class="post-meta">
+      <time datetime="2026-06-07">June 7, 2026</time>
+      <span>·</span>
+      <span>Engineers showing multi-agent demos without burning credits</span>
+    </div>
+    <div class="post-tags"><span class="tag">MAF</span><span class="tag">Ollama</span><span class="tag">Local AI</span><span class="tag">Developer Experience</span></div>
+  </header>
+
+<p>Most multi-agent demos require a cloud API key. The reading audience has to either trust you with billing keys, sign up for credits, or skip the demo. None of those are healthy defaults.</p>
+<p>This project's default is <code>PROVIDER=ollama</code> with <code>OLLAMA_MODEL=granite4.1:3b</code>. The full <code>make all</code> — pre-flight, install, observability stack, tests, all three working workflows, both eval harnesses, URLs — runs on a laptop in about 90 seconds with no API keys. This post is about how that's built.</p>
+<h2 id="the-provider-abstraction">The provider abstraction</h2>
+<p><a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/src/multi_agent/providers.py"><code>providers.py</code></a> is 30 lines:</p>
+<pre><code class="language-python">def build_chat_client(settings: Settings | None = None) -&gt; Any:
+    s = settings or load_settings()
+
+    if s.provider == &quot;openai&quot;:
+        from agent_framework.openai import OpenAIChatCompletionClient
+        return OpenAIChatCompletionClient(model=s.openai_model, api_key=s.openai_api_key)
+
+    if s.provider == &quot;foundry&quot;:
+        from agent_framework.foundry import FoundryChatClient
+        from azure.identity import AzureCliCredential
+        return FoundryChatClient(
+            project_endpoint=s.foundry_project_endpoint,
+            model=s.foundry_model,
+            credential=AzureCliCredential(),
+        )
+
+    if s.provider == &quot;ollama&quot;:
+        from agent_framework.ollama import OllamaChatClient
+        return OllamaChatClient(host=s.ollama_host, model=s.ollama_model)
+
+    raise ValueError(f&quot;Unknown provider: {s.provider}&quot;)
+</code></pre>
+<p>Every agent factory in the project takes its client from <code>build_chat_client()</code>. Nothing else cares which provider it is. To swap from local development to Azure Foundry production, you change two env vars; nothing else.</p>
+<h2 id="why-granite413b">Why <code>granite4.1:3b</code></h2>
+<p>The provider abstraction works with any Ollama model. The choice of <em>default</em> matters because it sets what users see the first time they run the demo. The candidates I tried, with rough quality on the test prompts:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Size</th>
+<th>Sequential</th>
+<th>Concurrent</th>
+<th>Multi-turn eval (judge)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>llama3.2:1b</code></td>
+<td>1.3 GB</td>
+<td>Hallucinated content; agent prompts mostly ignored</td>
+<td>Workers returned empty</td>
+<td>1/3 cases passed</td>
+</tr>
+<tr>
+<td><code>granite4.1:3b</code></td>
+<td>2.1 GB</td>
+<td>All four agents followed instructions; critic produced exact format</td>
+<td>All three specialists ran clean</td>
+<td>2/3 cases passed (one judge nit)</td>
+</tr>
+<tr>
+<td><code>qwen3.5:latest</code></td>
+<td>6.6 GB</td>
+<td>Same as granite, slightly higher quality</td>
+<td>Same</td>
+<td>3/3 cases passed</td>
+</tr>
+<tr>
+<td><code>nemotron3:33b</code></td>
+<td>27.6 GB</td>
+<td>Best quality</td>
+<td>Slow</td>
+<td>Slow</td>
+</tr>
+</tbody>
+</table>
+<p><code>granite4.1:3b</code> is the lowest model size where the agent prompts get followed reliably enough to demonstrate the framework instead of the failure modes of a small LM. It's the sweet spot for a default — 2GB pull is acceptable for a first-run, and the speed is fine on consumer hardware.</p>
+<p>The Makefile lets you override: <code>make all MODEL=qwen3.5:latest</code>. The default is just a default.</p>
+<h2 id="the-makefiles-preflight-target">The Makefile's <code>preflight</code> target</h2>
+<pre><code class="language-makefile">preflight: ## Verify Ollama is running and the default model is pulled
+    @if ! curl -sf $(OLLAMA_HEALTH_URL) &gt;/dev/null 2&gt;&amp;1; then \
+        echo &quot;  ❌ Ollama is not reachable at http://localhost:11434&quot;; \
+        echo &quot;     Install: brew install ollama (or https://ollama.com/download)&quot;; \
+        echo &quot;     Start  : ollama serve &amp;&quot;; \
+        exit 1; \
+    fi
+    @echo &quot;  ✅ Ollama is running&quot;
+    @if ! curl -s $(OLLAMA_HEALTH_URL) | grep -q '&quot;$(MODEL)&quot;'; then \
+        echo &quot;  ⏬ Pulling $(MODEL) (one-time)...&quot;; \
+        ollama pull $(MODEL); \
+    fi
+    @echo &quot;  ✅ Model $(MODEL) is available&quot;
+</code></pre>
+<p>Idempotent, friendly errors, single pull when needed. The whole user-facing setup is two commands: <code>brew install ollama</code> and <code>make all</code>.</p>
+<h2 id="two-upstream-bugs-worth-knowing">Two upstream bugs worth knowing</h2>
+<p>The <code>agent-framework-ollama</code> package has two surface-level issues that bit me:</p>
+<h3 id="1-allow_multiple_tool_calls-kwarg">1. <code>allow_multiple_tool_calls</code> kwarg</h3>
+<p>In MAF 1.0.0b260521, <code>agent_framework_ollama._chat_client._stream</code> forwards <code>**kwargs</code> to <code>ollama.AsyncClient.chat()</code>. <code>HandoffBuilder</code> passes <code>allow_multiple_tool_calls=...</code> as one of those kwargs. The <code>ollama</code> Python client has <em>never</em> accepted that parameter. Result:</p>
+<pre><code>ChatClientException: (&quot;Ollama streaming chat request failed :
+  AsyncClient.chat() got an unexpected keyword argument 'allow_multiple_tool_calls'&quot;, ...)
+</code></pre>
+<p>This breaks the handoff pattern on Ollama specifically. Sequential, concurrent, and custom-graph workflows are fine. The fix is upstream; for now, run handoff against OpenAI or Foundry.</p>
+<h3 id="2-ollama-version-pin">2. <code>ollama</code> version pin</h3>
+<p><code>agent-framework-ollama 1.0.0b260521</code> pins <code>ollama&lt;0.5.4</code> in metadata but its code uses behaviour only present in <code>ollama&gt;=0.6.0</code>. Pip will warn:</p>
+<pre><code>agent-framework-ollama 1.0.0b260521 requires ollama&lt;0.5.4,&gt;=0.5.3,
+but you have ollama 0.6.2 which is incompatible.
+</code></pre>
+<p>…and install 0.6.2 anyway. That's the right outcome — 0.6.2 is what the framework actually needs.</p>
+<h2 id="openai-compatible-everywhere">OpenAI-compatible everywhere</h2>
+<p>The multi-turn eval harness uses the raw OpenAI Python SDK because it drives the agent loop explicitly (which is the whole point of multi-turn eval). The SDK works against any OpenAI-compatible <code>base_url</code>. Ollama exposes one at <code>http://localhost:11434/v1</code>:</p>
+<pre><code class="language-python"># evals/multi_turn/_clients.py
+_DEFAULT_BASE_URL = &quot;http://localhost:11434/v1&quot;
+_DEFAULT_API_KEY = &quot;ollama&quot;   # Ollama ignores the key; the SDK requires one.
+_DEFAULT_MODEL = &quot;granite4.1:3b&quot;
+</code></pre>
+<p>You point at OpenAI or Azure OpenAI by changing the env vars:</p>
+<pre><code class="language-bash">export EVAL_AGENT_BASE_URL=https://api.openai.com/v1
+export EVAL_AGENT_API_KEY=sk-...
+export EVAL_AGENT_MODEL=gpt-5-mini
+export EVAL_JUDGE_MODEL=gpt-5.1
+</code></pre>
+<p>The harness code doesn't change. The same multi-turn eval runs against Ollama in dev and OpenAI in CI.</p>
+<h2 id="defaults-aligned">Defaults aligned</h2>
+<p><code>.env.example</code> is the single source of truth for what the unconfigured project does:</p>
+<pre><code class="language-bash">PROVIDER=ollama
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=granite4.1:3b
+
+EVAL_AGENT_BASE_URL=http://localhost:11434/v1
+EVAL_AGENT_API_KEY=ollama
+EVAL_AGENT_MODEL=granite4.1:3b
+EVAL_JUDGE_MODEL=granite4.1:3b
+
+OTEL_SERVICE_NAME=multi-agent-maf
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+</code></pre>
+<p>The OpenAI and Foundry sections of <code>.env.example</code> are below those, clearly labelled "only if PROVIDER=…". The intent is that you don't have to look at them on first run.</p>
+<h2 id="the-make-all-recipe">The <code>make all</code> recipe</h2>
+<p>The Makefile target that ties everything together:</p>
+<pre><code class="language-makefile">all: ## Run EVERYTHING locally: pre-flight, stack, tests, workflows, evals, URLs
+    @printf &quot;\n==&gt; 1/8  Pre-flight: Ollama + model\n&quot;
+    @$(MAKE) -s preflight
+    @printf &quot;\n==&gt; 2/8  Install / venv\n&quot;
+    @$(MAKE) -s install-dev
+    @printf &quot;\n==&gt; 3/8  Boot observability stack\n&quot;
+    @$(MAKE) -s stack-up
+    @printf &quot;\n==&gt; 4/8  Unit tests (48 cases, no LLM)\n&quot;
+    @$(MAKE) -s test-fast
+    @printf &quot;\n==&gt; 5/8  Smoke: registry + custom_graph\n&quot;
+    @$(MAKE) -s smoke
+    @printf &quot;\n==&gt; 6/8  Workflows: sequential + concurrent + custom_graph\n&quot;
+    @$(MAKE) -s sequential PROMPT=&quot;$(PROMPT)&quot;
+    @$(MAKE) -s concurrent PROMPT=&quot;$(PROMPT)&quot;
+    @$(MAKE) -s custom PROMPT=&quot;hello there&quot;
+    @printf &quot;\n==&gt; 7/8  Evals: tool-call + multi-turn\n&quot;
+    @-$(MAKE) -s eval-tool
+    @-$(MAKE) -s eval-multi-fast
+    @printf &quot;\n==&gt; 8/8  Done. Inspect the data:\n&quot;
+    @$(MAKE) -s show-urls
+</code></pre>
+<p>The eval lines have a <code>-</code> prefix because the tool-call eval intentionally returns a non-zero exit code on the "calc-wrong-tool" case (the scorer correctly detects a deny). For the <code>all</code> target that's signal, not a build failure.</p>
+<p>The Grafana / Prometheus / Jaeger URLs are printed at the end so the next thing you read after a successful run is "go look at the data."</p>
+<h2 id="why-this-matters">Why this matters</h2>
+<p>Two reasons:</p>
+<ol>
+<li><strong>Reproducibility.</strong> A demo that needs an API key is unreproducible by definition — your reader can't be sure whether their failure is the framework's fault or their account's. Ollama removes that variable.</li>
+<li><strong>Cost as a non-concern in dev.</strong> You can run <code>make all</code> a hundred times and the cost is electricity. The architecture lessons aren't about token economics; they're about wiring. Wiring should be free to iterate on.</li>
+</ol>
+<p>The bigger picture: the multi-agent reference architecture is not specific to Azure. The framework is multi-vendor. The provider abstraction in 30 lines is what lets the lesson generalise. Ollama-by-default isn't a compromise on production — it's the right <em>teaching</em> surface for what's portable.</p>
+<p>When you ship to production, you flip two env vars to point at Foundry or Azure OpenAI, run <code>make sequential</code> once to confirm, and the same code runs the same workflow. That symmetry is what the provider abstraction buys.</p>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/">LinkedIn</a></p>
+</footer>
+
+</body>
+</html>

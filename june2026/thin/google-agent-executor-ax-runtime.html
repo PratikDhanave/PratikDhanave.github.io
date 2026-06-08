@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Executor (AX): Google's Open-Source Distributed Runtime for Production AI Agents — Pratik Dhanave</title>
+<meta name="description" content="Building agents is easy; running them unattended for days, safely, with an audit trail is not. A deep dive into Google's Agent Executor (AX) — a Go distributed runtime with durable, resumable execution, trajectory forking, and MCP/A2A support.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Agent Executor (AX): Google's Open-Source Distributed Runtime for Production AI Agents">
+<meta property="og:description" content="A deep dive into Google's Agent Executor (AX): durable resumable execution, trajectory forking, secure isolation, and MCP/A2A — the serving layer beneath your agent framework.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/google-agent-executor-ax-runtime.html">
+<meta property="article:published_time" content="2026-06-07">
+<meta property="article:tag" content="Agent Executor">
+<meta property="article:tag" content="Distributed Systems">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Agent Runtime">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Agent Executor (AX): Google's Open-Source Distributed Runtime for Production AI Agents">
+<meta name="twitter:description" content="Durable, resumable agent execution with trajectory forking and MCP/A2A — the serving layer beneath your agent framework.">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/google-agent-executor-ax-runtime.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --text: #1a1a1a; --text-dim: #444;
+  --text-muted: #888; --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6; --code-border: #e1e4e8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --text: #e6edf3; --text-dim: #c4ccd5;
+    --text-muted: #7d8590; --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c; --code-border: #2d333b;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.7; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; font-size: 17px; }
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 64px 24px 96px; }
+.kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 16px; }
+h1 { font-size: 2.1rem; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 18px; }
+h2 { font-size: 1.4rem; line-height: 1.3; margin: 44px 0 14px; letter-spacing: -0.01em; }
+h3 { font-size: 1.12rem; line-height: 1.35; margin: 28px 0 10px; }
+p { color: var(--text-dim); margin: 0 0 20px; }
+ul, ol { color: var(--text-dim); margin: 0 0 20px; padding-left: 24px; }
+li { margin-bottom: 10px; }
+strong { color: var(--text); font-weight: 600; }
+em { color: var(--text-dim); }
+.meta { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 40px; }
+.tag { background: var(--tag-bg); color: var(--tag-text); font-size: 12px; font-weight: 500; padding: 4px 11px; border-radius: 999px; }
+.lede { font-size: 1.15rem; color: var(--text); }
+pre { background: var(--code-bg); border: 1px solid var(--code-border); border-radius: 8px; padding: 16px 18px; overflow-x: auto; margin: 0 0 24px; }
+code { font-family: "SF Mono", "IBM Plex Mono", Menlo, Consolas, monospace; font-size: 14px; }
+pre code { color: var(--text); line-height: 1.6; }
+p code, li code { background: var(--code-bg); border: 1px solid var(--code-border); border-radius: 4px; padding: 1px 5px; font-size: 14px; }
+hr { border: none; border-top: 1px solid var(--border); margin: 48px 0 24px; }
+.source { font-size: 14px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<article class="wrap">
+  <div class="kicker">Go Engineering · Agent Infrastructure</div>
+  <h1>Agent Executor (AX): Google's Open-Source Distributed Runtime for Production AI Agents</h1>
+  <div class="meta">By Pratik Dhanave</div>
+  <div class="tags">
+    <span class="tag">Agent Executor</span><span class="tag">Distributed Systems</span><span class="tag">Go</span>
+    <span class="tag">Durable Execution</span><span class="tag">MCP / A2A</span>
+  </div>
+
+  <p class="lede">The AI industry has spent the past two years racing to build agents. Now comes the harder problem: running them reliably in production. Google's answer is <strong>Agent Executor (AX)</strong> — an open-source, distributed agent runtime unveiled at <a href="https://agentexecutor.io/">agentexecutor.io</a> and developed in the open at <a href="https://github.com/google/ax">github.com/google/ax</a>. Released under the Apache 2.0 license and currently in early preview, AX is Google's bid to define a runtime standard for agent execution, resumption, and distributed deployment.</p>
+
+  <h2>The Problem AX Is Trying to Solve</h2>
+  <p>Most agent frameworks today are excellent at one thing: orchestrating a reasoning loop inside a single process. That works for demos. It breaks down in production, where agentic workloads increasingly look like long-running distributed jobs — tasks that span minutes, hours, or even days, pause for human approval, call dozens of tools across networks, and inevitably hit failures along the way.</p>
+  <p>When a monolithic agent process crashes mid-task, the work is usually lost. There's no durable record of what happened, no way to resume from where things stopped, and little visibility into what the agent actually did. As organizations move from prototypes to autonomous, long-running workers, these gaps become showstoppers.</p>
+  <p>AX positions itself as the missing foundational layer: a runtime that coordinates agentic loops, logs every execution event durably, and communicates with both local and remote actors — so developers can focus on building agents rather than the infrastructure that keeps them alive.</p>
+
+  <h2>What AX Actually Is</h2>
+  <p>At its core, AX is a <strong>distributed runtime with a single-writer controller architecture</strong>. A central AX controller coordinates every user and agent call, maintains consistent state, and writes everything to a durable event log. Around the controller, the components of an agentic system — agents, skills, tools, and execution environments — run as <strong>isolated actors</strong> that can be deployed locally or remotely and spawned dynamically.</p>
+  <p>The architecture looks roughly like this: a client connects to the controller through a resumable stream (via a router), and the controller orchestrates communication with remote agents, MCP tool servers, and sandboxed environments that hold skills and built-in tools.</p>
+  <p>This design delivers several properties that matter in production:</p>
+
+  <h3>1. Durable, Resumable Execution</h3>
+  <p>Every execution is recorded in an event log (SQLite in the default local setup), giving AX automatic recovery from failures and interruptions — even across complex distributed deployments. If a client disconnects, it can replay missed events from the last sequence number it saw and catch up without rewinding the conversation. On compatible platforms, AX also supports compute-layer actor resumption, meaning the underlying workload itself can be suspended and revived.</p>
+
+  <h3>2. Trajectory Branching (Forking)</h3>
+  <p>Because all state lives in an event log, AX can <strong>fork a conversation from any checkpoint</strong> into a new event log using <code>ax fork</code>. Developers can branch alternate execution paths from a saved point without losing prior context — useful for experimentation, debugging, and "what if the agent had done X instead" analysis.</p>
+
+  <h3>3. Auditing and Policy Control</h3>
+  <p>Since every call flows through a common controller, AX provides a full audit trail, observability hooks, and trajectory collection for every execution. The built-in <code>ax trace</code> command spins up a local web UI that visualizes an execution's trace directly from the event log. For enterprises worried about what autonomous agents are doing on their infrastructure, this centralized chokepoint makes policy enforcement and auditing tractable.</p>
+
+  <h3>4. Secure Isolation</h3>
+  <p>Components run in secure-by-design sandboxes so that one misbehaving actor — say, an agent generating and executing code — can't cause harmful side effects across the system. Even the built-in bash tool requires explicit user approval through a confirmation flow before any command runs.</p>
+
+  <h3>5. Model and Harness Agnosticism</h3>
+  <p>AX deliberately avoids locking users into Gemini or any specific agent harness. You bring your own LLM and planning logic; AX handles execution, durability, and coordination underneath. A Gemini agent ships built-in (supporting both AI Studio API keys and Vertex AI authentication), but the runtime treats it as just another registered agent.</p>
+
+  <h3>6. Open Protocol Support</h3>
+  <p>AX natively speaks <strong>MCP (Model Context Protocol)</strong> for tools and <strong>A2A (Agent2Agent)</strong> for agent interoperability, alongside its own native <code>AgentService</code> gRPC interface. Examples in the repository show how to plug in remote agents, Google ADK (Python) agents, A2A agents through a bridge, and even experimental Colab-based agents running Python notebooks remotely.</p>
+
+  <h2>The Developer Experience</h2>
+  <p>Getting started is a one-liner for anyone with Go installed:</p>
+  <pre><code>go install github.com/google/ax/cmd/ax@latest</code></pre>
+  <p>The CLI revolves around a handful of commands:</p>
+  <ul>
+    <li><code>ax exec</code> — start or resume an agentic execution, optionally targeting a named agent (<code>--agent coding</code>) or a remote controller (<code>--server localhost:8494</code>). Conversations are identified by UUID and can be continued at any time with new input or resumed after a failure.</li>
+    <li><code>ax serve</code> — run the controller as a gRPC server, configured through a YAML file (<code>ax.yaml</code>) that defines the event log backend, the planner model, skill directories, and a registry of remote agents.</li>
+    <li><code>ax fork</code> — branch a conversation's event log from a checkpoint into a new conversation.</li>
+    <li><code>ax trace</code> — visualize an execution trace in a browser.</li>
+  </ul>
+  <p>Bringing your own agent is similarly straightforward: implement the <code>AgentService</code> gRPC interface, run it on an address, register it in <code>ax.yaml</code> under <code>remote_agents</code>, and the controller will route work to it.</p>
+
+  <h2>A Worked Example: A Research Agent That Survives a Crash</h2>
+  <p>To make this concrete, consider a team running a long-running "deep research" agent that might work for hours and occasionally needs human approval. Here's what that looks like end-to-end on AX.</p>
+
+  <p><strong>Step 1 — Configure the controller.</strong> Everything starts with an <code>ax.yaml</code> that wires up the server, the event log, the planner model, and any remote agents:</p>
+  <pre><code>server:
+  address: ":8494"
+
+eventlog:
+  sqlite:
+    filename: "eventlog/log.sqlite"
+
+planner:
+  gemini:
+    model: "gemini-3.5-flash"
+    timeout: "60s"
+    skills_dir: "./examples/skills"
+
+registry:
+  remote_agents:
+    - id: "medical-deep-researcher"
+      name: "Medical Deep Researcher"
+      description: "Performs deep medical research using resources like PubMed and clinicaltrials.gov"
+      address: "localhost:50051"</code></pre>
+
+  <p><strong>Step 2 — Start the runtime and kick off work.</strong></p>
+  <pre><code>ax serve                        # Terminal 1: controller on :8494
+
+ax exec --server localhost:8494 \
+  --agent medical-deep-researcher \
+  --input "Summarize recent phase III trials for GLP-1 agonists"</code></pre>
+  <p>The controller assigns the execution a conversation UUID (say, <code>d85a4b4e-...</code>) and begins appending every event — model calls, tool invocations, intermediate results — to the durable event log.</p>
+
+  <p><strong>Step 3 — Something goes wrong.</strong> Two hours in, the agent pod gets evicted, or your laptop loses Wi-Fi mid-stream. With a monolithic agent, the work is gone. With AX, you simply resume:</p>
+  <pre><code># Resume the incomplete execution from its last logged state
+ax exec --conversation d85a4b4e-c53b-4c84-b879-f10d905bce40 \
+  --agent medical-deep-researcher --resume</code></pre>
+  <p>If only the <em>client</em> disconnected (the agent kept running), you catch up instead of rewinding — replaying just the events you missed:</p>
+  <pre><code>ax exec --conversation d85a4b4e-c53b-4c84-b879-f10d905bce40 \
+  --last-seq 12 --resume</code></pre>
+
+  <p><strong>Step 4 — Branch an alternative path.</strong> Suppose at sequence 12 the agent chose to focus on cardiovascular outcomes, but you also want to explore safety signals — without destroying the original trajectory. Fork from the checkpoint:</p>
+  <pre><code>ax fork --src-conversation d85a4b4e-c53b-4c84-b879-f10d905bce40 \
+        --dest-conversation e5e26e38-53a2-4f22-b1cb-ae867357df83 \
+        --src-seq 12
+
+ax exec --conversation e5e26e38-53a2-4f22-b1cb-ae867357df83 \
+  --input "Instead, focus on adverse-event and safety data"</code></pre>
+  <p>You now have two parallel trajectories sharing the same first 12 events — A/B testing for agent reasoning.</p>
+
+  <p><strong>Step 5 — Audit what happened.</strong> When the work is done (or when compliance asks), visualize the full trace in a browser:</p>
+  <pre><code>ax trace --conversation d85a4b4e-c53b-4c84-b879-f10d905bce40</code></pre>
+  <p>Every model call, tool call, and approval gate is reconstructed straight from the event log.</p>
+
+  <h3>Bonus: Bringing Your Own Agent in Three Terminals</h3>
+  <p>The repository's remote-agent example shows how little glue is needed. A custom agent is just a gRPC server implementing AX's <code>AgentService</code>:</p>
+  <pre><code># Terminal 1 — your agent (e.g., a toy "lowercase" agent on :50051)
+go run examples/remote_agent/main.go
+
+# Terminal 2 — the AX controller (agent registered in ax.yaml)
+ax serve
+
+# Terminal 3 — route work to it
+ax exec --server localhost:8494 \
+  --input "HELLO, CAN YOU LOWERCASE WHAT I JUST SAID?"</code></pre>
+  <p>Swap the toy agent for an ADK agent, an A2A-speaking agent, or a Colab-hosted Python notebook, and the controller-side workflow — durability, resumption, forking, tracing — stays exactly the same. That uniformity is the point.</p>
+
+  <h2>Kubernetes and Agent Substrate</h2>
+  <p>While AX is compute-agnostic and runs anywhere from a laptop to a large cluster, Google is explicit that the best experience targets <strong>Kubernetes</strong>. AX is designed to run on <strong>Agent Substrate</strong>, a companion open-source project built with the Google Kubernetes Engine team that extends Kubernetes for high-density agentic workloads — building on GKE's Agent Sandbox work around isolation, suspension/resumption, and job scheduling. For production, deploying AX on Agent Substrate is the recommended path.</p>
+  <p>This pairing reveals Google's broader strategy: just as Kubernetes became the standard substrate for containerized applications, Google wants the AX-plus-Substrate stack to become the standard substrate for agentic applications.</p>
+
+  <h2>What AX Is Not</h2>
+  <p>The project is unusually clear about its boundaries. AX is <strong>not</strong>:</p>
+  <ul>
+    <li><strong>A managed service</strong> — it's self-hosted, designed for your own clusters.</li>
+    <li><strong>An agent framework</strong> — it doesn't compete with ADK, LangGraph, or CrewAI; it sits beneath them as the serving and durability layer.</li>
+    <li><strong>A specific harness</strong> — it isn't a coding agent like Antigravity; it wraps harnesses and stays agnostic of their implementation.</li>
+    <li><strong>A model-specific controller</strong> — any LLM can sit at the planning layer.</li>
+  </ul>
+
+  <h2>Roadmap and Current Caveats</h2>
+  <p>AX shipped its first tagged release (v0.1.0) in May 2026 and remains in active early development. Google warns that the core, resumption protocols, and runtime specifications will see <strong>major breaking changes</strong> before a stable release, and external pull requests are paused during an ongoing architectural refactor — though bug reports and feature requests are welcome at ax-dev@google.com.</p>
+  <p>The published roadmap includes: Antigravity as the built-in harness, Bring-Your-Own-Harness (BYOH) support, suspension/resumption of subagents, tool-call approvals in subagents, and improved resumption protocols.</p>
+
+  <h2>Why It Matters</h2>
+  <p>AX arrives at an inflection point. Enterprises have proven agents can work; the unresolved question is whether they can run <strong>unattended, at scale, for days, safely, with an audit trail</strong>. Analysts note that a runtime alone doesn't solve governance questions like accountability and explainability of agent decisions — but it does strengthen the operational backbone those answers will require.</p>
+  <p>By open-sourcing the layer it built internally (with acknowledged influence from Google DeepMind's work on distributed harnesses), Google is betting that durable execution, isolation, resumption, and auditing become table stakes for every serious agentic application — and that AX becomes the neutral, protocol-friendly foundation the ecosystem standardizes on.</p>
+  <p>For developers, the takeaway is simple: if your agents are graduating from chat demos to long-running autonomous work, the infrastructure problems AX targets are ones you will hit. It's worth installing the CLI, running <code>ax exec</code>, and watching the event log do its thing.</p>
+
+  <hr>
+  <p class="source"><em>Sources: agentexecutor.io, the google/ax GitHub repository, the Google Cloud blog announcement, and coverage from InfoWorld and Techzine.</em></p>
+</article>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Evaluation Methods: A Plain-Language Field Guide — Pratik Dhanave</title>
+<meta name="description" content="You can't improve what you don't measure, and an LLM system quietly rots without evals. A plain-language field guide to the seven evaluation methods that actually matter — from reading traces to LLM-as-judge to golden datasets in CI.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="LLM Evaluation Methods: A Plain-Language Field Guide">
+<meta property="og:description" content="The seven evaluation methods that actually matter — from reading traces to LLM-as-judge to golden datasets in CI — explained simply.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/llm-evaluation-methods.html">
+<meta property="article:published_time" content="2026-06-07">
+<meta property="article:tag" content="LLM Evaluation">
+<meta property="article:tag" content="LLM-as-Judge">
+<meta property="article:tag" content="LLMOps">
+<meta property="article:tag" content="Quality">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="LLM Evaluation Methods: A Plain-Language Field Guide">
+<meta name="twitter:description" content="The seven evaluation methods that actually matter for LLM systems, explained simply.">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/llm-evaluation-methods.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --text: #1a1a1a; --text-dim: #444;
+  --text-muted: #888; --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6; --code-border: #e1e4e8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --text: #e6edf3; --text-dim: #c4ccd5;
+    --text-muted: #7d8590; --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c; --code-border: #2d333b;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.7; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; font-size: 17px; }
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 64px 24px 96px; }
+.kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 16px; }
+h1 { font-size: 2.1rem; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 18px; }
+h2 { font-size: 1.4rem; line-height: 1.3; margin: 44px 0 14px; letter-spacing: -0.01em; }
+p { color: var(--text-dim); margin: 0 0 20px; }
+ul, ol { color: var(--text-dim); margin: 0 0 20px; padding-left: 24px; }
+li { margin-bottom: 10px; }
+strong { color: var(--text); font-weight: 600; }
+em { color: var(--text-dim); }
+.meta { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 40px; }
+.tag { background: var(--tag-bg); color: var(--tag-text); font-size: 12px; font-weight: 500; padding: 4px 11px; border-radius: 999px; }
+.lede { font-size: 1.15rem; color: var(--text); }
+.callout { background: var(--bg-elev); border-left: 3px solid var(--accent); border-radius: 6px; padding: 16px 18px; margin: 0 0 24px; color: var(--text-dim); }
+hr { border: none; border-top: 1px solid var(--border); margin: 48px 0 24px; }
+.source { font-size: 14px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<article class="wrap">
+  <div class="kicker">Go Engineering · LLMOps</div>
+  <h1>LLM Evaluation Methods: A Plain-Language Field Guide</h1>
+  <div class="meta">By Pratik Dhanave</div>
+  <div class="tags">
+    <span class="tag">LLM Evaluation</span><span class="tag">LLM-as-Judge</span><span class="tag">LLMOps</span>
+    <span class="tag">Guardrails</span><span class="tag">Quality</span>
+  </div>
+
+  <p class="lede">You can't improve what you don't measure — and an LLM system rots quietly. A prompt tweak that looks harmless shifts tone; a model upgrade fixes one thing and breaks two others; a change three weeks ago degraded answers and nobody noticed. Evaluation is the discipline that catches all of this before your users do. Here is the practical toolkit, in plain language. A useful mental image throughout: you're checking a new employee's work.</p>
+
+  <h2>1. Human review (reading traces)</h2>
+  <p>The most basic method, and the one to start with — always. Read what your AI actually did: the user's question, every step it took, the final answer — and judge it. Read about 100 examples, write quick notes on what went wrong ("forgot the budget filter," "tone too casual"), then group similar mistakes into categories. This is how you learn what kinds of mistakes your system makes — which is the prerequisite for every other method below.</p>
+
+  <h2>2. Code-based checks</h2>
+  <p>Simple rules, written in code, that check outputs automatically: Is the JSON valid? Does the email contain the client's name? Is the SQL runnable? Are there exactly three bullet points? These are fast, free, and never wrong — but only when the rule is objective. They can't tell you whether the tone was polite.</p>
+
+  <h2>3. LLM-as-Judge</h2>
+  <p>A second model grades the first model's work. Give the judge a clear question ("Was this email's tone right for a luxury client? Pass or Fail"), a precise definition of pass/fail, and a few examples. This handles the subjective dimensions code can't reach. The catch: the judge makes mistakes too, so you must first validate it against human-graded examples to confirm it agrees with people. Never trust it blindly.</p>
+
+  <h2>4. Reference-based vs reference-free</h2>
+  <ul>
+    <li><strong>Reference-based:</strong> compare the answer against a known correct answer — grading against an answer key. Great when there's exactly one right answer.</li>
+    <li><strong>Reference-free:</strong> no answer key — just check that the output follows your rules (right format, no made-up facts, includes required info). This is what most teams use, since building answer keys is expensive.</li>
+  </ul>
+
+  <h2>5. Absolute vs comparative</h2>
+  <ul>
+    <li><strong>Absolute:</strong> "Is this system good enough to ship?" — judging one system against a quality bar.</li>
+    <li><strong>Comparative:</strong> "Which prompt or model is better?" — an A/B taste test between options. Focus on absolute first; comparisons only matter once something works.</li>
+  </ul>
+
+  <h2>6. Session-level vs turn-level (for chatbots)</h2>
+  <ul>
+    <li><strong>Session-level:</strong> did the whole conversation accomplish the user's goal? One Pass/Fail for the entire chat.</li>
+    <li><strong>Turn-level:</strong> grade each individual reply — used to find <em>where</em> a failed conversation went wrong.</li>
+  </ul>
+
+  <h2>7. Production methods</h2>
+  <ul>
+    <li><strong>Monitoring:</strong> run your automated evaluators on a small sample (1–5%) of real traffic daily, to catch quality drops in the wild.</li>
+    <li><strong>Guardrails:</strong> instant checks that run before the user sees the output — for example, catching personal data in an email and blocking it.</li>
+    <li><strong>CI / golden datasets:</strong> a fixed set of ~100 test cases re-run on every prompt or model change, so old bugs don't quietly come back.</li>
+  </ul>
+
+  <h2>The simple mental model</h2>
+  <div class="callout">Humans figure out what "bad" looks like → code checks the objective stuff → an LLM judge checks the subjective stuff → all of it runs continuously, so quality doesn't quietly rot.</div>
+  <p>If you take one thing away: don't reach for an LLM judge or a fancy dataset first. Start by reading traces until you understand your own failure modes. Everything else is a way to scale that understanding — to more examples, to production traffic, and into your CI pipeline so regressions can't slip back in.</p>
+
+  <hr>
+  <p class="source"><em>This guide distills evaluation practices popularized in recent AI-evals literature and writing on building reliable LLM systems, reorganized and paraphrased for engineers shipping to production.</em></p>
+</article>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Google Put Graph Algorithms Inside the Database — Pratik Dhanave</title>
+<meta name="description" content="Spanner Graph's preview launch brings PageRank-lineage graph algorithms natively into Google's operational database — no ETL, no second system. Why in-database graph analytics changes the calculus.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="Google Just Put Graph Algorithms Inside the Database">
+<meta property="og:description" content="Spanner Graph brings centrality, community detection, and path-finding into the operational database via GQL — no ETL, no second system. Why it changes the calculus.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/spanner-graph-algorithms-in-database.html">
+<meta property="article:published_time" content="2026-06-07">
+<meta property="article:tag" content="Spanner">
+<meta property="article:tag" content="Graph">
+<meta property="article:tag" content="GQL">
+<meta property="article:tag" content="Data Engineering">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Google Just Put Graph Algorithms Inside the Database">
+<meta name="twitter:description" content="Spanner Graph brings PageRank-lineage algorithms natively into the operational database. Why in-database graph analytics changes the calculus.">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/spanner-graph-algorithms-in-database.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --text: #1a1a1a; --text-dim: #444;
+  --text-muted: #888; --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6; --code-border: #e1e4e8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --text: #e6edf3; --text-dim: #c4ccd5;
+    --text-muted: #7d8590; --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c; --code-border: #2d333b;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.7; color: var(--text); background: var(--bg);
+  -webkit-font-smoothing: antialiased; font-size: 17px;
+}
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 64px 24px 96px; }
+.kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 16px; }
+h1 { font-size: 2.1rem; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 18px; }
+h2 { font-size: 1.4rem; line-height: 1.3; margin: 44px 0 14px; letter-spacing: -0.01em; }
+p { color: var(--text-dim); margin: 0 0 20px; }
+ul, ol { color: var(--text-dim); margin: 0 0 20px; padding-left: 24px; }
+li { margin-bottom: 10px; }
+strong { color: var(--text); font-weight: 600; }
+em { color: var(--text-dim); }
+.meta { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 40px; }
+.tag { background: var(--tag-bg); color: var(--tag-text); font-size: 12px; font-weight: 500; padding: 4px 11px; border-radius: 999px; }
+.lede { font-size: 1.15rem; color: var(--text); }
+hr { border: none; border-top: 1px solid var(--border); margin: 48px 0 24px; }
+.source { font-size: 14px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<article class="wrap">
+  <div class="kicker">Go Engineering · Data</div>
+  <h1>Google Just Put Graph Algorithms Inside the Database — Why Spanner Graph's New Capability Matters</h1>
+  <div class="meta">By Pratik Dhanave</div>
+  <div class="tags">
+    <span class="tag">Spanner</span><span class="tag">Graph</span><span class="tag">GQL</span>
+    <span class="tag">PageRank</span><span class="tag">Data Engineering</span>
+  </div>
+
+  <p class="lede">For years, enterprises have faced an awkward trade-off when working with connected data: either build complex ETL pipelines to ship data out to dedicated graph analytics engines, or run heavy analytical workloads on the operational database and watch transaction performance suffer. With the preview launch of graph algorithms in Spanner Graph, announced at Google Cloud Next, Google is betting that this trade-off no longer needs to exist.</p>
+
+  <h2>What's New</h2>
+  <p>Spanner Graph already unified relational and graph models in Google's globally distributed database, letting developers query connected data with the ISO Graph Query Language (GQL). The new release goes a step further: it brings Google Research's graph mining capabilities — the same lineage of work that produced PageRank — natively into the database.</p>
+  <p>The launch includes three families of algorithms:</p>
+  <ul>
+    <li><strong>Centrality</strong> — betweenness, closeness, and PageRank — for identifying the most influential nodes in a network.</li>
+    <li><strong>Community detection</strong> — label propagation, modularity clustering, correlation clustering, weakly connected components, and clique aggregation — for surfacing hidden groups of tightly connected entities.</li>
+    <li><strong>Similarity and path finding</strong> — Jaccard, cosine, common neighbors, and set-to-set shortest paths — for measuring relatedness and finding optimal routes.</li>
+  </ul>
+
+  <h2>The Architecture Is the Story</h2>
+  <p>The algorithms themselves are classics. What's notable is how Google has packaged them:</p>
+  <ul>
+    <li><strong>No ETL, no second system.</strong> Algorithms are invoked directly in GQL and can be chained with standard queries — the output of an algorithm run can be written back into the graph and immediately queried. This collapses what used to be a multi-system workflow into a single query surface.</li>
+    <li><strong>Isolation from production traffic.</strong> Execution happens on dedicated, automatically provisioned compute via Spanner's Data Boost, so analytical jobs don't compete with live transactions. Pricing is usage-based, which Google positions against the licensing costs of legacy graph analytics platforms.</li>
+    <li><strong>Scale.</strong> Google claims the engine can process graphs with tens of billions of edges in minutes, thanks to a dense topology encoding optimized for random access.</li>
+  </ul>
+
+  <h2>A Concrete Example: Hunting Fraud Rings</h2>
+  <p>Google's walkthrough of an anti-money-laundering scenario shows how the pieces fit together. Fraudsters typically operate networks of "mule" accounts that transact with each other. The workflow looks like this:</p>
+  <ol>
+    <li>Run modularity clustering across all accounts and write each account's community ID back to the graph.</li>
+    <li>Query the graph to find which community has the highest concentration of already-flagged fraudulent accounts.</li>
+    <li>Filter down to that suspicious community and run PageRank on just that subgraph to identify the most central account — the likely ringleader.</li>
+    <li>Query the ringleader's recent outbound transfers to trace where the money went.</li>
+  </ol>
+  <p>Each step alternates between an algorithm and a plain GQL query, all inside the same database. That interleaving — algorithm, query, algorithm, query — is the developer experience Google is selling.</p>
+
+  <h2>Early Adopters</h2>
+  <p>The customer list is telling. DaVita is using it for a Patient 360 view of healthcare networks. Yahoo is applying community detection and PageRank to audience segmentation across billions of unified user profiles. SoundCloud, which previously ran multi-hour batch graph jobs on custom clusters, is moving to the managed service to analyze its multi-billion-edge music graph on fresh data. WPP is using it to power graph analytics in its agentic marketing platform.</p>
+  <p>The use cases Google highlights beyond fraud — entity resolution, digital twins for network operations, recommendation systems, supply chain resilience, cybersecurity blast-radius analysis, and churn prediction — all share a common thread: the insight lives in the <em>structure</em> of the relationships, not in any single record.</p>
+
+  <h2>My Take</h2>
+  <p>This launch fits a broader pattern in enterprise data platforms: capabilities that once required specialized infrastructure are being absorbed into the operational database. We saw it with vector search; now it's happening with graph analytics. For data teams, the implication is fewer pipelines to maintain, fewer copies of data to govern, and analytics that run on current data rather than yesterday's export.</p>
+  <p>There are caveats. The feature is in preview and gated to Spanner's Enterprise and Enterprise+ editions, so it's aimed squarely at large-scale workloads. And "minutes on billions of edges" claims always deserve validation against your own data shapes. But for organizations already on Spanner — or those weighing a dedicated graph database against extending their existing stack — this meaningfully changes the calculus.</p>
+  <p>The interesting question for the next year: as graph algorithms, vector search, and full-text search converge inside one database, how much of the specialized analytics stack survives?</p>
+
+  <hr>
+  <p class="source"><em>Source: Google Cloud Blog, "Introducing Spanner Graph algorithms" (June 2026). Documentation and a codelab are available for hands-on exploration.</em></p>
+</article>
+</body>
+</html>

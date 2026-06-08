@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From Notebook to Production: Scaling AI Agents with ADK and GKE Autopilot — Pratik Dhanave</title>
+<meta name="description" content="Building an agent on a laptop is the easy part. Production lessons from deploying Google's Agent Development Kit on GKE Autopilot: identity over API keys, owning the container lifecycle, and modern Gateway ingress.">
+<meta name="author" content="Pratik Dhanave">
+
+<meta property="og:title" content="From Notebook to Production: Scaling AI Agents with ADK and GKE Autopilot">
+<meta property="og:description" content="Production lessons from deploying Google's ADK on GKE Autopilot: identity over API keys, owning the container lifecycle, and modern Gateway ingress.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/scaling-ai-agents-adk-on-gke.html">
+<meta property="article:published_time" content="2026-06-07">
+<meta property="article:tag" content="GKE">
+<meta property="article:tag" content="Kubernetes">
+<meta property="article:tag" content="ADK">
+<meta property="article:tag" content="Production AI">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="From Notebook to Production: Scaling AI Agents with ADK and GKE Autopilot">
+<meta name="twitter:description" content="Building an agent on a laptop is the easy part. Production lessons from deploying ADK on GKE Autopilot.">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/scaling-ai-agents-adk-on-gke.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<style>
+:root {
+  --bg: #ffffff; --bg-elev: #f7f8fa; --text: #1a1a1a; --text-dim: #444;
+  --text-muted: #888; --border: #e5e7eb; --accent: #1a73e8; --accent-hover: #1557b0;
+  --tag-bg: #eef3fb; --tag-text: #1557b0; --code-bg: #f3f4f6; --code-border: #e1e4e8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --bg-elev: #161b22; --text: #e6edf3; --text-dim: #c4ccd5;
+    --text-muted: #7d8590; --border: #30363d; --accent: #58a6ff; --accent-hover: #79b8ff;
+    --tag-bg: #1e2d4a; --tag-text: #79b8ff; --code-bg: #1e242c; --code-border: #2d333b;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.7; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; font-size: 17px; }
+a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 64px 24px 96px; }
+.kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 16px; }
+h1 { font-size: 2.1rem; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 18px; }
+h2 { font-size: 1.4rem; line-height: 1.3; margin: 44px 0 14px; letter-spacing: -0.01em; }
+p { color: var(--text-dim); margin: 0 0 20px; }
+ul, ol { color: var(--text-dim); margin: 0 0 20px; padding-left: 24px; }
+li { margin-bottom: 10px; }
+strong { color: var(--text); font-weight: 600; }
+em { color: var(--text-dim); }
+.meta { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 40px; }
+.tag { background: var(--tag-bg); color: var(--tag-text); font-size: 12px; font-weight: 500; padding: 4px 11px; border-radius: 999px; }
+.lede { font-size: 1.15rem; color: var(--text); }
+p code { background: var(--code-bg); border: 1px solid var(--code-border); border-radius: 4px; padding: 1px 5px; font-family: "SF Mono", "IBM Plex Mono", Menlo, Consolas, monospace; font-size: 14px; }
+hr { border: none; border-top: 1px solid var(--border); margin: 48px 0 24px; }
+.source { font-size: 14px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<article class="wrap">
+  <div class="kicker">Cloud Infrastructure · Production AI</div>
+  <h1>From Notebook to Production: What I Learned About Scaling AI Agents with ADK and GKE Autopilot</h1>
+  <div class="meta">By Pratik Dhanave</div>
+  <div class="tags">
+    <span class="tag">GKE Autopilot</span><span class="tag">Kubernetes</span><span class="tag">ADK</span>
+    <span class="tag">Workload Identity</span><span class="tag">Production AI</span>
+  </div>
+
+  <p class="lede">Like many people experimenting with agentic AI right now, I've found that building an agent on a laptop is the easy part. The harder, less glamorous question is what happens after the demo works: how do you run that agent reliably, securely, and at scale, without turning your team into full-time infrastructure operators?</p>
+
+  <p>A recent Google Cloud tutorial by Abdel Sghiouar, "Scaling AI Agents: A Step-by-Step Guide to Deploying ADK on GKE Autopilot" (June 2026), offers a grounded answer to that question. I'm sharing my takeaways here — not as an expert pronouncement, but as notes from someone trying to learn this space alongside everyone else. I'd genuinely welcome corrections and alternative perspectives from those who have run agents in production longer than I have.</p>
+
+  <h2>The gap between prototyping and production is real</h2>
+  <p>Google's Agent Development Kit (ADK) makes it remarkably simple to scaffold an agent. In the tutorial's example, a basic "weather agent" — a Gemini-powered agent with a single Python tool function — is up and running locally in minutes, complete with a web UI for chatting with it.</p>
+  <p>But the tutorial is honest about something the industry sometimes glosses over: a working local prototype is not a production system. Production demands horizontal scaling, secure credential management, managed networking, and operational resilience. The guide's core argument is that GKE Autopilot — Google's mode of Kubernetes where nodes are fully managed for you — strikes a sensible balance between the flexibility of container orchestration and the simplicity teams actually need.</p>
+  <p>That framing resonated with me. Most organizations don't fail at agentic AI because their models are weak; they fail because the path from prototype to dependable service is underestimated.</p>
+  <p><em>Example of how lightweight the prototyping really is:</em> the agent in the tutorial is about ten lines of Python — a <code>get_weather(city)</code> function that returns a string, passed as a tool to an ADK <code>Agent</code> configured with a Gemini model. Run <code>uv run adk web</code>, open localhost:8000, and you're chatting with it. In a real deployment, that hardcoded function would be swapped for an actual weather API call — and that's precisely the pattern: tools are just Python functions, so anything you can code becomes an agent capability.</p>
+
+  <h2>Three architectural decisions worth understanding</h2>
+  <p>Reading through the walkthrough, three choices stood out as broadly instructive, even if you never touch this exact stack.</p>
+
+  <p><strong>1. Identity over API keys.</strong> Rather than embedding API keys in containers, the tutorial uses Workload Identity: a Kubernetes service account is mapped to a Google Cloud IAM service account, so the agent's pods can call Vertex AI (where Gemini runs) with scoped, auditable permissions and no long-lived secrets. This is a small configuration step with outsized security implications. If there's one practice I'd encourage any team to adopt early, it's this one — hardcoded credentials are the kind of shortcut that quietly becomes technical debt, then risk.</p>
+  <p><em>Example:</em> the entire identity setup is just three <code>gcloud</code> commands — create an IAM service account, grant it the <code>roles/aiplatform.user</code> role on the project, and allow the Kubernetes service account to impersonate it via <code>roles/iam.workloadIdentityUser</code>. A single annotation on the Kubernetes ServiceAccount (<code>iam.gke.io/gcp-service-account</code>) then wires it together. No secret files in the image, no key-rotation calendar.</p>
+
+  <p><strong>2. Owning the container lifecycle.</strong> ADK ships with a convenient one-command deploy to GKE, but the author deliberately avoids it for production, noting that the defaults (no Workload Identity, web UI exposed on a load balancer) aren't production-appropriate. Instead, the tutorial builds a multi-stage Docker image — a slim Python runtime with dependencies managed by <code>uv</code> — pushes it to Artifact Registry, and defines the Kubernetes Deployment, Service, and resource limits explicitly. The lesson generalizes: convenience tooling is wonderful for iteration, but production deserves deliberate, reviewable configuration.</p>
+  <p><em>Example:</em> the Deployment runs two replicas with explicit resource requests (500m CPU, 512Mi memory) and limits (1 CPU, 1Gi), which is exactly what Autopilot uses to size and bill the workload. The agent itself runs headless as an API server (<code>adk api_server</code>) on port 8080 — no web UI in production — and you interact with it over REST: create a session, then POST a message to the <code>/run</code> endpoint and get structured JSON back. That API-first posture is what makes the agent embeddable in real products.</p>
+
+  <p><strong>3. Modern ingress with the Gateway API.</strong> To expose the agent publicly, the guide uses the Kubernetes Gateway API (the successor to Ingress) with a Google-managed TLS certificate, a reserved static IP, and an explicit health-check policy. Certificates are provisioned and renewed automatically. Again, the broader takeaway is about reducing the operational surface area humans have to babysit.</p>
+  <p><em>Example:</em> one <code>gcloud compute addresses create</code> reserves the global IP, one <code>gcloud compute ssl-certificates create</code> requests a managed certificate for your domain, and a single YAML file declares the Gateway (HTTPS on 443), an HTTPRoute forwarding to the agent's Service, and a HealthCheckPolicy probing <code>/health</code>. Roughly 20 minutes later — mostly certificate provisioning time — the agent is live at your own domain over HTTPS.</p>
+
+  <h2>What the end state looks like</h2>
+  <p>By the end of the walkthrough, you have an ADK agent running as a replicated Deployment on GKE Autopilot, authenticating to Gemini on Vertex AI through Workload Identity, reachable over HTTPS through a managed load balancer, and able to scale horizontally as demand grows. The agent itself is deliberately trivial — it returns a hardcoded weather string — because the point of the exercise is the scaffolding around it, not the agent logic.</p>
+  <p>I appreciated that the tutorial closes with cleanup instructions for tearing everything down to avoid charges. It's a small touch, but it reflects a practitioner's mindset: production thinking includes cost discipline.</p>
+
+  <h2>Where this pattern applies beyond a weather demo</h2>
+  <p>The weather agent is a stand-in, but the architecture maps directly onto real enterprise scenarios. A few examples that came to mind as I read:</p>
+  <p>A <strong>customer-support agent</strong> whose tools query your order-management system and knowledge base — Workload Identity scopes exactly which internal APIs it may touch. An <strong>IT operations agent</strong> that triages incidents by calling monitoring and ticketing tools, scaled out automatically during an outage when query volume spikes. A <strong>sales-research agent</strong> that enriches CRM records overnight, where the headless REST API makes it trivial to trigger from existing workflow automation. Or an <strong>internal analytics agent</strong> that answers natural-language questions over BigQuery — same Deployment, same Gateway, different tools.</p>
+  <p>In every case, the agent logic is the small part. The identity, scaling, and ingress scaffolding from this tutorial is the part that stays constant.</p>
+
+  <h2>My honest reflections</h2>
+  <p>A few thoughts I'm still sitting with:</p>
+  <p>The "infrastructure tax" on agentic AI is shrinking, but it hasn't disappeared. Autopilot removes node management; it doesn't remove the need to understand identity, networking, and resource sizing. Teams should budget learning time accordingly.</p>
+  <p>The hardest parts of production agents probably start <em>after</em> this tutorial ends — observability, evaluation, guardrails, session and memory management, cost controls on model calls. The guide itself points toward next steps like richer tools and multi-cluster resilience. I'd love to hear how others are approaching that layer.</p>
+  <p>And finally, a note of humility: I'm summarizing someone else's excellent work here, filtered through my own learning. If you're considering this path, read the original tutorial — it's a clear, step-by-step read of about 11 minutes, with all the commands and YAML you need.</p>
+
+  <hr>
+  <p class="source"><strong>Source:</strong> "Scaling AI Agents: A Step-by-Step Guide to Deploying ADK on GKE Autopilot" by Abdel Sghiouar, Senior Cloud Developer Advocate, Google Cloud Blog (June 4, 2026) — <a href="https://cloud.google.com/blog/topics/developers-practitioners/scaling-ai-agents-a-step-by-step-guide-to-deploying-adk-on-gke-autopilot">cloud.google.com</a></p>
+</article>
+</body>
+</html>
