@@ -948,7 +948,7 @@ POST_CSS = """
     --bg-card: #161b22;
     --text: #e6edf3;
     --text-dim: #c4ccd5;
-    --text-muted: #7d8590;
+    --text-muted: #8b949e;
     --border: #30363d;
     --accent: #58a6ff;
     --accent-hover: #79b8ff;
