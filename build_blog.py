@@ -356,13 +356,6 @@ POST_META = {
         "audience": "Engineering",
         "excerpt": "The audit log isn\'t a side effect of the system. It\'s the contract you owe to regulators, customers, and your future self. Treat it as a first-class API — schema, versioning, and SLOs included.",
     },
-    "auto-043-aws-bedrock-vertex-ai-same-agent-stack.md": {
-        "slug": "aws-bedrock-vertex-ai-same-agent-stack",
-        "date": "2026-02-10",
-        "tags": ['AWS', 'Bedrock', 'Vertex AI', 'Multi-Cloud', 'Go'],
-        "audience": "Engineering",
-        "excerpt": "An enterprise customer wants you on AWS; the next one wants you on GCP. The provider router pattern that keeps the agent code identical and swaps only the LLM endpoint.",
-    },
     "auto-044-azure-service-operator-multi-vendor-collaboration.md": {
         "slug": "azure-service-operator-multi-vendor-collaboration",
         "date": "2026-05-06",
@@ -559,13 +552,6 @@ POST_META = {
         "audience": "Engineering",
         "excerpt": "Seven cycles. Ten-plus students. Most shipped, a few didn\'t, all of them taught me something about engineering culture. Notes on what works for mentors and what works for students.",
     },
-    "auto-072-hs256-vs-rs256-pick-wrong-and-explain-why.md": {
-        "slug": "hs256-vs-rs256-pick-wrong-and-explain-why",
-        "date": "2026-03-06",
-        "tags": ['Go', 'JWT', 'Security', 'Cryptography'],
-        "audience": "Engineering",
-        "excerpt": "Symmetric vs asymmetric JWT signing. The choice changes what fails when a key leaks, who can verify, and how rotation works.",
-    },
     "auto-073-hyde-hypothetical-document-embeddings.md": {
         "slug": "hyde-hypothetical-document-embeddings",
         "date": "2026-02-23",
@@ -579,13 +565,6 @@ POST_META = {
         "tags": ['Go', 'iter.Seq', 'Go 1.23'],
         "audience": "Engineering",
         "excerpt": "Range-over-function landed in Go 1.23. `iter.Seq` lets you write iterators that compose. The patterns that pay back; the ones that don\'t.",
-    },
-    "auto-075-jwt-150-lines-of-go.md": {
-        "slug": "jwt-150-lines-of-go",
-        "date": "2026-03-07",
-        "tags": ['Go', 'JWT', 'Security', 'Stdlib'],
-        "audience": "Engineering",
-        "excerpt": "HS256 JWT issue + verify + audience check + expiry in pure stdlib. Why pulling a third-party JWT library is the wrong call for security-critical code.",
     },
     "auto-076-kyc-master-direction-vs-aadhaar-offline.md": {
         "slug": "kyc-master-direction-vs-aadhaar-offline",
@@ -615,13 +594,6 @@ POST_META = {
         "audience": "Engineering",
         "excerpt": "What looked like an idiomatic BigQuery MERGE was scanning the full target table on every batch. The fix was syntactic, not architectural — and it was the single biggest contributor to a 57% data-warehouse cost reduction across the Tata Group engagement.",
     },
-    "auto-091-mtls-envoy-spire-svid.md": {
-        "slug": "mtls-envoy-spire-svid",
-        "date": "2026-02-27",
-        "tags": ['mTLS', 'Envoy', 'SPIRE', 'Service Mesh'],
-        "audience": "Engineering",
-        "excerpt": "Pushing mTLS into a service mesh removes it from every individual service. Envoy + SPIRE is the canonical pattern; the implementation has fewer moving parts than the architecture diagrams suggest.",
-    },
     "auto-092-multilingual-rag-bhashini-cross-lingual.md": {
         "slug": "multilingual-rag-bhashini-cross-lingual",
         "date": "2026-02-21",
@@ -635,20 +607,6 @@ POST_META = {
         "tags": ['Payments', 'NPCI', 'FinTech', 'HITL'],
         "audience": "Engineering",
         "excerpt": "UPI, IMPS, NEFT, RTGS — which rail to use depends on amount, urgency, window, success-rate history. A deterministic chooser with a HITL gate above ₹2 lakh.",
-    },
-    "auto-094-oauth-21-pkce-for-spa.md": {
-        "slug": "oauth-21-pkce-for-spa",
-        "date": "2026-03-05",
-        "tags": ['Go', 'OAuth', 'PKCE', 'Security'],
-        "audience": "Engineering",
-        "excerpt": "PKCE is the load-bearing mitigation against authorization-code interception. The Go implementation is short; the parts every SPA gets wrong are documented here.",
-    },
-    "auto-095-oauth-device-flow-voice-kiosks.md": {
-        "slug": "oauth-device-flow-voice-kiosks",
-        "date": "2026-03-04",
-        "tags": ['Go', 'OAuth', 'Device Flow', 'Voice AI'],
-        "audience": "Engineering",
-        "excerpt": "The flow where the device has no browser. User authenticates on their phone; the device polls until they\'re done. Implementation patterns in Go from the Genie reference.",
     },
     "auto-096-optimus-bigquery-anti-pattern-detector.md": {
         "slug": "optimus-bigquery-anti-pattern-detector",
@@ -720,13 +678,6 @@ POST_META = {
         "audience": "Engineering",
         "excerpt": "A recruiter spends 90 seconds on your GitHub before deciding to talk to you. What they\'re looking for; what makes them skip; what signals matter more than the README.",
     },
-    "auto-106-rfc-8693-token-exchange-nurse-alice.md": {
-        "slug": "rfc-8693-token-exchange-nurse-alice",
-        "date": "2026-03-02",
-        "tags": ['Go', 'OAuth', 'RFC 8693', 'Agents', 'Security'],
-        "audience": "Engineering",
-        "excerpt": "Dual-identity tokens for the agent → MCP server → upstream API chain. Subject stays the user; Actor identifies the agent acting on the user\'s behalf. Walked through with a worked clinical example.",
-    },
     "auto-107-right-to-explanation.md": {
         "slug": "right-to-explanation",
         "date": "2026-05-26",
@@ -741,13 +692,6 @@ POST_META = {
         "audience": "Engineering",
         "excerpt": "A saga is fine when every step succeeds. The interesting code is what runs when step 3 of 5 fails and you have to undo 1 and 2 in the right order. The patterns I use.",
     },
-    "auto-109-saml-verifier-go-xml-signing.md": {
-        "slug": "saml-verifier-go-xml-signing",
-        "date": "2026-03-01",
-        "tags": ['Go', 'SAML', 'Identity Federation', 'Banking'],
-        "audience": "Engineering",
-        "excerpt": "Many banks have a SAML IdP they want you to federate against. The verify path is the boring-but-load-bearing piece. Notes on the stdlib-mostly Go implementation.",
-    },
     "auto-110-self-rag-crag-when-to-retrieve.md": {
         "slug": "self-rag-crag-when-to-retrieve",
         "date": "2026-02-22",
@@ -761,13 +705,6 @@ POST_META = {
         "tags": ['Go', 'Security', 'Anomaly Detection', 'Fraud'],
         "audience": "Engineering",
         "excerpt": "Two signals do most of the work for detecting compromised sessions: impossible travel between consecutive logins, and credential-stuffing density across an IP range. The Go implementation.",
-    },
-    "auto-112-slog-migration-replace-five-libraries.md": {
-        "slug": "slog-migration-replace-five-libraries",
-        "date": "2026-02-11",
-        "tags": ['Go', 'slog', 'Logging', 'Stdlib'],
-        "audience": "Engineering",
-        "excerpt": "Go 1.21 added structured logging to the stdlib (slog). For a codebase with three or four logging-library generations layered on top of each other, the migration is a productive afternoon.",
     },
     "auto-113-soc2-controls-as-terraform-modules.md": {
         "slug": "soc2-controls-as-terraform-modules",
@@ -873,13 +810,6 @@ POST_META = {
         "tags": ['Go', 'Multi-Agent AI', 'Architecture'],
         "audience": "Engineering",
         "excerpt": "Stdlib over libraries, single binary over framework, fail-closed defaults over forgiveness. The boring-on-purpose case for choosing Go to ship a multi-agent system into a regulated environment.",
-    },
-    "auto-128-workload-identity-federation-azure-gcp-migration.md": {
-        "slug": "workload-identity-federation-azure-gcp-migration",
-        "date": "2026-02-06",
-        "tags": ['Azure', 'GCP', 'Workload Identity Federation', 'Migration'],
-        "audience": "Engineering",
-        "excerpt": "Moving a workload from Azure to GCP while it continues to authenticate against on-prem Azure AD (Entra ID). Federation lets the GCP workload assume a GCP service account based on its Azure identity.",
     },
     # --- June 2026: MAF series + security articles ---
     "june-zero-trust-for-ai-agents.html": {

@@ -30,7 +30,7 @@ Your portfolio has **strong technical content** but three systemic problems:
 |-------|---------|-----------|
 | Title inconsistency | `<title>` says "AI Engineer" but hero says "Senior Software Engineer" | Pick ONE strong title, use it everywhere |
 | Geographic scope buried | Only "Pune, India" visible | Your clients span 5 countries (India, Philippines, Australia, UAE, Saudi Arabia) — this is international work |
-| Blog count mismatch | Footer says "View All Articles (29+)" | You have 117+ articles — the 29 is only the new markdown-sourced posts, but a visitor doesn't know that |
+| Blog count mismatch | Footer says "View All Articles (29+)" | You have 107+ articles — the 29 is only the new markdown-sourced posts, but a visitor doesn't know that |
 | Newsletter placeholder | "Join over 500 professionals" | If fabricated, remove entirely. Placeholder subscriber counts destroy trust |
 | Contact section hierarchy | Lists "Senior Engineer" before "Staff Engineer" | Lead with Staff — you've already done Staff-level work (led teams of 4-10, set architecture standards, productized a service offering) |
 | Presentation video context | Just "Google Cloud Next 2022" | Add: audience size, venue significance, that this was a Google-selected speaker slot not a self-submitted CFP |
@@ -45,13 +45,13 @@ Your portfolio has **strong technical content** but three systemic problems:
 **Missing entirely:**
 - Your headshot (it's on the homepage but not here)
 - International scope — you worked with Globe (Philippines), AFL (Australia), Bancnet (UAE/Saudi), AT&T/Ericsson (US/EU). That's a global career, not "I worked at Searce in Pune"
-- 117+ published articles — you're a prolific technical author, not just a coder
+- 107+ published articles — you're a prolific technical author, not just a coder
 - Multi-vendor open source collaboration (AT&T, Ericsson, Microsoft)
 - Regulatory domain expertise (PCI-DSS, SOC 2, ISO 27001, ADGM, DIFC, SAMA, KYC/AML)
 - AWS certification (only Google and Ardan Labs listed)
 - The fact that you built a voice AI system for Kinetic India (shows breadth beyond backend)
 
-**Highlight cards are too few:** Only 4 cards (speaking, Tata, OSS, Bodh). Missing: GSoC 9-year mentoring, team leadership, international teams, 117+ articles.
+**Highlight cards are too few:** Only 4 cards (speaking, Tata, OSS, Bodh). Missing: GSoC 9-year mentoring, team leadership, international teams, 107+ articles.
 
 ---
 
@@ -90,7 +90,7 @@ Your portfolio has **strong technical content** but three systemic problems:
 - GSoC mentoring (2017-2026) — this IS public speaking/teaching
 - Searce internal brown-bag sessions on AI/architecture
 - The presentation video (embed it here too — it's on homepage and gallery but NOT on the speaking page)
-- Blog as a form of technical communication (117+ published articles)
+- Blog as a form of technical communication (107+ published articles)
 
 ---
 
@@ -202,7 +202,7 @@ For a professional portfolio targeting recruiters, this is table stakes. Add a p
 7. Add aggregate impact line to homepage hero ("$12M+ saved | 30K TPS | 1M+ users | 5 countries | 40+ mentored")
 8. Rewrite About page with international scope, photo, full story
 9. Add video embed to Speaking page
-10. Fix blog article count (29+ → 117+)
+10. Fix blog article count (29+ → 107+)
 11. Fix "Senior Software Developer" on resume → "Senior Software Engineer"
 12. Add "Download Resume PDF" button
 13. Fix certifications nav to match site-wide pattern
@@ -220,4 +220,4 @@ For a professional portfolio targeting recruiters, this is table stakes. Add a p
 
 ## The One-Line Version
 
-**You've done Staff-level international work across 5 countries, mentored 40+ engineers for 9 years, saved $12M for one of India's largest conglomerates, and authored 117+ technical articles — but your site presents you as a senior engineer from Pune with one conference talk and some vague certifications.**
+**You've done Staff-level international work across 5 countries, mentored 40+ engineers for 9 years, saved $12M for one of India's largest conglomerates, and authored 107+ technical articles — but your site presents you as a senior engineer from Pune with one conference talk and some vague certifications.**
