@@ -812,20 +812,6 @@ POST_META = {
         "excerpt": "Stdlib over libraries, single binary over framework, fail-closed defaults over forgiveness. The boring-on-purpose case for choosing Go to ship a multi-agent system into a regulated environment.",
     },
     # --- June 2026: MAF series + security articles ---
-    "june-zero-trust-for-ai-agents.html": {
-        "slug": "zero-trust-for-ai-agents",
-        "date": "2026-06-07",
-        "tags": ['Zero Trust', 'AI Agents', 'Security', 'Enterprise AI'],
-        "audience": "Engineering",
-        "excerpt": "Agents can be manipulated into misusing permissions they legitimately hold — nothing 'unauthorized' ever hits your logs. A tiered Zero Trust framework for AI agents, with the test that reframes every control: impossible vs. tedious.",
-    },
-    "june-using-llms-to-secure-source-code.html": {
-        "slug": "using-llms-to-secure-source-code",
-        "date": "2026-06-07",
-        "tags": ['AppSec', 'AI Agents', 'DevSecOps', 'Security'],
-        "audience": "Engineering",
-        "excerpt": "AI can now find vulnerabilities faster than the world can fix them. A six-step find-and-fix loop for using LLMs to secure source code — and why the verification bottleneck is the real problem.",
-    },
     "june-maf-reference-architecture-overview.html": {
         "slug": "maf-reference-architecture-overview",
         "date": "2026-06-09",
