@@ -58,18 +58,68 @@ def calculate_read_time(html_content):
     return minutes
 
 
-def find_related_posts(current_slug, all_posts, current_tags, limit=3):
-    """Find posts with tag overlap, excluding current post."""
-    related = []
-    for post in all_posts:
-        if post["meta"]["slug"] == current_slug:
-            continue
-        # Calculate tag overlap
-        overlap = len(set(post["meta"]["tags"]) & set(current_tags))
-        if overlap > 0:
-            related.append((overlap, post))
+def tag_to_slug(tag):
+    """Normalize a tag name to a URL-safe slug."""
+    return tag.lower().replace(" ", "-")
 
-    # Sort by overlap (desc), then by date (desc), return top N
+
+def validate_post_meta(post_meta):
+    """Validate all POST_META entries at build start. Fails fast on bad data."""
+    errors = []
+    seen_slugs = set()
+    for filename, meta in post_meta.items():
+        prefix = f"POST_META['{filename}']"
+        for field in ("slug", "date", "tags", "excerpt"):
+            if field not in meta:
+                errors.append(f"{prefix}: missing required field '{field}'")
+        if "slug" in meta:
+            slug = meta["slug"]
+            if not re.match(r'^[a-z0-9][a-z0-9-]*[a-z0-9]$', slug):
+                errors.append(f"{prefix}: slug '{slug}' is not URL-safe (lowercase, hyphens only)")
+            if slug in seen_slugs:
+                errors.append(f"{prefix}: duplicate slug '{slug}'")
+            seen_slugs.add(slug)
+        if "date" in meta:
+            try:
+                datetime.strptime(meta["date"], "%Y-%m-%d")
+            except ValueError:
+                errors.append(f"{prefix}: date '{meta['date']}' is not YYYY-MM-DD format")
+        if "tags" in meta and (not isinstance(meta["tags"], list) or len(meta["tags"]) == 0):
+            errors.append(f"{prefix}: tags must be a non-empty list")
+    if errors:
+        print("POST_META validation failed:", file=sys.stderr)
+        for e in errors:
+            print(f"  {e}", file=sys.stderr)
+        sys.exit(1)
+    print(f"  validated {len(post_meta)} POST_META entries")
+
+
+def build_tag_index(all_posts):
+    """Pre-compute tag → list of posts for O(1) related post lookups."""
+    index = {}
+    for post in all_posts:
+        for tag in post["meta"]["tags"]:
+            key = tag_to_slug(tag)
+            if key not in index:
+                index[key] = []
+            index[key].append(post)
+    return index
+
+
+def find_related_posts(current_slug, current_tags, tag_index, limit=3):
+    """Find posts with tag overlap using pre-computed tag index."""
+    scores = {}  # slug → (overlap_count, post)
+    for tag in current_tags:
+        key = tag_to_slug(tag)
+        for post in tag_index.get(key, []):
+            slug = post["meta"]["slug"]
+            if slug == current_slug:
+                continue
+            if slug not in scores:
+                scores[slug] = [0, post]
+            scores[slug][0] += 1
+
+    related = list(scores.values())
     related.sort(key=lambda x: (-x[0], -datetime.strptime(x[1]["meta"]["date"], "%Y-%m-%d").timestamp()))
     return [post for _, post in related[:limit]]
 
@@ -82,6 +132,17 @@ SITE_ROOT = Path(__file__).parent.resolve()
 SRC_DIR = SITE_ROOT / "blog" / "source"
 POSTS_DIR = SITE_ROOT / "blog" / "posts"
 INDEX_PATH = SITE_ROOT / "blog" / "index.html"
+
+# Site-wide constants — single source of truth
+SITE_URL = "https://pratikdhanave.com"
+GA4_ID = "G-3BZ8MDPHE1"
+OG_IMAGE = "og-default.png"
+POSTS_URL_PREFIX = "/blog/posts/"
+ARCHIVE_PAGE_SIZE = 12
+RELATED_POSTS_LIMIT = 3
+MIN_POSTS_FOR_SCHEMA = 5
+MIN_POSTS_FOR_TAG_INDEX = 3
+RSS_FEED_LIMIT = 50
 
 # Post metadata: (slug, title override, publish date, tags) keyed by source filename.
 # The publish dates are intentionally staggered across the May 2026 sprint week
@@ -1481,7 +1542,7 @@ SITE_FOOTER = """<footer class="site-footer">
 </footer>""".format(year=datetime.now().year)
 
 
-def render_post_html(meta, title, subtitle, body_html, all_posts=None):
+def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index=None):
     """Wrap rendered markdown body in the post template."""
     tags_html = "".join(f'<span class="tag">{t}</span>' for t in meta["tags"])
     date_iso = meta["date"]
@@ -1542,7 +1603,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None):
     # Render related posts if available
     related_html = ""
     if all_posts and len(all_posts) > 1:
-        related_posts = find_related_posts(meta["slug"], all_posts, meta["tags"], limit=3)
+        related_posts = find_related_posts(meta["slug"], meta["tags"], tag_index or {}, limit=RELATED_POSTS_LIMIT)
         if related_posts:
             related_items = []
             for post in related_posts:
@@ -1758,7 +1819,7 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
         qualified.sort(key=lambda x: (-x[1], x[0]))
         if qualified:
             tag_items = "".join(
-                f'<a href="/blog/tags/{t.lower().replace(" ", "-")}/"><span class="tag-cloud-item">{t} <span class="tag-count">({c})</span></span></a>'
+                f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">{t} <span class="tag-count">({c})</span></span></a>'
                 for t, c in qualified
             )
             tag_cloud_html = f"""
@@ -2062,7 +2123,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
       <div class="post-tags">{tags_html}</div>
     </article>""")
 
-    tag_cloud_html = "".join(f'<a href="/blog/tags/{t.lower().replace(" ", "-")}/"><span class="tag-cloud-item">{t}</span></a>' for t in sorted(all_tags))
+    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">{t}</span></a>' for t in sorted(all_tags))
 
     tag_page_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS
 
@@ -2438,6 +2499,7 @@ def main():
         print(f"ERROR: source dir not found at {SRC_DIR}", file=sys.stderr)
         sys.exit(1)
 
+    validate_post_meta(POST_META)
     POSTS_DIR.mkdir(parents=True, exist_ok=True)
 
     # First pass: collect all posts
@@ -2467,6 +2529,9 @@ def main():
     # Sort newest first by date (for index).
     rendered.sort(key=lambda p: p["meta"]["date"], reverse=True)
 
+    # Pre-compute tag index for O(1) related post lookups
+    _tag_index = build_tag_index(rendered)
+
     # Second pass: render posts with access to all posts for related content
     for post in rendered:
         meta = post["meta"]
@@ -2475,7 +2540,7 @@ def main():
         title = post["title"]
         subtitle = post["subtitle"]
         body_html = posts_data[meta["slug"]]["body_html"]
-        html = render_post_html(meta, title, subtitle, body_html, all_posts=rendered)
+        html = render_post_html(meta, title, subtitle, body_html, all_posts=rendered, tag_index=_tag_index)
 
         out_path = POSTS_DIR / f"{meta['slug']}.html"
         out_path.write_text(html)
@@ -2489,7 +2554,7 @@ def main():
         for tag in p["meta"]["tags"]:
             all_tags.add(tag)
             tag_counts[tag] = tag_counts.get(tag, 0) + 1
-            tag_key = tag.lower().replace(" ", "-")
+            tag_key = tag_to_slug(tag)
             if tag_key not in tag_posts:
                 tag_posts[tag_key] = []
             tag_posts[tag_key].append(p)
@@ -2514,7 +2579,7 @@ def main():
     print(f"  wrote {popular_posts_path.relative_to(SITE_ROOT)}")
 
     # Generate RSS feed
-    rss_xml = render_rss_feed(rendered, limit=50)
+    rss_xml = render_rss_feed(rendered, limit=RSS_FEED_LIMIT)
     rss_path = SITE_ROOT / "blog" / "feed.xml"
     rss_path.write_text(rss_xml)
     print(f"  wrote {rss_path.relative_to(SITE_ROOT)}")
@@ -2526,7 +2591,7 @@ def main():
     tag_display_map = {}
     for p in rendered:
         for t in p["meta"]["tags"]:
-            key = t.lower().replace(" ", "-")
+            key = tag_to_slug(t)
             if key not in tag_display_map:
                 tag_display_map[key] = t
 
