@@ -1032,6 +1032,7 @@ body {
   font-size: 16px;
 }
 a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
 a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 nav {
@@ -2269,6 +2270,8 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
 
 <link rel="canonical" href="{canonical}">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+<script async src="https://www.googletagmanager.com/gtag/js?id={GA4_ID}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','{GA4_ID}');</script>
 
 <style>{archive_css}</style>
 </head>
