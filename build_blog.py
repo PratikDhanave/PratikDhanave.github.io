@@ -1675,6 +1675,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
   "@type": "BlogPosting",
   "headline": "{title_json}",
   "description": "{desc_json}",
+  "image": "{SITE_URL}/{OG_IMAGE}",
   "datePublished": "{date_iso}",
   "dateModified": "{date_iso}",
   "inLanguage": "en",
