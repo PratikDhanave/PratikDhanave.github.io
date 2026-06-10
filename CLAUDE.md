@@ -88,3 +88,8 @@ This script imports `SITE_ROOT`, `NAV_HTML`, `SITE_FOOTER`, `POST_CSS`, and `POS
 - `sitemap-tags.xml` — only tag pages with ≥3 posts (avoids thin-content indexing)
 
 `lastmod` dates come from `git log` per file; falls back to today with a stderr warning if a file has no git history.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
