@@ -14,10 +14,14 @@ from pathlib import Path
 from datetime import datetime
 from build_blog import (
     SITE_ROOT,
+    SITE_URL,
+    GA4_ID,
+    OG_IMAGE,
     NAV_HTML,
     SITE_FOOTER,
     POST_CSS,
     find_related_posts,
+    build_tag_index,
     POST_META,
 )
 
@@ -890,26 +894,26 @@ def render_project_gallery_html(all_projects):
   <p>Open to collaboration on multi-agent systems, cloud architecture, and production AI challenges. <a href="/#contact">Get in touch →</a></p>
 </section>"""
 
-    gallery_schema = """
+    gallery_schema = f"""
 <script type="application/ld+json">
-{
+{{
   "@context": "https://schema.org",
   "@type": "CollectionPage",
   "name": "Projects — Pratik Dhanave",
   "description": "Portfolio projects and client work by Pratik Dhanave — multi-agent AI, cloud infrastructure, and production systems.",
-  "url": "https://pratikdhanave.com/projects/",
-  "author": {
+  "url": "{SITE_URL}/projects/",
+  "author": {{
     "@type": "Person",
     "name": "Pratik Dhanave",
-    "url": "https://pratikdhanave.com",
-    "image": "https://pratikdhanave.com/pratik.png"
-  }
-}
+    "url": "{SITE_URL}",
+    "image": "{SITE_URL}/pratik.png"
+  }}
+}}
 </script>"""
     return _wrap_page_html("Projects", body, gallery_schema)
 
 
-def render_project_detail_html(project_slug, all_posts):
+def render_project_detail_html(project_slug, tag_index):
     """Render /projects/<slug>/index.html for an individual OSS project."""
     project = PROJECT_META[project_slug]
 
@@ -942,7 +946,7 @@ def render_project_detail_html(project_slug, all_posts):
     # Find related blog posts
     related_posts_html = ""
     if project.get("blog_tags") or project.get("blog_posts"):
-        related = find_related_posts(project_slug, all_posts, project.get("blog_tags", []))
+        related = find_related_posts(project_slug, project.get("blog_tags", []), tag_index)
         if related or project.get("blog_posts"):
             related_posts_html = '<section class="related-posts" style="margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--border);">'
             related_posts_html += '<h3>Related Writing</h3>'
@@ -1024,7 +1028,7 @@ def render_project_detail_html(project_slug, all_posts):
   "@type": "SoftwareSourceCode",
   "name": "{project['name']}",
   "description": "{project['tagline']}",
-  "url": "https://pratikdhanave.com/projects/{project_slug}/",
+  "url": "{SITE_URL}/projects/{project_slug}/",
   "author": {{
     "@type": "Person",
     "name": "Pratik Dhanave"
@@ -1043,13 +1047,13 @@ def render_project_detail_html(project_slug, all_posts):
       "@type": "ListItem",
       "position": 1,
       "name": "Projects",
-      "item": "https://pratikdhanave.com/projects/"
+      "item": "{SITE_URL}/projects/"
     }},
     {{
       "@type": "ListItem",
       "position": 2,
       "name": "{project['name']}",
-      "item": "https://pratikdhanave.com/projects/{project_slug}/"
+      "item": "{SITE_URL}/projects/{project_slug}/"
     }}
   ]
 }}
@@ -1071,10 +1075,10 @@ def _wrap_page_html(page_title, body_html, schema_html="", slug=""):
     # For the gallery page, use "Projects" directly; for detail pages, append " — Projects"
     if page_title == "Projects":
         full_title = "Projects — Pratik Dhanave"
-        canonical = "https://pratikdhanave.com/projects/"
+        canonical = f"{SITE_URL}/projects/"
     else:
         full_title = f"{page_title} — Projects — Pratik Dhanave"
-        canonical = f"https://pratikdhanave.com/projects/{slug}/" if slug else "https://pratikdhanave.com/projects/"
+        canonical = f"{SITE_URL}/projects/{slug}/" if slug else f"{SITE_URL}/projects/"
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -1090,16 +1094,16 @@ def _wrap_page_html(page_title, body_html, schema_html="", slug=""):
 <meta property="og:url" content="{canonical}">
 <meta property="og:site_name" content="Pratik Dhanave">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:image" content="{SITE_URL}/{OG_IMAGE}">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pratik Dhanave — {page_title}">
 <meta name="twitter:description" content="{page_title}. Portfolio projects and client work by Pratik Dhanave — multi-agent AI, cloud infrastructure, and production systems.">
-<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+<meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">
 <link rel="canonical" href="{canonical}">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id={GA4_ID}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','{GA4_ID}');</script>
 <style>
 {PROJECT_CSS}
 </style>
@@ -1131,11 +1135,12 @@ def main():
                 if m:
                     meta["title"] = m.group(1).strip()
 
-    # Convert POST_META values to list format for find_related_posts
+    # Convert POST_META values to list format and build tag index for find_related_posts
     all_posts = [
         {"meta": meta, "content": "", "title": meta.get("title", "Untitled")}
         for meta in blog_posts_meta.values()
     ]
+    tag_index = build_tag_index(all_posts)
 
     # Create projects directory
     projects_dir = SITE_ROOT / "projects"
@@ -1152,7 +1157,7 @@ def main():
             print(f"Generating /projects/{slug}/index.html...")
             project_dir = projects_dir / slug
             project_dir.mkdir(exist_ok=True)
-            detail_html = render_project_detail_html(slug, all_posts)
+            detail_html = render_project_detail_html(slug, tag_index)
             (project_dir / "index.html").write_text(detail_html)
 
     print("\n✅ Project pages generated successfully!")

@@ -1548,7 +1548,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     date_iso = meta["date"]
     date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%B %d, %Y")
     description = meta["excerpt"]
-    canonical = f"https://pratikdhanave.com/blog/posts/{meta['slug']}.html"
+    canonical = f"{SITE_URL}/blog/posts/{meta['slug']}.html"
 
     # Escape for safe embedding in HTML attributes and JSON-LD
     title_html = _html_escape(title, quote=True)
@@ -1650,22 +1650,22 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 <meta property="og:type" content="article">
 <meta property="og:url" content="{canonical}">
 <meta property="og:site_name" content="Pratik Dhanave">
-<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:image" content="{SITE_URL}/{OG_IMAGE}">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="{date_iso}T00:00:00Z">
 {''.join(f'<meta property="article:tag" content="{_html_escape(t, quote=True)}">' + chr(10) for t in meta['tags'])}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{title_html}">
 <meta name="twitter:description" content="{desc_html}">
-<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+<meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">
 
 <link rel="canonical" href="{canonical}">
-<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="{SITE_URL}/blog/feed.xml">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
 <!-- Google Analytics 4 -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id={GA4_ID}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','{GA4_ID}');</script>
 
 <style>{POST_CSS}</style>
 
@@ -1681,13 +1681,13 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
   "author": {{
     "@type": "Person",
     "name": "Pratik Dhanave",
-    "url": "https://pratikdhanave.com",
-    "image": "https://pratikdhanave.com/pratik.png"
+    "url": "{SITE_URL}",
+    "image": "{SITE_URL}/pratik.png"
   }},
   "publisher": {{
     "@type": "Person",
     "name": "Pratik Dhanave",
-    "url": "https://pratikdhanave.com"
+    "url": "{SITE_URL}"
   }},
   "keywords": "{', '.join(meta['tags'])}",
   "url": "{canonical}",
@@ -1917,24 +1917,24 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 <meta property="og:title" content="Pratik Dhanave — Blog">
 <meta property="og:description" content="Long-form writing on multi-agent AI, medical AI governance, and HIPAA-aware architecture.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://pratikdhanave.com/blog/">
-<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:url" content="{SITE_URL}/blog/">
+<meta property="og:image" content="{SITE_URL}/{OG_IMAGE}">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pratik Dhanave — Blog">
 <meta name="twitter:description" content="Technical articles on multi-agent AI, cloud architecture, security, and production systems. {total_posts} posts and counting.">
-<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+<meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">
 
-<link rel="canonical" href="https://pratikdhanave.com/blog/">
-<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="canonical" href="{SITE_URL}/blog/">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="{SITE_URL}/blog/feed.xml">
 
 <script type="application/ld+json">
 {{
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    {{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://pratikdhanave.com"}},
-    {{"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pratikdhanave.com/blog/"}}
+    {{"@type": "ListItem", "position": 1, "name": "Home", "item": "{SITE_URL}"}},
+    {{"@type": "ListItem", "position": 2, "name": "Blog", "item": "{SITE_URL}/blog/"}}
   ]
 }}
 </script>
@@ -1942,8 +1942,8 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
 <!-- Google Analytics 4 -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id={GA4_ID}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','{GA4_ID}');</script>
 
 <style>{index_css}</style>
 </head>
@@ -2071,7 +2071,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
     collection_schema = ""
     if post_count >= 5:
         schema_items = ", ".join(
-            f'{{"@type": "BlogPosting", "headline": "{_json.dumps(p["title"])[1:-1]}", "url": "https://pratikdhanave.com/blog/posts/{p["meta"]["slug"]}.html"}}'
+            f'{{"@type": "BlogPosting", "headline": "{_json.dumps(p["title"])[1:-1]}", "url": "{SITE_URL}/blog/posts/{p["meta"]["slug"]}.html"}}'
             for p in posts_with_tag
         )
         tag_json = _json.dumps(tag)[1:-1]
@@ -2082,7 +2082,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
   "@type": "CollectionPage",
   "name": "{tag_json}",
   "description": "Posts tagged with {tag_json}. By Pratik Dhanave.",
-  "url": "https://pratikdhanave.com/blog/tags/{tag.lower().replace(' ', '-')}/",
+  "url": "{SITE_URL}/blog/tags/{tag_to_slug(tag)}/",
   "numberOfItems": {post_count},
   "hasPart": [{schema_items}]
 }}
@@ -2096,9 +2096,9 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    {{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://pratikdhanave.com/"}},
-    {{"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pratikdhanave.com/blog/"}},
-    {{"@type": "ListItem", "position": 3, "name": "{tag_json_bc}", "item": "https://pratikdhanave.com/blog/tags/{tag.lower().replace(' ', '-')}/"}}
+    {{"@type": "ListItem", "position": 1, "name": "Home", "item": "{SITE_URL}/"}},
+    {{"@type": "ListItem", "position": 2, "name": "Blog", "item": "{SITE_URL}/blog/"}},
+    {{"@type": "ListItem", "position": 3, "name": "{tag_json_bc}", "item": "{SITE_URL}/blog/tags/{tag_to_slug(tag)}/"}}
   ]
 }}
 </script>"""
@@ -2140,23 +2140,23 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
 <meta property="og:title" content="Pratik Dhanave — {_html_escape(tag)}">
 <meta property="og:description" content="Posts tagged with {_html_escape(tag)}.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://pratikdhanave.com/blog/tags/{tag.lower().replace(' ', '-')}/">
+<meta property="og:url" content="{SITE_URL}/blog/tags/{tag_to_slug(tag)}/">
 <meta property="og:site_name" content="Pratik Dhanave">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:image" content="{SITE_URL}/{OG_IMAGE}">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pratik Dhanave — {_html_escape(tag)}">
 <meta name="twitter:description" content="Posts tagged with {_html_escape(tag)}.">
-<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+<meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">
 
-<link rel="canonical" href="https://pratikdhanave.com/blog/tags/{tag.lower().replace(' ', '-')}/">
-<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="canonical" href="{SITE_URL}/blog/tags/{tag_to_slug(tag)}/">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="{SITE_URL}/blog/feed.xml">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
 <!-- Google Analytics 4 -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id={GA4_ID}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','{GA4_ID}');</script>
 
 <style>{tag_page_css}</style>
 {collection_schema}
@@ -2193,10 +2193,10 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
     """Generate archive pages (by year or month)."""
     if month:
         title = f"{datetime(year, month, 1).strftime('%B %Y')}"
-        canonical = f"https://pratikdhanave.com/blog/archive/{year}/{month:02d}/"
+        canonical = f"{SITE_URL}/blog/archive/{year}/{month:02d}/"
     else:
         title = str(year)
-        canonical = f"https://pratikdhanave.com/blog/archive/{year}/"
+        canonical = f"{SITE_URL}/blog/archive/{year}/"
 
     posts_html = []
     if posts_with_date:
@@ -2259,12 +2259,12 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
 <meta property="og:url" content="{canonical}">
 <meta property="og:site_name" content="Pratik Dhanave">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:image" content="{SITE_URL}/{OG_IMAGE}">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pratik Dhanave — {title}">
 <meta name="twitter:description" content="Blog posts from {title}.">
-<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+<meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">
 
 <link rel="canonical" href="{canonical}">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
@@ -2340,12 +2340,12 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
     robots = '<meta name="robots" content="noindex, follow">' if page_num > 1 else '<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">'
 
     # Canonical and prev/next links for SEO
-    canonical = f"https://pratikdhanave.com{_archive_page_url(page_num)}"
+    canonical = f"{SITE_URL}{_archive_page_url(page_num)}"
     link_tags = ""
     if page_num > 1:
-        link_tags += f'\n<link rel="prev" href="https://pratikdhanave.com{_archive_page_url(page_num - 1)}">'
+        link_tags += f'\n<link rel="prev" href="{SITE_URL}{_archive_page_url(page_num - 1)}">'
     if page_num < total_pages:
-        link_tags += f'\n<link rel="next" href="https://pratikdhanave.com{_archive_page_url(page_num + 1)}">'
+        link_tags += f'\n<link rel="next" href="{SITE_URL}{_archive_page_url(page_num + 1)}">'
 
     page_css = POST_CSS + BLOG_LAYOUT_CSS + CARD_CSS + PAGINATION_CSS
 
@@ -2362,14 +2362,14 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
 
 <meta property="og:title" content="Archive — Pratik Dhanave">
 <meta property="og:type" content="website">
-<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:image" content="{SITE_URL}/{OG_IMAGE}">
 
 <link rel="canonical" href="{canonical}">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
 
 <!-- Google Analytics 4 -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id={GA4_ID}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','{GA4_ID}');</script>
 
 <style>{page_css}</style>
 </head>
@@ -2464,7 +2464,7 @@ def render_rss_feed(posts, limit=50):
     items = []
     for p in posts[:limit]:
         pub_date = datetime.strptime(p["meta"]["date"], "%Y-%m-%d").strftime("%a, %d %b %Y 00:00:00 +0000")
-        url = f"https://pratikdhanave.com/blog/posts/{p['meta']['slug']}.html"
+        url = f"{SITE_URL}/blog/posts/{p['meta']['slug']}.html"
         categories = "".join(f"      <category>{escape(t)}</category>\n" for t in p["meta"]["tags"])
         items.append(f"""    <item>
       <title>{escape(p['title'])}</title>
@@ -2479,11 +2479,11 @@ def render_rss_feed(posts, limit=50):
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Pratik Dhanave — Blog</title>
-    <link>https://pratikdhanave.com/blog/</link>
+    <link>{SITE_URL}/blog/</link>
     <description>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems.</description>
     <language>en</language>
     <lastBuildDate>{build_date}</lastBuildDate>
-    <atom:link href="https://pratikdhanave.com/blog/feed.xml" rel="self" type="application/rss+xml"/>
+    <atom:link href="{SITE_URL}/blog/feed.xml" rel="self" type="application/rss+xml"/>
 {chr(10).join(items)}
   </channel>
 </rss>
@@ -2665,7 +2665,7 @@ def main():
 
 
 INDEXNOW_KEY  = "b6b1ed31366b46ad8a801ad9bc6e5613"
-INDEXNOW_HOST = "https://pratikdhanave.com"
+INDEXNOW_HOST = SITE_URL
 INDEXNOW_API  = "https://api.indexnow.org/indexnow"
 
 
