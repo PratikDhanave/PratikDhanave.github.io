@@ -21,7 +21,8 @@ from datetime import datetime
 from xml.sax.saxutils import escape
 
 SITE_ROOT = Path(__file__).parent.resolve()
-SITE_URL = "https://pratikdhanave.com"
+
+from build_blog import SITE_URL
 
 
 def git_last_modified(file_path):
