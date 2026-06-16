@@ -106,7 +106,7 @@ PROJECT_META = {
             ["HL7 v2", "aware"],
         ],
         "links": [
-            ["Source on GitHub", "https://github.com/PratikDhanave/bodh"],
+            ["Project Page", "/projects/bodh/"],
         ],
         "blog_tags": ["MAF", "Medical AI", "Architecture", "Healthcare"],
         "blog_posts": [],
@@ -161,7 +161,7 @@ PROJECT_META = {
         ],
         "links": [
             ["Source on GitHub", "https://github.com/GoogleCloudPlatform/spanner-migration-tool"],
-            ["Google Cloud Docs", "https://cloud.google.com/spanner/docs/migration"],
+            ["Google Cloud Docs", "https://cloud.google.com/spanner/docs/migration-tools"],
         ],
         "blog_tags": ["Cloud Spanner", "Database Migration", "Performance"],
         "blog_posts": [],

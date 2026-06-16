@@ -1381,6 +1381,7 @@ footer.site-footer a { color: var(--text-muted); }
 }
 
 ::selection { background: var(--accent); color: white; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 """
 
 # ---------------------------------------------------------------------------
@@ -1687,9 +1688,13 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     "image": "{SITE_URL}/pratik.png"
   }},
   "publisher": {{
-    "@type": "Person",
+    "@type": "Organization",
     "name": "Pratik Dhanave",
-    "url": "{SITE_URL}"
+    "url": "{SITE_URL}",
+    "logo": {{
+      "@type": "ImageObject",
+      "url": "{SITE_URL}/pratik.png"
+    }}
   }},
   "keywords": "{', '.join(meta['tags'])}",
   "url": "{canonical}",
@@ -1957,10 +1962,11 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 
 <section class="blog-hero">
   <h1>Blog</h1>
-  <p>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. Most posts grow out of work on <a href="https://github.com/PratikDhanave/bodh">Bodh</a> &mdash; an open-source Go implementation of Microsoft's MAF pattern tuned for medical sequential diagnosis.</p>
+  <p>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. Most posts grow out of work on Bodh &mdash; an open-source Go implementation of Microsoft's MAF pattern tuned for medical sequential diagnosis.</p>
 </section>
 
 <div class="search-box">
+  <label for="blog-search" class="sr-only">Search blog posts</label>
   <input type="search" id="blog-search" placeholder="Search {total_posts} posts..." autocomplete="off">
   <div id="search-results" class="search-results" hidden></div>
 </div>
