@@ -143,7 +143,7 @@ The hardest part is behind you. The rest is engineering.
 
 ## Links
 
-- [18 Agent Migration Case Study](https://github.com/PratikDhanave/genesisofaienginering/tree/main/microsoft)
-- [CONVERSION_GUIDE.md](https://github.com/PratikDhanave/genesisofaienginering/blob/main/microsoft/CONVERSION_GUIDE.md)
+- 18 Agent Migration Case Study *(repository unavailable)*
+- CONVERSION_GUIDE.md *(repository unavailable)*
 - [MAF Reference Architecture](https://github.com/microsoft/agent-framework)
 - [Agent Governance Toolkit (AGT)](https://github.com/microsoft/agent-governance-toolkit)
