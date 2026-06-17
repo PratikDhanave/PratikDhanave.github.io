@@ -963,6 +963,196 @@ POST_META = {
 # use this to render a back-link breadcrumb.
 PROJECT_META = {}
 
+# Tag descriptions — used on tag pages to add introductory context and avoid thin content.
+# Each description should be 2-4 sentences (~50-80 words) providing genuine topic context.
+TAG_DESCRIPTIONS = {
+    "A2A": "Google's Agent-to-Agent (A2A) protocol enables autonomous agents to discover, authenticate, and collaborate with each other across organizational boundaries. These articles explore A2A implementation patterns, broker-based coordination, and how A2A complements MCP for inter-agent communication in production multi-agent systems.",
+    "Agents": "AI agents are autonomous software components that perceive their environment, reason about goals, and take actions without continuous human direction. These posts cover agent design patterns, orchestration strategies, latency budgets, and the operational challenges of running agentic systems at production scale.",
+    "Cost Optimisation": "Cloud cost optimisation is the practice of reducing infrastructure spend without sacrificing reliability or performance. Articles here cover FinOps strategies for BigQuery, multi-cloud egress reduction, reservation planning, and query-level cost attribution that have delivered measurable savings in production environments.",
+    "Distributed Systems": "Distributed systems spread computation across multiple machines to achieve fault tolerance, scalability, and geographic reach. These posts examine saga orchestration, idempotency guarantees, consensus patterns, and the Go concurrency primitives that make distributed architectures tractable in practice.",
+    "Evaluation": "Evaluation in AI and ML systems means measuring whether models and agents actually perform correctly on tasks that matter. These articles cover benchmark design, LLM-as-judge patterns, OpenTelemetry-based evaluation pipelines, and the tooling needed to move from demo accuracy to production-grade reliability.",
+    "Go": "Go is the primary implementation language across these projects, chosen for its compile-time safety, goroutine concurrency, and deployment simplicity. Posts tagged with Go cover idiomatic patterns, standard-library techniques, performance tuning, and real-world architecture decisions in production Go services.",
+    "HIPAA": "HIPAA (Health Insurance Portability and Accountability Act) sets the technical safeguards that protect patient health information in the United States. These posts translate HIPAA requirements into engineering artifacts: row-level security policies, append-only audit logs, PHI redaction at the logger seam, and access control as Go interfaces.",
+    "MAF": "Microsoft Agent Framework (MAF) is a production-grade SDK for building multi-agent AI applications with structured orchestration, tool governance, and observability. These articles cover MAF architecture, workflow patterns, memory management, agent registry conventions, and migration paths from other frameworks.",
+    "Multi-Agent AI": "Multi-agent AI systems coordinate multiple specialized agents to solve problems that are too complex for a single model. Posts here explore supervisor-worker topologies, agent lifecycle management, tool governance, security envelopes, and the operational patterns required to run multi-agent systems in production.",
+    "Multi-Agent": "Multi-agent systems decompose complex workflows into cooperating specialized components. These articles cover orchestration patterns, state management, deployment strategies, and the architectural trade-offs involved in coordinating multiple autonomous agents within a single platform.",
+    "Architecture": "Software architecture defines the structural decisions that shape a system's quality attributes: performance, maintainability, and resilience. These posts present architecture patterns, framework comparisons, monolith-to-microservices migration, and the design trade-offs behind production systems.",
+    "Security": "Security engineering means building defence in depth rather than bolting on perimeter controls. These articles cover workload identity with SPIFFE/SPIRE, zero-trust networking, anomaly detection, PAM audit trails, and the security envelopes that protect multi-agent AI systems in production.",
+    "Compliance": "Regulatory compliance turns legal obligations into auditable engineering controls. Posts here cover HIPAA technical safeguards, SOC 2 automation with Terraform, AI governance certification (AIGP), RBI mandates for FinTech, and the FREE-AI governance framework for responsible AI deployment.",
+    "BigQuery": "BigQuery is Google Cloud's serverless data warehouse used across these projects for analytics, FinOps cost attribution, and knowledge graph construction. Articles cover slot reservation strategies, storage tiering, Gemini-powered SQL generation, and query optimisation patterns that reduce spend at scale.",
+    "FinOps": "FinOps brings financial accountability to cloud infrastructure by connecting engineering decisions to their cost impact. These posts cover BigQuery reservation planning, storage cost tiering, multi-cloud egress optimisation, and the dashboards and automation that keep cloud spend visible and actionable.",
+    "Kubernetes": "Kubernetes orchestrates containerised workloads across clusters with declarative configuration and self-healing capabilities. These articles cover GKE production patterns, operator development, Kafka consumer scaling, multi-agent AI deployment on Kubernetes, and the operational practices that keep clusters reliable.",
+    "Open Source": "Open source is the foundation of these projects, from Gocloud and NodeCloud to Genie and RustCloud. Posts here cover GSoC mentoring, contributor workflows, multi-cloud API design, and the community practices that sustain production-quality open-source software over years of active development.",
+    "RAG": "Retrieval-Augmented Generation (RAG) grounds LLM responses in external knowledge to reduce hallucination and improve factual accuracy. These articles explore GraphRAG, HyDE query expansion, self-RAG with reflection, CRAG corrective retrieval, and multilingual RAG for Indic languages using Bhashini.",
+    "Observability": "Observability gives engineering teams the ability to understand system behaviour from external outputs alone. Posts here cover OpenTelemetry instrumentation, Prometheus-based SLO validation, Grafana dashboards for agentic AI, and the metrics and traces needed to debug multi-agent systems in production.",
+    "GCP": "Google Cloud Platform (GCP) provides the managed infrastructure behind many of these production systems. Articles cover GKE cluster design, Cloud KMS encryption, Security Command Center integration, BigQuery FinOps, and the architectural patterns that make GCP services work together reliably.",
+    "Governance": "AI governance establishes the policies, processes, and technical controls that ensure AI systems behave responsibly. These posts cover the FREE-AI framework, policy-as-code with OPA, Agent Governance Toolkit (AGT) enforcement, sovereign data residency, and the organisational structures around responsible AI.",
+    "FREE-AI": "FREE-AI is a governance framework for responsible AI deployment that covers fairness, reliability, explainability, ethics, and accountability. These articles explore FREE-AI implementation patterns, incident response procedures, policy DSLs, and how FREE-AI integrates with existing compliance frameworks like SOC 2 and HIPAA.",
+    "PostgreSQL": "PostgreSQL is the relational database behind several production systems described here. Posts cover row-level security for HIPAA compliance, double-entry ledger schemas for FinTech, advisory locks for distributed coordination, and the operational patterns that keep Postgres performant under load.",
+    "Payments": "Payment systems require idempotency, audit trails, and strict regulatory compliance. These articles cover UPI integration with NPCI, idempotent payment processing patterns, Kafka-based settlement pipelines, and the engineering controls needed to handle financial transactions reliably at scale.",
+    "FinTech": "FinTech engineering combines financial domain knowledge with distributed systems reliability. Posts here cover KYC orchestration with Aadhaar, RBI regulatory compliance, lending platform architecture, payment settlement with NPCI, and the security and audit requirements unique to financial technology.",
+    "Spanner": "Cloud Spanner is Google's globally distributed relational database, used here for schemas that need strong consistency at scale. Articles cover Spanner schema design, interleaved tables, migration tooling in Go, and the performance patterns specific to Spanner's TrueTime-based architecture.",
+    "KYC": "Know Your Customer (KYC) verification is a regulatory requirement for financial services. These posts cover agent-driven KYC orchestration, Aadhaar-based identity verification, video KYC workflows under RBI guidelines, and the engineering patterns that make KYC processes both compliant and efficient.",
+    "RBI": "The Reserve Bank of India (RBI) sets regulatory standards for digital payments, KYC verification, and data governance in Indian financial services. These articles cover RBI compliance implementation, digital lending guidelines, and how FREE-AI maps to RBI's regulatory expectations.",
+    "ADK": "Google's Agent Development Kit (ADK) was an early framework for building AI agents. These posts document the ADK-to-MAF migration journey, comparing orchestration models, state management approaches, tool governance, and the architectural lessons learned from running both frameworks in production.",
+    "Genie": "Genie is a multi-agent financial advisory platform built on Microsoft MAF with 15 specialized agents. Articles tagged with Genie cover its architecture, OpenTelemetry evaluation pipelines, AGT governance integration, and the retrospective lessons from building a production multi-agent system.",
+    "Testing": "Testing distributed and AI-powered systems requires strategies beyond unit tests. These posts cover chaos engineering for multi-agent resilience, Prometheus-based SLO validation, benchmark-driven development, and the testing patterns that catch failures before they reach production.",
+    "Opinion": "Opinion pieces present perspectives on engineering culture, architectural philosophy, and career development. These articles offer positions on mono-repo vs. poly-repo, the value of technical writing, audit as architecture, and the engineering practices that compound over a career.",
+    "Regulation": "Regulatory requirements shape the technical architecture of healthcare and financial systems. These posts cover the 21st Century Cures Act CDS carve-out, HIPAA technical safeguards, and the approach of encoding regulatory obligations directly as code-level constraints.",
+    "Clinical Decision Support": "Clinical Decision Support (CDS) systems assist healthcare providers with diagnostic reasoning while maintaining regulatory compliance. These articles explore the Cures Act section 3060 criteria, human-in-the-loop requirements, and how to build CDS systems that satisfy both clinical and legal standards.",
+    "SRE": "Site Reliability Engineering (SRE) applies software engineering principles to operations. Posts here cover LLM reliability patterns with error budgets, production observability, chaos engineering for multi-agent systems, and the SRE practices that keep distributed systems running at their service-level objectives.",
+    "Terraform": "Terraform enables infrastructure-as-code for repeatable, auditable cloud deployments. These articles cover SOC 2 compliance automation, banking-grade infrastructure provisioning on AWS, and the Terraform patterns that turn compliance requirements into version-controlled, peer-reviewed infrastructure definitions.",
+    "LLM": "Large Language Models (LLMs) power the reasoning layer in these multi-agent systems. Posts cover LLM reliability engineering, token budget management, provider abstraction patterns, and the operational challenges of running LLM-backed services in production with predictable cost and latency.",
+    "Production": "Production engineering focuses on the practices that keep systems reliable after deployment. These articles cover error budgets, fallback contracts, deployment strategies, and the operational discipline required to run multi-agent AI and distributed systems at production quality.",
+    "ML Engineering": "ML Engineering bridges model development and production deployment. These posts cover benchmark-driven development, evaluation pipelines, and the engineering practices that turn experimental models into reliable production services with measurable performance guarantees.",
+    "Benchmarks": "Benchmarks provide the quantitative foundation for engineering decisions. Articles here cover medical AI benchmark design, the journey from 42% to 85% accuracy through systematic iteration, and how honest benchmarks drive better engineering outcomes than optimistic demo metrics.",
+    "Cures Act": "The 21st Century Cures Act section 3060 defines when clinical decision support software qualifies for the regulatory carve-out. These posts translate the four CDS criteria into engineering controls, including human-in-the-loop queue patterns with lossless audit.",
+    "Database Security": "Database security goes beyond application-layer access control to enforce data protection at the storage layer. Articles cover PostgreSQL row-level security, HIPAA-compliant audit at the GRANT level, and the defence-in-depth approach that prevents data access even when application code has bugs.",
+    "Privacy Engineering": "Privacy engineering embeds data protection into system architecture rather than treating it as an afterthought. Posts cover GDPR Article 22 compliance, PHI redaction at the logger seam, consent-aware data pipelines, and the Go patterns that make privacy controls testable and auditable.",
+    "Audit": "Audit trails provide the immutable record that proves compliance and enables incident investigation. These articles explore append-only audit log design, audit as an architectural concern rather than an add-on, and the patterns that make audit logs both tamper-evident and queryable.",
+    "Software Architecture": "Software architecture makes the structural decisions that determine a system's long-term quality. Posts explore multi-agent interface design, the five-interface pattern, framework evaluation criteria, and how to make architecture decisions that remain sound as requirements evolve.",
+    "Reliability": "Reliability engineering ensures systems meet their availability and correctness commitments. These articles cover fallback contracts, error budgets for LLM-backed services, chaos testing for multi-agent systems, and the patterns that turn aspirational SLOs into measurable operational guarantees.",
+    "Data Residency": "Data residency requirements dictate where data can be stored and processed, driven by national regulations. These posts cover UAE and Saudi Arabia data localisation mandates, sovereign AI governance, and the engineering patterns for multi-region data residency in Open Banking platforms.",
+    "Voice AI": "Voice AI systems combine speech synthesis, recognition, and multilingual support to deliver conversational interfaces. These articles cover ElevenLabs integration, Bhashini-powered Indic language support, and the architecture patterns for building voice-enabled AI agents.",
+    "WebAuthn": "WebAuthn and passkeys replace passwords with cryptographic credentials tied to hardware authenticators. These posts cover Go standard library support for WebAuthn, the registration and authentication ceremony flows, and the security properties that make passkeys resistant to phishing attacks.",
+    "Microservices": "Microservices decompose monolithic applications into independently deployable services. Articles cover the monolith-to-microservices migration patterns presented at Google Cloud Next 2022, service boundary design, and the operational trade-offs that come with distributed service architectures.",
+    "OpenTelemetry": "OpenTelemetry provides vendor-neutral instrumentation for traces, metrics, and logs across distributed systems. Posts cover OTel integration with multi-agent AI frameworks, Kubernetes collector deployment, evaluation pipelines built on OTel spans, and the observability patterns specific to agentic workloads.",
+    "GSoC": "Google Summer of Code (GSoC) is a global programme connecting university students with open-source mentors. These posts cover mentoring practices across 10 consecutive years, project selection strategies, and the community-building aspects of sustained open-source mentorship.",
+    "Agentic AI": "Agentic AI systems operate with autonomy, making decisions and taking actions without step-by-step human direction. These articles explore the observability challenges unique to agentic AI, including LLM-as-judge evaluation, safety metrics, and the lifecycle stages that distinguish agentic from traditional software.",
+    "Responsible AI": "Responsible AI ensures that AI systems are fair, transparent, and accountable. Posts here cover governance frameworks, evaluation methodologies, and the engineering practices that make responsible AI principles operational rather than aspirational.",
+    "AI Governance": "AI Governance provides the organisational and technical structures for responsible AI deployment. These articles cover AIGP certification preparation, governance framework implementation, GDPR compliance for AI systems, and the policy-as-code patterns that make governance auditable and enforceable.",
+    "AIGP": "The AI Governance Professional (AIGP) certification from IAPP validates expertise in AI risk management and governance. These posts cover AIGP reference implementations, study approaches, and how AIGP principles map to real engineering controls in production AI systems.",
+    "IAPP": "The International Association of Privacy Professionals (IAPP) sets standards for privacy and AI governance certification. Articles here cover AIGP certification preparation and how IAPP frameworks translate into practical engineering governance for AI-powered systems.",
+    "GKE": "Google Kubernetes Engine (GKE) is the managed Kubernetes platform used to deploy multi-agent AI workloads. Posts cover GKE infrastructure for medical AI, production cluster patterns, node pool configuration, and the operational practices that keep GKE clusters stable under agentic workloads.",
+    "Cloud Architecture": "Cloud architecture designs systems that leverage managed services for scalability, reliability, and cost efficiency. These articles cover GCP infrastructure patterns, BigQuery analytics architecture, multi-cloud strategies, and the architectural decisions that balance cloud convenience with operational control.",
+    "Orchestration": "Orchestration coordinates the execution order and data flow between agents, services, or workflow steps. Posts cover MAF workflow orchestration, ADK-to-MAF migration patterns, Magentic-One orchestration, and the design patterns that keep complex multi-step workflows reliable and observable.",
+    "Config": "Configuration management for multi-agent systems requires provider abstraction and runtime flexibility. These articles cover model provider configuration patterns, environment-based switching between LLM backends, and the design decisions that keep multi-agent systems portable across deployment targets.",
+    "Middleware": "Middleware sits between the framework and application logic to handle cross-cutting concerns. Posts cover OpenTelemetry middleware for agentic AI, observability injection, and the middleware patterns that add tracing, logging, and governance without polluting business logic.",
+    "Deployment": "Deployment engineering ensures that systems move from development to production reliably. Articles cover Cloud Run deployment for multi-agent services, A2A endpoint exposure, embed.FS for single-binary Go deployments, and the strategies that make deployments repeatable and rollback-safe.",
+    "Case Study": "Case studies document real engineering outcomes with specific numbers, trade-offs, and lessons learned. These posts present post-mortems and retrospectives from production multi-agent systems, framework migrations, and infrastructure projects.",
+    "Lessons Learned": "Lessons learned articles distill practical engineering wisdom from completed projects. Posts cover migration retrospectives, framework comparison outcomes, and the non-obvious insights that only emerge after running systems in production.",
+    "Google Cloud": "Google Cloud provides managed infrastructure services including GKE, BigQuery, Cloud Run, and Spanner. These articles cover Google Cloud architecture patterns, cost optimisation, and the platform-specific practices for running production workloads on GCP.",
+    "Protocols": "Protocols define the communication contracts between distributed components. Articles here cover A2A protocol implementation in Go, gRPC service design, and the protocol-level decisions that determine interoperability and performance in multi-agent systems.",
+    "Operations": "Operations engineering keeps production systems running within their service-level objectives. Posts cover security operations for multi-agent AI, incident response procedures, and the operational runbooks that bridge the gap between development and reliable production service.",
+    "Incident Response": "Incident response defines the procedures for detecting, triaging, and recovering from system failures. These articles cover FREE-AI incident response for AI-specific failures, post-incident review practices, and the playbooks that turn chaotic outages into structured recovery processes.",
+    "SOC 2": "SOC 2 compliance verifies that a service organisation meets trust criteria for security, availability, and confidentiality. Posts cover SOC 2 automation with Terraform, banking-grade infrastructure controls, and the engineering practices that make SOC 2 audits routine rather than disruptive.",
+    "ISO 27001": "ISO 27001 is the international standard for information security management systems. These articles cover ISO 27001 control implementation alongside SOC 2 and banking-grade Terraform automation for infrastructure that satisfies both compliance frameworks simultaneously.",
+    "Azure": "Microsoft Azure provides cloud infrastructure and AI services including the Agent Framework. Posts cover Azure Kubernetes Service operator development, MAF integration patterns, and the Azure-specific architectural decisions in multi-agent AI deployments.",
+    "BCP": "Business Continuity Planning (BCP) ensures systems remain available during disruptions. Articles cover chaos engineering for multi-agent AI resilience, disaster recovery testing, and the planning practices that validate whether production systems actually survive the failure scenarios they were designed for.",
+    "Knowledge Graph": "Knowledge graphs represent entities and relationships as structured, queryable data. Posts cover BigQuery-based knowledge graph construction, entity resolution patterns, GraphRAG integration, and how knowledge graphs improve retrieval accuracy in RAG-powered AI systems.",
+    "Banking": "Banking engineering requires the highest standards of security, compliance, and audit. These posts cover SOC 2 and ISO 27001 automation for banking infrastructure, Terraform patterns for financial services, and the engineering controls mandated by financial regulators.",
+    "AWS": "Amazon Web Services (AWS) is used alongside GCP in multi-cloud architectures. Articles cover banking-grade Terraform deployments on AWS, cost optimisation across cloud providers, and the infrastructure patterns specific to AWS financial services workloads.",
+    "Cloud KMS": "Cloud Key Management Service provides hardware-backed encryption key management. Posts cover Cloud KMS integration for envelope encryption, digital voting security, and the key management patterns that satisfy compliance requirements for data-at-rest and data-in-transit protection.",
+    "Cloud Run": "Cloud Run deploys containerised workloads as serverless services on Google Cloud. Articles cover Cloud Run deployment patterns for multi-agent AI, A2A endpoint exposure, and the operational practices for running Go services on Cloud Run with predictable cold-start behaviour.",
+    "GraphQL": "GraphQL provides a flexible query language for APIs that lets clients request exactly the data they need. Posts cover GraphQL vs. gRPC performance comparisons, Cloud Run-hosted GraphQL services, and the architectural trade-offs between GraphQL and traditional REST endpoints.",
+    "gRPC": "gRPC is a high-performance RPC framework built on HTTP/2 and Protocol Buffers. Articles cover gRPC service design in Go, performance benchmarking against GraphQL, and the patterns that make gRPC suitable for low-latency inter-service communication in distributed systems.",
+    "Migration": "Migration engineering moves data and services between platforms without downtime. Posts cover Spanner-to-Spanner data migration with Datastream, monolith-to-microservices decomposition, and the ADK-to-MAF framework migration that preserved production reliability throughout the transition.",
+    "Pub/Sub": "Google Cloud Pub/Sub provides asynchronous messaging between distributed services. Articles cover Pub/Sub integration in data migration pipelines, event-driven architecture patterns, and the delivery guarantees that make Pub/Sub suitable for production workloads requiring exactly-once processing.",
+    "Dataflow": "Google Cloud Dataflow runs Apache Beam pipelines for batch and streaming data processing. Posts cover Dataflow integration in database migration pipelines and the patterns for building reliable data transformation workflows at scale.",
+    "Datastream": "Google Cloud Datastream provides change-data-capture for database replication and migration. Articles cover Datastream integration with Spanner, CDC-based migration patterns, and the operational considerations for running continuous replication pipelines.",
+    "LLM Ops": "LLM Ops extends MLOps practices to the operational challenges specific to large language models. Posts cover cost budgeting for agent tool calls, token consumption tracking, and the operational patterns that keep LLM-backed services predictable in terms of cost, latency, and quality.",
+    "UAE": "The United Arab Emirates enforces data residency and digital governance requirements for financial services. These articles cover UAE data localisation mandates, Open Banking platform design for the Gulf region, and the engineering patterns for multi-region compliance.",
+    "Saudi Arabia": "Saudi Arabia's data governance framework requires localisation of financial and personal data. Posts cover Saudi data residency requirements alongside UAE mandates and the engineering architecture for Open Banking platforms serving the Gulf financial ecosystem.",
+    "Open Banking": "Open Banking regulations require financial institutions to share customer data through secure, standardised APIs. These articles cover Open Banking platform architecture for Gulf markets, data residency compliance, and the engineering patterns that balance API openness with regulatory control.",
+    "Culture": "Engineering culture shapes how teams make decisions, handle failure, and grow professionally. Posts cover tier promotion philosophies, the value of technical writing, and the cultural practices that distinguish high-performing engineering organisations.",
+    "Engineering": "Engineering practice articles cover the craft of building and operating production software. Topics include refactoring strategies, code review culture, and the day-to-day engineering habits that compound into reliable, maintainable systems over time.",
+    "Career": "Career-focused articles offer practical perspectives on professional growth in software engineering. Posts cover GitHub profile strategy for job seekers, the compounding value of technical writing, and the career practices that create long-term professional leverage.",
+    "Concurrency": "Concurrency in Go uses goroutines and channels to run tasks simultaneously with controlled coordination. These posts cover errgroup patterns for structured concurrency, GOMEMLIMIT tuning for containerised workloads, and the idiomatic Go approaches that prevent race conditions and resource leaks.",
+    "Memory": "Memory management in containerised Go services requires understanding runtime behaviour under resource constraints. Posts cover GOMEMLIMIT configuration for Kubernetes pods, GC tuning for latency-sensitive workloads, and the memory patterns that prevent OOM kills in production.",
+    "Kafka": "Apache Kafka provides distributed event streaming for high-throughput data pipelines. Articles cover Kafka consumer group design in Kubernetes, payment settlement stream processing, and the operational patterns for running Kafka-backed architectures with exactly-once delivery guarantees.",
+    "Redis": "Redis provides in-memory data structures for caching, rate limiting, and session management. Posts cover Redis integration in high-throughput payment platforms, distributed lock patterns, and the operational considerations for Redis in latency-sensitive financial workloads.",
+    "API Design": "API design defines the contracts that clients depend on for system integration. Articles cover multi-cloud API abstraction in Gocloud, GraphQL vs. gRPC trade-offs, and the design patterns that make APIs stable, discoverable, and backward-compatible across versions.",
+    "GDPR": "The General Data Protection Regulation (GDPR) sets data protection requirements for systems processing EU personal data. Posts cover GDPR Article 22 automated decision-making compliance, privacy-by-design patterns in Go, and how GDPR requirements align with HIPAA and AI governance frameworks.",
+    "Workflow": "Workflow orchestration coordinates multi-step processes with defined order, error handling, and state management. Posts cover saga patterns for distributed transactions, MAF workflow composition, and the design patterns that make long-running workflows observable, resumable, and fault-tolerant.",
+    "Saga": "The saga pattern manages distributed transactions by breaking them into compensable local transactions. These articles cover saga orchestration in Go, compensation logic design, and how sagas provide data consistency across services without requiring distributed locks.",
+    "Self-RAG": "Self-RAG adds a reflection step where the model evaluates its own retrieval and generation quality before responding. Posts explore how self-reflection improves factual accuracy and reduces hallucination compared to single-pass RAG architectures.",
+    "CRAG": "Corrective RAG (CRAG) adds a verification layer that evaluates retrieved document relevance before generation. Articles cover CRAG implementation patterns and how corrective retrieval improves response quality by filtering out irrelevant context.",
+    "Retrieval": "Retrieval systems find relevant documents from large corpora to support generation or analysis. Posts cover HyDE hypothetical document embedding, self-RAG reflection, CRAG corrective retrieval, and the retrieval patterns that improve answer quality in RAG-powered applications.",
+    "Anomaly Detection": "Anomaly detection identifies unusual patterns that may indicate fraud, security breaches, or system failures. Articles cover Go-based anomaly detection for financial security, statistical and ML-based approaches, and the engineering patterns for real-time anomaly detection in production systems.",
+    "Fraud": "Fraud detection and prevention require real-time analysis of transaction patterns and identity signals. Posts cover anomaly detection for financial fraud, AML compliance engineering, and the multi-layered controls that protect financial platforms from fraudulent activity.",
+    "AML": "Anti-Money Laundering (AML) compliance requires automated transaction monitoring and suspicious activity reporting. Articles cover AML engineering for lending platforms, multi-agent KYC and AML orchestration, and the regulatory controls that financial services must implement.",
+    "Lending": "Lending platform engineering requires double-entry accounting, regulatory compliance, and fraud prevention. Posts cover PostgreSQL schema design for lending operations, KYC and AML integration, RBAC for financial data, and the architectural patterns specific to digital lending services.",
+    "RBAC": "Role-Based Access Control (RBAC) restricts system access based on assigned user roles. Articles cover RBAC implementation for financial platforms, session-aware PAM audit trails, and how RBAC integrates with broader security architectures in compliance-sensitive environments.",
+    "PAM": "Privileged Access Management (PAM) controls and audits access to critical system resources. Posts cover session-aware PAM audit design in Go, escalation workflows, and the engineering patterns that ensure privileged operations are logged, reviewed, and time-bounded.",
+    "Policy as Code": "Policy as code encodes governance rules in machine-readable, version-controlled formats. Articles cover OPA-based tool governance for agents, FREE-AI policy DSLs, and the approach of making compliance policies executable, testable, and deployable alongside application code.",
+    "DSL": "Domain-Specific Languages (DSLs) provide focused syntax for expressing rules in a particular domain. Posts cover governance policy DSLs for the FREE-AI framework and how purpose-built languages make complex compliance rules readable and maintainable.",
+    "Idempotency": "Idempotency ensures that repeated operations produce the same result, critical for payment systems and distributed workflows. Articles cover idempotency key design, database-backed deduplication, and the Go patterns that make distributed operations safely retryable.",
+    "Schema": "Schema design determines the long-term performance and maintainability of database-backed systems. Posts cover Spanner interleaved table design, PostgreSQL schemas for double-entry accounting, and the schema patterns that balance query performance with data integrity constraints.",
+    "Database Design": "Database design shapes system performance, consistency, and operational complexity. Articles cover Spanner schema patterns, PostgreSQL row-level security, double-entry ledger design, and the database-level decisions that compound into either technical debt or operational leverage.",
+    "Database Migration": "Database migration moves data between schemas or platforms without losing consistency or availability. Posts cover Spanner migration tooling in Go, CDC-based replication with Datastream, and the migration patterns that maintain data integrity throughout the transition.",
+    "Performance": "Performance engineering optimises system throughput, latency, and resource utilisation. Articles cover Spanner query tuning, gRPC vs. GraphQL benchmarking, Go memory management, and the profiling and measurement practices that turn performance intuition into data-driven improvements.",
+    "SPIFFE": "SPIFFE (Secure Production Identity Framework for Everyone) provides cryptographic workload identity in distributed systems. Posts cover SPIFFE identity issuance, SVID-based authentication, and how SPIFFE enables zero-trust service-to-service communication without shared secrets.",
+    "SPIRE": "SPIRE is the production implementation of the SPIFFE standard for workload identity attestation. Articles cover SPIRE deployment patterns, node and workload attestation, and how SPIRE integrates with Kubernetes for automatic identity provisioning.",
+    "Workload Identity": "Workload identity assigns cryptographic identities to running software rather than to humans or machines. Posts cover SPIFFE/SPIRE-based workload identity, GKE workload identity federation, and the zero-trust patterns that eliminate static credentials from service-to-service authentication.",
+    "Zero Trust": "Zero-trust architecture requires verification for every request regardless of network location. Articles cover SPIFFE/SPIRE-based zero-trust identity, workload attestation, and the engineering patterns that replace perimeter-based security with continuous, cryptographic verification.",
+    "Patterns": "Patterns capture reusable solutions to recurring engineering problems. These articles explore Go-specific idioms, architectural patterns for distributed systems, and the design approaches that help engineers make consistent, well-reasoned decisions across different technical domains.",
+    "Writing": "Technical writing amplifies engineering impact by making knowledge discoverable and shareable. Posts cover the career value of consistent writing practice, blog-as-portfolio strategy, and why the discipline of written communication compounds over an engineering career.",
+    "Retrospective": "Retrospective articles review completed projects to extract lessons and document what worked, what failed, and what would change. Posts cover post-project analysis of multi-agent system builds and the reflection practices that accelerate future engineering decisions.",
+    "UPI": "Unified Payments Interface (UPI) is India's real-time payment system operated by NPCI. Articles cover UPI integration patterns, settlement pipeline design, and the engineering architecture needed to handle UPI's high-throughput, low-latency transaction processing requirements.",
+    "NPCI": "The National Payments Corporation of India (NPCI) operates India's retail payment systems including UPI. Posts cover NPCI integration patterns, payment settlement engineering, and the compliance requirements for connecting to NPCI's payment infrastructure.",
+    "HITL": "Human-in-the-loop (HITL) patterns keep humans in the decision chain for high-stakes actions. Articles cover HITL requirements in clinical decision support, payment approval workflows, and the queue-based architectures that make human review scalable without blocking system throughput.",
+    "Gemini": "Google Gemini is a multimodal AI model used for code generation, SQL synthesis, and analytical tasks. Posts cover Gemini-powered BigQuery SQL generation, model integration patterns, and the practical considerations of using Gemini in production FinOps tooling.",
+    "Python": "Python serves as the implementation language for MAF-based multi-agent systems and data processing pipelines. Articles cover MAF Python patterns, agent registry design, workflow orchestration, and the Python-specific architectural decisions in multi-agent AI applications.",
+    "Ollama": "Ollama provides local LLM inference for development and privacy-sensitive deployments. Posts cover Ollama integration with MAF, local model configuration, and the developer experience patterns that make local AI development fast and reproducible.",
+    "Local AI": "Local AI runs language models on developer hardware for privacy, cost control, and offline development. Articles cover Ollama-based local inference, MAF integration patterns, and the trade-offs between local and cloud-hosted model deployment.",
+    "Developer Experience": "Developer experience (DX) determines how quickly engineers can build, test, and iterate on software. Posts cover local AI setup with Ollama, configuration patterns for multi-provider environments, and the tooling decisions that reduce friction in multi-agent AI development.",
+    "Refactor": "Refactoring improves code structure without changing external behaviour. Articles cover production refactoring strategies for multi-agent systems, incremental migration patterns, and the engineering discipline needed to refactor safely in systems with high reliability requirements.",
+    "OWASP": "OWASP provides security standards and testing methodologies for software applications. Posts cover OWASP integration with Agent Governance Toolkit (AGT), security assessment for multi-agent AI, and the OWASP-aligned controls that protect agentic systems from common vulnerability classes.",
+    "AGT": "The Agent Governance Toolkit (AGT) enforces tool-level policies in multi-agent AI systems. Articles cover AGT integration with MAF, OWASP-aligned security scanning, and the governance patterns that control which tools agents can invoke and under what conditions.",
+    "Magentic": "Magentic-One is Microsoft's multi-agent orchestration pattern for coordinating specialized agents. Posts cover Magentic-One workflow composition in MAF, orchestration strategies, and how Magentic patterns compare to other multi-agent coordination approaches.",
+    "Grafana": "Grafana provides dashboards and visualisation for observability data from Prometheus and OpenTelemetry. Articles cover Grafana dashboard design for multi-agent AI systems, trace visualisation patterns, and the dashboard layouts that make agentic system behaviour interpretable.",
+    "LLM-as-Judge": "LLM-as-judge evaluation uses one language model to assess the output quality of another. Posts cover LLM-as-judge implementation in MAF evaluation pipelines, scoring rubric design, and the calibration practices that make automated evaluation reliable enough for production quality gates.",
+    "Prometheus": "Prometheus collects and stores time-series metrics for monitoring and alerting. Articles cover Prometheus-based SLO validation, custom metric design for Go services, and the Prometheus patterns that power reliable alerting in production distributed systems.",
+    "SLO": "Service Level Objectives (SLOs) define measurable reliability targets that engineering teams commit to. Posts cover SLO design for agent-powered services, latency budget allocation, and the error-budget approach that balances reliability investment against feature velocity.",
+    "Latency": "Latency engineering focuses on reducing and controlling response times in distributed systems. Articles cover latency budgets for multi-agent AI, P99 tail latency management, and the measurement and optimisation patterns that keep latency predictable under varying load.",
+    "PCSE": "Professional Cloud Security Engineer (PCSE) certification validates Google Cloud security expertise. Posts cover PCSE-informed security architecture for multi-agent AI, GCP security controls, and how certification knowledge translates into production security engineering.",
+    "Voting": "Digital voting systems require cryptographic integrity, auditability, and tamper resistance. Articles cover Cloud KMS-based voting security, Security Command Center integration, and the engineering controls that ensure election system integrity and voter privacy.",
+    "Security Command Center": "Google Cloud Security Command Center provides centralised security and risk management. Posts cover SCC integration for threat detection, compliance monitoring, and the security posture management patterns specific to GCP-hosted production workloads.",
+    "Multilingual": "Multilingual AI systems support content generation and retrieval across multiple languages. Articles cover Bhashini-powered Indic language RAG, multilingual embedding strategies, and the engineering patterns for building AI systems that serve linguistically diverse user populations.",
+    "Bhashini": "Bhashini is India's national language technology platform providing translation and NLP services for Indic languages. Posts cover Bhashini integration for multilingual RAG, cross-lingual retrieval patterns, and how Bhashini enables AI systems to serve India's linguistic diversity.",
+    "Indic Languages": "Indic languages present unique challenges for AI systems due to diverse scripts, morphology, and limited training data. Articles cover multilingual RAG with Bhashini, Indic language embedding strategies, and the engineering patterns for building AI that serves Hindi, Tamil, Bengali, and other Indian languages.",
+    "ElevenLabs": "ElevenLabs provides high-quality speech synthesis and voice AI capabilities. Posts cover ElevenLabs integration for voice-enabled AI agents, multilingual voice synthesis, and the architecture patterns for building conversational AI with natural-sounding speech output.",
+    "Multi-Language": "Multi-language support in AI systems requires handling speech, text, and retrieval across diverse linguistic inputs. Articles cover voice AI in multiple languages, Bhashini integration for Indic language processing, and the cross-lingual patterns that make AI systems globally accessible.",
+    "Passkeys": "Passkeys are phishing-resistant credentials built on WebAuthn and FIDO2 standards. Posts cover Go standard library support for passkey authentication, registration ceremony implementation, and the security properties that make passkeys superior to passwords for user authentication.",
+    "Stdlib": "Go's standard library provides production-quality implementations for common tasks without external dependencies. Articles cover standard library support for WebAuthn, HTTP server patterns, and the philosophy of preferring stdlib over third-party packages for long-term maintainability.",
+    "Go 1.23": "Go 1.23 introduced range-over-function iterators (iter.Seq) and other language improvements. Posts cover the iter.Seq pattern for custom collection iteration, practical use cases, and how Go 1.23 features improve API design in production Go codebases.",
+    "iter.Seq": "iter.Seq is Go 1.23's range-over-function iterator type for lazy, composable sequence processing. Articles cover iter.Seq patterns for database result streaming, pipeline composition, and how function iterators replace slice-heavy APIs with memory-efficient alternatives.",
+    "embed.FS": "Go's embed.FS packages static assets directly into compiled binaries for single-artifact deployments. Posts cover embed.FS patterns for bundling HTML, CSS, and configuration files, and the deployment simplicity gained from eliminating external file dependencies.",
+    "errgroup": "Go's errgroup package provides structured concurrency with error propagation for parallel goroutine management. Articles cover errgroup patterns for fan-out/fan-in workloads, context cancellation, and the idiomatic Go approaches for running concurrent tasks with coordinated error handling.",
+    "GOMEMLIMIT": "GOMEMLIMIT is a Go runtime environment variable that controls the soft memory limit for the garbage collector. Posts cover GOMEMLIMIT tuning for Kubernetes pods, GC behaviour under memory pressure, and the configuration patterns that prevent OOM kills in containerised Go services.",
+    "Speaking": "Conference speaking amplifies engineering expertise and builds professional visibility. Articles cover the Google Cloud Next 2022 presentation on monolith-to-microservices migration, presentation preparation, and the impact of technical speaking on career development.",
+    "Google Cloud Next": "Google Cloud Next is Google's annual cloud technology conference. Posts cover the 2022 Innovators Hive presentation on migrating monolith applications to microservices, conference experience, and the technical content delivered to an audience of 10,000+ attendees.",
+    "Mentorship": "Mentorship in open-source communities builds both technical skills and professional networks. Articles cover 10 years of Google Summer of Code mentoring, student project guidance, and the mentorship practices that help university students contribute to production open-source software.",
+    "Data Warehouse": "Data warehouse architecture organises analytical data for efficient querying and reporting. Posts cover BigQuery as a data warehouse platform, FinOps cost attribution, and the storage and query patterns that make large-scale analytical workloads both performant and cost-effective.",
+    "Solution Architecture": "Solution architecture designs end-to-end technical solutions that meet business requirements within operational constraints. Articles cover BigQuery analytics architecture, multi-cloud platform design, and the solution-level decisions that bridge business needs and engineering implementation.",
+    "Operators": "Kubernetes operators extend the platform with custom controllers that automate operational tasks. Posts cover Azure Kubernetes operator development, custom resource definition design, and the operator patterns that encode operational knowledge into self-managing Kubernetes components.",
+    "Entity Resolution": "Entity resolution identifies and merges records that refer to the same real-world entity across data sources. Articles cover BigQuery-based entity resolution, knowledge graph construction, and the matching algorithms that deduplicate and link records in analytical workloads.",
+    "Reservations": "BigQuery reservations provide committed-use pricing for predictable analytical workloads. Posts cover reservation sizing strategies, slot allocation patterns, and the FinOps practices that balance commitment discounts against workload variability.",
+    "Storage": "Cloud storage tiering and lifecycle management directly impact infrastructure costs. Articles cover BigQuery storage optimisation, active vs. long-term storage pricing, and the storage patterns that reduce spend without losing data accessibility.",
+    "Tier Promotion": "Tier promotion in engineering organisations defines the criteria and processes for career advancement. Posts cover promotion philosophy, the evaluation criteria that distinguish senior from staff engineers, and the cultural practices that make promotion decisions transparent and fair.",
+    "Networking": "Cloud networking determines latency, cost, and security posture across distributed systems. Articles cover multi-cloud egress optimisation, VPC design patterns, and the networking decisions that reduce cross-cloud data transfer costs while maintaining security boundaries.",
+    "Aadhaar": "Aadhaar is India's biometric identity system used for KYC verification in financial services. Posts cover Aadhaar-based eKYC integration, video KYC workflows under RBI guidelines, and the engineering patterns for building identity verification systems on Aadhaar infrastructure.",
+    "GitHub": "GitHub serves as the primary platform for open-source collaboration and professional visibility. Articles cover GitHub profile optimisation for job seekers, open-source contribution strategies, and how consistent GitHub activity demonstrates engineering capability to potential employers.",
+    "HyDE": "Hypothetical Document Embeddings (HyDE) improve retrieval by generating a hypothetical answer and using its embedding to find relevant documents. Posts cover HyDE implementation, integration with RAG pipelines, and how HyDE improves retrieval quality for ambiguous or complex queries.",
+    "SQL": "SQL remains the primary interface for analytical queries in data warehouse environments. Articles cover BigQuery SQL optimisation, Gemini-powered SQL generation, and the query patterns that reduce both execution time and compute cost in large-scale analytical workloads.",
+    "DevOps": "DevOps practices unify development and operations for faster, more reliable software delivery. Posts cover Terraform-based infrastructure automation, SOC 2 compliance in CI/CD pipelines, and the DevOps patterns that make compliance a natural part of the delivery workflow.",
+    "Workflows": "Workflow design coordinates multi-step agent operations with defined execution order and error handling. Articles cover MAF workflow patterns, sequential and parallel composition, and the orchestration strategies that keep complex multi-agent workflows observable and fault-tolerant.",
+    "State Management": "State management in multi-agent systems tracks conversation context, agent memory, and workflow progress. Posts cover MAF state management patterns, token budget tracking, and the design decisions that balance state persistence with performance in agentic applications.",
+    "Token Budgeting": "Token budgeting controls LLM consumption to manage cost and latency in production AI systems. Articles cover token budget allocation strategies, per-agent limits, and the engineering patterns that prevent runaway LLM costs while maintaining output quality.",
+    "Tools": "Tool governance controls which external capabilities agents can invoke and under what conditions. Posts cover OPA-based tool policy enforcement, AGT integration, and the governance patterns that prevent agents from taking unsafe or unauthorized actions.",
+    "OPA": "Open Policy Agent (OPA) evaluates policies written in Rego for fine-grained access and tool governance. Articles cover OPA integration for agent tool governance, policy-as-code patterns, and how OPA enables declarative, testable policy enforcement in multi-agent AI systems.",
+    "Provider Abstraction": "Provider abstraction decouples application logic from specific LLM or cloud service implementations. Posts cover model provider switching patterns, configuration-driven provider selection, and the abstraction layers that make multi-agent systems portable across OpenAI, Ollama, and Azure Foundry.",
+    "Design Pattern": "Design patterns provide reusable solutions for common architectural problems. Articles cover orchestration patterns, state management approaches, and the design-level decisions that determine how multi-agent AI systems handle complexity, failure, and evolution.",
+    "Communication": "Communication patterns define how agents exchange information and coordinate actions. Posts cover A2A protocol-based inter-agent communication, MAF message routing, and the architectural patterns that enable agents to collaborate without tight coupling.",
+    "Multi-Cloud": "Multi-cloud architecture distributes workloads across multiple cloud providers for resilience, cost optimisation, or regulatory compliance. Articles cover Gocloud's provider-agnostic API, egress cost reduction, and the engineering patterns for running systems that span AWS, GCP, and Azure.",
+    "HL7 v2": "HL7 v2 is the legacy clinical messaging standard still running in most healthcare systems worldwide. Posts cover HL7 v2 parsing and integration, migration strategies to FHIR R4, and why understanding HL7 v2 remains essential for healthcare IT interoperability.",
+    "FHIR": "FHIR R4 (Fast Healthcare Interoperability Resources) is the modern standard for healthcare data exchange. Articles cover FHIR resource modelling, integration with HL7 v2 legacy systems, and the engineering patterns for building healthcare platforms that are FHIR-compliant from the ground up.",
+    "Healthcare IT": "Healthcare IT connects clinical systems, regulatory requirements, and patient data into interoperable platforms. Posts cover HL7 v2 and FHIR R4 integration, HIPAA compliance engineering, and the technical challenges specific to healthcare system interoperability.",
+    "Integration": "System integration connects disparate services, standards, and data formats into cohesive platforms. Articles cover HL7 v2 to FHIR R4 migration, multi-cloud API abstraction, and the engineering patterns that make heterogeneous system integration reliable and maintainable.",
+    "Audit Log": "Audit log design creates the tamper-evident record that proves system behaviour and regulatory compliance. Posts cover append-only audit architecture, HIPAA-compliant logging, and the schema and storage patterns that make audit logs both immutable and efficiently queryable.",
+    "GraphRAG": "GraphRAG combines knowledge graphs with retrieval-augmented generation for structured, relationship-aware retrieval. Articles cover GraphRAG architecture, BigQuery-based knowledge graph construction, and how graph-structured retrieval improves answer quality for questions involving entity relationships.",
+}
+
 # Post popularity ranking (1-10 scale, 10 = most popular)
 # Used to generate "popular posts" section on homepage
 POST_POPULARITY = {
@@ -1558,7 +1748,7 @@ NAV_HTML = """<nav>
 
 
 SITE_FOOTER = """<footer class="site-footer">
-  <p>© {year} Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/thank-you/">Acknowledgments</a></p>
+  <p>© {year} Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/thank-you/">Acknowledgments</a></p>
 </footer>""".format(year=datetime.now().year)
 
 
@@ -1588,6 +1778,14 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
         page_title = f"{title_html}{_html_escape(title_suffix, quote=True)}"
     else:
         page_title = title_html
+
+    # Truncate <title> and social meta titles to 60 chars max
+    # (truncate at last word boundary before 57 chars and add "...")
+    if len(title) > 60:
+        truncated = title[:57].rsplit(' ', 1)[0] + '...'
+        meta_title_html = _html_escape(truncated, quote=True)
+    else:
+        meta_title_html = page_title
 
     # Calculate read time
     read_time = calculate_read_time(body_html)
@@ -1673,12 +1871,12 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{page_title}</title>
+<title>{meta_title_html}</title>
 <meta name="description" content="{desc_html}">
 <meta name="author" content="Pratik Dhanave">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 
-<meta property="og:title" content="{title_html}">
+<meta property="og:title" content="{meta_title_html}">
 <meta property="og:description" content="{full_desc_html}">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{canonical}">
@@ -1688,7 +1886,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 <meta property="article:published_time" content="{date_iso}T00:00:00Z">
 {''.join(f'<meta property="article:tag" content="{_html_escape(t, quote=True)}">' + chr(10) for t in meta['tags'])}
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{title_html}">
+<meta name="twitter:title" content="{meta_title_html}">
 <meta name="twitter:description" content="{full_desc_html}">
 <meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">
 
@@ -2113,6 +2311,11 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
     if post_count is None:
         post_count = len(posts_with_tag)
 
+    # Look up tag description for intro paragraph (thin-content fix)
+    tag_desc = TAG_DESCRIPTIONS.get(tag, "")
+    if not tag_desc:
+        tag_desc = f"Articles about {tag} — exploring patterns, best practices, and real-world implementations in production systems."
+
     # Phase 0.4: noindex thin tags (<3 posts), index qualifying tags
     if post_count < 3:
         robots_meta = '<meta name="robots" content="noindex, follow">'
@@ -2198,12 +2401,12 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{_html_escape(tag)} — Blog — Pratik Dhanave</title>
-<meta name="description" content="Posts tagged with {_html_escape(tag)}. By Pratik Dhanave.">
+<meta name="description" content="{_html_escape(tag_desc)} By Pratik Dhanave.">
 <meta name="author" content="Pratik Dhanave">
 {robots_meta}
 
 <meta property="og:title" content="Pratik Dhanave — {_html_escape(tag)}">
-<meta property="og:description" content="Posts tagged with {_html_escape(tag)}.">
+<meta property="og:description" content="{_html_escape(tag_desc)}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="{SITE_URL}/blog/tags/{tag_to_slug(tag)}/">
 <meta property="og:site_name" content="Pratik Dhanave">
@@ -2234,7 +2437,8 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 
 <section class="blog-hero">
   <h1>#{_html_escape(tag)}</h1>
-  <p>Posts about {_html_escape(tag).lower()}. <a href="/blog/">← All posts</a></p>
+  <p>{_html_escape(tag_desc)}</p>
+  <p>{post_count} post{"s" if post_count != 1 else ""} tagged with {_html_escape(tag).lower()}. <a href="/blog/">&larr; All posts</a></p>
 </section>
 
 <section class="tag-cloud">
@@ -2243,6 +2447,10 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 
 <section class="post-list">
 {chr(10).join(posts_html)}
+</section>
+
+<section class="blog-hero" style="padding-top: 32px; border-top: 1px solid var(--border); border-bottom: none; margin-top: 36px;">
+  <p>All posts on this site are written by <a href="/about/">Pratik Dhanave</a>, a Senior Software Engineer and Cloud Architect with 7+ years building production distributed systems, multi-agent AI platforms, and cloud-native infrastructure. Each article includes working code, architecture diagrams, and references to the specific frameworks and standards discussed. Browse <a href="/blog/">all posts</a> or explore related topics using the tag cloud above.</p>
 </section>
 
 </main>
@@ -2620,6 +2828,25 @@ def main():
         out_path = POSTS_DIR / f"{meta['slug']}.html"
         out_path.write_text(html)
         print(f"  wrote {out_path.relative_to(SITE_ROOT)}")
+
+    # Third pass: minify inline CSS in legacy HTML-only posts
+    legacy_updated = 0
+    for post in rendered:
+        meta = post["meta"]
+        if meta["slug"] in posts_data:
+            continue  # Source-based post, already rendered with minified CSS
+        html_path = POSTS_DIR / f"{meta['slug']}.html"
+        if not html_path.exists():
+            continue
+        raw = html_path.read_text(errors="ignore")
+        def _minify_style_block(m):
+            return f"<style>{_minify_css(m.group(1))}</style>"
+        updated = re.sub(r"<style>(.*?)</style>", _minify_style_block, raw, flags=re.DOTALL)
+        if updated != raw:
+            html_path.write_text(updated)
+            legacy_updated += 1
+    if legacy_updated:
+        print(f"  minified CSS in {legacy_updated} legacy post(s)")
 
     # Compute tag counts for tag cloud
     tag_counts = {}
