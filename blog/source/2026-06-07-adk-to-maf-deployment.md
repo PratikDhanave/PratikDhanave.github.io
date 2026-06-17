@@ -224,4 +224,4 @@ Result: Scalable, observable, resilient multi-agent system.
 
 ---
 
-Next: [Lessons Learned (18 Agents, 90 Days)](/blog/2026/06/08/adk-to-maf-lessons.html)
+Next: [Lessons Learned (18 Agents, 90 Days)](/blog/posts/adk-to-maf-lessons.html)

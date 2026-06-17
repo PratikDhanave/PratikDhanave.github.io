@@ -58,4 +58,4 @@ That's why we chose MAF.
 
 ---
 
-Next: [The Executor Pattern](/blog/2026/06/02/adk-to-maf-executor-pattern.html)
+Next: [The Executor Pattern](/blog/posts/adk-to-maf-executor-pattern.html)

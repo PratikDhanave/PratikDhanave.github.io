@@ -2105,9 +2105,10 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
 }}
 </script>"""
 
-    # BreadcrumbList for all tag pages
-    tag_json_bc = _json.dumps(tag)[1:-1]
-    collection_schema += f"""
+    # BreadcrumbList only for indexed tag pages (3+ posts) to avoid schema-noindex conflict
+    if post_count >= 3:
+        tag_json_bc = _json.dumps(tag)[1:-1]
+        collection_schema += f"""
 <script type="application/ld+json">
 {{
   "@context": "https://schema.org",

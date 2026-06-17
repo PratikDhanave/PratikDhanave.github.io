@@ -212,4 +212,4 @@ No code changes. Not one line.
 
 ---
 
-Next: [Callbacks and Middleware](/blog/2026/06/06/adk-to-maf-callbacks.html)
+Next: [Callbacks and Middleware](/blog/posts/adk-to-maf-callbacks.html)

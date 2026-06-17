@@ -199,4 +199,4 @@ Control flow is explicit. State lives in the thread. Each agent sees the full co
 
 ---
 
-Next: [Tool Wrapping and Governed Tools](/blog/2026/06/04/adk-to-maf-tool-wrapping.html)
+Next: [Tool Wrapping and Governed Tools](/blog/posts/adk-to-maf-tool-wrapping.html)
