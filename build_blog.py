@@ -981,6 +981,19 @@ POST_POPULARITY = {
 }
 
 # ---------------------------------------------------------------------------
+# CSS minification — collapse whitespace for smaller inline styles
+# ---------------------------------------------------------------------------
+
+def _minify_css(css):
+    """Collapse whitespace in CSS for smaller inline output."""
+    css = re.sub(r'/\*.*?\*/', '', css, flags=re.DOTALL)
+    css = re.sub(r'\s+', ' ', css)
+    css = re.sub(r'\s*([{}:;,>~+])\s*', r'\1', css)
+    css = re.sub(r';}', '}', css)
+    return css.strip()
+
+
+# ---------------------------------------------------------------------------
 # Theme — CSS aligned with the site's index.html design tokens
 # ---------------------------------------------------------------------------
 
@@ -1383,6 +1396,7 @@ footer.site-footer a { color: var(--text-muted); }
 ::selection { background: var(--accent); color: white; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 """
+POST_CSS = _minify_css(POST_CSS)
 
 # ---------------------------------------------------------------------------
 # Shared CSS components (used across index, tag, archive pages)
@@ -1412,6 +1426,7 @@ main.blog-index {
   max-width: 640px;
 }
 """
+BLOG_LAYOUT_CSS = _minify_css(BLOG_LAYOUT_CSS)
 
 CARD_CSS = """
 .post-list {
@@ -1460,6 +1475,7 @@ CARD_CSS = """
   margin-bottom: 14px;
 }
 """
+CARD_CSS = _minify_css(CARD_CSS)
 
 TAG_CLOUD_CSS = """
 .tag-cloud {
@@ -1484,6 +1500,7 @@ TAG_CLOUD_CSS = """
   text-decoration: none;
 }
 """
+TAG_CLOUD_CSS = _minify_css(TAG_CLOUD_CSS)
 
 PAGINATION_CSS = """
 .pagination {
@@ -1512,6 +1529,7 @@ PAGINATION_CSS = """
 .pagination .disabled { color: var(--text-muted); background: var(--bg-elev); cursor: not-allowed; }
 .pagination .ellipsis { border: none; background: transparent; color: var(--text-muted); padding: 8px 4px; }
 """
+PAGINATION_CSS = _minify_css(PAGINATION_CSS)
 
 
 # ---------------------------------------------------------------------------
@@ -1871,7 +1889,7 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
   </div>
 </section>"""
 
-    index_css = POST_CSS + BLOG_LAYOUT_CSS + CARD_CSS + TAG_CLOUD_CSS + """
+    index_css = POST_CSS + BLOG_LAYOUT_CSS + CARD_CSS + TAG_CLOUD_CSS + _minify_css("""
 .blog-section { margin-bottom: 48px; }
 .section-heading {
   font-size: 1.1rem;
@@ -1927,7 +1945,7 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 .search-result-item:hover { background: var(--bg-elev); text-decoration: none; }
 .search-result-title { font-weight: 600; color: var(--text); }
 .search-result-meta { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
-"""
+""")
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -2281,7 +2299,7 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
     # Year/month nav
     year_nav = "".join(f'<a href="/blog/archive/{y}/" class="tag-cloud-item">{y}</a>' for y in sorted(all_years, reverse=True))
 
-    archive_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS + """
+    archive_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS + _minify_css("""
 .month-heading {
   font-size: 1rem;
   font-weight: 700;
@@ -2291,7 +2309,7 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
   border-bottom: 1px solid var(--border);
 }
 .month-heading:first-child { margin-top: 0; }
-"""
+""")
 
     return f"""<!DOCTYPE html>
 <html lang="en">

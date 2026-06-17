@@ -84,15 +84,6 @@ def make_sitemap_index(sitemaps):
 
 def collect_main_pages():
     """Collect main static pages."""
-    # Discover archive pagination pages dynamically
-    archive_pages = []
-    archive_dir = SITE_ROOT / "blog" / "archive" / "page"
-    if archive_dir.exists():
-        for page_dir in sorted(archive_dir.iterdir()):
-            if page_dir.is_dir() and (page_dir / "index.html").exists():
-                page_num = page_dir.name
-                archive_pages.append((f"/blog/archive/page/{page_num}/", f"blog/archive/page/{page_num}/index.html", "weekly", "0.4"))
-
     pages = [
         ("/", "index.html", "daily", "1.0"),
         ("/blog/", "blog/index.html", "daily", "0.9"),
@@ -115,7 +106,7 @@ def collect_main_pages():
         ("/projects/harbourbridge/", "projects/harbourbridge/index.html", "monthly", "0.7"),
         ("/contact/", "contact/index.html", "monthly", "0.5"),
         ("/privacy/", "privacy/index.html", "monthly", "0.3"),
-    ] + archive_pages
+    ]
     urls = []
     for path, file_rel, changefreq, priority in pages:
         file_path = SITE_ROOT / file_rel
