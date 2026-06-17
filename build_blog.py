@@ -2046,8 +2046,13 @@ def parse_post(md_path):
 
 
 def to_html(md_body):
-    """Render markdown to HTML."""
-    return markdown.markdown(
+    """Render markdown to HTML.
+
+    After conversion, demote any <h1> tags to <h2> since the post template
+    already provides the page-level <h1> for the title.  This prevents
+    'Multiple H1' SEO warnings when markdown source uses # headings.
+    """
+    html = markdown.markdown(
         md_body,
         extensions=[
             FencedCodeExtension(),
@@ -2058,6 +2063,10 @@ def to_html(md_body):
         ],
         output_format="html5",
     )
+    # Demote h1 → h2 in rendered content (template already has the page h1)
+    html = re.sub(r'<h1\b', '<h2', html)
+    html = re.sub(r'</h1>', '</h2>', html)
+    return html
 
 
 # ---------------------------------------------------------------------------
@@ -2370,9 +2379,15 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
 {robots}
 {link_tags}
 
-<meta property="og:title" content="Archive — Pratik Dhanave">
+<meta property="og:title" content="Archive{f' — Page {page_num}' if page_num > 1 else ''} — Pratik Dhanave">
+<meta property="og:description" content="All blog posts by Pratik Dhanave. Page {page_num} of {total_pages} ({total_posts} posts).">
 <meta property="og:type" content="website">
+<meta property="og:url" content="{canonical}">
 <meta property="og:image" content="{SITE_URL}/{OG_IMAGE}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Archive{f' — Page {page_num}' if page_num > 1 else ''} — Pratik Dhanave">
+<meta name="twitter:description" content="All blog posts by Pratik Dhanave. Page {page_num} of {total_pages} ({total_posts} posts).">
+<meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">
 
 <link rel="canonical" href="{canonical}">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
