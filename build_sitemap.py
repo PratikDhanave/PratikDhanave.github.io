@@ -104,6 +104,8 @@ def collect_main_pages():
         ("/projects/genie/", "projects/genie/index.html", "monthly", "0.7"),
         ("/projects/bodh/", "projects/bodh/index.html", "monthly", "0.7"),
         ("/projects/harbourbridge/", "projects/harbourbridge/index.html", "monthly", "0.7"),
+        ("/contact/", "contact/index.html", "monthly", "0.5"),
+        ("/privacy/", "privacy/index.html", "monthly", "0.3"),
     ]
     urls = []
     for path, file_rel, changefreq, priority in pages:

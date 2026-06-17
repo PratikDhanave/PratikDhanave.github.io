@@ -1540,7 +1540,7 @@ NAV_HTML = """<nav>
 
 
 SITE_FOOTER = """<footer class="site-footer">
-  <p>© {year} Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/thank-you/">Acknowledgments</a></p>
+  <p>© {year} Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/thank-you/">Acknowledgments</a></p>
 </footer>""".format(year=datetime.now().year)
 
 
