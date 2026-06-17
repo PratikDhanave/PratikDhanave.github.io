@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Building a HIPAA-Aware Medical AI Platform in Go: An Architecture & Compliance Deep Dive</title>
-<meta name="description" content="What HIPAA looks like when you express it as Go interfaces — governance policies, append-only audit at DB GRANTs, PHI redaction at the logger seam, and HITL as the §3060 CDS carve-out criterion 4.">
+<meta name="description" content="What HIPAA looks like when you express it as Go interfaces — governance policies, append-only audit at DB GRANTs, PHI redaction at the logger seam, and...">
 <meta name="author" content="Pratik Dhanave">
 
 <meta property="og:title" content="Building a HIPAA-Aware Medical AI Platform in Go: An Architecture & Compliance Deep Dive">
-<meta property="og:description" content="What HIPAA looks like when you express it as Go interfaces — governance policies, append-only audit at DB GRANTs, PHI redaction at the logger seam, and HITL as the §3060 CDS carve-out criterion 4.">
+<meta property="og:description" content="What HIPAA looks like when you express it as Go interfaces — governance policies, append-only audit at DB GRANTs, PHI redaction at the logger seam, and...">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://pratikdhanave.com/blog/posts/hipaa-as-go-interfaces.html">
 <meta property="article:published_time" content="2026-05-19">
@@ -454,7 +454,7 @@ type Environment interface {
 </ol>
 <h2 id="sequential-diagnosis-as-a-state-machine-not-a-prompt">Sequential diagnosis as a state machine, not a prompt</h2>
 <p>The diagnostic panel is eight agents:</p>
-<table>
+<table aria-label="Sequential diagnosis as a state machine, not a prompt">
 <thead>
 <tr>
 <th>Agent</th>
@@ -506,7 +506,7 @@ type Environment interface {
 </tbody>
 </table>
 <p>A full case for <code>demo-case-001</code> (58M, cough/fever, gold = CAP) produces this trace:</p>
-<table>
+<table aria-label="Diagnostic case trace for demo-case-001">
 <thead>
 <tr>
 <th>Step</th>
@@ -620,7 +620,7 @@ type Environment interface {
 <p>Under Section 3060 of the Cures Act (21 USC §360j(o)), Clinical Decision Support software can avoid Software-as-a-Medical-Device classification if it meets four criteria. The hardest one — and the one most consequential for AI — is criterion four: the software must <strong>enable the clinician to independently review the basis for the recommendations.</strong></p>
 <p>Bodh&rsquo;s <code>human_review</code> agent is that criterion expressed in code.</p>
 <p>When <code>HITL=true</code> on an upstream agent, that agent doesn&rsquo;t address its output directly to the next stage. It wraps it in a review envelope and addresses it to <code>human_review</code>:</p>
-<table>
+<table aria-label="Human-in-the-loop: the 21st Century Cures Act §3060, as code">
 <thead>
 <tr>
 <th>Envelope key</th>
@@ -656,7 +656,7 @@ type Environment interface {
 </table>
 <p>The gate records a <code>ReviewRequest</code>, emits nothing, and waits. A clinician decides via <code>POST /reviews/{id}/decide</code> with <code>approve | approve_with_modifications | reject</code> plus an optional rationale. On approve, the original payload is republished to its intended recipient. On reject, it&rsquo;s logged and dropped — <strong>lossless on reject</strong>. No half-completed clinical action can leak past the gate.</p>
 <p>Seven agents are gated when HITL is on:</p>
-<table>
+<table aria-label="HITL-gated agents and their review kinds">
 <thead>
 <tr>
 <th>Agent</th>
@@ -714,7 +714,7 @@ type LLMDiagnostician struct {
 }
 </code></pre>
 <p>This isn&rsquo;t a workaround. It&rsquo;s the contract. Failure modes degrade — they don&rsquo;t break. Provider matrix:</p>
-<table>
+<table aria-label="The fallback contract for LLM agents">
 <thead>
 <tr>
 <th>Provider</th>
@@ -776,7 +776,7 @@ type LLMDiagnostician struct {
 </ol>
 <p>Three of those (#3, #4, #6) are enforceable at the platform layer. The rest are architectural constraints the code is designed to support.</p>
 <h2 id="164312-technical-safeguards-code-level-crosswalk">§164.312 Technical Safeguards — code-level crosswalk</h2>
-<table>
+<table aria-label="§164.312 Technical Safeguards — code-level crosswalk">
 <thead>
 <tr>
 <th>Standard</th>
@@ -853,7 +853,7 @@ func (RequireCaseIDPolicy) Evaluate(_ context.Context, msg protocol.Message) (Po
 </code></pre>
 <p><code>CompositePolicy</code> denies if <strong>any</strong> child denies (fail fast). Adding multi-tenancy, SMART scopes, rate limiting, or 42 CFR Part 2 SUD segmentation is &ldquo;implement a <code>Policy</code>, add it to the composer.&rdquo; The orchestrator doesn&rsquo;t change. The agents don&rsquo;t change.</p>
 <p>The planned set:</p>
-<table>
+<table aria-label="Planned governance policies and their purposes">
 <thead>
 <tr>
 <th>Policy</th>
@@ -940,7 +940,7 @@ logger := &amp;phi.LoggerWrapper{
 <p>Today&rsquo;s implementation is a thread-safe in-memory recorder plus a file-backed <code>FileStore</code> that appends one JSON line per event. Production swaps this for a WORM sink: S3 Object Lock, Azure Immutable Blob, or Loki + retention lock. Add Merkle chain-hashing for tamper evidence and you have what HIPAA §164.312(b) and 21 CFR Part 11 both expect.</p>
 <h2 id="hipaa-privacy-rule-the-operator-side-and-the-baa-chain">HIPAA Privacy Rule — the operator side and the BAA chain</h2>
 <p>If a covered entity deploys Bodh, the operator becomes a <strong>business associate</strong> under 45 CFR §164.504(e). The operator must sign BAAs with both the covered entity and every PHI-touching subcontractor:</p>
-<table>
+<table aria-label="HIPAA Privacy Rule — the operator side and the BAA chain">
 <thead>
 <tr>
 <th>Subcontractor type</th>
@@ -968,7 +968,7 @@ logger := &amp;phi.LoggerWrapper{
 </table>
 <p>The minimum-necessary principle propagates down this chain. If your engagement notifier sends &ldquo;Reminder: lab on 2026-05-30 at 9:00 AM&rdquo; via Twilio, that string transits a third party — and it had better be under a BAA with no analytics retention.</p>
 <h2 id="hipaa-breach-notification-the-safe-harbor-exclusion-is-why-encryption-isnt-optional">HIPAA Breach Notification — the Safe Harbor exclusion is why encryption isn&rsquo;t optional</h2>
-<table>
+<table aria-label="HIPAA Breach Notification — the Safe Harbor exclusion is why encryption isn’t optional">
 <thead>
 <tr>
 <th>Audience</th>
@@ -1020,7 +1020,7 @@ logger := &amp;phi.LoggerWrapper{
 <p>In Bodh, the rule is: de-identification runs <strong>before</strong> records leave the regulated boundary. Not after, not during export, not &ldquo;in the warehouse&rdquo; — at the boundary.</p>
 <hr>
 <h2 id="what-ships-today-vs-whats-planned">What ships today vs. what&rsquo;s planned</h2>
-<table>
+<table aria-label="What ships today vs. what’s planned">
 <thead>
 <tr>
 <th>Status</th>
