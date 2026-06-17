@@ -201,20 +201,45 @@ def collect_tag_pages(min_posts=3):
     return urls
 
 
+def collect_archive_pagination():
+    """Collect archive pagination pages (page/2, page/3, etc.)."""
+    archive_page_dir = SITE_ROOT / "blog" / "archive" / "page"
+    urls = []
+    if not archive_page_dir.exists():
+        return urls
+
+    for page_dir in sorted(archive_page_dir.iterdir()):
+        if not page_dir.is_dir():
+            continue
+        index_html = page_dir / "index.html"
+        if not index_html.exists():
+            continue
+        page_num = page_dir.name
+        url = f"{SITE_URL}/blog/archive/page/{page_num}/"
+        lastmod = git_last_modified(index_html)
+        urls.append((url, lastmod, "weekly", "0.7"))
+
+    return urls
+
+
 def main():
     print("Building sitemaps...")
 
     # Collect URLs
     pages = collect_main_pages()
+    archive_pages = collect_archive_pagination()
     blog_posts = collect_blog_posts()
     articles = collect_articles()
     tags = collect_tag_pages(min_posts=3)
 
+    # Include archive pagination pages alongside main pages
+    all_pages = pages + archive_pages
+
     # Write individual sitemaps
     sitemaps = []
 
-    if pages:
-        make_sitemap(pages, "sitemap-pages.xml")
+    if all_pages:
+        make_sitemap(all_pages, "sitemap-pages.xml")
         sitemaps.append(f"{SITE_URL}/sitemap-pages.xml")
 
     if blog_posts:
@@ -233,7 +258,7 @@ def main():
     if sitemaps:
         make_sitemap_index(sitemaps)
 
-    print(f"\nTotal: {len(pages)} pages + {len(blog_posts)} blog posts + {len(articles)} articles + {len(tags)} tag pages")
+    print(f"\nTotal: {len(all_pages)} pages ({len(pages)} static + {len(archive_pages)} archive pagination) + {len(blog_posts)} blog posts + {len(articles)} articles + {len(tags)} tag pages")
 
 
 if __name__ == "__main__":

@@ -1854,15 +1854,14 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
   </div>
 </section>"""
 
-    # --- Tag cloud (top 30 tags with 3+ posts, sorted by count) ---
+    # --- Tag cloud (all tags with 3+ posts, sorted by count) ---
     tag_cloud_html = ""
     if tag_counts:
         qualified = [(t, c) for t, c in tag_counts.items() if c >= 3]
         qualified.sort(key=lambda x: (-x[1], x[0]))
-        qualified = qualified[:30]  # Limit to top 30 to keep internal links under 100
         if qualified:
             tag_items = "".join(
-                f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">{t} <span class="tag-count">({c})</span></span></a>'
+                f'<a href="/blog/tags/{tag_to_slug(t)}/" aria-label="{t} posts"><span class="tag-cloud-item">{t} <span class="tag-count">({c})</span></span></a>'
                 for t, c in qualified
             )
             tag_cloud_html = f"""
@@ -2179,17 +2178,17 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
       <div class="post-tags">{tags_html}</div>
     </article>""")
 
-    # Limit tag cloud to top 30 tags by post count to keep internal links under 100
+    # Show all tags with 3+ posts in the tag cloud, plus the current tag
     if tag_counts:
-        top_tags = sorted(tag_counts.keys(), key=lambda t: (-tag_counts[t], t))[:30]
+        top_tags = sorted([t for t in tag_counts.keys() if tag_counts[t] >= 3], key=lambda t: t)
         top_tags_set = set(top_tags)
-        # Always include the current tag even if it's not in the top 30
+        # Always include the current tag even if it has <3 posts
         if tag not in top_tags_set:
             top_tags_set.add(tag)
         cloud_tags = sorted(top_tags_set)
     else:
         cloud_tags = sorted(all_tags)
-    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">{t}</span></a>' for t in cloud_tags)
+    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" aria-label="{t} posts"><span class="tag-cloud-item">{t}</span></a>' for t in cloud_tags)
 
     tag_page_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS
 
@@ -2406,8 +2405,8 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
 
     pagination_html = f'<nav class="pagination" aria-label="Pagination">{" ".join(pages)}</nav>'
 
-    # SEO: noindex page 2+ to avoid duplicate content
-    robots = '<meta name="robots" content="noindex, follow">' if page_num > 1 else '<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">'
+    # SEO: all archive pagination pages are indexable (each has unique content)
+    robots = '<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">'
 
     # Canonical and prev/next links for SEO
     canonical = f"{SITE_URL}{_archive_page_url(page_num)}"
@@ -2425,19 +2424,19 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Archive{f' — Page {page_num}' if page_num > 1 else ''} — Pratik Dhanave</title>
-<meta name="description" content="All blog posts by Pratik Dhanave. Page {page_num} of {total_pages} ({total_posts} posts).">
+<meta name="description" content="Browse all {total_posts} blog posts by Pratik Dhanave — covering cloud architecture, AI agents, fintech compliance, distributed systems, and open source. Page {page_num} of {total_pages}.">
 <meta name="author" content="Pratik Dhanave">
 {robots}
 {link_tags}
 
 <meta property="og:title" content="Archive{f' — Page {page_num}' if page_num > 1 else ''} — Pratik Dhanave">
-<meta property="og:description" content="All blog posts by Pratik Dhanave. Page {page_num} of {total_pages} ({total_posts} posts).">
+<meta property="og:description" content="Browse all {total_posts} blog posts by Pratik Dhanave — covering cloud architecture, AI agents, fintech compliance, distributed systems, and open source. Page {page_num} of {total_pages}.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="{canonical}">
 <meta property="og:image" content="{SITE_URL}/{OG_IMAGE}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Archive{f' — Page {page_num}' if page_num > 1 else ''} — Pratik Dhanave">
-<meta name="twitter:description" content="All blog posts by Pratik Dhanave. Page {page_num} of {total_pages} ({total_posts} posts).">
+<meta name="twitter:description" content="Browse all {total_posts} blog posts by Pratik Dhanave — covering cloud architecture, AI agents, fintech compliance, distributed systems, and open source. Page {page_num} of {total_pages}.">
 <meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">
 
 <link rel="canonical" href="{canonical}">
