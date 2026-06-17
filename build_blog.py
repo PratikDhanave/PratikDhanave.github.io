@@ -966,7 +966,7 @@ PROJECT_META = {}
 # Tag descriptions — used on tag pages to add introductory context and avoid thin content.
 # Each description should be 2-4 sentences (~50-80 words) providing genuine topic context.
 TAG_DESCRIPTIONS = {
-    "A2A": "Google's Agent-to-Agent (A2A) protocol enables autonomous agents to discover, authenticate, and collaborate with each other across organizational boundaries. These articles explore A2A implementation patterns, broker-based coordination, and how A2A complements MCP for inter-agent communication in production multi-agent systems.",
+    "A2A": "Google's Agent-to-Agent (A2A) protocol enables autonomous agents to discover, authenticate, and collaborate with each other across organizational boundaries. These articles explore A2A implementation patterns, broker-based coordination, and how A2A complements MCP for inter-agent communication in production multi-agent systems. Topics include agent card discovery, task lifecycle management, and secure cross-platform agent orchestration.",
     "Agents": "AI agents are autonomous software components that perceive their environment, reason about goals, and take actions without continuous human direction. These posts cover agent design patterns, orchestration strategies, latency budgets, and the operational challenges of running agentic systems at production scale.",
     "Cost Optimisation": "Cloud cost optimisation is the practice of reducing infrastructure spend without sacrificing reliability or performance. Articles here cover FinOps strategies for BigQuery, multi-cloud egress reduction, reservation planning, and query-level cost attribution that have delivered measurable savings in production environments.",
     "Distributed Systems": "Distributed systems spread computation across multiple machines to achieve fault tolerance, scalability, and geographic reach. These posts examine saga orchestration, idempotency guarantees, consensus patterns, and the Go concurrency primitives that make distributed architectures tractable in practice.",
@@ -993,14 +993,14 @@ TAG_DESCRIPTIONS = {
     "FinTech": "FinTech engineering combines financial domain knowledge with distributed systems reliability. Posts here cover KYC orchestration with Aadhaar, RBI regulatory compliance, lending platform architecture, payment settlement with NPCI, and the security and audit requirements unique to financial technology.",
     "Spanner": "Cloud Spanner is Google's globally distributed relational database, used here for schemas that need strong consistency at scale. Articles cover Spanner schema design, interleaved tables, migration tooling in Go, and the performance patterns specific to Spanner's TrueTime-based architecture.",
     "KYC": "Know Your Customer (KYC) verification is a regulatory requirement for financial services. These posts cover agent-driven KYC orchestration, Aadhaar-based identity verification, video KYC workflows under RBI guidelines, and the engineering patterns that make KYC processes both compliant and efficient.",
-    "RBI": "The Reserve Bank of India (RBI) sets regulatory standards for digital payments, KYC verification, and data governance in Indian financial services. These articles cover RBI compliance implementation, digital lending guidelines, and how FREE-AI maps to RBI's regulatory expectations.",
+    "RBI": "The Reserve Bank of India (RBI) sets regulatory standards for digital payments, KYC verification, and data governance in Indian financial services. These articles cover RBI compliance implementation, digital lending guidelines, video KYC requirements, and how FREE-AI maps to RBI's regulatory expectations for responsible AI deployment in banking and FinTech.",
     "ADK": "Google's Agent Development Kit (ADK) was an early framework for building AI agents. These posts document the ADK-to-MAF migration journey, comparing orchestration models, state management approaches, tool governance, and the architectural lessons learned from running both frameworks in production.",
     "Genie": "Genie is a multi-agent financial advisory platform built on Microsoft MAF with 15 specialized agents. Articles tagged with Genie cover its architecture, OpenTelemetry evaluation pipelines, AGT governance integration, and the retrospective lessons from building a production multi-agent system.",
     "Testing": "Testing distributed and AI-powered systems requires strategies beyond unit tests. These posts cover chaos engineering for multi-agent resilience, Prometheus-based SLO validation, benchmark-driven development, and the testing patterns that catch failures before they reach production.",
     "Opinion": "Opinion pieces present perspectives on engineering culture, architectural philosophy, and career development. These articles offer positions on mono-repo vs. poly-repo, the value of technical writing, audit as architecture, and the engineering practices that compound over a career.",
     "Regulation": "Regulatory requirements shape the technical architecture of healthcare and financial systems. These posts cover the 21st Century Cures Act CDS carve-out, HIPAA technical safeguards, and the approach of encoding regulatory obligations directly as code-level constraints.",
     "Clinical Decision Support": "Clinical Decision Support (CDS) systems assist healthcare providers with diagnostic reasoning while maintaining regulatory compliance. These articles explore the Cures Act section 3060 criteria, human-in-the-loop requirements, and how to build CDS systems that satisfy both clinical and legal standards.",
-    "SRE": "Site Reliability Engineering (SRE) applies software engineering principles to operations. Posts here cover LLM reliability patterns with error budgets, production observability, chaos engineering for multi-agent systems, and the SRE practices that keep distributed systems running at their service-level objectives.",
+    "SRE": "Site Reliability Engineering (SRE) applies software engineering principles to operations, ensuring services meet their reliability targets through automation and disciplined incident response. Posts here cover LLM reliability patterns with error budgets, production observability, chaos engineering for multi-agent systems, and the SRE practices that keep distributed systems running at their service-level objectives.",
     "Terraform": "Terraform enables infrastructure-as-code for repeatable, auditable cloud deployments. These articles cover SOC 2 compliance automation, banking-grade infrastructure provisioning on AWS, and the Terraform patterns that turn compliance requirements into version-controlled, peer-reviewed infrastructure definitions.",
     "LLM": "Large Language Models (LLMs) power the reasoning layer in these multi-agent systems. Posts cover LLM reliability engineering, token budget management, provider abstraction patterns, and the operational challenges of running LLM-backed services in production with predictable cost and latency.",
     "Production": "Production engineering focuses on the practices that keep systems reliable after deployment. These articles cover error budgets, fallback contracts, deployment strategies, and the operational discipline required to run multi-agent AI and distributed systems at production quality.",
@@ -1741,14 +1741,14 @@ NAV_HTML = """<nav>
       <li><a href="/gallery/">Gallery</a></li>
       <li><a href="/featured/">Featured</a></li>
       <li><a href="/blog/" class="active">Blog</a></li>
-      <li><a href="/#contact">Contact</a></li>
+      <li><a href="/contact/">Contact</a></li>
     </ul>
   </div>
 </nav>"""
 
 
 SITE_FOOTER = """<footer class="site-footer">
-  <p>© {year} Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/thank-you/">Acknowledgments</a></p>
+  <p>© {year} Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/thank-you/">Acknowledgments</a></p>
 </footer>""".format(year=datetime.now().year)
 
 
@@ -2395,18 +2395,25 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 
     tag_page_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS
 
+    # Truncate tag description for meta tags (max 155 chars with suffix)
+    meta_tag_desc = tag_desc
+    suffix = " By Pratik Dhanave."
+    max_desc_len = 155 - len(suffix)
+    if len(meta_tag_desc) > max_desc_len:
+        meta_tag_desc = meta_tag_desc[:max_desc_len - 3].rsplit(' ', 1)[0] + '...'
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{_html_escape(tag)} — Blog — Pratik Dhanave</title>
-<meta name="description" content="{_html_escape(tag_desc)} By Pratik Dhanave.">
+<meta name="description" content="{_html_escape(meta_tag_desc)}{suffix}">
 <meta name="author" content="Pratik Dhanave">
 {robots_meta}
 
 <meta property="og:title" content="Pratik Dhanave — {_html_escape(tag)}">
-<meta property="og:description" content="{_html_escape(tag_desc)}">
+<meta property="og:description" content="{_html_escape(meta_tag_desc)}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="{SITE_URL}/blog/tags/{tag_to_slug(tag)}/">
 <meta property="og:site_name" content="Pratik Dhanave">
@@ -2847,6 +2854,46 @@ def main():
             legacy_updated += 1
     if legacy_updated:
         print(f"  minified CSS in {legacy_updated} legacy post(s)")
+
+    # Fourth pass: truncate <title> tags in legacy HTML-only posts (max 60 chars)
+    title_fixed = 0
+    for post in rendered:
+        meta = post["meta"]
+        if meta["slug"] in posts_data:
+            continue  # Source-based post, already rendered with truncated title
+        html_path = POSTS_DIR / f"{meta['slug']}.html"
+        if not html_path.exists():
+            continue
+        raw = html_path.read_text(errors="ignore")
+        m = re.search(r"<title>(.*?)</title>", raw)
+        if not m:
+            continue
+        from html import unescape as _html_unescape_title
+        current_title = _html_unescape_title(m.group(1))
+        if len(current_title) <= 60:
+            continue
+        # Truncate: try dropping " — Pratik Dhanave" suffix first
+        suffix = " — Pratik Dhanave"
+        base = current_title
+        if base.endswith(suffix):
+            base = base[:-len(suffix)]
+        if len(base) <= 60:
+            new_title = _html_escape(base, quote=True)
+        else:
+            truncated = base[:57].rsplit(' ', 1)[0] + '...'
+            new_title = _html_escape(truncated, quote=True)
+        updated = raw.replace(m.group(0), f"<title>{new_title}</title>")
+        # Also update og:title and twitter:title
+        for meta_attr in ['og:title', 'twitter:title']:
+            old_meta = re.search(rf'<meta\s+(?:property|name)="{meta_attr}"\s+content="([^"]*)"', updated)
+            if old_meta and len(_html_unescape_title(old_meta.group(1))) > 60:
+                updated = updated.replace(old_meta.group(0),
+                    old_meta.group(0).replace(f'content="{old_meta.group(1)}"', f'content="{new_title}"'))
+        if updated != raw:
+            html_path.write_text(updated)
+            title_fixed += 1
+    if title_fixed:
+        print(f"  truncated titles in {title_fixed} legacy post(s)")
 
     # Compute tag counts for tag cloud
     tag_counts = {}
