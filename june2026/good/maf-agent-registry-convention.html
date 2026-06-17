@@ -320,7 +320,7 @@ footer.site-footer a { color: var(--text-muted); }
 <p>The reference architecture's Chapter 4 is <em>Agent Registry</em>. The opening line says it's the "source of truth describing every specialized agent: identity, capabilities, version, lifecycle state." That sounds important. So I went looking for it in the Microsoft Agent Framework and didn't find one.</p>
 <p>This is on purpose. The closest thing MAF has is Azure AI Foundry's hosted agent catalog (<code>AIProjectClient.agents.list()</code>), but it only sees agents managed by Foundry. If you're running Ollama locally, or you mix Foundry-hosted with OpenAI-direct, or you want one canonical map of every agent your platform exposes regardless of provider, you build it.</p>
 <h2 id="the-shape-that-works">The shape that works</h2>
-<p>The whole thing is four files in <a href="https://github.com/PratikDhanave/microsofagenframework/tree/main/src/multi_agent/registry"><code>src/multi_agent/registry/</code></a>:</p>
+<p>The whole thing is four files in <code>src/multi_agent/registry/</code>:</p>
 <pre><code>registry/
 ├── __init__.py
 ├── models.py          # AgentDescriptor, CapabilityManifest, LifecycleState
@@ -359,7 +359,7 @@ class AgentDescriptor:
     Registry--&gt;&gt;Decorator: stored
     Note over Registry: lifecycle = &quot;draft&quot; by default
 </code></pre>
-<p>The factory carries the metadata; importing the module registers the agent. Zero boot-time configuration. The <code>@register(...)</code> decorator in <a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/src/multi_agent/registry/self_register.py"><code>registry/self_register.py</code></a> is what does it:</p>
+<p>The factory carries the metadata; importing the module registers the agent. Zero boot-time configuration. The <code>@register(...)</code> decorator in <code>registry/self_register.py</code> is what does it:</p>
 <pre><code class="language-python">@register(
     id=&quot;researcher&quot;,
     name=&quot;Researcher&quot;,
@@ -413,7 +413,7 @@ writer         v0.1.0  [production] caps=write
 </code></pre>
 <p>When the orchestrator gets "I need a researched summary of CAP theorem", it can ask the registry for capability <code>"research"</code>, get back <code>[Researcher]</code>, and stop there. Or it can broaden the query to a tag and get the full set. The query API is small on purpose; the value is in <em>what's stored</em>, not in clever queries.</p>
 <h2 id="lifecycle-as-the-promotion-gate">Lifecycle as the promotion gate</h2>
-<p><code>AgentRegistry.promote(agent_id, state)</code> is the <em>only</em> way an agent transitions between lifecycle states. That's the whole point of having the registry hold the lifecycle field — it becomes the gate. The state machine in <a href="https://github.com/PratikDhanave/microsofagenframework/blob/main/src/multi_agent/governance/lifecycle.py"><code>governance/lifecycle.py</code></a> refuses illegal transitions:</p>
+<p><code>AgentRegistry.promote(agent_id, state)</code> is the <em>only</em> way an agent transitions between lifecycle states. That's the whole point of having the registry hold the lifecycle field — it becomes the gate. The state machine in <code>governance/lifecycle.py</code> refuses illegal transitions:</p>
 <pre><code class="language-python">_ALLOWED: dict[AgentLifecycle, set[AgentLifecycle]] = {
     AgentLifecycle.DRAFT:      {AgentLifecycle.STAGING, AgentLifecycle.RETIRED},
     AgentLifecycle.STAGING:    {AgentLifecycle.PRODUCTION, AgentLifecycle.DRAFT, AgentLifecycle.RETIRED},
@@ -433,7 +433,7 @@ def transition(current: AgentLifecycle, target: AgentLifecycle) -&gt; AgentLifec
 <p>The architectural value of the registry is the <em>layer above</em> MAF's <code>Agent</code>: capability declarations, lifecycle, and a uniform discovery surface. Those are what the reference architecture asks for, and those are what MAF deliberately leaves to the application.</p>
 <h2 id="falling-back-to-foundry">Falling back to Foundry</h2>
 <p>If you eventually go all-in on Foundry hosted agents, you can throw away the registry. <code>AIProjectClient.agents.list()</code> returns the catalog, and Foundry's own UI tracks lifecycle. The migration is a one-import swap because the registry was a <em>project-local convention</em> the whole time. It looked like a primitive; it never was.</p>
-<p>The whole <a href="https://github.com/PratikDhanave/microsofagenframework/tree/main/src/multi_agent/registry"><code>registry/</code></a> directory is 200-something lines of Python. The investment is in <em>thinking</em> about what an agent registry is for. The code falls out.</p>
+<p>The whole <code>registry/</code> directory is 200-something lines of Python. The investment is in <em>thinking</em> about what an agent registry is for. The code falls out.</p>
 
   <div class="post-footer">
     <div class="footer-row">
