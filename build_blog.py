@@ -1861,7 +1861,7 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
         qualified.sort(key=lambda x: (-x[1], x[0]))
         if qualified:
             tag_items = "".join(
-                f'<a href="/blog/tags/{tag_to_slug(t)}/" aria-label="{t} posts"><span class="tag-cloud-item">{t} <span class="tag-count">({c})</span></span></a>'
+                f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">{t} <span class="tag-count">({c})</span></span></a>'
                 for t, c in qualified
             )
             tag_cloud_html = f"""
