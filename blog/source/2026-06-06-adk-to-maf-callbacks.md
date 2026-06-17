@@ -237,4 +237,4 @@ Result:
 
 ---
 
-Next: [Deployment and A2A](/blog/2026/06/07/adk-to-maf-deployment.html)
+Next: [Deployment and A2A](/blog/posts/adk-to-maf-deployment.html)

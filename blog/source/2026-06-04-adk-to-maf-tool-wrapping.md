@@ -235,4 +235,4 @@ Advisors can set any alert. Clients can only set critical/weekly. OPA enforces i
 
 ---
 
-Next: [Provider Abstraction and .env Configuration](/blog/2026/06/05/adk-to-maf-provider-config.html)
+Next: [Provider Abstraction and .env Configuration](/blog/posts/adk-to-maf-provider-config.html)

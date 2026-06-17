@@ -146,4 +146,4 @@ That's what 18 agents taught us.
 
 ---
 
-Next: [Token Exchange Patterns](/blog/2026/06/03/adk-to-maf-token-exchange.html)
+Next: [Token Exchange Patterns](/blog/posts/adk-to-maf-token-exchange.html)
