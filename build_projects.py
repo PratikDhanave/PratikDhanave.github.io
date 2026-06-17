@@ -37,7 +37,9 @@ PROJECT_META = {
         "featured": True,
         "summary": "Go-based multi-agent financial assistant with 15 role-specialized agents, JWT + RBAC, AES-256-GCM encryption, and full OpenTelemetry tracing.",
         "description_html": """<p>Genie is a comprehensive multi-agent financial advisory platform built on Microsoft's Agent Framework (MAF). The system orchestrates 15 role-specialized agents (supervisor, analyzer, forecaster, anomaly_detector, recommender, llm_auditor, and more) to deliver financial insights, risk analysis, and recommendations.</p>
-<p>The platform implements enterprise-grade security (JWT + RBAC), transparent encryption (AES-256-GCM envelope), and production observability (full OpenTelemetry tracing). It serves as a reference implementation for multi-agent coordination patterns and agent specialization.</p>""",
+<p>The platform implements enterprise-grade security (JWT + RBAC), transparent encryption (AES-256-GCM envelope), and production observability (full OpenTelemetry tracing). It serves as a reference implementation for multi-agent coordination patterns and agent specialization.</p>
+<p>Genie's security layer begins with JWT-based authentication paired with role-based access control that restricts each agent's data visibility to the minimum required for its function. All sensitive financial records are protected with AES-256-GCM envelope encryption, where data encryption keys are themselves wrapped by a master key, ensuring that a compromise of any single component does not expose raw customer data.</p>
+<p>Every agent action, tool invocation, and inter-agent message is recorded in hash-chained audit logs. Each log entry includes a cryptographic hash of the previous entry, producing a tamper-evident chain that auditors can independently verify. OpenTelemetry tracing is wired end-to-end across all fifteen agents, providing distributed trace spans for latency analysis, error attribution, and throughput monitoring in production.</p>""",
         "language": "Go",
         "role": "Author / maintainer",
         "year": "2025–2026",
@@ -88,7 +90,9 @@ PROJECT_META = {
         "featured": False,
         "summary": "Virtual physician panel on MAF, inspired by Microsoft's MAI-DxO. FHIR R4 + HL7 v2 aware with role-specialized diagnostic agents.",
         "description_html": """<p>Bodh is an open-source medical AI platform that orchestrates a virtual physician panel on Microsoft's MAF. The system is inspired by Microsoft's <a href="https://microsoft.ai/news/the-path-to-medical-superintelligence/">MAI-DxO</a> and SD-Bench, implementing role-specialized agents for intake, questioning, test planning, diagnostician analysis, and reasoning verification.</p>
-<p>The platform is fully aware of healthcare standards (FHIR R4 for structured medical data, HL7 v2 for clinical messaging) and implements cost-aware diagnostic budget enforcement to optimize care delivery while managing expenses.</p>""",
+<p>The platform is fully aware of healthcare standards (FHIR R4 for structured medical data, HL7 v2 for clinical messaging) and implements cost-aware diagnostic budget enforcement to optimize care delivery while managing expenses.</p>
+<p>Bodh follows a multi-agent sequential diagnosis workflow. Each patient case progresses through a structured pipeline: the intake agent collects and normalizes patient data, the questioning agent gathers clinical history through targeted follow-ups, the test planner recommends appropriate diagnostics, the diagnostician agents analyze results in parallel, and the reasoning verifier validates the final assessment for logical consistency.</p>
+<p>All patient data handling is designed with HIPAA-compliant safeguards. Protected health information is encrypted at rest and in transit, access is scoped per agent role, and audit logs capture every data access event for compliance review. The platform enforces clinical decision support with human-in-the-loop oversight, ensuring that AI-generated insights serve as decision aids rather than autonomous actions.</p>""",
         "language": "Go",
         "role": "Author / maintainer",
         "year": "2025–2026",
@@ -891,7 +895,7 @@ def render_project_gallery_html(all_projects):
 
 <section style="margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--border);">
   <h2>Partnership & Collaborations</h2>
-  <p>Open to collaboration on multi-agent systems, cloud architecture, and production AI challenges. <a href="/#contact">Get in touch →</a></p>
+  <p>Open to collaboration on multi-agent systems, cloud architecture, and production AI challenges. <a href="/contact/">Get in touch →</a></p>
 </section>"""
 
     gallery_schema = f"""
@@ -994,7 +998,7 @@ def render_project_detail_html(project_slug, tag_index):
   {f'<div class="metric-row">{metrics_html}</div>' if metrics_html else ''}
   <div class="action-buttons">
     {links_html}
-    <a href="/#contact" class="btn btn-secondary">Contact about collaboration</a>
+    <a href="/contact/" class="btn btn-secondary">Contact about collaboration</a>
   </div>
 </section>
 
