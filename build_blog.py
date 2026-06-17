@@ -1552,11 +1552,24 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     description = meta["excerpt"]
     canonical = f"{SITE_URL}/blog/posts/{meta['slug']}.html"
 
+    # Auto-truncate description for meta tags (max 155 chars, break at word boundary)
+    meta_desc = description
+    if len(meta_desc) > 155:
+        meta_desc = meta_desc[:152].rsplit(' ', 1)[0] + '...'
+
     # Escape for safe embedding in HTML attributes and JSON-LD
     title_html = _html_escape(title, quote=True)
-    desc_html = _html_escape(description, quote=True)
+    desc_html = _html_escape(meta_desc, quote=True)
+    full_desc_html = _html_escape(description, quote=True)
     title_json = _json.dumps(title)[1:-1]   # strip outer quotes
     desc_json = _json.dumps(description)[1:-1]
+
+    # Smart title: only append site name if total stays under 60 chars
+    title_suffix = " — Pratik Dhanave"
+    if len(title) + len(title_suffix) <= 60:
+        page_title = f"{title_html}{_html_escape(title_suffix, quote=True)}"
+    else:
+        page_title = title_html
 
     # Calculate read time
     read_time = calculate_read_time(body_html)
@@ -1642,13 +1655,13 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{title_html} — Pratik Dhanave</title>
+<title>{page_title}</title>
 <meta name="description" content="{desc_html}">
 <meta name="author" content="Pratik Dhanave">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 
 <meta property="og:title" content="{title_html}">
-<meta property="og:description" content="{desc_html}">
+<meta property="og:description" content="{full_desc_html}">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{canonical}">
 <meta property="og:site_name" content="Pratik Dhanave">
@@ -1658,7 +1671,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 {''.join(f'<meta property="article:tag" content="{_html_escape(t, quote=True)}">' + chr(10) for t in meta['tags'])}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{title_html}">
-<meta name="twitter:description" content="{desc_html}">
+<meta name="twitter:description" content="{full_desc_html}">
 <meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">
 
 <link rel="canonical" href="{canonical}">
@@ -1715,6 +1728,8 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     <h1>{title}</h1>
     <p class="post-subtitle">{subtitle}</p>
     <div class="post-meta">
+      <span class="post-author">By <strong>Pratik Dhanave</strong></span>
+      <span>·</span>
       <time datetime="{date_iso}">{date_human}</time>
       <span>·</span>
       <span>{meta['audience']}</span>
@@ -1762,6 +1777,8 @@ def _render_post_card(p, link_prefix="/blog/posts/"):
     read_time_html = f'<span>·</span><span>{read_time} min read</span>' if read_time > 0 else ''
     return f"""    <article class="post-card">
       <div class="post-card-meta">
+        <span>Pratik Dhanave</span>
+        <span>·</span>
         <time datetime="{date_iso}">{date_human}</time>
         <span>·</span>
         <span>{p["meta"]["audience"]}</span>
@@ -1819,11 +1836,12 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
   </div>
 </section>"""
 
-    # --- Tag cloud (tags with 3+ posts, sorted by count) ---
+    # --- Tag cloud (top 30 tags with 3+ posts, sorted by count) ---
     tag_cloud_html = ""
     if tag_counts:
         qualified = [(t, c) for t, c in tag_counts.items() if c >= 3]
         qualified.sort(key=lambda x: (-x[1], x[0]))
+        qualified = qualified[:30]  # Limit to top 30 to keep internal links under 100
         if qualified:
             tag_items = "".join(
                 f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">{t} <span class="tag-count">({c})</span></span></a>'
@@ -2073,7 +2091,7 @@ def to_html(md_body):
 # Tag & Archive Generation
 # ---------------------------------------------------------------------------
 
-def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
+def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=None):
     """Generate a page for a single tag listing all posts with that tag."""
     if post_count is None:
         post_count = len(posts_with_tag)
@@ -2130,6 +2148,8 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
         read_time_html = f'<span>·</span><span>{read_time} min read</span>' if read_time > 0 else ''
         posts_html.append(f"""    <article class="post-card">
       <div class="post-card-meta">
+        <span>Pratik Dhanave</span>
+        <span>·</span>
         <time datetime="{date_iso}">{date_human}</time>
         <span>·</span>
         <span>{p["meta"]["audience"]}</span>
@@ -2141,7 +2161,17 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None):
       <div class="post-tags">{tags_html}</div>
     </article>""")
 
-    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">{t}</span></a>' for t in sorted(all_tags))
+    # Limit tag cloud to top 30 tags by post count to keep internal links under 100
+    if tag_counts:
+        top_tags = sorted(tag_counts.keys(), key=lambda t: (-tag_counts[t], t))[:30]
+        top_tags_set = set(top_tags)
+        # Always include the current tag even if it's not in the top 30
+        if tag not in top_tags_set:
+            top_tags_set.add(tag)
+        cloud_tags = sorted(top_tags_set)
+    else:
+        cloud_tags = sorted(all_tags)
+    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">{t}</span></a>' for t in cloud_tags)
 
     tag_page_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS
 
@@ -2235,6 +2265,8 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
 
             posts_html.append(f"""    <article class="post-card">
       <div class="post-card-meta">
+        <span>Pratik Dhanave</span>
+        <span>·</span>
         <time datetime="{date_iso}">{date_human}</time>
         <span>·</span>
         <span>{p["meta"]["audience"]}</span>
@@ -2626,7 +2658,7 @@ def main():
         tag_dir.mkdir(parents=True, exist_ok=True)
         tag_file = tag_dir / "index.html"
         tag_name = tag_display_map.get(tag_key, tag_key)
-        tag_file.write_text(render_tag_page(tag_name, posts_with_tag, all_tags, post_count=len(posts_with_tag)))
+        tag_file.write_text(render_tag_page(tag_name, posts_with_tag, all_tags, post_count=len(posts_with_tag), tag_counts=tag_counts))
         print(f"  wrote {tag_file.relative_to(SITE_ROOT)}")
 
     # Generate archive pages
