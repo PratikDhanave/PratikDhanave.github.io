@@ -978,7 +978,7 @@ def render_project_detail_html(project_slug, tag_index):
         credits_html += '<h3>Acknowledgments</h3>'
         for credit in project["credits"]:
             credits_html += f"""<div class="citation-item">
-      <div class="citation-title"><a href="{credit['url']}" target="_blank">{credit['name']}</a></div>
+      <div class="citation-title"><a href="{credit['url']}" target="_blank" rel="noopener noreferrer">{credit['name']}</a></div>
       <div class="citation-context">{credit['context']}</div>
     </div>"""
         credits_html += '</section>'
