@@ -726,7 +726,7 @@ PROJECT_CSS = POST_CSS + """
 
 .btn-primary {
   background: var(--accent);
-  color: white;
+  color: var(--bg);
 }
 
 .btn-primary:hover {
