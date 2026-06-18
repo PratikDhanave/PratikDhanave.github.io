@@ -835,6 +835,13 @@ PROJECT_CSS = POST_CSS + """
 }
 """
 
+# Minify PROJECT_CSS — collapse whitespace and comments
+import re as _re
+PROJECT_CSS = _re.sub(r'/\*.*?\*/', '', PROJECT_CSS, flags=_re.DOTALL)  # remove comments
+PROJECT_CSS = _re.sub(r'\s*\n\s*', '', PROJECT_CSS)  # collapse newlines
+PROJECT_CSS = _re.sub(r'\s*([{:;,}])\s*', r'\1', PROJECT_CSS)  # collapse around punctuation
+PROJECT_CSS = _re.sub(r';\s*}', '}', PROJECT_CSS)  # remove trailing semicolons before }
+
 
 def render_project_gallery_html(all_projects):
     """Render /projects/index.html — OSS + client grids."""
