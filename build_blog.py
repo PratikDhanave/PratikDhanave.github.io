@@ -1452,7 +1452,7 @@ footer.site-footer {
   border-top: 1px solid var(--border);
   margin-top: 48px;
 }
-footer.site-footer a { color: var(--text-muted); }
+footer.site-footer a { color: var(--text-muted); min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
 
 .post-citations {
   margin: 56px 0 0;
@@ -1751,7 +1751,7 @@ NAV_HTML = """<nav>
 
 
 SITE_FOOTER = """<footer class="site-footer">
-  <p>© {year} Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/thank-you/">Acknowledgments</a></p>
+  <p>© {year} Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
 </footer>""".format(year=datetime.now().year)
 
 
