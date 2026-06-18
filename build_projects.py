@@ -1066,10 +1066,10 @@ def render_project_detail_html(project_slug, tag_index):
 }}
 </script>"""
 
-    return _wrap_page_html(project['name'], body, schema_html, slug=project_slug)
+    return _wrap_page_html(project['name'], body, schema_html, slug=project_slug, meta_description=project.get('summary', ''))
 
 
-def _wrap_page_html(page_title, body_html, schema_html="", slug=""):
+def _wrap_page_html(page_title, body_html, schema_html="", slug="", meta_description=""):
     """Wrap project page body with nav, footer, CSS."""
     active_nav = NAV_HTML.replace(
         '<li><a href="/projects/">Projects</a></li>',
@@ -1087,16 +1087,24 @@ def _wrap_page_html(page_title, body_html, schema_html="", slug=""):
         full_title = f"{page_title} — Projects — Pratik Dhanave"
         canonical = f"{SITE_URL}/projects/{slug}/" if slug else f"{SITE_URL}/projects/"
 
+    # Use custom meta description if provided, otherwise generate a default
+    if not meta_description:
+        if page_title == "Projects":
+            meta_description = "Open-source projects and production systems by Pratik Dhanave — multi-agent AI platforms, cloud migration tools, and distributed infrastructure built with Go and Google Cloud."
+        else:
+            meta_description = f"{page_title}. Portfolio projects and client work by Pratik Dhanave — multi-agent AI, cloud infrastructure, and production systems."
+    og_description = meta_description
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{full_title}</title>
-<meta name="description" content="{page_title}. Portfolio projects and client work by Pratik Dhanave.">
+<meta name="description" content="{meta_description}">
 <meta name="author" content="Pratik Dhanave">
 <meta property="og:title" content="Pratik Dhanave — {page_title}">
-<meta property="og:description" content="{page_title}. Portfolio projects and client work by Pratik Dhanave — multi-agent AI, cloud infrastructure, and production systems.">
+<meta property="og:description" content="{og_description}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="{canonical}">
 <meta property="og:site_name" content="Pratik Dhanave">
