@@ -1315,7 +1315,7 @@ article h1 {
   margin-bottom: 14px;
 }
 .post-meta time { font-weight: 500; }
-.post-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 8px; }
 .tag {
   font-size: 12px;
   font-weight: 500;
