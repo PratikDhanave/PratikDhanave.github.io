@@ -1194,7 +1194,7 @@ POST_CSS = """
   --bg-card: #ffffff;
   --text: #1a1a1a;
   --text-dim: #444;
-  --text-muted: #6b6b6b;
+  --text-muted: #595959;
   --border: #e5e7eb;
   --accent: #1a73e8;
   --accent-hover: #1557b0;
@@ -1319,10 +1319,13 @@ article h1 {
 .tag {
   font-size: 12px;
   font-weight: 500;
-  padding: 3px 10px;
+  padding: 6px 12px;
   border-radius: 12px;
   background: var(--tag-bg);
   color: var(--tag-text);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 article h2 {
@@ -1583,7 +1586,7 @@ footer.site-footer a { color: var(--text-muted); }
   white-space: nowrap;
 }
 
-::selection { background: var(--accent); color: white; }
+::selection { background: var(--accent); color: var(--bg); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 """
 POST_CSS = _minify_css(POST_CSS)
