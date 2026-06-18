@@ -1728,7 +1728,7 @@ PAGINATION_CSS = _minify_css(PAGINATION_CSS)
 
 NAV_HTML = """<nav>
   <div class="nav-container">
-    <a href="/" class="nav-brand">Pratik Dhanave</a>
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
     <ul class="nav-links">
       <li><a href="/about/">About</a></li>
       <li><a href="/projects/">Projects</a></li>
@@ -1970,7 +1970,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     </div>
     <p style="margin-top: 10px; font-size: 13px;">Find me on
       <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
-      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer">LinkedIn</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
       <a href="/thank-you/">Acknowledgments</a></p>
   </div>
 {citations_html}
