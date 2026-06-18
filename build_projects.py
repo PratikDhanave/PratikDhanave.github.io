@@ -1090,7 +1090,7 @@ def _wrap_page_html(page_title, body_html, schema_html="", slug="", meta_descrip
     # Use custom meta description if provided, otherwise generate a default
     if not meta_description:
         if page_title == "Projects":
-            meta_description = "Open-source projects and production systems by Pratik Dhanave — multi-agent AI platforms, cloud migration tools, and distributed infrastructure built with Go and Google Cloud."
+            meta_description = "Open-source projects and production systems by Pratik Dhanave — multi-agent AI platforms, cloud migration tools, and distributed infrastructure."
         else:
             meta_description = f"{page_title}. Portfolio projects and client work by Pratik Dhanave — multi-agent AI, cloud infrastructure, and production systems."
     og_description = meta_description
