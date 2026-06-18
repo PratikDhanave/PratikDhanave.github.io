@@ -57,7 +57,7 @@ PROJECT_META = {
             ["3", "deployment targets"],
         ],
         "links": [
-            ["Source on GitHub", "https://github.com/c2siorg/genie"],
+            ["Genie on GitHub", "https://github.com/c2siorg/genie"],
             ["Documentation", "https://github.com/c2siorg/genie#readme"],
         ],
         "blog_tags": ["MAF", "Multi-Agent AI", "Architecture", "Security", "Governance"],
@@ -141,12 +141,15 @@ PROJECT_META = {
         "status": "maintained",
         "featured": False,
         "summary": "Core contributor to Google's open-source Spanner migration tool. Built backend APIs, CDC pipelines, and query optimization improving performance by 40–60%.",
-        "description_html": """<p>HarbourBridge is Google's open-source tool for migrating legacy relational databases to Cloud Spanner. As a core contributor, I architected and built key components:</p>
+        "description_html": """<p>HarbourBridge is Google's open-source tool for migrating legacy relational databases to Cloud Spanner. It supports schema and data migration from MySQL, PostgreSQL, Oracle, SQL Server, and DynamoDB, handling the complex translation between source-specific SQL dialects and Spanner's distributed relational model. As a core contributor, I architected and built key components:</p>
 <ul>
 <li><strong>Intelligent Schema Assistant Backend:</strong> APIs that analyze source schemas and recommend optimal Spanner designs (primary keys, interleaving, indexes).</li>
 <li><strong>CDC Pipelines:</strong> Change Data Capture from Datastream through Pub/Sub to Dataflow, enabling zero-downtime migrations.</li>
 <li><strong>Query Optimization:</strong> Post-migration query rewriting and performance tuning, delivering 40–60% improvements through PK design, strategic indexing, and table interleaving.</li>
-</ul>""",
+</ul>
+<p>One of the core challenges HarbourBridge solves is schema translation. Relational databases like MySQL and PostgreSQL use auto-increment primary keys, foreign key constraints, and storage-engine-specific column types that have no direct equivalent in Spanner. HarbourBridge automatically maps source data types to Spanner-compatible types (for example, converting MySQL's ENUM to STRING or PostgreSQL's SERIAL to INT64 with sequence emulation), recommends composite primary keys to replace auto-increment patterns, and identifies parent-child relationships that benefit from Spanner's interleaved table design for co-located storage and efficient joins.</p>
+<p>The migration workflow follows an assessment-then-migration pattern. In the assessment phase, HarbourBridge connects to the source database, introspects the schema, and generates a detailed migration report highlighting potential issues: unsupported column types, foreign key relationships that should become interleaved tables, and indexes that need restructuring for Spanner's distributed architecture. Engineers review and adjust the proposed schema mapping before committing to the actual data migration, reducing the risk of costly post-migration schema changes.</p>
+<p>HarbourBridge integrates with the broader Spanner ecosystem through Datastream for change data capture, Cloud Pub/Sub for event buffering, and Dataflow (Apache Beam) for scalable data transformation. This pipeline architecture enables minimal-downtime migrations where the bulk data load runs first, followed by continuous CDC replication that keeps the Spanner target synchronized with the source until the final cutover. The tool has supported thousands of production migrations across enterprise customers adopting Spanner for globally distributed, strongly consistent workloads.</p>""",
         "language": "Go",
         "role": "Core contributor",
         "year": "2022",
@@ -164,7 +167,7 @@ PROJECT_META = {
             ["10K+", "migrations"],
         ],
         "links": [
-            ["Source on GitHub", "https://github.com/GoogleCloudPlatform/spanner-migration-tool"],
+            ["HarbourBridge on GitHub", "https://github.com/GoogleCloudPlatform/spanner-migration-tool"],
             ["Google Cloud Docs", "https://cloud.google.com/spanner/docs/migration-tools"],
         ],
         "blog_tags": ["Cloud Spanner", "Database Migration", "Performance"],
@@ -1078,7 +1081,7 @@ def _wrap_page_html(page_title, body_html, schema_html="", slug=""):
 
     # For the gallery page, use "Projects" directly; for detail pages, append " — Projects"
     if page_title == "Projects":
-        full_title = "Projects — Pratik Dhanave"
+        full_title = "Projects — Portfolio &amp; Open Source — Pratik Dhanave"
         canonical = f"{SITE_URL}/projects/"
     else:
         full_title = f"{page_title} — Projects — Pratik Dhanave"

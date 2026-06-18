@@ -301,7 +301,7 @@ POST_META = {
         "date": "2026-06-04",
         "tags": ["ADK", "MAF", "Tools", "Governance", "OPA"],
         "audience": "Governance + backend engineers",
-        "excerpt": "From ADK functions to MAF governed tools. Adding policy enforcement, DLP, approval gates, and OPA integration.",
+        "excerpt": "Migrate ADK functions to MAF governed tools with policy enforcement, DLP scanning, approval gates, and OPA integration for production agent systems.",
         "series": "ADK to MAF Migration",
         "series_position": 4,
         "series_total": 8,
@@ -311,7 +311,7 @@ POST_META = {
         "date": "2026-06-05",
         "tags": ["ADK", "MAF", "Provider Abstraction", "Config"],
         "audience": "DevOps + platform engineers",
-        "excerpt": "Zero-code provider swaps: Ollama (dev), OpenAI (staging), Azure Foundry (prod). Same agents, different models.",
+        "excerpt": "Zero-code LLM provider swaps across environments: Ollama for dev, OpenAI for staging, Azure Foundry for prod. Same agents, different models.",
         "series": "ADK to MAF Migration",
         "series_position": 5,
         "series_total": 8,
@@ -321,7 +321,7 @@ POST_META = {
         "date": "2026-06-06",
         "tags": ["ADK", "MAF", "Middleware", "Observability", "OTel"],
         "audience": "SRE + observability engineers",
-        "excerpt": "Callbacks to middleware: composable decorators for audit, retry, token enforcement, and OpenTelemetry integration.",
+        "excerpt": "Migrate ADK callbacks to MAF composable middleware: decorators for audit logging, retry with backoff, token budget enforcement, and OpenTelemetry tracing.",
         "series": "ADK to MAF Migration",
         "series_position": 6,
         "series_total": 8,
@@ -331,7 +331,7 @@ POST_META = {
         "date": "2026-06-07",
         "tags": ["ADK", "MAF", "Deployment", "Cloud Run", "A2A"],
         "audience": "Cloud architects + SRE",
-        "excerpt": "Cloud Run deployments, agent-to-agent communication, load balancing, and production observability.",
+        "excerpt": "Deploy MAF multi-agent systems on Cloud Run with A2A agent-to-agent communication, autoscaling, load balancing, and production observability dashboards.",
         "series": "ADK to MAF Migration",
         "series_position": 7,
         "series_total": 8,
@@ -744,7 +744,7 @@ POST_META = {
         "date": "2026-05-26",
         "tags": ['GDPR', 'Privacy Engineering', 'AI Governance', 'Go'],
         "audience": "Engineering",
-        "excerpt": "How a 200-line Go handler turns an audit log and an eval store into a regulator-friendly answer to 'why did the AI decide that?'",
+        "excerpt": "Build a GDPR Article 22 compliant explanation endpoint in Go that turns audit logs and eval stores into regulator-friendly answers for AI decisions.",
     },
     "auto-108-saga-rollback-half-succeeded.md": {
         "slug": "saga-rollback-half-succeeded",
@@ -966,7 +966,7 @@ PROJECT_META = {}
 # Tag descriptions — used on tag pages to add introductory context and avoid thin content.
 # Each description should be 2-4 sentences (~50-80 words) providing genuine topic context.
 TAG_DESCRIPTIONS = {
-    "A2A": "Google's Agent-to-Agent (A2A) protocol enables autonomous agents to discover, authenticate, and collaborate with each other across organizational boundaries. These articles explore A2A implementation patterns, broker-based coordination, and how A2A complements MCP for inter-agent communication in production multi-agent systems. Topics include agent card discovery, task lifecycle management, and secure cross-platform agent orchestration.",
+    "A2A": "Google's Agent-to-Agent (A2A) protocol enables autonomous agents to discover, authenticate, and collaborate with each other across organizational boundaries. These articles explore A2A implementation patterns, broker-based coordination, and how A2A complements MCP for inter-agent communication in production multi-agent systems. Topics include agent card discovery, task lifecycle management, and secure cross-platform agent orchestration. Each post includes working Go code examples demonstrating real-world A2A integration scenarios.",
     "Agents": "AI agents are autonomous software components that perceive their environment, reason about goals, and take actions without continuous human direction. These posts cover agent design patterns, orchestration strategies, latency budgets, and the operational challenges of running agentic systems at production scale.",
     "Cost Optimisation": "Cloud cost optimisation is the practice of reducing infrastructure spend without sacrificing reliability or performance. Articles here cover FinOps strategies for BigQuery, multi-cloud egress reduction, reservation planning, and query-level cost attribution that have delivered measurable savings in production environments.",
     "Distributed Systems": "Distributed systems spread computation across multiple machines to achieve fault tolerance, scalability, and geographic reach. These posts examine saga orchestration, idempotency guarantees, consensus patterns, and the Go concurrency primitives that make distributed architectures tractable in practice.",
@@ -2149,7 +2149,7 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Blog — Pratik Dhanave</title>
+<title>Blog — AI, Cloud Architecture &amp; Systems — Pratik Dhanave</title>
 <meta name="description" content="Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. By Pratik Dhanave.">
 <meta name="author" content="Pratik Dhanave">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
@@ -2407,7 +2407,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{_html_escape(tag)} — Blog — Pratik Dhanave</title>
+<title>{_html_escape(tag)} Articles &amp; Tutorials — Blog — Pratik Dhanave</title>
 <meta name="description" content="{_html_escape(meta_tag_desc)}{suffix}">
 <meta name="author" content="Pratik Dhanave">
 {robots_meta}
@@ -2457,7 +2457,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 </section>
 
 <section class="blog-hero" style="padding-top: 32px; border-top: 1px solid var(--border); border-bottom: none; margin-top: 36px;">
-  <p>All posts on this site are written by <a href="/about/">Pratik Dhanave</a>, a Senior Software Engineer and Cloud Architect with 7+ years building production distributed systems, multi-agent AI platforms, and cloud-native infrastructure. Each article includes working code, architecture diagrams, and references to the specific frameworks and standards discussed. Browse <a href="/blog/">all posts</a> or explore related topics using the tag cloud above.</p>
+  <p>All posts on this site are written by <a href="/about/" aria-label="About Pratik Dhanave">Pratik Dhanave</a>, a Senior Software Engineer and Cloud Architect with 7+ years building production distributed systems, multi-agent AI platforms, and cloud-native infrastructure. Each article includes working code, architecture diagrams, and references to the specific frameworks and standards discussed. Browse <a href="/blog/">all posts</a> or explore related topics using the tag cloud above.</p>
 </section>
 
 </main>
@@ -2530,7 +2530,7 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{title} — Archive — Pratik Dhanave</title>
+<title>{title} Blog Archive — Posts &amp; Articles — Pratik Dhanave</title>
 <meta name="description" content="Blog posts from {title}. By Pratik Dhanave.">
 <meta name="author" content="Pratik Dhanave">
 
@@ -2638,7 +2638,7 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Archive{f' — Page {page_num}' if page_num > 1 else ''} — Pratik Dhanave</title>
+<title>Blog Archive{f' — Page {page_num}' if page_num > 1 else ''} — Posts &amp; Articles — Pratik Dhanave</title>
 <meta name="description" content="Browse all {total_posts} blog posts by Pratik Dhanave — covering cloud architecture, AI agents, fintech compliance, distributed systems, and open source. Page {page_num} of {total_pages}.">
 <meta name="author" content="Pratik Dhanave">
 {robots}
