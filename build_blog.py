@@ -2391,7 +2391,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
         cloud_tags = sorted(top_tags_set)
     else:
         cloud_tags = sorted(all_tags)
-    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" aria-label="{t} posts"><span class="tag-cloud-item">{t} ({tag_counts.get(t, 0)})</span></a>' for t in cloud_tags)
+    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" aria-label="{t} ({tag_counts.get(t, 0)}) posts"><span class="tag-cloud-item">{t} ({tag_counts.get(t, 0)})</span></a>' for t in cloud_tags)
 
     tag_page_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS
 
