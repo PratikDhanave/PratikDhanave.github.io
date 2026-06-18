@@ -1688,7 +1688,7 @@ TAG_CLOUD_CSS = """
 }
 .tag-cloud-item:hover {
   background: var(--accent);
-  color: white;
+  color: var(--bg);
   border-color: var(--accent);
   text-decoration: none;
 }
@@ -1718,7 +1718,7 @@ PAGINATION_CSS = """
   text-align: center;
 }
 .pagination a:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
-.pagination .current { background: var(--accent); color: white; border-color: var(--accent); font-weight: 600; }
+.pagination .current { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
 .pagination .disabled { color: var(--text-muted); background: var(--bg-elev); cursor: not-allowed; }
 .pagination .ellipsis { border: none; background: transparent; color: var(--text-muted); padding: 8px 4px; }
 """
