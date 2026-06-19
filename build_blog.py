@@ -667,7 +667,7 @@ POST_META = {
         "date": "2026-04-14",
         "tags": ['Payments', 'NPCI', 'FinTech', 'HITL'],
         "audience": "Engineering",
-        "excerpt": "UPI, IMPS, NEFT, RTGS — which rail to use depends on amount, urgency, window, success-rate history. A deterministic chooser with a HITL gate above a configurable threshold.",
+        "excerpt": "UPI, IMPS, NEFT, RTGS — which rail depends on amount, urgency, and success history. A deterministic chooser with a HITL gate for high-value transactions.",
     },
     "auto-096-optimus-bigquery-anti-pattern-detector.md": {
         "slug": "optimus-bigquery-anti-pattern-detector",
