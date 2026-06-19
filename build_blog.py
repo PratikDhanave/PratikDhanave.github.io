@@ -450,7 +450,7 @@ POST_META = {
         "date": "2026-05-14",
         "tags": ['BigQuery', 'FinOps', 'Storage', 'GCP'],
         "audience": "Engineering",
-        "excerpt": "Storage was the second-biggest line item on the Tata BigQuery bill. Long-term storage, physical-vs-logical billing, and column-level retention together took a 6-figure monthly line down to a 5-figure one.",
+        "excerpt": "Storage was the second-biggest line item on a large-enterprise BigQuery bill. Long-term storage, physical-vs-logical billing, and column-level retention together delivered significant monthly savings.",
     },
     "auto-049-bloom-terraform-regulated-bank-cloud.md": {
         "slug": "bloom-terraform-regulated-bank-cloud",
@@ -506,7 +506,7 @@ POST_META = {
         "date": "2026-02-08",
         "tags": ['Data Residency', 'UAE', 'Saudi Arabia', 'Open Banking'],
         "audience": "Engineering",
-        "excerpt": "An open-banking platform serving UAE and Saudi customers had to honour three overlapping regulators: ADGM (Abu Dhabi), DIFC (Dubai), and SAMA (Saudi central bank). Notes on the architecture that satisfied all three.",
+        "excerpt": "An open-banking platform serving UAE and Saudi customers had to honour three overlapping regulators: three overlapping Middle East regulators. Notes on the architecture that satisfied all three.",
     },
     "auto-057-default-to-prototype-as-culture.md": {
         "slug": "default-to-prototype-as-culture",
@@ -667,7 +667,7 @@ POST_META = {
         "date": "2026-04-14",
         "tags": ['Payments', 'NPCI', 'FinTech', 'HITL'],
         "audience": "Engineering",
-        "excerpt": "UPI, IMPS, NEFT, RTGS — which rail to use depends on amount, urgency, window, success-rate history. A deterministic chooser with a HITL gate above ₹2 lakh.",
+        "excerpt": "UPI, IMPS, NEFT, RTGS — which rail to use depends on amount, urgency, window, success-rate history. A deterministic chooser with a HITL gate above a configurable threshold.",
     },
     "auto-096-optimus-bigquery-anti-pattern-detector.md": {
         "slug": "optimus-bigquery-anti-pattern-detector",
@@ -1153,6 +1153,16 @@ TAG_DESCRIPTIONS = {
     "GraphRAG": "GraphRAG combines knowledge graphs with retrieval-augmented generation for structured, relationship-aware retrieval. Articles cover GraphRAG architecture, BigQuery-based knowledge graph construction, and how graph-structured retrieval improves answer quality for questions involving entity relationships.",
 }
 
+# Tag-to-static-page mapping — for cross-linking tag pages to dedicated static pages
+TAG_TO_STATIC_PAGE = {
+    "GSoC": "/gsoc/",
+    "Google Summer of Code": "/gsoc/",
+    "Open Source": "/open-source/",
+    "Mentoring": "/mentoring/",
+    "Speaking": "/speaking/",
+    "Google Cloud Next": "/google-cloud-next/",
+}
+
 # Post popularity ranking (1-10 scale, 10 = most popular)
 # Used to generate "popular posts" section on homepage
 POST_POPULARITY = {
@@ -1327,6 +1337,11 @@ article h1 {
   display: inline-flex;
   align-items: center;
 }
+.tag-link { text-decoration: none; color: inherit; }
+.tag-link:hover { text-decoration: none; }
+.tag-link:hover .tag { background: var(--accent); color: var(--bg); }
+.author-link { color: inherit; text-decoration: none; }
+.author-link:hover { color: var(--accent); }
 
 article h2 {
   font-size: 1.5rem;
@@ -1757,7 +1772,7 @@ SITE_FOOTER = """<footer class="site-footer">
 
 def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index=None):
     """Wrap rendered markdown body in the post template."""
-    tags_html = "".join(f'<span class="tag">{t}</span>' for t in meta["tags"])
+    tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">{t}</span></a>' for t in meta["tags"])
     date_iso = meta["date"]
     date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%B %d, %Y")
     description = meta["excerpt"]
@@ -1947,7 +1962,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     <h1>{title}</h1>
     <p class="post-subtitle">{subtitle}</p>
     <div class="post-meta">
-      <span class="post-author">By <strong>Pratik Dhanave</strong></span>
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
       <span>·</span>
       <time datetime="{date_iso}">{date_human}</time>
       <span>·</span>
@@ -1968,7 +1983,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 
   <div class="post-footer">
     <div class="footer-row">
-      <span>Written by <strong>Pratik Dhanave</strong></span>
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
       <a href="/blog/">← All posts</a>
     </div>
     <p style="margin-top: 10px; font-size: 13px;">Find me on
@@ -1989,14 +2004,14 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 
 def _render_post_card(p, link_prefix="/blog/posts/"):
     """Render a single post card HTML block."""
-    tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
+    tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">{t}</span></a>' for t in p["meta"]["tags"])
     date_iso = p["meta"]["date"]
     date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
     read_time = p.get("read_time", 0)
     read_time_html = f'<span>·</span><span>{read_time} min read</span>' if read_time > 0 else ''
     return f"""    <article class="post-card">
       <div class="post-card-meta">
-        <span>Pratik Dhanave</span>
+        <span><a href="/about/" class="author-link">Pratik Dhanave</a></span>
         <span>·</span>
         <time datetime="{date_iso}">{date_human}</time>
         <span>·</span>
@@ -2198,7 +2213,8 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 
 <section class="blog-hero">
   <h1>Blog</h1>
-  <p>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. Most posts grow out of work on Bodh &mdash; an open-source Go implementation of Microsoft's MAF pattern tuned for medical sequential diagnosis.</p>
+  <p>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. Most posts grow out of work on <a href="/projects/bodh/">Bodh</a> &mdash; an open-source Go implementation of Microsoft's MAF pattern tuned for medical sequential diagnosis.</p>
+  <p style="margin-top:12px;font-size:0.95rem;"><a href="/featured/">Featured articles</a> &middot; <a href="/articles/">Browse by topic</a> &middot; <a href="/blog/archive/">Full archive</a> &middot; <a href="/blog/feed.xml">RSS feed</a></p>
 </section>
 
 <div class="search-box">
@@ -2364,14 +2380,14 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 
     posts_html = []
     for p in posts_with_tag:
-        tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
+        tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">{t}</span></a>' for t in p["meta"]["tags"])
         date_iso = p["meta"]["date"]
         date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
         read_time = p.get("read_time", 0)
         read_time_html = f'<span>·</span><span>{read_time} min read</span>' if read_time > 0 else ''
         posts_html.append(f"""    <article class="post-card">
       <div class="post-card-meta">
-        <span>Pratik Dhanave</span>
+        <span><a href="/about/" class="author-link">Pratik Dhanave</a></span>
         <span>·</span>
         <time datetime="{date_iso}">{date_human}</time>
         <span>·</span>
@@ -2449,6 +2465,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
   <h1>#{_html_escape(tag)}</h1>
   <p>{_html_escape(tag_desc)}</p>
   <p>{post_count} post{"s" if post_count != 1 else ""} tagged with {_html_escape(tag).lower()}. <a href="/blog/">&larr; All posts</a></p>
+{f'  <p style="margin-top:12px;"><a href="{TAG_TO_STATIC_PAGE[tag]}">See the dedicated {_html_escape(tag)} page &rarr;</a></p>' if tag in TAG_TO_STATIC_PAGE else ''}
 </section>
 
 <section class="tag-cloud">

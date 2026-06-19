@@ -1,8 +1,8 @@
 # Editorial calendar — 400+ post ideas
 
 > A year-plus catalog of post ideas grounded in real work: Genie,
-> Bodh, the Tata Group BigQuery FinOps engagement (₹100 Cr / ~$12M
-> savings), Bancnet (UAE ADGM/DIFC + Saudi SAMA open banking),
+> Bodh, the Tata Group BigQuery FinOps engagement (57% cost
+> reduction), Bancnet (multi-jurisdiction Middle East open banking),
 > Brownlow (AFL voting on Cloud Run), HarbourBridge (Spanner
 > Migration Tool), Globe (30K+ TPS telecom/FinTech), Picnic (1M+
 > users), the P2P lender, the Kinetic India voice assistant, the
@@ -381,7 +381,7 @@ Every pattern from the Google Cloud catalog, the ADK, MCP, A2A, MAF.
 
 ## Series 11 — BigQuery FinOps and data platform (25 posts)
 
-The Tata Group engagement, productised — ₹100 Cr / ~$12M savings, 57% reduction.
+The Tata Group engagement — 57% data warehouse cost reduction.
 
 1. BigQuery cost levers — slot reservation, on-demand, capacity transitions
 2. The MERGE pattern that costs ten times more than INSERT-then-UPDATE
@@ -638,7 +638,7 @@ Pick the punchiest 80-word excerpt from each of:
 
 Weeks 1-2 — Series 4 (PCSE) posts 1-6
 Weeks 3-4 — Series 3 (FREE-AI) posts 1-6
-Weeks 5-6 — Series 11 (BigQuery FinOps) posts 1-6 (the highest-conversion topic given the Tata Group $12M case)
+Weeks 5-6 — Series 11 (BigQuery FinOps) posts 1-6 (the highest-conversion topic given the Tata Group 57% cost reduction case)
 Weeks 7-8 — Series 6 (Auth in Go) posts 1-6
 Weeks 9-10 — Series 9 (RAG) posts 1-6
 Weeks 11-12 — Series 10 (multi-agent patterns) posts 1-6

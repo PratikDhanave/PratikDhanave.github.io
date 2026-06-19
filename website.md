@@ -10,7 +10,7 @@ Your portfolio has **strong technical content** but three systemic problems:
 
 1. **Identity fragmentation** — You're called 4 different titles across 8 pages
 2. **Credibility killers** — Placeholder/fabricated content on Speaking and Certifications pages
-3. **Buried impact** — Your most impressive numbers ($12M saved, 30K TPS, 1M+ users, 9 years GSoC, 5 countries) are scattered and never aggregated
+3. **Buried impact** — Your most impressive numbers (57% FinOps savings, 30K TPS, 1M+ users, 9 years GSoC, 5 countries) are scattered and never aggregated
 
 ---
 
@@ -34,7 +34,7 @@ Your portfolio has **strong technical content** but three systemic problems:
 | Newsletter placeholder | "Join over 500 professionals" | If fabricated, remove entirely. Placeholder subscriber counts destroy trust |
 | Contact section hierarchy | Lists "Senior Engineer" before "Staff Engineer" | Lead with Staff — you've already done Staff-level work (led teams of 4-10, set architecture standards, productized a service offering) |
 | Presentation video context | Just "Google Cloud Next 2022" | Add: audience size, venue significance, that this was a Google-selected speaker slot not a self-submitted CFP |
-| No aggregate impact line | Impact numbers scattered across 6 cards | Add ONE line: "$12M+ saved | 30K+ TPS | 1M+ users served | 5 countries | 40+ engineers mentored" |
+| No aggregate impact line | Impact numbers scattered across 6 cards | Add ONE line: "57% FinOps saved | 30K+ TPS | 1M+ users served | 5 countries | 40+ engineers mentored" |
 
 ---
 
@@ -69,7 +69,7 @@ Your portfolio has **strong technical content** but three systemic problems:
 | Job title at Searce | "Senior Software Developer" | "Senior Software Engineer / Cloud Architect" (matches homepage and your actual scope) |
 | Phone number exposed | `+91 7276469649` in HTML (line 499) | We removed it from JSON-LD but it's still visible in the contact row. Remove it — use email + LinkedIn only |
 | No "Download PDF" button | Nothing | Critical for recruiters. Add a prominent PDF download |
-| No aggregate impact summary | Dense text paragraphs | Add a "By the Numbers" row at top: $12M saved, 30K TPS, 1M+ users, 40+ mentored, 9 yrs GSoC |
+| No aggregate impact summary | Dense text paragraphs | Add a "By the Numbers" row at top: 57% FinOps savings, 30K TPS, 1M+ users, 40+ mentored, 9 yrs GSoC |
 | Gap unexplained | May 2020 to Jun 2021 (no role listed) | Either explain or tighten the dates |
 | Missing Litmus IoT | Not on resume | It's on the Projects page — inconsistency |
 
@@ -199,7 +199,7 @@ For a professional portfolio targeting recruiters, this is table stakes. Add a p
 6. Fix GSoC dates in certifications OG description (2020 → 2026)
 
 ### P1 — High Impact (underselling)
-7. Add aggregate impact line to homepage hero ("$12M+ saved | 30K TPS | 1M+ users | 5 countries | 40+ mentored")
+7. Add aggregate impact line to homepage hero ("57% FinOps saved | 30K TPS | 1M+ users | 5 countries | 40+ mentored")
 8. Rewrite About page with international scope, photo, full story
 9. Add video embed to Speaking page
 10. Fix blog article count (29+ → 107+)
@@ -220,4 +220,4 @@ For a professional portfolio targeting recruiters, this is table stakes. Add a p
 
 ## The One-Line Version
 
-**You've done Staff-level international work across 5 countries, mentored 40+ engineers for 9 years, saved $12M for one of India's largest conglomerates, and authored 107+ technical articles — but your site presents you as a senior engineer from Pune with one conference talk and some vague certifications.**
+**You've done Staff-level international work across 5 countries, mentored 40+ engineers for 9 years, achieved 57% FinOps savings for one of India's largest conglomerates, and authored 107+ technical articles — but your site presents you as a senior engineer from Pune with one conference talk and some vague certifications.**

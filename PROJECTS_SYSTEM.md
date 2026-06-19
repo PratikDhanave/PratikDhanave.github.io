@@ -69,11 +69,11 @@ PROJECT_META = {
    - GitHub: GoogleCloudPlatform/spanner-migration-tool
 
 **Client Work (6):**
-- Tata Group BigQuery FinOps (₹100 Cr+ savings, 57% reduction)
+- Tata Group BigQuery FinOps (57% cost reduction)
 - Globe Telecom Transaction Engine (30K+ TPS)
 - Brownlow AFL Voting Platform (100K+ votes)
 - Picnic Social Network (1M+ users, 47% latency reduction)
-- Bancnet Open Banking Portal (ADGM/DIFC/SAMA compliant, 37% latency ↓)
+- Bancnet Open Banking Portal (multi-jurisdiction Middle East compliant, 37% latency ↓)
 - Optimus BigQuery Analyzer (Gemini-powered, 57% cost reduction)
 
 ## Build System

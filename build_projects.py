@@ -195,25 +195,25 @@ PROJECT_META = {
         "slug": "tata-bigquery-finops",
         "kind": "client",
         "name": "Tata Group — BigQuery FinOps",
-        "tagline": "₹100 Cr+ savings, 57% cost reduction",
+        "tagline": "57% data warehouse cost reduction",
         "org": "Searce engagement · 2024–2025",
         "status": "completed",
         "featured": False,
-        "summary": "Led BigQuery cost optimization for Tata Group — query refactoring, MERGE redesign, capacity transition. Delivered ₹100 Cr+ (~$12M) savings, 57% reduction.",
+        "summary": "Led BigQuery cost optimization for Tata Group — query refactoring, MERGE redesign, capacity transition. Delivered 57% data warehouse cost reduction.",
         "description_html": """<p>Led the comprehensive BigQuery cost optimization engagement for Tata Group, one of India's largest conglomerates. The initiative spanned query refactoring, MERGE operation redesign, and transition to capacity-based slot reservations.</p>
-<p><strong>Delivered impact:</strong> ₹100 Cr+ (~$12M USD) in savings with a 57% reduction in data warehouse costs. The engagement was so successful that it was productized into Searce's recurring GCP managed service offering.</p>""",
+<p><strong>Delivered impact:</strong> 57% reduction in data warehouse costs through query optimization, MERGE redesign, and capacity-based slot reservation transition.</p>""",
         "role": "Lead consultant",
         "year": "2024–2025",
         "tags": ["BigQuery", "FinOps", "GCP", "Enterprise", "Cost Optimization"],
         "highlights": [
-            "₹100 Cr+ (~$12M) total savings identified and delivered",
+            "Significant total savings identified and delivered",
             "57% data warehouse cost reduction",
             "Query refactoring and optimization best practices",
             "Capacity-based slot reservation architecture",
-            "Productized into recurring managed service offering",
+            "Reusable optimization framework for future engagements",
         ],
         "metrics": [
-            ["₹100 Cr+", "saved"],
+            ["57%", "DWH cost ↓"],
             ["57%", "cost ↓"],
             ["10K+", "queries analyzed"],
         ],
@@ -242,7 +242,7 @@ PROJECT_META = {
         "kind": "client",
         "name": "Globe — Telecom/FinTech Transaction Engine",
         "tagline": "30K+ TPS, PCI-aligned, DLQ resilience",
-        "org": "Searce client work",
+        "org": "",
         "status": "completed",
         "featured": False,
         "summary": "30K+ TPS Kubernetes transaction platform for telecom/FinTech. Led 10 engineers, PCI-aligned, idempotent processing, DLQ resilience.",
@@ -291,9 +291,9 @@ PROJECT_META = {
     "brownlow-voting": {
         "slug": "brownlow-voting",
         "kind": "client",
-        "name": "Brownlow — AFL Voting Platform",
+        "name": "Brownlow — AFL Voting Platform (PoC)",
         "tagline": "100K+ votes, 10K+ concurrent, zero-trust security",
-        "org": "Searce client work",
+        "org": "",
         "status": "completed",
         "featured": False,
         "summary": "Zero-trust voting and analytics platform for AFL Brownlow Medal. 100K+ votes, 10K+ concurrent users, Cloud KMS + SCC security.",
@@ -341,7 +341,7 @@ PROJECT_META = {
         "kind": "client",
         "name": "Picnic — Social Network",
         "tagline": "1M+ users, 47% latency reduction, 80%+ test coverage",
-        "org": "Searce client work",
+        "org": "",
         "status": "maintained",
         "featured": False,
         "summary": "1M+ user social platform backend. 47% latency reduction via protobuf contracts. Led international 4-person team, 80%+ test coverage.",
@@ -399,7 +399,7 @@ PROJECT_META = {
         "kind": "client",
         "name": "Bancnet — Open Banking Portal",
         "tagline": "ADGM/DIFC/SAMA compliance, 37% latency reduction, RAG VectorDB",
-        "org": "Searce client work",
+        "org": "",
         "status": "completed",
         "featured": False,
         "summary": "High-compliance Open Banking portal for UAE/Saudi Arabia. Consent management, data residency, RAG semantic search. 37% latency reduction.",
@@ -447,7 +447,7 @@ PROJECT_META = {
         "kind": "client",
         "name": "Optimus — BigQuery Analyzer",
         "tagline": "Gemini-powered SQL analysis, 57% cost reduction",
-        "org": "Searce client work",
+        "org": "",
         "status": "completed",
         "featured": False,
         "summary": "Gemini-powered BigQuery analyzer detecting SQL anti-patterns and recommending optimizations. Delivered 57% cost reduction (Tata engagement).",
@@ -498,9 +498,9 @@ PROJECT_META = {
     "kinetic-india-voice": {
         "slug": "kinetic-india-voice",
         "kind": "client",
-        "name": "Kinetic India — Voice Assistant for Bikes",
+        "name": "Kinetic India — Voice Assistant for Bikes (PoC)",
         "tagline": "Multi-language voice AI, ElevenLabs, Gemini dialog",
-        "org": "Searce client work",
+        "org": "",
         "status": "completed",
         "featured": False,
         "summary": "Multi-language conversational voice assistant for two-wheeler riders. Vehicle diagnostics, service booking, ride telemetry. ElevenLabs voice synthesis + Gemini dialog.",
@@ -556,7 +556,7 @@ PROJECT_META = {
         "kind": "client",
         "name": "Litmus — Industrial IoT Edge Data Platform",
         "tagline": "Real-time MQTT/OPC-UA ingestion, edge-to-cloud, anomaly detection",
-        "org": "Searce client work",
+        "org": "",
         "status": "maintained",
         "featured": False,
         "summary": "Industrial IoT edge data platform with real-time ingestion from manufacturing/energy plants. MQTT/OPC-UA streams, Python pipelines, AI anomaly detection, Kubernetes orchestration.",
@@ -869,7 +869,7 @@ def render_project_gallery_html(all_projects):
         f"""    <div class="project">
       <div class="project-header">
         <span class="project-name">{p['name']}</span>
-        <span class="project-org">{p['org']}</span>
+        {f'<span class="project-org">{p["org"]}</span>' if p.get("org") else ''}
       </div>
       <p class="project-desc">{p['summary']}</p>
       <div class="metric-row">
