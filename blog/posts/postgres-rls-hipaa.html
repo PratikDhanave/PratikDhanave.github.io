@@ -176,7 +176,7 @@ CREATE POLICY tenant_isolation ON interaction_records
 <p>When an auditor asks &ldquo;how do you enforce tenant isolation?&rdquo;, the answer is one SQL statement they can read in 30 seconds.</p>
 <h3 id="2-defence-against-future-code">2. Defence against future code</h3>
 <p>The new junior engineer six months from now who adds a new query path doesn&rsquo;t have to remember to add the tenant filter. The database enforces it. They literally cannot write a query that leaks cross-tenant data while connected as <code>bodh_app</code>.</p>
-<p>This is the difference between a guideline (&ldquo;always filter by tenant&rdquo;) and an invariant (&ldquo;tenant filter is impossible to bypass&rdquo;). HIPAA risk-management programs love invariants.</p>
+<p>This is the difference between a guideline (&ldquo;always filter by tenant&rdquo;) and an invariant (&ldquo;tenant filter is impossible to bypass&rdquo;). HIPAA risk-management programs love invariants. (See <a href="/blog/posts/defence-in-depth-for-agentic-ai.html">defence in depth for agentic AI</a> for how RLS fits as one layer in an eleven-layer security envelope.)</p>
 <h3 id="3-defence-against-introspection-tools">3. Defence against introspection tools</h3>
 <p>The BI tool connects as <code>bodh_app</code>. The reporting query connects as <code>bodh_app</code>. The ad-hoc analyst&rsquo;s <code>psql</code> shell connects as <code>bodh_app</code>. None of them sees cross-tenant data unless they explicitly <code>SET app.tenant_id = '...'</code> to the tenant they&rsquo;re meant to see.</p>
 <p>The <code>NOBYPASSRLS</code> on the role means even a <code>SECURITY DEFINER</code> function written by the analyst can&rsquo;t bypass — only <code>BYPASSRLS</code> roles (postgres superuser, dedicated DBA accounts) can.</p>
@@ -212,7 +212,7 @@ CREATE POLICY tenant_isolation ON interaction_records
 </code></pre>
 <p>The application role <em>cannot modify or delete audit events</em>. Append-only is enforced by the database GRANT, not by the application&rsquo;s intentions.</p>
 <p>HIPAA §164.312(b) (&ldquo;Audit controls — Implement hardware, software, and procedural mechanisms that record and examine activity in information systems that contain or use electronic protected health information&rdquo;) doesn&rsquo;t say &ldquo;append-only&rdquo;, but every audit framework operationalising HIPAA does: HITRUST, SOC 2, NIST SP 800-66, 21 CFR Part 11. Append-only at the database is the cleanest place to enforce it.</p>
-<p>A compromised application credential can write garbage events but cannot rewrite history. The audit log remains a credible forensic record.</p>
+<p>A compromised application credential can write garbage events but cannot rewrite history. The <a href="/blog/posts/audit-logs-are-the-api-of-record.html">audit log remains a credible forensic record</a>.</p>
 <hr>
 <h2 id="what-about-the-phi-itself">What about the PHI itself?</h2>
 <p>The schema types PHI columns as <code>BYTEA</code> with a <code>_ct</code> suffix:</p>
@@ -227,7 +227,7 @@ CREATE POLICY tenant_isolation ON interaction_records
 <li>The wrapped DEK is stored alongside the ciphertext.</li>
 <li>To read: ask the KMS to unwrap the DEK, then decrypt the payload locally.</li>
 </ol>
-<p>The CMK never appears in process memory. The DEK is rotated per record. Auditors love this pattern — the audit log shows &ldquo;asked KMS to unwrap DEK for record X at time T by principal P&rdquo; without any plaintext key material ever existing outside the HSM.</p>
+<p>The CMK never appears in process memory. The DEK is rotated per record. Auditors love this pattern (see <a href="/blog/posts/brownlow-cloud-kms-security-command-center.html">Cloud KMS in practice</a> for more on key management) — the audit log shows &ldquo;asked KMS to unwrap DEK for record X at time T by principal P&rdquo; without any plaintext key material ever existing outside the HSM.</p>
 <h3 id="why-this-matters-for-hipaa-breach-notification">Why this matters for HIPAA breach notification</h3>
 <p>The HIPAA Breach Notification Rule (45 CFR Part 164 Subpart D) has a <strong>Safe Harbor exclusion</strong>: a breach of <em>properly encrypted</em> data per HHS Guidance (FIPS 140-2/3 cryptographic modules, NIST-approved algorithms) does <strong>not count as a breach.</strong></p>
 <p>The notification timeline that would otherwise apply:</p>
@@ -257,7 +257,7 @@ CREATE POLICY tenant_isolation ON interaction_records
 <p>The <code>_ct</code> column suffix is a load-bearing convention: it tells every future maintainer &ldquo;this column is ciphertext (or about to be).&rdquo; It&rsquo;s documentation as data.</p>
 <hr>
 <h2 id="what-about-hard-delete">What about hard-delete?</h2>
-<p>GDPR Article 17 (right to erasure) and several US state privacy laws give patients the right to have their data deleted. HIPAA, by contrast, has retention requirements (typically 6 years).</p>
+<p>GDPR Article 17 (right to erasure) and several US state privacy laws give patients the right to have their data deleted. (See also <a href="/blog/posts/right-to-explanation.html">the right-to-explanation handler</a> for how Article 22 and 15 complement this.) HIPAA, by contrast, has retention requirements (typically 6 years).</p>
 <p>These can conflict. The architecture has to support both. Bodh&rsquo;s pattern:</p>
 <pre><code class="language-go">func (s *Store) DeletePatient(ctx context.Context, tenantID, patientID string) error {
     return s.withTenant(ctx, tenantID, func(tx pgx.Tx) error {
@@ -308,7 +308,7 @@ CREATE POLICY tenant_isolation ON interaction_records
 </ul>
 <p>Each of these needs a separate control:</p>
 <ul>
-<li><strong>Privileged access management</strong> (PAM, jit-elevation, time-limited credentials) for the superuser problem.</li>
+<li><strong><a href="/blog/posts/time-bound-elevation-pam-analog.html">Privileged access management</a></strong> (PAM, jit-elevation, time-limited credentials) for the superuser problem.</li>
 <li><strong>Vault / sealed-secrets</strong> for credential rotation.</li>
 <li><strong>Column-level encryption</strong> for the backup problem.</li>
 <li><strong>Carefully audited admin endpoints</strong> for the multi-tenant case, with <code>BreakGlassPolicy</code>-style audit on every cross-tenant access.</li>

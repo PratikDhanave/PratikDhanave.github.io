@@ -210,18 +210,18 @@ func (p *AnthropicProvider) Region() string { return &quot;us&quot; }
 </tr>
 </tbody>
 </table>
-<p>That table is the policy. It lives in the board-approved YAML. The risk team owns the matrix; engineering ships the loader.</p>
+<p>That table is the policy. It lives in the <a href="/blog/posts/the-board-policy-is-a-yaml-file.html">board-approved YAML</a>. The risk team owns the matrix; engineering ships the loader.</p>
 <hr>
 <h2 id="what-this-looks-like-in-production">What this looks like in production</h2>
 <p>A user uploads their bank statement (<code>classification = pii</code>). Asks the chatbot a question.</p>
 <p>The orchestrator dispatches the question. The default LLM provider (set by <code>GENIE_LLM=ollama</code>) declares <code>Region() == "on-prem"</code>. The residency policy evaluates: PII to on-prem → allow. The LLM call happens locally.</p>
-<p>Now imagine the host configures <code>GENIE_LLM=anthropic</code> for chat (a cost optimization). The provider declares <code>Region() == "us"</code>. The residency policy evaluates: PII to US → <strong>deny</strong>. The message drops. An Annexure VI incident records the attempt. The user gets a degraded response from the fallback agent.</p>
+<p>Now imagine the host configures <code>GENIE_LLM=anthropic</code> for chat (a cost optimization). The provider declares <code>Region() == "us"</code>. The residency policy evaluates: PII to US → <strong>deny</strong>. The message drops. An <a href="/blog/posts/rbi-free-ai-implementation-notes.html">Annexure VI</a> incident records the attempt. The user gets a degraded response from the fallback agent.</p>
 <p>The host has to consciously <em>change the policy</em> to allow PII to US — which is a YAML edit, with board sign-off, with an audit trail. No silent leak.</p>
 <hr>
 <h2 id="the-hot-path-cold-path-split">The hot-path / cold-path split</h2>
 <p>This is the deployment shape FREE-AI Rec 4 is asking for, expressed in concrete terms:</p>
 <ul>
-<li><strong>Hot path</strong> (PAN, account, transaction, holding, balance, KYC): Ollama on-prem. Region = <code>on-prem</code>. Residency policy permits.</li>
+<li><strong>Hot path</strong> (PAN, account, transaction, holding, balance, <a href="/blog/posts/kyc-master-direction-vs-aadhaar-offline.html">KYC</a>): Ollama on-prem. Region = <code>on-prem</code>. Residency policy permits.</li>
 <li><strong>Cold path</strong> (macro research, generic financial education, public news summary): Hosted frontier model (Anthropic / OpenAI / Gemini). Region = <code>us</code>. Residency policy permits because <code>classification = public</code>.</li>
 </ul>
 <p>The router that decides which path applies is <strong>30 lines of code</strong>. The compliance posture is a YAML file. The enforcement is at the bus, not in the LLM call.</p>
@@ -243,7 +243,7 @@ func (p *AnthropicProvider) Region() string { return &quot;us&quot; }
 <li>Multiple agents handle it.</li>
 <li>Eventually the LLM gets called.</li>
 </ul>
-<p>If your residency story only covers the LLM call site, the other six steps are unprotected. Genie&rsquo;s policy fires at the bus, which is <em>upstream of</em> the LLM. The bus check is the moment the PII could leave the perimeter. Catch it there, you catch it everywhere.</p>
+<p>If your residency story only covers the LLM call site, the other six steps are unprotected. Genie&rsquo;s policy fires at the bus, which is <em>upstream of</em> the LLM. The bus check is the moment the PII could leave the perimeter. Catch it there, you catch it everywhere. (This is the same <a href="/blog/posts/defence-in-depth-for-agentic-ai.html">defence-in-depth</a> principle applied at the data-residency layer.)</p>
 <hr>
 <h2 id="what-gets-exposed-publicly">What gets exposed publicly</h2>
 <p>The active residency posture is on the <code>GET /v1/disclosures</code> endpoint (public, unauthenticated):</p>
@@ -273,7 +273,7 @@ func (p *AnthropicProvider) Region() string { return &quot;us&quot; }
 <p><strong>Public-only cold path</strong>. Macro research, financial education — no PII involved. Permit cross-border for <code>classification = public</code>. Genie&rsquo;s policy YAML has an explicit toggle: <code>allow_cross_border_for_public: true</code>.</p>
 </li>
 <li>
-<p><strong>Cross-border banking products</strong>. NRI accounts, international remittance. These need explicit per-product policy carve-outs, not a global flag.</p>
+<p><strong>Cross-border banking products</strong>. NRI accounts, international remittance. These need explicit per-product <a href="/blog/posts/policy-as-code-without-shipping-code.html">policy carve-outs</a>, not a global flag.</p>
 </li>
 <li>
 <p><strong>Vendor due diligence done</strong>. If you&rsquo;ve audited a US provider&rsquo;s controls and your DPO + legal are satisfied, you can add them with their actual region declared as <code>us</code> and either flag the classifications allowed or run them only for <code>internal</code>-classified data.</p>

@@ -161,7 +161,7 @@ var uiFS embed.FS
 <p>Without runtime predictability, this shape causes pathologies. The GC pause spikes during a fan-out. The heap balloons when a cache eviction collides with a burst of new requests. The pod gets OOM-killed at exactly the wrong moment.</p>
 <p>Go&rsquo;s runtime gives you the controls to defend against this:</p>
 <ul>
-<li><strong><code>GOMEMLIMIT</code></strong> (since Go 1.19) sets a soft memory cap. The GC adjusts pacing to stay under the limit. Set it to ~80% of the Kubernetes memory limit and you stop getting OOM-killed during transient spikes.</li>
+<li><strong><a href="/blog/posts/gomemlimit-soft-gc-pacing.html"><code>GOMEMLIMIT</code></a></strong> (since Go 1.19) sets a soft memory cap. The GC adjusts pacing to stay under the limit. Set it to ~80% of the Kubernetes memory limit and you stop getting OOM-killed during transient spikes.</li>
 <li><strong><code>GOMAXPROCS</code></strong> (or the runtime auto-detect via Kubernetes <code>Downward API</code>) ensures the scheduler matches the CPU limit, not the host&rsquo;s core count. Without it, a Go program in a 2-core cgroup tries to schedule across 64 OS threads and pays scheduling overhead for no reason.</li>
 <li><strong><code>pprof</code></strong> is in the standard library. <code>/debug/pprof/heap</code> answers &ldquo;what&rsquo;s holding memory&rdquo; in 30 seconds, not the multi-tool dance that Python heap profiling requires. Under JWT + admin role, pprof endpoints are safe to expose in production for incident response.</li>
 <li><strong><code>GC traces</code></strong> are a startup flag — <code>GODEBUG=gctrace=1</code> — and the output is parseable. You can run a load test, capture the trace, and tell whether GC pacing is contributing to tail latency.</li>
@@ -172,7 +172,7 @@ var uiFS embed.FS
 <p>The Go standard library is a quiet superpower for production systems. The things you&rsquo;d reach for third-party in other languages are in the stdlib:</p>
 <ul>
 <li><code>net/http</code> — production-grade HTTP server and client.</li>
-<li><code>crypto/...</code> — AES, RSA, ECDSA, ed25519, JWT signing primitives.</li>
+<li><code>crypto/...</code> — AES, RSA, ECDSA, <a href="/blog/posts/webauthn-passkeys-ed25519-go.html">ed25519</a>, JWT signing primitives.</li>
 <li><code>encoding/json</code>, <code>encoding/xml</code>, <code>encoding/csv</code> — covers most format needs.</li>
 <li><code>archive/zip</code> — yes, Genie&rsquo;s XLSX loader parses Excel files with <code>archive/zip</code> + <code>encoding/xml</code> from the stdlib alone.</li>
 <li><code>database/sql</code> + <code>pgx</code> (one dep) — full Postgres support.</li>
@@ -226,7 +226,7 @@ var uiFS embed.FS
 <ol>
 <li><strong>Goroutine-per-handler</strong>: the chi router dispatches the request on a goroutine. The orchestrator subscribes agents to the bus on goroutines. Fan-out to forecaster + anomaly + recommender runs in parallel.</li>
 <li><strong>Error returns</strong>: each agent returns <code>([]Message, error)</code>. The orchestrator addresses the error explicitly — log, increment metric, record incident, route to fallback. No swallowed exceptions.</li>
-<li><strong>Embed.FS</strong>: the customer&rsquo;s browser is talking to HTML/CSS/JS served from the same Go binary that&rsquo;s processing the request.</li>
+<li><strong><a href="/blog/posts/embed-fs-as-deployment-unit.html">Embed.FS</a></strong>: the customer&rsquo;s browser is talking to HTML/CSS/JS served from the same Go binary that&rsquo;s processing the request.</li>
 <li><strong>Standard library</strong>: the JWT validation, the JSON parsing of the request body, the CSV parsing of the uploaded statement, the HTTP server itself — all stdlib.</li>
 <li><strong>Runtime predictability</strong>: GOMEMLIMIT is set to 80% of the pod limit. pprof endpoint is available under admin auth. The OTel exporter batches without blowing the heap.</li>
 <li><strong>Compile-time enforcement</strong>: every agent on the path implements the <code>Agent</code> interface. Every policy implements the <code>Policy</code> interface. Every LLM provider implements the <code>Provider</code> interface. A refactor that breaks one of these breaks the build.</li>
