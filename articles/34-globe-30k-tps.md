@@ -345,15 +345,12 @@ With these foundations, your system can survive: network failures, database hicc
 - Redis cluster for caching
 - Message queue: RabbitMQ (3-node cluster)
 
-**Cost:** ~$15K/month AWS infrastructure
-
 **Throughput:**
 - Writes: 30K TPS
 - Reads: 150K TPS (5:1 read/write ratio)
 - P99 latency: 12ms
 
 **The bottleneck was the monolithic app server hitting PostgreSQL:**
-- Before: 3K TPS, P99 = 800ms
 - After ledger + consolidation: 30K TPS, P99 = 12ms
 
 ## The Ledger Pattern in Detail
