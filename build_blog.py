@@ -450,7 +450,7 @@ POST_META = {
         "date": "2026-05-14",
         "tags": ['BigQuery', 'FinOps', 'Storage', 'GCP'],
         "audience": "Engineering",
-        "excerpt": "Storage was the second-biggest line item on a large-enterprise BigQuery bill. Long-term storage, physical-vs-logical billing, and column-level retention together delivered significant monthly savings.",
+        "excerpt": "Storage was the second-biggest line on a large-enterprise BigQuery bill. Physical-vs-logical billing and column-level retention delivered significant savings.",
     },
     "auto-049-bloom-terraform-regulated-bank-cloud.md": {
         "slug": "bloom-terraform-regulated-bank-cloud",

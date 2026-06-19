@@ -102,7 +102,7 @@
 <hr>
 <h2 id="the-gap-nobody-wants-to-talk-about">The gap nobody wants to talk about</h2>
 <p>In August 2025, the Reserve Bank of India published the <strong>Framework for Responsible and Ethical Enablement of AI</strong> — the FREE-AI report. Seven Sutras. Six Pillars. Twenty-six Recommendations. It is, by some distance, the most concrete piece of AI guidance any major central bank has produced.</p>
-<p>Nine months on, most &ldquo;AI in banking&rdquo; demos still look the same: a chatbot wrapper around a US-hosted foundation model, an opaque RAG pipeline, no audit trail, no incident form, no board-approved policy, no clue where the customer&rsquo;s PAN just travelled. The compliance team gets handed a 40-slide deck after the fact and asked to bless it.</p>
+<p>Nine months on, most &ldquo;AI in banking&rdquo; demos still look the same: a chatbot wrapper around a US-hosted foundation model, an opaque RAG pipeline, no audit trail, no incident form, no board-approved policy, no clue where the customer&rsquo;s PAN just travelled. The compliance team gets handed a 40-slide deck after the fact and asked to bless it. (For the AIGP credential perspective on this gap, see <a href="/blog/posts/ai-governance-from-credential-to-codebase.html">AI governance from credential to codebase</a>.)</p>
 <p>That gap — between the policy text and a system you can actually point a regulator at — is what <strong>Genie</strong> tries to close.</p>
 <p>Genie is an open-source AI financial assistant written in Go, built on Microsoft&rsquo;s <strong>Agent Framework (MAF)</strong> and explicitly designed against the RBI FREE-AI checklist. It speaks MCP and A2A, ships Ollama on-prem by default, and every architectural choice has a clause number next to it.</p>
 <p>This article is a tour of how the 26 FREE-AI recommendations land in real Go packages — and why &ldquo;responsible AI&rdquo; has to be a property of the system, not a paragraph in a policy document.</p>
@@ -159,9 +159,9 @@ principles:
 <h3 id="rec-2-ai-innovation-sandbox">Rec 2 — AI Innovation Sandbox</h3>
 <p>The single most underrated requirement. A bank cannot iterate on AI if it has to convene a change-advisory board for every prompt tweak.</p>
 <p>Genie ships <code>cmd/genie</code> — a zero-dependency CLI binary that runs the entire pipeline in-process, with stdout OTel exporters. No Postgres, no network, no keys. A risk analyst can clone the repo, run <code>go test ./...</code> (57 packages, all green), then <code>go run ./cmd/genie</code>, and watch the full agent pipeline produce a financial report against a sample CSV. The sandbox <strong>is</strong> the production code — same orchestrator, same governance, same agents — with mocked I/O.</p>
-<p>This is the test that should be table stakes for any AI vendor pitching a bank: <em>can I run your system on my laptop, offline, in five minutes?</em></p>
+<p>This is the test that should be table stakes for any AI vendor pitching a bank: <em>can I run your system on my laptop, offline, in five minutes?</em> (For the <a href="/blog/posts/aigp-reference-implementation.html">full AIGP reference implementation</a> mapping, see the companion Bodh article.)</p>
 <h3 id="rec-4-indigenous-ai-models">Rec 4 — Indigenous AI Models</h3>
-<p>This is where &ldquo;Sovereign AI&rdquo; stops being a buzzword. Genie&rsquo;s default LLM provider is <strong>Ollama</strong>, running on-prem. The provider stack also ships Anthropic, OpenAI, and Gemini implementations — but each provider declares its <code>Region()</code>, and the <code>DataResidencyPolicy</code> denies any PII-classified message from leaving the home region unless the destination is on-prem.</p>
+<p>This is where &ldquo;Sovereign AI&rdquo; stops being a buzzword. Genie&rsquo;s default LLM provider is <strong>Ollama</strong>, running on-prem. The provider stack also ships Anthropic, OpenAI, and Gemini implementations — but each provider declares its <code>Region()</code>, and the <code>DataResidencyPolicy</code> denies any PII-classified message from leaving the home region unless the destination is on-prem. (This pattern is explored in depth in <a href="/blog/posts/sovereign-ai-is-a-policy.html">Sovereign AI is a policy</a>.)</p>
 <pre><code class="language-go">// pkg/llm/ollama.go
 func (p *OllamaProvider) Region() string { return &quot;on-prem&quot; }
 
@@ -170,7 +170,7 @@ func (p *AnthropicProvider) Region() string { return &quot;us&quot; }
 </code></pre>
 <p>A bank running Genie in India with <code>home_region: in</code> in the policy YAML will see PII traffic routed to the local Ollama model automatically. Public queries (macro research, rate lookups, generic financial education) can be routed to a stronger hosted model. The router is a configuration choice, not a code change.</p>
 <h3 id="rec-6-adaptive-policies">Rec 6 — Adaptive Policies</h3>
-<p>The board approves the policy. Engineers ship the loader.</p>
+<p>The board approves the policy. Engineers ship the loader. (For a deeper look at this pattern, see <a href="/blog/posts/the-board-policy-is-a-yaml-file.html">The board policy is a YAML file</a>.)</p>
 <pre><code class="language-yaml"># config/ai-policy.example.yaml
 version: &quot;0.1.0&quot;
 board_approved_on: &quot;2025-08-13&quot;
@@ -287,7 +287,7 @@ explainability:
 <p>Genie injects the W3C <code>traceparent</code> header into <code>Message.Metadata</code> on publish, and re-extracts it inside the orchestrator before each agent runs. The result: one distributed trace per user question, spanning HTTP → governance → bus → every agent → every LLM call. Every span carries OpenInference semantic conventions, so Arize Phoenix or Langfuse picks it up unchanged.</p>
 <p>When the regulator asks &ldquo;what happened on this specific request at 14:32:07 on May 14?&rdquo;, the answer is a Tempo URL.</p>
 <h3 id="2-the-audit-log-has-to-be-tamper-evident">2. The audit log has to be tamper-evident</h3>
-<p>A bank&rsquo;s audit log is the single most attacked asset in the system — an attacker who can rewrite the audit log can hide everything else. <code>pkg/compliance</code> ships a <strong>hash-chained</strong> audit log: each entry includes the SHA-256 of the previous entry, so any tampering breaks the chain and is detectable on the next verification pass.</p>
+<p>A bank&rsquo;s audit log is the single most attacked asset in the system — an attacker who can rewrite the audit log can hide everything else. <code>pkg/compliance</code> ships a <strong><a href="/blog/posts/audit-log-design.html">hash-chained</a></strong> audit log: each entry includes the SHA-256 of the previous entry, so any tampering breaks the chain and is detectable on the next verification pass.</p>
 <p>This is not a blockchain. It&rsquo;s a Merkle-style chain anchored to a periodic external timestamp (S3 + Object Lock, or a notary service). It&rsquo;s the boring thing that actually works.</p>
 <h3 id="3-consent-has-to-be-a-ledger">3. Consent has to be a ledger</h3>
 <p><code>pkg/compliance.ConsentLedger</code> is an append-only record of (<code>user_id</code>, <code>data_category</code>, <code>purpose</code>, <code>granted_at</code>, <code>expires_at</code>, <code>revoked_at</code>). Every governance evaluation checks the ledger — a <code>portfolio_request</code> cannot proceed without a live <code>portfolio</code> consent. Revocation is a single insert. The DPDP Act 2023 alignment falls out of this for free.</p>
