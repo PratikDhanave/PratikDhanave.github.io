@@ -133,7 +133,7 @@
 - [ ] Repost best-performing LinkedIn thread
 - [ ] Company outreach email #1 (Microsoft)
   - Email: partnerships@microsoft.com
-  - Pitch: MAF case study
+  - Pitch: Microsoft Agent Framework case study
   - Link: Article 27
 
 **Day 23:**

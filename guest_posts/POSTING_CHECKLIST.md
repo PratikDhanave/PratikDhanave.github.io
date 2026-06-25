@@ -195,9 +195,9 @@ Pratik Dhanave
 ### Company Outreach (Partnerships)
 Identify 5 companies that would naturally link to you:
 
-1. **Microsoft** (you use MAF)
+1. **Microsoft** (you use the Microsoft Agent Framework)
    - Email: partnerships@microsoft.com
-   - Pitch: "Case study: multi-agent systems on MAF"
+   - Pitch: "Case study: multi-agent systems on the Microsoft Agent Framework"
    - Link: Your portfolio
 
 2. **Payment processors** (Stripe, Wise)

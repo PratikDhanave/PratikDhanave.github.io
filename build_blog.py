@@ -63,6 +63,17 @@ def tag_to_slug(tag):
     return tag.lower().replace(" ", "-")
 
 
+# Display overrides: tag names that should render differently from their slug key.
+TAG_DISPLAY_NAMES = {
+    "MAF": "Microsoft Agent Framework",
+}
+
+
+def tag_display(tag):
+    """Return the display name for a tag, falling back to the tag itself."""
+    return TAG_DISPLAY_NAMES.get(tag, tag)
+
+
 def validate_post_meta(post_meta):
     """Validate all POST_META entries at build start. Fails fast on bad data."""
     errors = []
@@ -255,14 +266,14 @@ POST_META = {
         "audience": "Software architects + platform engineers",
         "excerpt": "The philosophy, trade-offs, and what we learned converting 18+ agents in 3 months. Provider abstraction as the foundation for portable agents.",
         "featured": True,
-        "series": "ADK to MAF Migration",
+        "series": "ADK to Microsoft Agent Framework Migration",
         "series_position": 1,
         "series_total": 8,
         "citations": [
             {
                 "title": "Microsoft Agent Framework Documentation",
                 "url": "https://learn.microsoft.com/en-us/azure/ai-services/agents/",
-                "context": "Official MAF patterns and best practices"
+                "context": "Official Microsoft Agent Framework patterns and best practices"
             },
             {
                 "title": "Google Agent Development Kit (ADK) Documentation",
@@ -281,8 +292,8 @@ POST_META = {
         "date": "2026-06-02",
         "tags": ["ADK", "MAF", "Orchestration", "Design Pattern"],
         "audience": "Platform architects",
-        "excerpt": "How to port ADK's orchestration callbacks to MAF builders without losing control. The executor pattern: you own the loop.",
-        "series": "ADK to MAF Migration",
+        "excerpt": "How to port ADK's orchestration callbacks to Microsoft Agent Framework builders without losing control. The executor pattern: you own the loop.",
+        "series": "ADK to Microsoft Agent Framework Migration",
         "series_position": 2,
         "series_total": 8,
     },
@@ -291,8 +302,8 @@ POST_META = {
         "date": "2026-06-03",
         "tags": ["ADK", "MAF", "State Management", "Token Budgeting"],
         "audience": "Backend + ML engineers",
-        "excerpt": "Sessions to threads: porting multi-turn state from ADK to MAF. Token budgeting, long-term memory, and conversation audit trails.",
-        "series": "ADK to MAF Migration",
+        "excerpt": "Sessions to threads: porting multi-turn state from ADK to Microsoft Agent Framework. Token budgeting, long-term memory, and conversation audit trails.",
+        "series": "ADK to Microsoft Agent Framework Migration",
         "series_position": 3,
         "series_total": 8,
     },
@@ -301,8 +312,8 @@ POST_META = {
         "date": "2026-06-04",
         "tags": ["ADK", "MAF", "Tools", "Governance", "OPA"],
         "audience": "Governance + backend engineers",
-        "excerpt": "Migrate ADK functions to MAF governed tools with policy enforcement, DLP scanning, approval gates, and OPA integration for production agent systems.",
-        "series": "ADK to MAF Migration",
+        "excerpt": "Migrate ADK functions to Microsoft Agent Framework governed tools with policy enforcement, DLP scanning, approval gates, and OPA integration for production agent systems.",
+        "series": "ADK to Microsoft Agent Framework Migration",
         "series_position": 4,
         "series_total": 8,
     },
@@ -312,7 +323,7 @@ POST_META = {
         "tags": ["ADK", "MAF", "Provider Abstraction", "Config"],
         "audience": "DevOps + platform engineers",
         "excerpt": "Zero-code LLM provider swaps across environments: Ollama for dev, OpenAI for staging, Azure Foundry for prod. Same agents, different models.",
-        "series": "ADK to MAF Migration",
+        "series": "ADK to Microsoft Agent Framework Migration",
         "series_position": 5,
         "series_total": 8,
     },
@@ -321,8 +332,8 @@ POST_META = {
         "date": "2026-06-06",
         "tags": ["ADK", "MAF", "Middleware", "Observability", "OTel"],
         "audience": "SRE + observability engineers",
-        "excerpt": "Migrate ADK callbacks to MAF composable middleware: decorators for audit logging, retry with backoff, token budget enforcement, and OpenTelemetry tracing.",
-        "series": "ADK to MAF Migration",
+        "excerpt": "Migrate ADK callbacks to Microsoft Agent Framework composable middleware: decorators for audit logging, retry with backoff, token budget enforcement, and OpenTelemetry tracing.",
+        "series": "ADK to Microsoft Agent Framework Migration",
         "series_position": 6,
         "series_total": 8,
     },
@@ -331,8 +342,8 @@ POST_META = {
         "date": "2026-06-07",
         "tags": ["ADK", "MAF", "Deployment", "Cloud Run", "A2A"],
         "audience": "Cloud architects + SRE",
-        "excerpt": "Deploy MAF multi-agent systems on Cloud Run with A2A agent-to-agent communication, autoscaling, load balancing, and production observability dashboards.",
-        "series": "ADK to MAF Migration",
+        "excerpt": "Deploy Microsoft Agent Framework multi-agent systems on Cloud Run with A2A agent-to-agent communication, autoscaling, load balancing, and production observability dashboards.",
+        "series": "ADK to Microsoft Agent Framework Migration",
         "series_position": 7,
         "series_total": 8,
     },
@@ -343,7 +354,7 @@ POST_META = {
         "audience": "All engineers",
         "excerpt": "What worked, what was hard, and what we'd do differently. Real numbers: 18 agents, 90 days, 5 governance policies, 4 provider swaps.",
         "featured": True,
-        "series": "ADK to MAF Migration",
+        "series": "ADK to Microsoft Agent Framework Migration",
         "series_position": 8,
         "series_total": 8,
     },
@@ -872,13 +883,13 @@ POST_META = {
         "audience": "Engineering",
         "excerpt": "Stdlib over libraries, single binary over framework, fail-closed defaults over forgiveness. The boring-on-purpose case for choosing Go to ship a multi-agent system into a regulated environment.",
     },
-    # --- June 2026: MAF series + security articles ---
+    # --- June 2026: Microsoft Agent Framework series + security articles ---
     "june-maf-reference-architecture-overview.html": {
         "slug": "maf-reference-architecture-overview",
         "date": "2026-06-09",
         "tags": ['Multi-Agent', 'MAF', 'Architecture', 'Python'],
         "audience": "Engineering",
-        "excerpt": "Microsoft published a 12-chapter reference architecture for multi-agent systems and a separate framework (MAF) to build them. Here is what the 102 Python files actually contain and how they map to the chapters.",
+        "excerpt": "Microsoft published a 12-chapter reference architecture for multi-agent systems and a separate framework — the Microsoft Agent Framework — to build them. Here is what the 102 Python files actually contain and how they map to the chapters.",
     },
     "june-maf-four-orchestration-patterns.html": {
         "slug": "maf-four-orchestration-patterns",
@@ -892,7 +903,7 @@ POST_META = {
         "date": "2026-06-11",
         "tags": ['MAF', 'Workflows', 'Orchestration', 'Magentic'],
         "audience": "Engineering",
-        "excerpt": "The first ten posts treated MAF as having four orchestration patterns. The official docs say five. Here are the two I missed — Group Chat and Magentic — and why they matter.",
+        "excerpt": "The first ten posts treated the Microsoft Agent Framework as having four orchestration patterns. The official docs say five. Here are the two I missed — Group Chat and Magentic — and why they matter.",
     },
     "june-maf-ollama-as-default.html": {
         "slug": "maf-ollama-as-default",
@@ -927,7 +938,7 @@ POST_META = {
         "date": "2026-06-16",
         "tags": ['MAF', 'Observability', 'OpenTelemetry', 'Grafana'],
         "audience": "Engineering",
-        "excerpt": "OpenTelemetry through MAF's configure_otel_providers, custom workflow spans, custom metrics for runs/duration/agent selection, Jaeger + Prometheus + Grafana wiring, and the set-once latch gotcha.",
+        "excerpt": "OpenTelemetry through the Microsoft Agent Framework's configure_otel_providers, custom workflow spans, custom metrics for runs/duration/agent selection, Jaeger + Prometheus + Grafana wiring, and the set-once latch gotcha.",
     },
     "june-maf-multi-turn-evals-first-principles.html": {
         "slug": "maf-multi-turn-evals-first-principles",
@@ -941,7 +952,7 @@ POST_META = {
         "date": "2026-06-18",
         "tags": ['MAF', 'Refactor', 'Engineering'],
         "audience": "Engineering",
-        "excerpt": "I built memory, communication, security, governance, and evals from scratch first. Then I deleted most of it and used the MAF-native packages. Here is the audit table and what survived.",
+        "excerpt": "I built memory, communication, security, governance, and evals from scratch first. Then I deleted most of it and used the Microsoft Agent Framework-native packages. Here is the audit table and what survived.",
     },
     "june-maf-governance-with-agt.html": {
         "slug": "maf-governance-with-agt",
@@ -973,7 +984,7 @@ TAG_DESCRIPTIONS = {
     "Evaluation": "Evaluation in AI and ML systems means measuring whether models and agents actually perform correctly on tasks that matter. These articles cover benchmark design, LLM-as-judge patterns, OpenTelemetry-based evaluation pipelines, and the tooling needed to move from demo accuracy to production-grade reliability.",
     "Go": "Go is the primary implementation language across these projects, chosen for its compile-time safety, goroutine concurrency, and deployment simplicity. Posts tagged with Go cover idiomatic patterns, standard-library techniques, performance tuning, and real-world architecture decisions in production Go services.",
     "HIPAA": "HIPAA (Health Insurance Portability and Accountability Act) sets the technical safeguards that protect patient health information in the United States. These posts translate HIPAA requirements into engineering artifacts: row-level security policies, append-only audit logs, PHI redaction at the logger seam, and access control as Go interfaces.",
-    "MAF": "Microsoft Agent Framework (MAF) is a production-grade SDK for building multi-agent AI applications with structured orchestration, tool governance, and observability. These articles cover MAF architecture, workflow patterns, memory management, agent registry conventions, and migration paths from other frameworks.",
+    "MAF": "Microsoft Agent Framework (MAF) is a production-grade SDK for building multi-agent AI applications with structured orchestration, tool governance, and observability. These articles cover Microsoft Agent Framework architecture, workflow patterns, memory management, agent registry conventions, and migration paths from other frameworks.",
     "Multi-Agent AI": "Multi-agent AI systems coordinate multiple specialized agents to solve problems that are too complex for a single model. Posts here explore supervisor-worker topologies, agent lifecycle management, tool governance, security envelopes, and the operational patterns required to run multi-agent systems in production.",
     "Multi-Agent": "Multi-agent systems decompose complex workflows into cooperating specialized components. These articles cover orchestration patterns, state management, deployment strategies, and the architectural trade-offs involved in coordinating multiple autonomous agents within a single platform. Topics include supervisor-worker topologies, parallel dispatch with errgroup, and production deployment on Cloud Run.",
     "Architecture": "Software architecture defines the structural decisions that shape a system's quality attributes: performance, maintainability, and resilience. These posts present architecture patterns, framework comparisons, monolith-to-microservices migration, and the design trade-offs behind production systems.",
@@ -994,8 +1005,8 @@ TAG_DESCRIPTIONS = {
     "Spanner": "Cloud Spanner is Google's globally distributed relational database, used here for schemas that need strong consistency at scale. Articles cover Spanner schema design, interleaved tables, migration tooling in Go, and the performance patterns specific to Spanner's TrueTime-based architecture.",
     "KYC": "Know Your Customer (KYC) verification is a regulatory requirement for financial services. These posts cover agent-driven KYC orchestration, Aadhaar-based identity verification, video KYC workflows under RBI guidelines, and the engineering patterns that make KYC processes both compliant and efficient. Each article includes implementation details for Go-based KYC services integrated with India's digital identity stack.",
     "RBI": "The Reserve Bank of India (RBI) sets regulatory standards for digital payments, KYC verification, and data governance in Indian financial services. These articles cover RBI compliance implementation, digital lending guidelines, video KYC requirements, and how FREE-AI maps to RBI's regulatory expectations for responsible AI deployment in banking and FinTech.",
-    "ADK": "Google's Agent Development Kit (ADK) was an early framework for building AI agents. These posts document the ADK-to-MAF migration journey, comparing orchestration models, state management approaches, tool governance, and the architectural lessons learned from running both frameworks in production.",
-    "Genie": "Genie is a multi-agent financial advisory platform built on Microsoft MAF with 15 specialized agents. Articles tagged with Genie cover its architecture, OpenTelemetry evaluation pipelines, AGT governance integration, and the retrospective lessons from building a production multi-agent system.",
+    "ADK": "Google's Agent Development Kit (ADK) was an early framework for building AI agents. These posts document the ADK-to-Microsoft Agent Framework migration journey, comparing orchestration models, state management approaches, tool governance, and the architectural lessons learned from running both frameworks in production.",
+    "Genie": "Genie is a multi-agent financial advisory platform built on the Microsoft Agent Framework with 15 specialized agents. Articles tagged with Genie cover its architecture, OpenTelemetry evaluation pipelines, AGT governance integration, and the retrospective lessons from building a production multi-agent system.",
     "Testing": "Testing distributed and AI-powered systems requires strategies beyond unit tests. These posts cover chaos engineering for multi-agent resilience, Prometheus-based SLO validation, benchmark-driven development, and the testing patterns that catch failures before they reach production.",
     "Opinion": "Opinion pieces present perspectives on engineering culture, architectural philosophy, and career development. These articles offer positions on mono-repo vs. poly-repo, the value of technical writing, audit as architecture, and the engineering practices that compound over a career.",
     "Regulation": "Regulatory requirements shape the technical architecture of healthcare and financial systems. These posts cover the 21st Century Cures Act CDS carve-out, HIPAA technical safeguards, and the approach of encoding regulatory obligations directly as code-level constraints.",
@@ -1025,7 +1036,7 @@ TAG_DESCRIPTIONS = {
     "IAPP": "The International Association of Privacy Professionals (IAPP) sets standards for privacy and AI governance certification. Articles here cover AIGP certification preparation and how IAPP frameworks translate into practical engineering governance for AI-powered systems.",
     "GKE": "Google Kubernetes Engine (GKE) is the managed Kubernetes platform used to deploy multi-agent AI workloads. Posts cover GKE infrastructure for medical AI, production cluster patterns, node pool configuration, and the operational practices that keep GKE clusters stable under agentic workloads.",
     "Cloud Architecture": "Cloud architecture designs systems that leverage managed services for scalability, reliability, and cost efficiency. These articles cover GCP infrastructure patterns, BigQuery analytics architecture, multi-cloud strategies, and the architectural decisions that balance cloud convenience with operational control.",
-    "Orchestration": "Orchestration coordinates the execution order and data flow between agents, services, or workflow steps. Posts cover MAF workflow orchestration, ADK-to-MAF migration patterns, Magentic-One orchestration, and the design patterns that keep complex multi-step workflows reliable and observable.",
+    "Orchestration": "Orchestration coordinates the execution order and data flow between agents, services, or workflow steps. Posts cover Microsoft Agent Framework workflow orchestration, ADK-to-Microsoft Agent Framework migration patterns, Magentic-One orchestration, and the design patterns that keep complex multi-step workflows reliable and observable.",
     "Config": "Configuration management for multi-agent systems requires provider abstraction and runtime flexibility. These articles cover model provider configuration patterns, environment-based switching between LLM backends, and the design decisions that keep multi-agent systems portable across deployment targets.",
     "Middleware": "Middleware sits between the framework and application logic to handle cross-cutting concerns. Posts cover OpenTelemetry middleware for agentic AI, observability injection, and the middleware patterns that add tracing, logging, and governance without polluting business logic.",
     "Deployment": "Deployment engineering ensures that systems move from development to production reliably. Articles cover Cloud Run deployment for multi-agent services, A2A endpoint exposure, embed.FS for single-binary Go deployments, and the strategies that make deployments repeatable and rollback-safe.",
@@ -1037,7 +1048,7 @@ TAG_DESCRIPTIONS = {
     "Incident Response": "Incident response defines the procedures for detecting, triaging, and recovering from system failures. These articles cover FREE-AI incident response for AI-specific failures, post-incident review practices, and the playbooks that turn chaotic outages into structured recovery processes.",
     "SOC 2": "SOC 2 compliance verifies that a service organisation meets trust criteria for security, availability, and confidentiality. Posts cover SOC 2 automation with Terraform, banking-grade infrastructure controls, and the engineering practices that make SOC 2 audits routine rather than disruptive.",
     "ISO 27001": "ISO 27001 is the international standard for information security management systems. These articles cover ISO 27001 control implementation alongside SOC 2 and banking-grade Terraform automation for infrastructure that satisfies both compliance frameworks simultaneously.",
-    "Azure": "Microsoft Azure provides cloud infrastructure and AI services including the Agent Framework. Posts cover Azure Kubernetes Service operator development, MAF integration patterns, and the Azure-specific architectural decisions in multi-agent AI deployments.",
+    "Azure": "Microsoft Azure provides cloud infrastructure and AI services including the Agent Framework. Posts cover Azure Kubernetes Service operator development, Microsoft Agent Framework integration patterns, and the Azure-specific architectural decisions in multi-agent AI deployments.",
     "BCP": "Business Continuity Planning (BCP) ensures systems remain available during disruptions. Articles cover chaos engineering for multi-agent AI resilience, disaster recovery testing, and the planning practices that validate whether production systems actually survive the failure scenarios they were designed for.",
     "Knowledge Graph": "Knowledge graphs represent entities and relationships as structured, queryable data. Posts cover BigQuery-based knowledge graph construction, entity resolution patterns, GraphRAG integration, and how knowledge graphs improve retrieval accuracy in RAG-powered AI systems.",
     "Banking": "Banking engineering requires the highest standards of security, compliance, and audit. These posts cover SOC 2 and ISO 27001 automation for banking infrastructure, Terraform patterns for financial services, and the engineering controls mandated by financial regulators.",
@@ -1046,7 +1057,7 @@ TAG_DESCRIPTIONS = {
     "Cloud Run": "Cloud Run deploys containerised workloads as serverless services on Google Cloud. Articles cover Cloud Run deployment patterns for multi-agent AI, A2A endpoint exposure, and the operational practices for running Go services on Cloud Run with predictable cold-start behaviour.",
     "GraphQL": "GraphQL provides a flexible query language for APIs that lets clients request exactly the data they need. Posts cover GraphQL vs. gRPC performance comparisons, Cloud Run-hosted GraphQL services, and the architectural trade-offs between GraphQL and traditional REST endpoints.",
     "gRPC": "gRPC is a high-performance RPC framework built on HTTP/2 and Protocol Buffers. Articles cover gRPC service design in Go, performance benchmarking against GraphQL, and the patterns that make gRPC suitable for low-latency inter-service communication in distributed systems.",
-    "Migration": "Migration engineering moves data and services between platforms without downtime. Posts cover Spanner-to-Spanner data migration with Datastream, monolith-to-microservices decomposition, and the ADK-to-MAF framework migration that preserved production reliability throughout the transition.",
+    "Migration": "Migration engineering moves data and services between platforms without downtime. Posts cover Spanner-to-Spanner data migration with Datastream, monolith-to-microservices decomposition, and the ADK-to-Microsoft Agent Framework migration that preserved production reliability throughout the transition.",
     "Pub/Sub": "Google Cloud Pub/Sub provides asynchronous messaging between distributed services. Articles cover Pub/Sub integration in data migration pipelines, event-driven architecture patterns, and the delivery guarantees that make Pub/Sub suitable for production workloads requiring exactly-once processing.",
     "Dataflow": "Google Cloud Dataflow runs Apache Beam pipelines for batch and streaming data processing. Posts cover Dataflow integration in database migration pipelines and the patterns for building reliable data transformation workflows at scale.",
     "Datastream": "Google Cloud Datastream provides change-data-capture for database replication and migration. Articles cover Datastream integration with Spanner, CDC-based migration patterns, and the operational considerations for running continuous replication pipelines.",
@@ -1063,7 +1074,7 @@ TAG_DESCRIPTIONS = {
     "Redis": "Redis provides in-memory data structures for caching, rate limiting, and session management. Posts cover Redis integration in high-throughput payment platforms, distributed lock patterns, and the operational considerations for Redis in latency-sensitive financial workloads.",
     "API Design": "API design defines the contracts that clients depend on for system integration. Articles cover multi-cloud API abstraction in Gocloud, GraphQL vs. gRPC trade-offs, and the design patterns that make APIs stable, discoverable, and backward-compatible across versions.",
     "GDPR": "The General Data Protection Regulation (GDPR) sets data protection requirements for systems processing EU personal data. Posts cover GDPR Article 22 automated decision-making compliance, privacy-by-design patterns in Go, and how GDPR requirements align with HIPAA and AI governance frameworks.",
-    "Workflow": "Workflow orchestration coordinates multi-step processes with defined order, error handling, and state management. Posts cover saga patterns for distributed transactions, MAF workflow composition, and the design patterns that make long-running workflows observable, resumable, and fault-tolerant.",
+    "Workflow": "Workflow orchestration coordinates multi-step processes with defined order, error handling, and state management. Posts cover saga patterns for distributed transactions, Microsoft Agent Framework workflow composition, and the design patterns that make long-running workflows observable, resumable, and fault-tolerant.",
     "Saga": "The saga pattern manages distributed transactions by breaking them into compensable local transactions. These articles cover saga orchestration in Go, compensation logic design, and how sagas provide data consistency across services without requiring distributed locks.",
     "Self-RAG": "Self-RAG adds a reflection step where the model evaluates its own retrieval and generation quality before responding. Posts explore how self-reflection improves factual accuracy and reduces hallucination compared to single-pass RAG architectures.",
     "CRAG": "Corrective RAG (CRAG) adds a verification layer that evaluates retrieved document relevance before generation. Articles cover CRAG implementation patterns and how corrective retrieval improves response quality by filtering out irrelevant context.",
@@ -1092,16 +1103,16 @@ TAG_DESCRIPTIONS = {
     "NPCI": "The National Payments Corporation of India (NPCI) operates India's retail payment systems including UPI. Posts cover NPCI integration patterns, payment settlement engineering, and the compliance requirements for connecting to NPCI's payment infrastructure.",
     "HITL": "Human-in-the-loop (HITL) patterns keep humans in the decision chain for high-stakes actions. Articles cover HITL requirements in clinical decision support, payment approval workflows, and the queue-based architectures that make human review scalable without blocking system throughput.",
     "Gemini": "Google Gemini is a multimodal AI model used for code generation, SQL synthesis, and analytical tasks. Posts cover Gemini-powered BigQuery SQL generation, model integration patterns, and the practical considerations of using Gemini in production FinOps tooling.",
-    "Python": "Python serves as the implementation language for MAF-based multi-agent systems and data processing pipelines. Articles cover MAF Python patterns, agent registry design, workflow orchestration, and the Python-specific architectural decisions in multi-agent AI applications.",
-    "Ollama": "Ollama provides local LLM inference for development and privacy-sensitive deployments. Posts cover Ollama integration with MAF, local model configuration, and the developer experience patterns that make local AI development fast and reproducible.",
-    "Local AI": "Local AI runs language models on developer hardware for privacy, cost control, and offline development. Articles cover Ollama-based local inference, MAF integration patterns, and the trade-offs between local and cloud-hosted model deployment.",
+    "Python": "Python serves as the implementation language for Microsoft Agent Framework-based multi-agent systems and data processing pipelines. Articles cover Microsoft Agent Framework Python patterns, agent registry design, workflow orchestration, and the Python-specific architectural decisions in multi-agent AI applications.",
+    "Ollama": "Ollama provides local LLM inference for development and privacy-sensitive deployments. Posts cover Ollama integration with the Microsoft Agent Framework, local model configuration, and the developer experience patterns that make local AI development fast and reproducible.",
+    "Local AI": "Local AI runs language models on developer hardware for privacy, cost control, and offline development. Articles cover Ollama-based local inference, Microsoft Agent Framework integration patterns, and the trade-offs between local and cloud-hosted model deployment.",
     "Developer Experience": "Developer experience (DX) determines how quickly engineers can build, test, and iterate on software. Posts cover local AI setup with Ollama, configuration patterns for multi-provider environments, and the tooling decisions that reduce friction in multi-agent AI development.",
     "Refactor": "Refactoring improves code structure without changing external behaviour. Articles cover production refactoring strategies for multi-agent systems, incremental migration patterns, and the engineering discipline needed to refactor safely in systems with high reliability requirements.",
     "OWASP": "OWASP provides security standards and testing methodologies for software applications. Posts cover OWASP integration with Agent Governance Toolkit (AGT), security assessment for multi-agent AI, and the OWASP-aligned controls that protect agentic systems from common vulnerability classes.",
-    "AGT": "The Agent Governance Toolkit (AGT) enforces tool-level policies in multi-agent AI systems. Articles cover AGT integration with MAF, OWASP-aligned security scanning, and the governance patterns that control which tools agents can invoke and under what conditions.",
-    "Magentic": "Magentic-One is Microsoft's multi-agent orchestration pattern for coordinating specialized agents. Posts cover Magentic-One workflow composition in MAF, orchestration strategies, and how Magentic patterns compare to other multi-agent coordination approaches.",
+    "AGT": "The Agent Governance Toolkit (AGT) enforces tool-level policies in multi-agent AI systems. Articles cover AGT integration with the Microsoft Agent Framework, OWASP-aligned security scanning, and the governance patterns that control which tools agents can invoke and under what conditions.",
+    "Magentic": "Magentic-One is Microsoft's multi-agent orchestration pattern for coordinating specialized agents. Posts cover Magentic-One workflow composition in the Microsoft Agent Framework, orchestration strategies, and how Magentic patterns compare to other multi-agent coordination approaches.",
     "Grafana": "Grafana provides dashboards and visualisation for observability data from Prometheus and OpenTelemetry. Articles cover Grafana dashboard design for multi-agent AI systems, trace visualisation patterns, and the dashboard layouts that make agentic system behaviour interpretable.",
-    "LLM-as-Judge": "LLM-as-judge evaluation uses one language model to assess the output quality of another. Posts cover LLM-as-judge implementation in MAF evaluation pipelines, scoring rubric design, and the calibration practices that make automated evaluation reliable enough for production quality gates.",
+    "LLM-as-Judge": "LLM-as-judge evaluation uses one language model to assess the output quality of another. Posts cover LLM-as-judge implementation in Microsoft Agent Framework evaluation pipelines, scoring rubric design, and the calibration practices that make automated evaluation reliable enough for production quality gates.",
     "Prometheus": "Prometheus collects and stores time-series metrics for monitoring and alerting. Articles cover Prometheus-based SLO validation, custom metric design for Go services, and the Prometheus patterns that power reliable alerting in production distributed systems.",
     "SLO": "Service Level Objectives (SLOs) define measurable reliability targets that engineering teams commit to. Posts cover SLO design for agent-powered services, latency budget allocation, and the error-budget approach that balances reliability investment against feature velocity.",
     "Latency": "Latency engineering focuses on reducing and controlling response times in distributed systems. Articles cover latency budgets for multi-agent AI, P99 tail latency management, and the measurement and optimisation patterns that keep latency predictable under varying load.",
@@ -1136,14 +1147,14 @@ TAG_DESCRIPTIONS = {
     "HyDE": "Hypothetical Document Embeddings (HyDE) improve retrieval by generating a hypothetical answer and using its embedding to find relevant documents. Posts cover HyDE implementation, integration with RAG pipelines, and how HyDE improves retrieval quality for ambiguous or complex queries.",
     "SQL": "SQL remains the primary interface for analytical queries in data warehouse environments. Articles cover BigQuery SQL optimisation, Gemini-powered SQL generation, and the query patterns that reduce both execution time and compute cost in large-scale analytical workloads.",
     "DevOps": "DevOps practices unify development and operations for faster, more reliable software delivery. Posts cover Terraform-based infrastructure automation, SOC 2 compliance in CI/CD pipelines, and the DevOps patterns that make compliance a natural part of the delivery workflow.",
-    "Workflows": "Workflow design coordinates multi-step agent operations with defined execution order and error handling. Articles cover MAF workflow patterns, sequential and parallel composition, and the orchestration strategies that keep complex multi-agent workflows observable and fault-tolerant.",
-    "State Management": "State management in multi-agent systems tracks conversation context, agent memory, and workflow progress. Posts cover MAF state management patterns, token budget tracking, and the design decisions that balance state persistence with performance in agentic applications.",
+    "Workflows": "Workflow design coordinates multi-step agent operations with defined execution order and error handling. Articles cover Microsoft Agent Framework workflow patterns, sequential and parallel composition, and the orchestration strategies that keep complex multi-agent workflows observable and fault-tolerant.",
+    "State Management": "State management in multi-agent systems tracks conversation context, agent memory, and workflow progress. Posts cover Microsoft Agent Framework state management patterns, token budget tracking, and the design decisions that balance state persistence with performance in agentic applications.",
     "Token Budgeting": "Token budgeting controls LLM consumption to manage cost and latency in production AI systems. Articles cover token budget allocation strategies, per-agent limits, and the engineering patterns that prevent runaway LLM costs while maintaining output quality.",
     "Tools": "Tool governance controls which external capabilities agents can invoke and under what conditions. Posts cover OPA-based tool policy enforcement, AGT integration, and the governance patterns that prevent agents from taking unsafe or unauthorized actions.",
     "OPA": "Open Policy Agent (OPA) evaluates policies written in Rego for fine-grained access and tool governance. Articles cover OPA integration for agent tool governance, policy-as-code patterns, and how OPA enables declarative, testable policy enforcement in multi-agent AI systems.",
     "Provider Abstraction": "Provider abstraction decouples application logic from specific LLM or cloud service implementations. Posts cover model provider switching patterns, configuration-driven provider selection, and the abstraction layers that make multi-agent systems portable across OpenAI, Ollama, and Azure Foundry.",
     "Design Pattern": "Design patterns provide reusable solutions for common architectural problems. Articles cover orchestration patterns, state management approaches, and the design-level decisions that determine how multi-agent AI systems handle complexity, failure, and evolution.",
-    "Communication": "Communication patterns define how agents exchange information and coordinate actions. Posts cover A2A protocol-based inter-agent communication, MAF message routing, and the architectural patterns that enable agents to collaborate without tight coupling.",
+    "Communication": "Communication patterns define how agents exchange information and coordinate actions. Posts cover A2A protocol-based inter-agent communication, Microsoft Agent Framework message routing, and the architectural patterns that enable agents to collaborate without tight coupling.",
     "Multi-Cloud": "Multi-cloud architecture distributes workloads across multiple cloud providers for resilience, cost optimisation, or regulatory compliance. Articles cover Gocloud's provider-agnostic API, egress cost reduction, and the engineering patterns for running systems that span AWS, GCP, and Azure.",
     "HL7 v2": "HL7 v2 is the legacy clinical messaging standard still running in most healthcare systems worldwide. Posts cover HL7 v2 parsing and integration, migration strategies to FHIR R4, and why understanding HL7 v2 remains essential for healthcare IT interoperability.",
     "FHIR": "FHIR R4 (Fast Healthcare Interoperability Resources) is the modern standard for healthcare data exchange. Articles cover FHIR resource modelling, integration with HL7 v2 legacy systems, and the engineering patterns for building healthcare platforms that are FHIR-compliant from the ground up.",
@@ -1772,7 +1783,7 @@ SITE_FOOTER = """<footer class="site-footer">
 
 def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index=None):
     """Wrap rendered markdown body in the post template."""
-    tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">{t}</span></a>' for t in meta["tags"])
+    tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">{tag_display(t)}</span></a>' for t in meta["tags"])
     date_iso = meta["date"]
     date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%B %d, %Y")
     description = meta["excerpt"]
@@ -2004,7 +2015,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 
 def _render_post_card(p, link_prefix="/blog/posts/"):
     """Render a single post card HTML block."""
-    tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">{t}</span></a>' for t in p["meta"]["tags"])
+    tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">{tag_display(t)}</span></a>' for t in p["meta"]["tags"])
     date_iso = p["meta"]["date"]
     date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
     read_time = p.get("read_time", 0)
@@ -2077,7 +2088,7 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
         qualified.sort(key=lambda x: (-x[1], x[0]))
         if qualified:
             tag_items = "".join(
-                f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">{t} <span class="tag-count">({c})</span></span></a>'
+                f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">{tag_display(t)} <span class="tag-count">({c})</span></span></a>'
                 for t, c in qualified
             )
             tag_cloud_html = f"""
@@ -2213,7 +2224,7 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 
 <section class="blog-hero">
   <h1>Blog</h1>
-  <p>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. Most posts grow out of work on <a href="/projects/bodh/">Bodh</a> &mdash; an open-source Go implementation of Microsoft's MAF pattern tuned for medical sequential diagnosis.</p>
+  <p>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. Most posts grow out of work on <a href="/projects/bodh/">Bodh</a> &mdash; an open-source Go implementation of Microsoft Agent Framework pattern tuned for medical sequential diagnosis.</p>
   <p style="margin-top:12px;font-size:0.95rem;"><a href="/featured/">Featured articles</a> &middot; <a href="/articles/">Browse by topic</a> &middot; <a href="/blog/archive/">Full archive</a> &middot; <a href="/blog/feed.xml">RSS feed</a></p>
 </section>
 
@@ -2333,7 +2344,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
     # Look up tag description for intro paragraph (thin-content fix)
     tag_desc = TAG_DESCRIPTIONS.get(tag, "")
     if not tag_desc:
-        tag_desc = f"Articles about {tag} — exploring patterns, best practices, and real-world implementations in production systems."
+        tag_desc = f"Articles about {tag_display(tag)} — exploring patterns, best practices, and real-world implementations in production systems."
 
     # Phase 0.4: noindex thin tags (<3 posts), index qualifying tags
     if post_count < 3:
@@ -2348,7 +2359,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
             f'{{"@type": "BlogPosting", "headline": "{_json.dumps(p["title"])[1:-1]}", "url": "{SITE_URL}/blog/posts/{p["meta"]["slug"]}.html"}}'
             for p in posts_with_tag
         )
-        tag_json = _json.dumps(tag)[1:-1]
+        tag_json = _json.dumps(tag_display(tag))[1:-1]
         collection_schema = f"""
 <script type="application/ld+json">
 {{
@@ -2364,7 +2375,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 
     # BreadcrumbList only for indexed tag pages (3+ posts) to avoid schema-noindex conflict
     if post_count >= 3:
-        tag_json_bc = _json.dumps(tag)[1:-1]
+        tag_json_bc = _json.dumps(tag_display(tag))[1:-1]
         collection_schema += f"""
 <script type="application/ld+json">
 {{
@@ -2380,7 +2391,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 
     posts_html = []
     for p in posts_with_tag:
-        tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">{t}</span></a>' for t in p["meta"]["tags"])
+        tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">{tag_display(t)}</span></a>' for t in p["meta"]["tags"])
         date_iso = p["meta"]["date"]
         date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
         read_time = p.get("read_time", 0)
@@ -2410,7 +2421,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
         cloud_tags = sorted(top_tags_set)
     else:
         cloud_tags = sorted(all_tags)
-    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" aria-label="{t} ({tag_counts.get(t, 0)}) posts"><span class="tag-cloud-item">{t} ({tag_counts.get(t, 0)})</span></a>' for t in cloud_tags)
+    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" aria-label="{tag_display(t)} ({tag_counts.get(t, 0)}) posts"><span class="tag-cloud-item">{tag_display(t)} ({tag_counts.get(t, 0)})</span></a>' for t in cloud_tags)
 
     tag_page_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS
 
@@ -2426,12 +2437,12 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{_html_escape(tag)} Articles &amp; Tutorials — Blog — Pratik Dhanave</title>
+<title>{_html_escape(tag_display(tag))} Articles &amp; Tutorials — Blog — Pratik Dhanave</title>
 <meta name="description" content="{_html_escape(meta_tag_desc)}{suffix}">
 <meta name="author" content="Pratik Dhanave">
 {robots_meta}
 
-<meta property="og:title" content="Pratik Dhanave — {_html_escape(tag)}">
+<meta property="og:title" content="Pratik Dhanave — {_html_escape(tag_display(tag))}">
 <meta property="og:description" content="{_html_escape(meta_tag_desc)}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="{SITE_URL}/blog/tags/{tag_to_slug(tag)}/">
@@ -2440,8 +2451,8 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 <meta property="og:image" content="{SITE_URL}/{OG_IMAGE}">
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Pratik Dhanave — {_html_escape(tag)}">
-<meta name="twitter:description" content="Posts tagged with {_html_escape(tag)}.">
+<meta name="twitter:title" content="Pratik Dhanave — {_html_escape(tag_display(tag))}">
+<meta name="twitter:description" content="Posts tagged with {_html_escape(tag_display(tag))}.">
 <meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">
 
 <link rel="canonical" href="{SITE_URL}/blog/tags/{tag_to_slug(tag)}/">
@@ -2462,9 +2473,9 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 <main class="blog-index">
 
 <section class="blog-hero">
-  <h1>#{_html_escape(tag)}</h1>
+  <h1>#{_html_escape(tag_display(tag))}</h1>
   <p>{_html_escape(tag_desc)}</p>
-  <p>{post_count} post{"s" if post_count != 1 else ""} tagged with {_html_escape(tag).lower()}. <a href="/blog/">&larr; All posts</a></p>
+  <p>{post_count} post{"s" if post_count != 1 else ""} tagged with {_html_escape(tag_display(tag)).lower()}. <a href="/blog/">&larr; All posts</a></p>
 {f'  <p style="margin-top:12px;"><a href="{TAG_TO_STATIC_PAGE[tag]}">See the dedicated {_html_escape(tag)} page &rarr;</a></p>' if tag in TAG_TO_STATIC_PAGE else ''}
 </section>
 
@@ -2502,7 +2513,7 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
     if posts_with_date:
         current_month_label = None
         for p in posts_with_date:
-            tags_html = "".join(f'<span class="tag">{t}</span>' for t in p["meta"]["tags"])
+            tags_html = "".join(f'<span class="tag">{tag_display(t)}</span>' for t in p["meta"]["tags"])
             date_iso = p["meta"]["date"]
             date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
             read_time = p.get("read_time", 0)

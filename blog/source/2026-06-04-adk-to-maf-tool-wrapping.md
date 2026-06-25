@@ -1,4 +1,4 @@
-# Tool Wrapping: From ADK Functions to MAF Governed Tools
+# Tool Wrapping: From ADK Functions to Microsoft Agent Framework Governed Tools
 
 *How to port tools, add policy enforcement, and integrate OPA.*
 
@@ -15,7 +15,7 @@ def fetch_account_balance(account_id: str) -> float:
 agent = Agent(..., tools=[fetch_account_balance])
 ```
 
-**MAF**:
+**Microsoft Agent Framework (MAF)**:
 ```python
 from agent_framework import tool
 
@@ -36,7 +36,7 @@ In regulated environments, you need:
 - **Audit** (log every tool call)
 - **Approval** (human-in-the-loop for risky operations)
 
-MAF's `governed.*` wrappers give you this:
+Microsoft Agent Framework's `governed.*` wrappers give you this:
 
 ```python
 from multi_agent.tools import governed_write, governed_delete, governed_query
@@ -66,7 +66,7 @@ Every tool call is logged. Approval-gated tools queue for human review.
 
 ## Pattern 1: Wrapping External APIs
 
-You have an external payment API. ADK would call it directly. MAF wraps it:
+You have an external payment API. ADK would call it directly. Microsoft Agent Framework wraps it:
 
 **ADK**:
 ```python
@@ -79,7 +79,7 @@ agent = Agent(..., tools=[charge_card])
 
 No control. No audit. No approval.
 
-**MAF**:
+**Microsoft Agent Framework**:
 ```python
 @tool
 @governed_write(schema="payments", audit=True, approval=True, amount_limit=10000)
@@ -140,7 +140,7 @@ A tool might need to:
 4. Process the response
 5. Log the result
 
-**ADK** would mix all this into the function. **MAF** lets you layer it:
+**ADK** would mix all this into the function. **Microsoft Agent Framework** lets you layer it:
 
 ```python
 async def call_payment_api(user_id: str, amount: float) -> dict:

@@ -30,7 +30,7 @@ def calculate_read_time(html_content):
 **How to use it**:
 Add to POST_META:
 ```python
-"series": "ADK to MAF Migration",
+"series": "ADK to Microsoft Agent Framework Migration",
 "series_position": 1,
 "series_total": 8,
 ```
@@ -38,11 +38,11 @@ Add to POST_META:
 **Renders as**:
 ```
 Part 1 of 8
-ADK to MAF Migration
+ADK to Microsoft Agent Framework Migration
 ```
 
 **Current series**:
-- ADK to MAF Migration (8 posts, June 1-8, 2026)
+- ADK to Microsoft Agent Framework Migration (8 posts, June 1-8, 2026)
   - Post 1: Why We Migrated
   - Post 2: Executor Pattern
   - Post 3: Token Exchange
@@ -110,7 +110,7 @@ Add to POST_META:
 - Right-aligned for visual prominence
 
 **Currently featured**:
-- "Why We Migrated from Google ADK to Microsoft MAF" (Series intro)
+- "Why We Migrated from Google ADK to the Microsoft Agent Framework" (Series intro)
 - "Lessons from Converting 18 Agents in 90 Days" (Series conclusion)
 
 **User benefit**: Important starting/ending posts are immediately visible
@@ -192,7 +192,7 @@ POST_META = {
 ## Stats
 
 - **Posts rendered**: 8 posts
-- **Series coverage**: 100% (all ADK→MAF posts in series)
+- **Series coverage**: 100% (all ADK→Microsoft Agent Framework posts in series)
 - **Featured posts**: 2 of 8 (25%)
 - **Related posts density**: 3 per post (24 recommendations across 8 posts)
 - **Code additions**: ~150 lines (functions + CSS)

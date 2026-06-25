@@ -43,7 +43,7 @@ PROJECT_META = {
     "highlights": ["Achievement 1", "Achievement 2", ...],
     "metrics": [["value", "label"], ...],
     "links": [["Label", "https://url"], ...],
-    "blog_tags": ["MAF", "Security", ...],  # for related posts
+    "blog_tags": ["Microsoft Agent Framework", "Security", ...],  # for related posts
     "blog_posts": ["/blog/posts/slug.html", ...],  # explicit pins
     "credits": [
       {"name": "Project", "context": "...", "url": "..."},
@@ -56,11 +56,11 @@ PROJECT_META = {
 ### Projects in the System
 
 **Open Source (3):**
-1. **Genie** - Multi-agent financial assistant on MAF
+1. **Genie** - Multi-agent financial assistant on the Microsoft Agent Framework
    - Status: active, featured
    - GitHub: c2siorg/genie
 
-2. **Bodh** - Medical AI platform on MAF
+2. **Bodh** - Medical AI platform on the Microsoft Agent Framework
    - Status: active
    - GitHub: PratikDhanave/bodh
 
@@ -161,13 +161,13 @@ Three mechanisms:
 
 1. **Auto-related by `blog_tags`**
    - `find_related_posts()` imported from `build_blog.py`
-   - Projects set `blog_tags` list (e.g., Genie → ["MAF", "Multi-Agent AI", "Security"])
+   - Projects set `blog_tags` list (e.g., Genie → ["Microsoft Agent Framework", "Multi-Agent AI", "Security"])
    - Matching blog posts render as "Related Writing" section
    - Reuses `.related-posts` styling from blog
 
 2. **Topic page links**
    - If project sets `topic: "bodh"` (optional), renders "Read all X posts on this project →" button to `/blog/topic/bodh/`
-   - Currently: Genie → MAF tag page, Bodh → bodh topic page, HarbourBridge → spanner tag page
+   - Currently: Genie → Microsoft Agent Framework tag page, Bodh → bodh topic page, HarbourBridge → spanner tag page
 
 3. **Explicit pinned posts**
    - `blog_posts` list for the 1–3 canonical posts per project
@@ -186,7 +186,7 @@ Each project includes a `credits` list:
 "credits": [
   {
     "name": "Microsoft Agent Framework Team",
-    "context": "MAF patterns and SDK",
+    "context": "Microsoft Agent Framework patterns and SDK",
     "url": "https://learn.microsoft.com/.../agents/",
   },
   ...

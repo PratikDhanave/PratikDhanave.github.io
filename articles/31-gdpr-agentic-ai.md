@@ -38,7 +38,7 @@ faqSchema: {
 
 **The moment your agent touches personal data, you're no longer just an engineer — you're a data controller under GDPR Article 24.** This shift from "build fast, comply later" to "compliance is architecture" hits harder in [multi-agent systems](/articles/27-multi-agent-systems/) because agents are *autonomous interpreters of goals*, which means they can inadvertently collect, infer, or share personal data without explicit permission.
 
-Having built agentic systems on Microsoft Agent Framework (MAF) processing EU user data, here's what every architect needs to know before your first agent touches PII. For broader governance patterns, see our guide on [zero-trust architecture for AI agents](/articles/30-zero-trust-ai-agents/).
+Having built agentic systems on the Microsoft Agent Framework processing EU user data, here's what every architect needs to know before your first agent touches PII. For broader governance patterns, see our guide on [zero-trust architecture for AI agents](/articles/30-zero-trust-ai-agents/).
 
 ---
 
@@ -404,11 +404,11 @@ If you do this, you'll pass a GDPR audit. And your agents will be faster, becaus
 
 ---
 
-**Tags:** #GDPR #DataPrivacy #AgenticAI #Compliance #EURegulation #MAF #Azure #Python #DataMinimization
+**Tags:** #GDPR #DataPrivacy #AgenticAI #Compliance #EURegulation #MicrosoftAgentFramework #Azure #Python #DataMinimization
 
 **Published:** June 2026  
 **Author:** Pratik Dhanave  
-**Related Projects:** MAF-based systems processing EU user data
+**Related Projects:** Microsoft Agent Framework-based systems processing EU user data
 
 ## Real-World: Data Minimization in a Customer Support Workflow
 

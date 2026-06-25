@@ -1,4 +1,4 @@
-# Deployment & A2A: From ADK's Web Deploy to MAF's Scalable Architecture
+# Deployment & A2A: From ADK's Web Deploy to Microsoft Agent Framework's Scalable Architecture
 
 *Running agents on Cloud Run, exposing via A2A, and wiring into production systems.*
 
@@ -6,7 +6,7 @@
 
 ## Pattern 1: Cloud Run (Stateless)
 
-Both ADK and MAF can run on Cloud Run. The main difference: MAF is explicit about state.
+Both ADK and Microsoft Agent Framework (MAF) can run on Cloud Run. The main difference: Microsoft Agent Framework is explicit about state.
 
 **ADK**:
 ```python
@@ -25,7 +25,7 @@ def ask():
 
 Problem: The agent is stateless, but if you use callbacks or session state, it's confusing.
 
-**MAF**:
+**Microsoft Agent Framework**:
 ```python
 from fastapi import FastAPI
 from multi_agent.providers import build_chat_client
@@ -72,7 +72,7 @@ result = await specialist.ask("Analyze this")
 
 No framework support. You roll your own HTTP wrapping.
 
-**MAF**:
+**Microsoft Agent Framework**:
 ```python
 from agent_framework_a2a import A2AAgent
 
@@ -116,7 +116,7 @@ done
 # Each replica: stateless client + per-request thread
 ```
 
-MAF's per-request thread model makes this trivial. ADK's session state would cause issues (which replica owns the session?).
+Microsoft Agent Framework's per-request thread model makes this trivial. ADK's session state would cause issues (which replica owns the session?).
 
 ## Pattern 4: Observability in Production
 

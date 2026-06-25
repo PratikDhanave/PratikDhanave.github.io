@@ -1,4 +1,4 @@
-# Why We Migrated from Google ADK to Microsoft MAF
+# Why We Migrated from Google ADK to Microsoft Agent Framework
 
 *The philosophy, trade-offs, and what we learned converting 18+ agents in 3 months.*
 
@@ -18,31 +18,31 @@ So we chose Microsoft's Agent Framework (MAF) — the reference architecture, no
 ## What Changed (The Mapping)
 
 ### Agents: Minimal friction
-- ADK's `LlmAgent(model="gemini-2.5-flash", instruction=, tools=)` → MAF's `Agent(client=build_chat_client(), instructions=, tools=)`
+- ADK's `LlmAgent(model="gemini-2.5-flash", instruction=, tools=)` → Microsoft Agent Framework's `Agent(client=build_chat_client(), instructions=, tools=)`
 - The `model=` parameter is gone. Instead, `build_chat_client()` reads `PROVIDER=ollama|openai|foundry` from `.env`. **One code path, any LLM.**
 
 ### Orchestration: New builders
-- ADK's `SequentialAgent([agent1, agent2])` → MAF's `SequentialBuilder(participants=[...]).build()`
+- ADK's `SequentialAgent([agent1, agent2])` → Microsoft Agent Framework's `SequentialBuilder(participants=[...]).build()`
 - We ported all 5 orchestration patterns: Sequential, Concurrent, Handoff, GroupChat, Magentic.
 - Result: Same control flow, cleaner abstractions.
 
 ### Tools: Decorator pattern
 - ADK: `tools=[fn]` (pass functions directly)
-- MAF: `@tool` decorator + same signature/docstring
+- Microsoft Agent Framework: `@tool` decorator + same signature/docstring
 - We now have governed wrappers (policy-as-code, OPA sidecar) built on top. Better composability.
 
 ### Memory & State
 - ADK: `session_service.state[key]`
-- MAF: `AgentThread` for conversation history + `MemoryFileStore` for long-term memory
+- Microsoft Agent Framework: `AgentThread` for conversation history + `MemoryFileStore` for long-term memory
 - The semantic mapping is 1:1. We kept the same keys; execution is more explicit.
 
 ## Why It Matters
 
 **Provider portability**: On day 90, we swapped `PROVIDER=openai` (cost reason) without touching agent code. Try that with ADK.
 
-**Clarity**: MAF separates concerns. An agent is logic. A builder is orchestration. A client is provider. Test each independently.
+**Clarity**: Microsoft Agent Framework separates concerns. An agent is logic. A builder is orchestration. A client is provider. Test each independently.
 
-**Open source credibility**: MAF isn't a Google project. It's Microsoft's reference architecture. We can talk about it, teach it, share examples without vendor politics.
+**Open source credibility**: Microsoft Agent Framework isn't a Google project. It's Microsoft's reference architecture. We can talk about it, teach it, share examples without vendor politics.
 
 ## The Cost
 
@@ -54,7 +54,7 @@ So we chose Microsoft's Agent Framework (MAF) — the reference architecture, no
 
 If your agents are truly portable (they should be), your orchestration is declarative (it should be), and your tools are pure functions (they should be), then the LLM framework is plumbing. Pick the one that lets you swap plumbing without rewriting your house.
 
-That's why we chose MAF.
+That's why we chose Microsoft Agent Framework.
 
 ---
 

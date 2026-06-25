@@ -1,6 +1,6 @@
 # Provider Abstraction: From Gemini-Only to Swappable LLMs
 
-*How to port ADK's model hard-codes to MAF's provider factory pattern.*
+*How to port ADK's model hard-codes to Microsoft Agent Framework's provider factory pattern.*
 
 ---
 
@@ -25,7 +25,7 @@ That's 3 months of engineering for a provider swap.
 
 ## The Solution: Provider Abstraction
 
-**MAF**:
+**Microsoft Agent Framework (MAF)**:
 ```python
 from multi_agent.providers import build_chat_client
 
@@ -50,7 +50,7 @@ Same code. Different model. Same results (modulo model-specific quirks).
 
 ## The Architecture
 
-MAF's `build_chat_client()` is a factory:
+Microsoft Agent Framework's `build_chat_client()` is a factory:
 
 ```python
 # Pseudocode
@@ -191,7 +191,7 @@ reviewer = Agent(model="gemini-2.5-flash", name="Reviewer", ...)
 
 Gemini everywhere. Cost is $X/month for 10K requests.
 
-**MAF**:
+**Microsoft Agent Framework**:
 ```python
 # financials.py
 client = build_chat_client()

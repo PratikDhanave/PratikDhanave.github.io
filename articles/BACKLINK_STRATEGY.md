@@ -40,8 +40,8 @@
 
 ### Companies that would link to you
 
-1. **Microsoft** - You use their Agent Framework (MAF)
-   - Pitch: Case study on MAF in production
+1. **Microsoft** - You use the Microsoft Agent Framework
+   - Pitch: Case study on the Microsoft Agent Framework in production
    - Link: Your portfolio
 
 2. **Open source projects** - Mention in docs
