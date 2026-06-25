@@ -1,4 +1,4 @@
-# Callbacks and Middleware: Porting ADK Hooks to MAF's Decorator Pattern
+# Callbacks and Middleware: Porting ADK Hooks to Microsoft Agent Framework's Decorator Pattern
 
 *How to instrument agents for observability, error handling, and audit logging.*
 
@@ -25,7 +25,7 @@ agent = Agent(
 
 Callbacks are explicit parameters. They're interceptors.
 
-**MAF** uses middleware (decorators/wrappers):
+**Microsoft Agent Framework (MAF)** uses middleware (decorators/wrappers):
 ```python
 def log_agent_execution(agent_func):
     async def wrapper(*args, **kwargs):
@@ -92,7 +92,7 @@ result = await run_agent(analyzer, "Analyze this", user_id="user123")
 
 ## Pattern 2: Error Recovery
 
-ADK callbacks couldn't really recover (they were observers). MAF middleware can:
+ADK callbacks couldn't really recover (they were observers). Microsoft Agent Framework middleware can:
 
 ```python
 async def with_retry(func):
@@ -214,7 +214,7 @@ agent = Agent(..., before_tool_callback=before_tool_call, after_tool_callback=af
 
 Basic logging. No composition. No metrics.
 
-**MAF**:
+**Microsoft Agent Framework**:
 ```python
 async def run_supervisor(prompt, user_id, budget_tokens=5000):
     @with_telemetry

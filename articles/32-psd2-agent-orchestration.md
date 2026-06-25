@@ -492,7 +492,7 @@ The agent-driven architecture isn't a workaround for PSD2 — it's the natural w
 
 ---
 
-**Tags:** #PSD2 #OpenBanking #FinTech #AgenticAI #Compliance #PaymentOrchestration #MAF #Azure #Python
+**Tags:** #PSD2 #OpenBanking #FinTech #AgenticAI #Compliance #PaymentOrchestration #MicrosoftAgentFramework #Azure #Python
 
 **Published:** June 2026  
 **Author:** Pratik Dhanave  

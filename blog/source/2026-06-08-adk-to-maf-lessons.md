@@ -12,7 +12,7 @@ We swapped `PROVIDER=openai` mid-project to reduce costs. Zero code changes. Tha
 
 ### 2. Executor Pattern Over Implicit Orchestration
 
-ADK's implicit callbacks felt convenient until we needed to audit tool calls or add approval gates. MAF's executor pattern (you own the loop) was more verbose upfront but 10x more powerful downstream.
+ADK's implicit callbacks felt convenient until we needed to audit tool calls or add approval gates. Microsoft Agent Framework's executor pattern (you own the loop) was more verbose upfront but 10x more powerful downstream.
 
 ### 3. Tools as Pure Functions
 
@@ -122,7 +122,7 @@ async def run_agent(...):
 
 ## The Thesis
 
-You don't port to MAF because you love MAF. You port because **portable agents are powerful agents.** Once your orchestration, tools, and state management are separate from your LLM choice, everything else becomes composable.
+You don't port to Microsoft Agent Framework because you love Microsoft Agent Framework. You port because **portable agents are powerful agents.** Once your orchestration, tools, and state management are separate from your LLM choice, everything else becomes composable.
 
 Provider abstraction isn't just "swap models." It's architectural clarity. It's the difference between agents as black boxes and agents as components.
 
@@ -145,5 +145,5 @@ The hardest part is behind you. The rest is engineering.
 
 - 18 Agent Migration Case Study *(repository unavailable)*
 - CONVERSION_GUIDE.md *(repository unavailable)*
-- [MAF Reference Architecture](https://github.com/microsoft/agent-framework)
+- [Microsoft Agent Framework Reference Architecture](https://github.com/microsoft/agent-framework)
 - [Agent Governance Toolkit (AGT)](https://github.com/microsoft/agent-governance-toolkit)

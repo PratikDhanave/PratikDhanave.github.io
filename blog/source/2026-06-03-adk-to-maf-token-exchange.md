@@ -1,4 +1,4 @@
-# Token Exchange Patterns: Porting Multi-Turn State from ADK to MAF
+# Token Exchange Patterns: Porting Multi-Turn State from ADK to Microsoft Agent Framework
 
 *How conversation threads replace session state; how to track token usage across agent chains.*
 
@@ -16,7 +16,7 @@ result = await agent.run(prompt, session=session)
 
 State persists across calls in a dictionary. It's implicit.
 
-**MAF** uses an `AgentThread`:
+**Microsoft Agent Framework (MAF)** uses an `AgentThread`:
 ```python
 thread = AgentThread(user_id=user_id)
 # Conversation history is the thread
@@ -29,7 +29,7 @@ History is explicit. State is in messages, not in a dict.
 
 ## Why This Matters
 
-**Clarity**: In MAF, you can serialize a thread, read it back, and the conversation is replayed. In ADK, `session.state` is opaque.
+**Clarity**: In Microsoft Agent Framework, you can serialize a thread, read it back, and the conversation is replayed. In ADK, `session.state` is opaque.
 
 **Auditability**: Every turn is a message. You can log, redact, or verify each turn independently.
 
@@ -47,7 +47,7 @@ while session.state["iterations"] < 3:
     session.state["iterations"] += 1
 ```
 
-**MAF**:
+**Microsoft Agent Framework**:
 ```python
 thread = AgentThread()
 for i in range(3):
@@ -58,7 +58,7 @@ The thread carries history. You control the loop.
 
 ## Pattern 2: Multi-Agent Conversation (Token Exchange)
 
-ADK agents read/write shared state. MAF agents read/write a thread.
+ADK agents read/write shared state. Microsoft Agent Framework agents read/write a thread.
 
 **ADK**:
 ```python
@@ -74,7 +74,7 @@ result2 = await reviewer.run("Is this good?", session=session)
 
 State is implicit, scattered across the code.
 
-**MAF** (cleaner):
+**Microsoft Agent Framework** (cleaner):
 ```python
 thread = AgentThread()
 
@@ -101,7 +101,7 @@ for agent in agents:
     total_tokens += result.usage.total_tokens
 ```
 
-**MAF**: Same pattern, but cleaner instrumentation:
+**Microsoft Agent Framework**: Same pattern, but cleaner instrumentation:
 ```python
 thread = AgentThread()
 total_tokens = 0
@@ -122,7 +122,7 @@ The thread carries the full conversation, so you can audit token usage per turn.
 
 ADK sessions don't distinguish short-term (conversation) from long-term (facts about the user).
 
-**MAF** cleanly separates them:
+**Microsoft Agent Framework** cleanly separates them:
 
 ```python
 # Short-term: conversation thread
@@ -181,7 +181,7 @@ result = await supervisor.run(
 
 State is scattered. Control flow is implicit.
 
-**MAF**:
+**Microsoft Agent Framework**:
 ```python
 thread = AgentThread()
 

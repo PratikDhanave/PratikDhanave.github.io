@@ -1,6 +1,6 @@
-# The Executor Pattern: ADK→MAF Conversion for Agentic Control Flow
+# The Executor Pattern: ADK→Microsoft Agent Framework Conversion for Agentic Control Flow
 
-*How to port ADK's orchestration callbacks to MAF builders without losing control.*
+*How to port ADK's orchestration callbacks to Microsoft Agent Framework builders without losing control.*
 
 ---
 
@@ -18,7 +18,7 @@ result = await orchestrator.run(prompt)  # Returns final AgentResponse
 
 The orchestrator owns the loop. You don't see intermediate states. Callbacks let you hook into them, but you're an observer, not the driver.
 
-In MAF, builders are different:
+In Microsoft Agent Framework (MAF), builders are different:
 
 ```python
 workflow = SequentialBuilder(participants=[planner, executor, reviewer])
@@ -71,7 +71,7 @@ for agent in agents:
 
 **This is the executor pattern.** You're the orchestrator. The agents are pure. The thread carries state.
 
-## Why It Matters for ADK→MAF Porting
+## Why It Matters for ADK→Microsoft Agent Framework Porting
 
 In ADK, if you had a custom callback:
 
@@ -87,7 +87,7 @@ seq_agent = SequentialAgent(
 )
 ```
 
-In MAF, **you own the loop**, so you just add the logic:
+In Microsoft Agent Framework, **you own the loop**, so you just add the logic:
 
 ```python
 for agent in agents:
@@ -104,7 +104,7 @@ Our Genie agent (financial advisor) has a supervisor that delegates to specialis
 
 **ADK version**: Supervisor is an `LlmAgent` that routes to sub-agents via callbacks.
 
-**MAF version**: Supervisor is an `Agent` with tools. Each tool wraps a specialist agent:
+**Microsoft Agent Framework version**: Supervisor is an `Agent` with tools. Each tool wraps a specialist agent:
 
 ```python
 @tool
@@ -129,7 +129,7 @@ result = await supervisor.run(user_prompt)
 
 ## The Conversion Checklist
 
-When porting ADK agents to MAF:
+When porting ADK agents to Microsoft Agent Framework:
 
 - [ ] Identify orchestration pattern (Sequential? Router? Loop?)
 - [ ] If Sequential: port as SequentialBuilder or manual loop
@@ -140,7 +140,7 @@ When porting ADK agents to MAF:
 
 ## The Lesson
 
-ADK hides orchestration. MAF exposes it. The executor pattern isn't "less convenient" — it's more honest. You see every step. You can meter, log, audit, and decide at every point.
+ADK hides orchestration. Microsoft Agent Framework exposes it. The executor pattern isn't "less convenient" — it's more honest. You see every step. You can meter, log, audit, and decide at every point.
 
 That's what 18 agents taught us.
 

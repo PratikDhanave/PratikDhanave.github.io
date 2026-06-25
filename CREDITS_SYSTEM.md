@@ -51,7 +51,7 @@ Each blog post can include structured citations:
 - Clear visual distinction with accent border
 
 #### Current Examples
-- `adk-to-maf-migration-why.html`: MAF docs, ADK reference, provider abstraction
+- `adk-to-maf-migration-why.html`: Microsoft Agent Framework docs, ADK reference, provider abstraction
 - `hipaa-as-go-interfaces.md`: HIPAA regulations, Cures Act §3060
 - `postgres-rls-hipaa.md`: PostgreSQL docs, HIPAA §164.312, grant system
 
@@ -132,7 +132,7 @@ New `/resources.html` page:
     <div class="citation-title">
       <a href="..." target="_blank">Microsoft Agent Framework Docs</a>
     </div>
-    <div class="citation-context">Official MAF patterns and best practices</div>
+    <div class="citation-context">Official Microsoft Agent Framework patterns and best practices</div>
   </div>
 </section>
 ```
@@ -159,6 +159,6 @@ When adding a new blog post with citations:
 ## Stats
 
 - **Acknowledgments Page**: 30+ entities across 5 categories
-- **Blog Post Citations**: 3 posts, expanding to all 8 ADK→MAF posts
+- **Blog Post Citations**: 3 posts, expanding to all 8 ADK→Microsoft Agent Framework posts
 - **Linked Resources**: 20+ external links to official docs, standards, communities
 - **Coverage**: Healthcare standards (HIPAA, FHIR, HL7v2), governance (OPA, IAPP), cloud (GCP, Azure, CNCF)

@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Observability for multi-agent: traces and metrics — Pratik Dhanave</title>
-<meta name="description" content="OpenTelemetry through MAF's `configure_otel_providers`, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector → Prometheus + Jaeger, and a Grafana dashboard you can actually use.">
+<meta name="description" content="OpenTelemetry through the Microsoft Agent Framework's `configure_otel_providers`, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector → Prometheus + Jaeger, and a Grafana dashboard you can actually use.">
 <meta name="author" content="Pratik Dhanave">
 
 <meta property="og:title" content="Observability for multi-agent: traces and metrics">
-<meta property="og:description" content="OpenTelemetry through MAF's `configure_otel_providers`, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector → Prometheus + Jaeger, and a Grafana dashboard you can actually use.">
+<meta property="og:description" content="OpenTelemetry through the Microsoft Agent Framework's `configure_otel_providers`, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector → Prometheus + Jaeger, and a Grafana dashboard you can actually use.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://pratikdhanave.com/blog/posts/maf-observability-traces-metrics.html">
 P26-06-04">
@@ -18,7 +18,7 @@ P26-06-04">
 <meta property="article:tag" content="Grafana">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Observability for multi-agent: traces and metrics">
-<meta name="twitter:description" content="OpenTelemetry through MAF's `configure_otel_providers`, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector → Prometheus + Jaeger, and a Grafana dashboard you can actually use.">
+<meta name="twitter:description" content="OpenTelemetry through the Microsoft Agent Framework's `configure_otel_providers`, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector → Prometheus + Jaeger, and a Grafana dashboard you can actually use.">
 
 <link rel="canonical" href="https://pratikdhanave.com/blog/posts/maf-observability-traces-metrics.html">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
@@ -44,18 +44,18 @@ P26-06-04">
 <article>
   <header>
     <h1>Observability for multi-agent: traces and metrics</h1>
-    <p class="post-subtitle">OpenTelemetry through MAF's `configure_otel_providers`, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector → Prometheus + Jaeger, and a Grafana dashboard you can actually use.</p>
+    <p class="post-subtitle">OpenTelemetry through the Microsoft Agent Framework's `configure_otel_providers`, custom workflow spans, custom metrics for runs / duration / agent invocations / policy decisions, OTel Collector → Prometheus + Jaeger, and a Grafana dashboard you can actually use.</p>
     <div class="post-meta">
       <time datetime="2026-06-04">June 4, 2026</time>
       <span>·</span>
       <span>Engineers running multi-agent systems in production</span>
     </div>
-    <div class="post-tags"><span class="tag">MAF</span><span class="tag">Observability</span><span class="tag">OpenTelemetry</span><span class="tag">Grafana</span></div>
+    <div class="post-tags"><span class="tag">Microsoft Agent Framework</span><span class="tag">Observability</span><span class="tag">OpenTelemetry</span><span class="tag">Grafana</span></div>
   </header>
 
-<p>The reference architecture's Chapter 7 on Observability calls out four areas worth measuring in a multi-agent system: agent communication, performance, errors, and security/compliance. This post is about how each of those falls out of wiring MAF's OpenTelemetry support correctly.</p>
-<p>The headline: MAF's auto-instrumentation gives you most of it. The project's <code>observability.py</code> adds three things on top — a <code>traced_workflow</code> context manager, a <code>WorkflowMetrics</code> recorder, and test helpers for an in-memory exporter — and the result is a span + metric set that survives the round-trip through an OTel Collector to Jaeger and Prometheus.</p>
-<h2 id="what-maf-emits-for-free">What MAF emits for free</h2>
+<p>The reference architecture's Chapter 7 on Observability calls out four areas worth measuring in a multi-agent system: agent communication, performance, errors, and security/compliance. This post is about how each of those falls out of wiring the Microsoft Agent Framework's OpenTelemetry support correctly.</p>
+<p>The headline: the Microsoft Agent Framework's auto-instrumentation gives you most of it. The project's <code>observability.py</code> adds three things on top — a <code>traced_workflow</code> context manager, a <code>WorkflowMetrics</code> recorder, and test helpers for an in-memory exporter — and the result is a span + metric set that survives the round-trip through an OTel Collector to Jaeger and Prometheus.</p>
+<h2 id="what-maf-emits-for-free">What the Microsoft Agent Framework emits for free</h2>
 <p><code>configure_otel_providers()</code> is one call. It picks up standard <code>OTEL_*</code> env vars (endpoint, protocol, service name, headers) and sets up trace, metric, and log providers globally.</p>
 <pre><code class="language-python">def setup_observability(settings=None, *, extra_exporters=None, enable_console_exporters=None) -&gt; bool:
     from agent_framework.observability import configure_otel_providers
@@ -66,10 +66,10 @@ P26-06-04">
     )
     return True
 </code></pre>
-<p>After that, every MAF agent run emits OpenTelemetry GenAI semantic-convention spans automatically: <code>gen_ai.client.operation.duration</code>, <code>gen_ai.client.token.usage</code>, <code>gen_ai.provider.name</code>, <code>gen_ai.request.model</code>. Every workflow edge emits <code>executor.process &lt;name&gt;</code>. Every tool call emits a span tagged with the tool name.</p>
+<p>After that, every Microsoft Agent Framework agent run emits OpenTelemetry GenAI semantic-convention spans automatically: <code>gen_ai.client.operation.duration</code>, <code>gen_ai.client.token.usage</code>, <code>gen_ai.provider.name</code>, <code>gen_ai.request.model</code>. Every workflow edge emits <code>executor.process &lt;name&gt;</code>. Every tool call emits a span tagged with the tool name.</p>
 <p>What it doesn't emit is a <em>workflow-level</em> parent span that ties an entire <code>workflow.run(prompt)</code> together with project-specific attributes. That's what <code>traced_workflow</code> is for.</p>
 <h2 id="a-workflow-level-parent-span">A workflow-level parent span</h2>
-<p><code>traced_workflow</code> is a context manager that wraps <code>create_workflow_span</code> from MAF, attaches OTel GenAI attributes, records workflow-level metrics, and captures exceptions:</p>
+<p><code>traced_workflow</code> is a context manager that wraps <code>create_workflow_span</code> from the Microsoft Agent Framework, attaches OTel GenAI attributes, records workflow-level metrics, and captures exceptions:</p>
 <pre><code class="language-python">@contextmanager
 def traced_workflow(name, *, provider=None, model=None, extra=None):
     from agent_framework.observability import capture_exception, create_workflow_span
@@ -105,9 +105,9 @@ def traced_workflow(name, *, provider=None, model=None, extra=None):
     ) as span:
         ...
 </code></pre>
-<p>After one run you get a trace with <strong>18 spans</strong> in it (verified live): your <code>workflow.sequential</code> parent + MAF's 17 auto-instrumented children.</p>
+<p>After one run you get a trace with <strong>18 spans</strong> in it (verified live): your <code>workflow.sequential</code> parent + the Microsoft Agent Framework's 17 auto-instrumented children.</p>
 <h2 id="custom-metrics-worth-capturing">Custom metrics worth capturing</h2>
-<p><code>WorkflowMetrics</code> is a lazy singleton over MAF's <code>get_meter()</code>. Five instruments:</p>
+<p><code>WorkflowMetrics</code> is a lazy singleton over the Microsoft Agent Framework's <code>get_meter()</code>. Five instruments:</p>
 <table>
 <thead>
 <tr>
@@ -176,7 +176,7 @@ traces: 1 — trace f1ddb9c302a7a009...: 18 spans
   - message.send
   - workflow.build
   - workflow.custom_graph         ← my parent span
-  - workflow.run                  ← MAF's auto span
+  - workflow.run                  ← Microsoft Agent Framework's auto span
 
 === Prometheus ===
 multi_agent_workflow_runs_total{workflow=&quot;custom_graph&quot;, status=&quot;ok&quot;, provider=&quot;unknown&quot;} = 1
@@ -206,7 +206,7 @@ multi_agent_prompt_length_char_sum{workflow=&quot;custom_graph&quot;} = 8
 </ul>
 <p>The Grafana container is provisioned with the dashboard and a Prometheus + Jaeger datasource via the <code>docs/grafana/provisioning/</code> folder, so a <code>make docker-up</code> gives you the dashboard at <code>http://localhost:3001</code> with no clicks.</p>
 <h2 id="testing-all-of-this-offline">Testing all of this offline</h2>
-<p>You don't need a collector to test instrumentation. MAF accepts span/metric exporters into <code>configure_otel_providers</code>, so the project's tests use OpenTelemetry's in-memory exporters and assert on captured spans:</p>
+<p>You don't need a collector to test instrumentation. The Microsoft Agent Framework accepts span/metric exporters into <code>configure_otel_providers</code>, so the project's tests use OpenTelemetry's in-memory exporters and assert on captured spans:</p>
 <pre><code class="language-python">def test_traced_workflow_emits_span_with_attributes(exporter) -&gt; None:
     exporter.clear()
     with traced_workflow(&quot;unit-test-wf&quot;, provider=&quot;ollama&quot;, model=&quot;llama3.2&quot;) as span:

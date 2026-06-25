@@ -7,7 +7,7 @@ canonical_url: "https://pratikdhanave.github.io/articles/27-multi-agent-systems/
 
 # Building Production Multi-Agent Systems: Real-World Lessons from Genie
 
-I shipped a **15-agent financial assistant** on Microsoft's Agent Framework (MAF). It processes 40M requests per month, orchestrates complex workflows, and costs 40% less than alternatives.
+I shipped a **15-agent financial assistant** on the Microsoft Agent Framework. It processes 40M requests per month, orchestrates complex workflows, and costs 40% less than alternatives.
 
 This isn't a "how to build agents" tutorial. This is what I learned when agents *broke* in production.
 
