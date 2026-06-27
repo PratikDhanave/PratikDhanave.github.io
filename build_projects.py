@@ -110,7 +110,7 @@ PROJECT_META = {
             ["HL7 v2", "aware"],
         ],
         "links": [
-            ["Project Page", "/projects/bodh/"],
+            ["Project Page", "https://pratikdhanave.com/projects/bodh/"],
         ],
         "blog_tags": ["MAF", "Medical AI", "Architecture", "Healthcare"],
         "blog_posts": [],
@@ -262,7 +262,7 @@ PROJECT_META = {
         "metrics": [
             ["30K+", "TPS"],
             ["100%", "uptime"],
-            ["<100ms", "p99 latency"],
+            ["&lt;100ms", "p99 latency"],
         ],
         "links": [
             ["Globe", "https://www.globe.com.ph/"],
@@ -314,7 +314,7 @@ PROJECT_META = {
         "metrics": [
             ["100K+", "votes"],
             ["10K+", "concurrent"],
-            ["<50ms", "p99 latency"],
+            ["&lt;50ms", "p99 latency"],
         ],
         "links": [
             ["AFL Brownlow", "https://www.afl.com.au/"],
@@ -528,7 +528,7 @@ PROJECT_META = {
         ],
         "metrics": [
             ["5+", "languages"],
-            ["<500ms", "dialog latency"],
+            ["&lt;500ms", "dialog latency"],
             ["99.5%", "availability"],
         ],
         "links": [
@@ -584,7 +584,7 @@ PROJECT_META = {
         ],
         "metrics": [
             ["1000+", "sensors"],
-            ["<1s", "latency"],
+            ["&lt;1s", "latency"],
             ["99.9%", "uptime"],
         ],
         "links": [
