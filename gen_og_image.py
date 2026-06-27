@@ -83,7 +83,7 @@ NAME = "Pratik Dhanave"
 draw.text((100, 172), NAME, font=f_name, fill=DARK)
 
 # ── Title ─────────────────────────────────────────────────────────────────────
-TITLE = "Multi-Agent AI Engineer  ·  Distributed Systems  ·  Cloud Architect"
+TITLE = "Senior Agentic AI Developer  ·  Distributed Systems  ·  Multi-Agent AI"
 draw.text((100, 272), TITLE, font=f_title, fill=MID_GREY)
 
 # ── Thin separator line ───────────────────────────────────────────────────────
