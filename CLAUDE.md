@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **URL:** https://pratikdhanave.com
 - **Type:** Custom Python-based static site generator (not Jekyll, Hugo, or any off-the-shelf SSG)
 - **Hosting:** GitHub Pages from `master` branch
-- **CI/CD:** `.github/workflows/publish-blog.yml` auto-runs `build_blog.py` when `blog/source/*.md` changes
+- **CI/CD:** `.github/workflows/publish-blog.yml` auto-runs `build_blog.py` + `build_sitemap.py` on push to `blog/source/**`, then commits back a **fixed file allowlist** (posts, index, feed, search-index, popular-posts, tags, archive, sitemaps). If a build script starts emitting a new output path, add it to that workflow's `git add` line or CI will silently drop it. `build_projects.py` and `gen_og_image.py` are **not** run by CI — regenerate and commit their output manually.
 
 ---
 
@@ -25,11 +25,17 @@ python3 build_sitemap.py
 # Regenerate project pages
 python3 build_projects.py
 
+# Regenerate the default Open Graph card (og-default.png) — needs Pillow
+python3 gen_og_image.py
+
+# Minify inline <style> blocks in static HTML pages (skips generated dirs)
+python3 minify_static_css.py
+
 # Preview locally
 python3 -m http.server 8765
 ```
 
-No install step needed beyond `pip install markdown` (Python 3.9+, standard library otherwise).
+`build_blog.py` / `build_projects.py` / `build_sitemap.py` need `pip install markdown` (Python 3.9+, standard library otherwise). `gen_og_image.py` additionally needs `pip install Pillow` — it is a one-off asset generator, not part of the normal publish flow.
 
 ---
 
@@ -41,7 +47,7 @@ The site has two distinct content tiers:
 `index.html`, `about/`, `resume/`, `projects/`, `speaking/`, `resources/`, `articles/`, `certifications/`, `404.html` — edit these files directly. They are never touched by the build scripts.
 
 ### 2. Generated content (driven by `build_blog.py`)
-All output in `blog/posts/`, `blog/tags/`, `blog/archive/`, `blog/feed.xml`, and `blog/popular-posts.json` is fully regenerated on each run. **Never hand-edit files in these directories** — changes will be overwritten.
+All output in `blog/posts/`, `blog/tags/`, `blog/archive/`, plus `blog/index.html`, `blog/feed.xml`, `blog/search-index.json` (client-side search index, fetched at runtime), and `blog/popular-posts.json` is fully regenerated on each run. **Never hand-edit these** — changes will be overwritten.
 
 ---
 
@@ -52,7 +58,7 @@ All output in `blog/posts/`, `blog/tags/`, `blog/archive/`, `blog/feed.xml`, and
 - **`POST_META` dict** — keyed by source filename (e.g. `"2026-06-01-my-post.md"`), contains `slug`, `date`, `tags`, `audience`, `excerpt`, `citations`. Adding a new post requires a new entry here.
 - **`POST_POPULARITY` dict** — maps slug → rank, used to build `blog/popular-posts.json`.
 - Markdown source files live in `blog/source/` following the naming convention `YYYY-MM-DD-slug.md`.
-- 108 legacy posts exist only as HTML (no markdown source); their metadata is still in `POST_META` with an empty or missing source file — the script handles this gracefully.
+- `POST_META` has ~110 entries but `blog/source/` holds only 9 markdown files; the rest are legacy posts that exist only as HTML (no markdown source). Their metadata still lives in `POST_META` with an empty or missing source file — the script handles this gracefully. Deleting a `POST_META` entry drops the post from the index/feed/sitemap even if its HTML file remains.
 - HTML templates are f-strings inside the script (`POST_CSS`, `NAV_HTML`, `SITE_FOOTER`, `render_post_html()`, `render_tag_page()`, `render_index_html()`, `render_rss_feed()`). To change layout or design, edit these functions — there is no separate template file.
 
 ### Adding a new blog post
