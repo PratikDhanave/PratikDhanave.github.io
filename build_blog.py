@@ -3279,6 +3279,49 @@ def main():
     if title_fixed:
         print(f"  truncated titles in {title_fixed} legacy post(s)")
 
+    # Fifth pass: inject a "Related Reading" block into legacy HTML-only posts.
+    # Source-based posts get related links via render_post_html; legacy posts are
+    # only patched in place, so they had no internal links out (orphan / weak-link
+    # SEO warnings). Idempotent: a prior injected block (between markers) is stripped
+    # and rebuilt on every run so the links stay current.
+    REL_START, REL_END = "<!--related-inj-start-->", "<!--related-inj-end-->"
+    REL_STYLE = ("<style>.related-inj{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);"
+                 "border-bottom:1px solid var(--border)}.related-inj h3{font-size:1rem;font-weight:700;"
+                 "margin-bottom:16px;color:var(--text)}.related-inj ul{list-style:none;margin:0;padding:0}"
+                 ".related-inj li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);"
+                 "display:flex;justify-content:space-between;align-items:center;gap:16px}"
+                 ".related-inj li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}"
+                 ".related-inj a{color:var(--accent);flex:1}.related-inj a:hover{color:var(--accent-hover)}"
+                 ".related-inj .rd{color:var(--text-muted);font-size:0.85rem;white-space:nowrap}</style>")
+    related_injected = 0
+    for post in rendered:
+        meta = post["meta"]
+        if meta["slug"] in posts_data:
+            continue  # source-based posts already render related posts
+        html_path = POSTS_DIR / f"{meta['slug']}.html"
+        if not html_path.exists():
+            continue
+        raw = html_path.read_text(errors="ignore")
+        # Strip any previously injected block so re-runs stay current
+        raw = re.sub(re.escape(REL_START) + ".*?" + re.escape(REL_END), "", raw, flags=re.DOTALL)
+        idx = raw.rfind("</main>")
+        if idx == -1:
+            continue
+        related_posts = find_related_posts(meta["slug"], meta.get("tags", []), _tag_index, limit=RELATED_POSTS_LIMIT)
+        if not related_posts:
+            continue
+        items = []
+        for rp in related_posts:
+            rp_date = datetime.strptime(rp["meta"]["date"], "%Y-%m-%d").strftime("%b %d")
+            items.append(f'<li><a href="/blog/posts/{rp["meta"]["slug"]}.html">{_html_escape(rp["title"])}</a>'
+                         f'<span class="rd">{rp_date}</span></li>')
+        block = (REL_START + REL_STYLE + '<aside class="related-inj"><h3>Related Reading</h3><ul>'
+                 + "".join(items) + '</ul></aside>' + REL_END)
+        html_path.write_text(raw[:idx] + block + raw[idx:])
+        related_injected += 1
+    if related_injected:
+        print(f"  injected related posts into {related_injected} legacy post(s)")
+
     # Compute tag counts for tag cloud
     tag_counts = {}
     tag_posts = {}
