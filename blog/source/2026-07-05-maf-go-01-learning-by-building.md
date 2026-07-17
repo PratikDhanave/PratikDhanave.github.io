@@ -1,4 +1,4 @@
-# Learning the Microsoft Agent Framework by Building It — in Go
+# Learning the Microsoft Agent Framework in Go
 
 *Why I learned the whole framework in Go by writing one runnable lesson per concept, against Azure AI Foundry, instead of reading the docs top to bottom.*
 
