@@ -86,4 +86,4 @@ What kept the whole series honest was building one runnable lesson per concept a
 
 ---
 
-Next: [Learning the Microsoft Agent Framework by Building It — in Go](/blog/posts/maf-go-01-learning-by-building.html)
+Next: [Learning the Microsoft Agent Framework in Go](/blog/posts/maf-go-01-learning-by-building.html)
