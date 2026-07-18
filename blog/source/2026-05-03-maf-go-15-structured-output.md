@@ -1,4 +1,4 @@
-# step05 · Structured Output
+# Structured Output: Typed Agent Results
 
 *How to make the agent return a typed Go struct instead of free-form prose, via a JSON schema derived from your type.*
 

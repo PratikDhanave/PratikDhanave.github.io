@@ -1,4 +1,4 @@
-# State Management
+# Workflow State Management in Python
 
 *Shared workflow state: any executor writes a keyed value, any later executor reads it back — so big payloads never have to be threaded through every message on the edge.*
 

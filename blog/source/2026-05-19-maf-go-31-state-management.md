@@ -1,4 +1,4 @@
-# State Management
+# AG-UI State Management: The Client
 
 *How a shared state snapshot rides along with every AG-UI turn, so client and server-hosted agent stay in sync on evolving structured data.*
 

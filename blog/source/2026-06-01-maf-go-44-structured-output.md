@@ -1,4 +1,4 @@
-# step05 · Structured Output
+# Structured Output on Azure AI Foundry
 
 *How to make the model return a typed Go struct instead of prose — hand RunText a pointer, get back populated fields.*
 
