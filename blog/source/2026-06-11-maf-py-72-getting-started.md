@@ -1,4 +1,4 @@
-# Getting Started
+# AG-UI Getting Started in Python
 
 *Exposing an agent to any HTTP front-end over AG-UI, an SSE protocol, with one FastAPI helper.*
 

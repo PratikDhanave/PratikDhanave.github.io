@@ -1,4 +1,4 @@
-# Getting Started
+# AG-UI Getting Started: The Client
 
 *How to take the same Foundry agent from earlier lessons and serve it over the AG-UI protocol so a separate client can drive it over HTTP+SSE.*
 
