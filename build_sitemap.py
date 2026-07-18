@@ -99,6 +99,7 @@ def collect_main_pages():
         ("/certifications/", "certifications/index.html", "monthly", "0.5"),
         ("/open-source/", "open-source/index.html", "monthly", "0.7"),
         ("/agent-framework/", "agent-framework/index.html", "monthly", "0.8"),
+        ("/recommendations/", "recommendations/index.html", "monthly", "0.7"),
         ("/google-cloud-next/", "google-cloud-next/index.html", "monthly", "0.7"),
         ("/featured/", "featured/index.html", "weekly", "0.85"),
         ("/thank-you/", "thank-you/index.html", "monthly", "0.4"),
