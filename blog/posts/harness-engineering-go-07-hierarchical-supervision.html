@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hierarchical Supervision: Bounded Fan-Out, Ordered...</title>
+<meta name="description" content="Lesson 6: bounded fan-out behind a semaphore, ordered fan-in via a pre-sized results slice, and per-worker fault isolation so one sub-agent panicking...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Hierarchical Supervision: Bounded Fan-Out, Ordered...">
+<meta property="og:description" content="Lesson 6: bounded fan-out behind a semaphore, ordered fan-in via a pre-sized results slice, and per-worker fault isolation so one sub-agent panicking becomes one failed result instead of crashing the whole run.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/harness-engineering-go-07-hierarchical-supervision.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-24T00:00:00Z">
+<meta property="article:tag" content="Harness Engineering">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Concurrency">
+<meta property="article:tag" content="Azure">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Hierarchical Supervision: Bounded Fan-Out, Ordered...">
+<meta name="twitter:description" content="Lesson 6: bounded fan-out behind a semaphore, ordered fan-in via a pre-sized results slice, and per-worker fault isolation so one sub-agent panicking becomes one failed result instead of crashing the whole run.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/harness-engineering-go-07-hierarchical-supervision.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:980px;margin:0 auto;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;gap:20px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;gap:22px;list-style:none;font-size:14px;font-weight:500}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}.nav-links li:nth-child(n+4){display:none}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation",
+  "description": "Lesson 6: bounded fan-out behind a semaphore, ordered fan-in via a pre-sized results slice, and per-worker fault isolation so one sub-agent panicking becomes one failed result instead of crashing the whole run.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-24",
+  "dateModified": "2026-07-24",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Harness Engineering, Go, AI Agents, Concurrency, Azure",
+  "url": "https://pratikdhanave.com/blog/posts/harness-engineering-go-07-hierarchical-supervision.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/harness-engineering-go-07-hierarchical-supervision.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation</h1>
+    <p class="post-subtitle">Lesson 6 of Harness Engineering in Go — a supervisor splits a task, fans out to concurrent workers behind a semaphore, and fans the results back in decomposition order, with each worker's failure (or panic) isolated to one result.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-24">July 24, 2026</time>
+      <span>·</span>
+      <span>Go developers building a supervisor that fans out subtasks to concurrent sub-agent workers bounded by a semaphore and fans results back in decomposition order, with each worker's error or panic isolated to a single result</span>
+      <span>·</span>
+      <span>7 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/harness-engineering/" class="tag-link"><span class="tag">Harness Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">AI Agents</span></a><a href="/blog/tags/concurrency/" class="tag-link"><span class="tag">Concurrency</span></a><a href="/blog/tags/azure/" class="tag-link"><span class="tag">Azure</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 7 of 8</span>
+    <span class="series-title">Harness Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/harness-engineering-go-06-orchestration-handoff.html" class="series-prev">&larr; Part 6: Orchestration and Handoff: Routing Intent to a Specialist</a>
+<a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html" class="series-next">Part 8: Human-in-the-Loop: An Approval Gate on Durable State &rarr;</a></div>
+  </div>
+
+
+
+  <p>This is Lesson 6 in the <a href="/blog/posts/harness-engineering-go-01-the-seam/">Harness Engineering in Go</a> series. Every lesson so far has been one model call wrapped in some piece of infrastructure — a guardrail, a durable workflow, a sandbox, memory. This one is different: it&rsquo;s about running <em>many</em> model calls at once and getting a clean, ordered answer back even when one of them explodes.</p>
+<h2 id="the-pattern-decompose-fan-out-fan-in">The pattern: decompose, fan out, fan in</h2>
+<p>A <strong>supervisor</strong> takes a task, breaks it into subtasks, runs each subtask on a <strong>worker</strong> (a sub-agent), and merges the outputs. The Microsoft Agent Framework calls this <strong>Magentic</strong> / concurrent orchestration: a manager agent that plans work and dispatches it to specialist sub-agents. The local <code>Supervisor</code> models the <em>concurrency contract</em> underneath that — bounded fan-out, ordered fan-in, per-worker fault isolation — and stubs the planning.</p>
+<p>The <code>Worker</code> is the seam. In production it&rsquo;s a real LLM sub-agent invocation; in tests it&rsquo;s a plain function.</p>
+<pre><code class="language-go">// Worker is the seam for a sub-agent: inject a real LLM sub-agent call in
+// production, or a plain function in tests. Returning an error reports a handled
+// sub-agent failure; a panic is also contained (see Run).
+type Worker func(subtask string) (string, error)
+</code></pre>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant Sup as Supervisor.Run
+    participant Sem as semaphore (maxWorkers)
+    participant W1 as goroutine a
+    participant W2 as goroutine b
+    participant W3 as goroutine c
+
+    Sup-&gt;&gt;Sup: Decompose(task) → [a,b,c]
+    par bounded fan-out
+        Sup-&gt;&gt;Sem: acquire → W1
+        Sem-&gt;&gt;W1: worker(&quot;a&quot;)
+    and
+        Sup-&gt;&gt;Sem: acquire → W2
+        Sem-&gt;&gt;W2: worker(&quot;b&quot;)
+    and
+        Sup-&gt;&gt;Sem: acquire → W3
+        Sem-&gt;&gt;W3: worker(&quot;c&quot;) 💥 panic
+    end
+    W1--&gt;&gt;Sup: results[0] = ok
+    W2--&gt;&gt;Sup: results[1] = ok
+    W3--&gt;&gt;Sup: results[2] = Error (recover)
+    Sup-&gt;&gt;Sup: wg.Wait, then tally succeeded/failed
+    Sup--&gt;&gt;Sup: Aggregate{Results in task order, 2 ok, 1 failed}
+</code></pre>
+<h2 id="the-contract-stated-as-a-struct">The contract, stated as a struct</h2>
+<p>The whole point of this lesson lives in three types. <code>Aggregate</code> promises the results come back in <strong>decomposition order, not completion order</strong> — the doc comment says so out loud, because that promise is the thing the tests pin down.</p>
+<pre><code class="language-go">// SubResult is one sub-agent's outcome. Exactly one of Output / Error is
+// meaningful: Error is empty on success, Output is empty when the worker failed.
+type SubResult struct {
+    Subtask string
+    Output  string
+    Error   string // isolated failure text, empty on success
+}
+
+// Aggregate is the fanned-in result of a supervised run, in decomposition order
+// (NOT completion order).
+type Aggregate struct {
+    Results   []SubResult
+    Succeeded int
+    Failed    int
+}
+</code></pre>
+<p><code>Decompose</code> is deliberately dumb — split on <code>;</code> and newlines, trim, drop empties, and if nothing splits, treat the whole string as one subtask. Keeping it pure is what makes the concurrency behaviour the thing under test rather than an LLM planner&rsquo;s whims.</p>
+<h2 id="the-engine-bounded-fan-out-ordered-fan-in">The engine: bounded fan-out, ordered fan-in</h2>
+<p>Here is <code>Run</code>, the heart of the lesson. Read it once, then I&rsquo;ll pull apart the three moves that make it correct.</p>
+<pre><code class="language-go">func (s *Supervisor) Run(task string) Aggregate {
+    subtasks := s.Decompose(task)
+    results := make([]SubResult, len(subtasks))
+
+    sem := make(chan struct{}, s.maxWorkers)
+    var wg sync.WaitGroup
+
+    for i, subtask := range subtasks {
+        wg.Add(1)
+        sem &lt;- struct{}{} // acquire a slot (blocks past maxWorkers in flight)
+        go func(index int, sub string) {
+            defer wg.Done()
+            defer func() { &lt;-sem }() // release the slot
+
+            output, err := s.callWorker(sub)
+            if err != nil {
+                results[index] = SubResult{Subtask: sub, Error: err.Error()}
+                return
+            }
+            results[index] = SubResult{Subtask: sub, Output: output}
+        }(i, subtask)
+    }
+    wg.Wait()
+
+    succeeded := 0
+    for _, r := range results {
+        if r.Error == &quot;&quot; {
+            succeeded++
+        }
+    }
+    return Aggregate{Results: results, Succeeded: succeeded, Failed: len(results) - succeeded}
+}
+</code></pre>
+<p><strong>Bounded fan-out.</strong> <code>sem</code> is a buffered channel of <code>maxWorkers</code> slots. The send <code>sem &lt;- struct{}{}</code> <em>before</em> launching a goroutine is the throttle: once <code>maxWorkers</code> are in flight, the loop itself blocks on the send until a running worker releases a slot. That&rsquo;s a semaphore in eight bytes of Go — no worker pool, no library. A real orchestrator bounds concurrent sub-agent invocations the same way, to keep from stampeding the model endpoint. (<code>maxWorkers &lt; 1</code> is clamped to 1 in <code>NewSupervisor</code>, so a bad config degrades to serial execution instead of deadlocking on a zero-capacity channel.)</p>
+<p><strong>Ordered fan-in.</strong> <code>results</code> is <em>pre-sized</em> to <code>len(subtasks)</code>, and each goroutine writes to <code>results[index]</code> — its own original slot. No append, no mutex, no ordering by whoever finishes first. Two goroutines never touch the same index, so the writes are race-free without a lock, and the output slice is in decomposition order by construction. Completion order simply cannot leak into result order, because nothing about <em>when</em> a worker finishes affects <em>where</em> its result lands.</p>
+<p><strong>Fault isolation.</strong> Each subtask runs on its own goroutine, and a failing one writes an <code>Error</code> into its slot and returns. It never touches its siblings. One bad sub-agent produces one failed <code>SubResult</code>; the rest succeed.</p>
+<h2 id="the-part-that-bit-me-a-panic-sinks-the-whole-process">The part that bit me: a panic sinks the whole process</h2>
+<p>Here&rsquo;s the trap. In Go, a panic in a goroutine that nobody recovers doesn&rsquo;t return an error — it <strong>crashes the entire program</strong>. A <code>defer/recover</code> in the <em>parent</em> can&rsquo;t catch it, because recover only works on the same goroutine that&rsquo;s unwinding. So if a sub-agent panics (nil map, index out of range, a bad type assertion deep in some SDK), one flaky worker takes down every other in-flight subtask <em>and</em> the supervisor <em>and</em> the HTTP server. That is exactly the failure isolation is supposed to prevent.</p>
+<p>The fix is one wrapper that recovers <em>inside</em> the worker&rsquo;s own goroutine and converts the panic into an ordinary error, so a panicking sub-agent is contained exactly like one that returned an error:</p>
+<pre><code class="language-go">// callWorker runs the worker and converts a panic into an error, so a sub-agent
+// that panics is contained exactly like one that returns an error.
+func (s *Supervisor) callWorker(subtask string) (output string, err error) {
+    defer func() {
+        if r := recover(); r != nil {
+            err = fmt.Errorf(&quot;worker panicked: %v&quot;, r)
+        }
+    }()
+    return s.worker(subtask)
+}
+</code></pre>
+<p>The named return <code>err</code> is load-bearing: the deferred closure assigns to it <em>after</em> the <code>return</code> statement has run, so a recovered panic still leaves the function with a non-nil error. <code>Run</code> never distinguishes a returned error from a recovered panic — both are just <code>SubResult.Error</code>.</p>
+<h2 id="the-tests-that-prove-the-contract">The tests that prove the contract</h2>
+<p>Two tests are the whole argument. The first makes the fastest subtask finish last, and asserts the results still come back in task order:</p>
+<pre><code class="language-go">func TestSupervisorPreservesOrderDespiteCompletionRace(t *testing.T) {
+    // First subtask sleeps longest, so completion order is the reverse of
+    // decomposition order — the result must still come back in task order.
+    worker := func(sub string) (string, error) {
+        switch sub {
+        case &quot;a&quot;:
+            time.Sleep(60 * time.Millisecond)
+        case &quot;b&quot;:
+            time.Sleep(30 * time.Millisecond)
+        }
+        return &quot;done:&quot; + sub, nil
+    }
+    agg := NewSupervisor(worker, 4).Run(&quot;a; b; c&quot;)
+    // ... asserts Results[0..2].Subtask == a, b, c
+}
+</code></pre>
+<p>The second panics one worker and asserts the siblings survive: <code>Run("fine; panic")</code> comes back with <code>Failed == 1</code>, <code>Results[1].Error</code> mentions &ldquo;panicked&rdquo;, and <code>Results[0]</code> is a clean success. One worker exploding does not sink the batch — the property the whole lesson exists to guarantee.</p>
+<h2 id="state-the-leak">State the leak</h2>
+<p>The doc comment on <code>Supervisor</code> is blunt about what this <em>isn&rsquo;t</em>:</p>
+<blockquote>
+<p>Real supervision is adaptive — the Magentic manager re-plans on sub-agent output, retries, and reasons about partial failure. This is a one-shot static fan-out: <code>Decompose</code> is a dumb string split with no re-planning.</p>
+</blockquote>
+<p>Two honest gaps:</p>
+<ul>
+<li><strong>Static, not adaptive.</strong> <code>Decompose</code> splits once and never looks at what came back. A real Magentic manager reads a sub-agent&rsquo;s output and <em>replans</em> — spawns follow-up subtasks, retries a failure, reroutes. There is no feedback loop here; the plan is fixed before the first worker runs.</li>
+<li><strong>Isolation covers faults, not liveness.</strong> A worker that <em>returns</em> or <em>panics</em> is contained. A worker that <strong>hangs forever</strong> blocks its slot and, once every slot is stuck, blocks the whole batch — <code>wg.Wait()</code> never returns. There is no per-worker timeout or cancellation. That&rsquo;s deliberate: <code>context</code> cancellation is a real orchestrator&rsquo;s job, and faking it locally would obscure the one thing this lesson does teach well — that completion order must never leak into result order, and one failure must never sink its siblings.</li>
+</ul>
+<p>When you wire the real Magentic orchestrator, you&rsquo;re adding the two things the stand-in leaves out — adaptive replanning and cancellation — onto a fan-out/fan-in skeleton whose shape you already trust.</p>
+<h2 id="whats-next">What&rsquo;s next</h2>
+<p>A supervisor can run a hundred sub-agents unattended. Some decisions shouldn&rsquo;t be unattended — a refund over a threshold, a destructive action, anything a human has to sign off on. The finale builds an approval gate that pauses a durable workflow, persists the pending state, and resumes only after a human says yes — combining Lesson 2&rsquo;s durability with a real human in the loop.</p>
+<hr>
+<p>Next: <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a></p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-06-orchestration-handoff.html">Orchestration and Handoff: Routing Intent to a Specialist</a>
+      <span class="related-date">Jul 23</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-05-advanced-memory.html">Advanced Memory: Threads, Keyword Retrieval, and Lossy Summarization</a>
+      <span class="related-date">Jul 22</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://github.com/Hendrixer/harness-engineering" target="_blank" rel="noopener noreferrer">Hendrixer/harness-engineering</a></div>
+      <div class="citation-context">The original TypeScript course defining the seven harness-engineering patterns</div>
+    </div>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://github.com/microsoft/agent-framework-go" target="_blank" rel="noopener noreferrer">microsoft/agent-framework-go</a></div>
+      <div class="citation-context">The Magentic / concurrent orchestration primitive the local Supervisor's bounded fan-out and ordered fan-in stand in for</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

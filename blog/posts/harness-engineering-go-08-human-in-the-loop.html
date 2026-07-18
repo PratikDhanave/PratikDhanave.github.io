@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Human-in-the-Loop: An Approval Gate on Durable State</title>
+<meta name="description" content="Series finale, Lesson 7: a sensitive action pauses for human approval, where suspension is just a Lesson 2 checkpoint marked awaiting_approval, the...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Human-in-the-Loop: An Approval Gate on Durable State">
+<meta property="og:description" content="Series finale, Lesson 7: a sensitive action pauses for human approval, where suspension is just a Lesson 2 checkpoint marked awaiting_approval, the deadline is checked first so a late yes is void, and the action must be idempotent.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/harness-engineering-go-08-human-in-the-loop.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-25T00:00:00Z">
+<meta property="article:tag" content="Harness Engineering">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Human-in-the-Loop">
+<meta property="article:tag" content="Azure">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Human-in-the-Loop: An Approval Gate on Durable State">
+<meta name="twitter:description" content="Series finale, Lesson 7: a sensitive action pauses for human approval, where suspension is just a Lesson 2 checkpoint marked awaiting_approval, the deadline is checked first so a late yes is void, and the action must be idempotent.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/harness-engineering-go-08-human-in-the-loop.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:980px;margin:0 auto;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;gap:20px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;gap:22px;list-style:none;font-size:14px;font-weight:500}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}.nav-links li:nth-child(n+4){display:none}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Human-in-the-Loop: An Approval Gate on Durable State",
+  "description": "Series finale, Lesson 7: a sensitive action pauses for human approval, where suspension is just a Lesson 2 checkpoint marked awaiting_approval, the deadline is checked first so a late yes is void, and the action must be idempotent.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-25",
+  "dateModified": "2026-07-25",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Harness Engineering, Go, AI Agents, Human-in-the-Loop, Azure",
+  "url": "https://pratikdhanave.com/blog/posts/harness-engineering-go-08-human-in-the-loop.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/harness-engineering-go-08-human-in-the-loop.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Human-in-the-Loop: An Approval Gate on Durable State</h1>
+    <p class="post-subtitle">Lesson 7 of Harness Engineering in Go — a sensitive action pauses for a human decision, and the whole suspension is nothing more than a Lesson 2 checkpoint marked awaiting_approval.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-25">July 25, 2026</time>
+      <span>·</span>
+      <span>Go developers building an approval gate for sensitive agent actions, where the paused request must survive crashes and idling because suspension is just a durable checkpoint</span>
+      <span>·</span>
+      <span>7 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/harness-engineering/" class="tag-link"><span class="tag">Harness Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">AI Agents</span></a><a href="/blog/tags/human-in-the-loop/" class="tag-link"><span class="tag">Human-in-the-Loop</span></a><a href="/blog/tags/azure/" class="tag-link"><span class="tag">Azure</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 8 of 8</span>
+    <span class="series-title">Harness Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/harness-engineering-go-07-hierarchical-supervision.html" class="series-prev">&larr; Part 7: Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation</a></div>
+  </div>
+
+
+
+  <p>This is the finale of the <a href="/blog/posts/harness-engineering-go-01-the-seam/">Harness Engineering in Go</a> series. Seven lessons in, the pattern I keep coming back to is that the interesting mechanics live <em>around</em> the model, never inside it. The last one is the most human of the seven: some actions are too consequential to run on the model&rsquo;s say-so. Issue a refund. Delete a table. Deploy to prod. Before those, the workflow should stop and ask a person.</p>
+<p>The Microsoft Agent Framework calls this the <strong>request/response executor</strong> — an executor that <em>suspends</em> a workflow, emits a request to an external approver, and resumes when the reply arrives. My local <code>hitl</code> package is a stand-in for exactly that. And the thing that makes it click is that I didn&rsquo;t build a new durability mechanism for the &ldquo;paused&rdquo; state. The pause <strong>is</strong> a <a href="/blog/posts/harness-engineering-go-03-durable-execution.html">Lesson 2</a> checkpoint. That&rsquo;s why Lesson 2 was the spine.</p>
+<h2 id="suspension-is-just-a-checkpoint">Suspension is just a checkpoint</h2>
+<p><code>RequestApproval</code> does one thing: it writes an &ldquo;awaiting approval&rdquo; checkpoint to the same <code>durable.Store</code> from Lesson 2, and returns <em>without touching the action</em>. The prompt, the requested-at instant, and the deadline all live inside the checkpoint&rsquo;s <code>state</code>.</p>
+<pre><code class="language-go">func RequestApproval(runID, prompt string, store durable.Store, now time.Time, timeout time.Duration) (Pending, error) {
+    if timeout &lt;= 0 {
+        timeout = DefaultTimeout
+    }
+    err := store.Save(durable.Checkpoint{
+        RunID: runID,
+        Step:  0, // the gate; the caller has finished any pre-action work
+        State: durable.State{
+            &quot;status&quot;:          statusAwaiting,
+            &quot;prompt&quot;:          prompt,
+            &quot;requested_at&quot;:    now.Format(timeFormat),
+            &quot;timeout_seconds&quot;: timeout.Seconds(),
+            &quot;performed&quot;:       false,
+        },
+    })
+    if err != nil {
+        return Pending{}, fmt.Errorf(&quot;hitl: park request: %w&quot;, err)
+    }
+    return Pending{RunID: runID, Prompt: prompt}, nil
+}
+</code></pre>
+<p>Because the pending request is a checkpoint on disk, the process may crash, restart, or idle for a week — a resume loses nothing. That&rsquo;s the whole payoff. A human decision runs on human time, which is to say: unbounded and unreliable. If the &ldquo;waiting&rdquo; lived only in memory, a deploy or a crash between the ask and the answer would silently drop the request. Here it just sits in <code>checkpoints.json</code> (or Cosmos DB in production) until someone shows up.</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    actor Human
+    participant App as caller
+    participant G as hitl
+    participant S as durable.Store
+
+    App-&gt;&gt;G: RequestApproval(runID, prompt, now, timeout)
+    G-&gt;&gt;S: Save(status=awaiting_approval, requested_at, timeout)
+    G--&gt;&gt;App: Pending{runID, prompt}
+    Note over App,S: process may crash / idle — request is on disk
+
+    Human-&gt;&gt;G: Resume(runID, decision, now2, action)
+    G-&gt;&gt;S: Load(runID) → pending
+    alt now2 - requested_at &gt; timeout
+        G-&gt;&gt;S: Save(status=timed_out, performed=false)
+        G--&gt;&gt;Human: Outcome{timed_out}  %% a late &quot;yes&quot; is void
+    else rejected
+        G-&gt;&gt;S: Save(status=rejected, performed=false)
+        G--&gt;&gt;Human: Outcome{rejected}   %% action NOT run
+    else approved &amp; on time
+        G-&gt;&gt;G: run action(state)
+        G-&gt;&gt;S: Save(status=approved, performed=true, +action output)
+        G--&gt;&gt;Human: Outcome{approved}
+    end
+</code></pre>
+<h2 id="resume-deadline-first-then-decision">Resume: deadline first, then decision</h2>
+<p><code>Resume</code> loads the pending checkpoint and resolves it. The order of checks is the important part.</p>
+<pre><code class="language-go">func Resume(runID string, decision bool, store durable.Store, now time.Time, action Action) (Outcome, error) {
+    cp, err := loadPending(runID, store)
+    if err != nil {
+        return Outcome{}, err
+    }
+
+    requestedAt, _ := time.Parse(timeFormat, asString(cp.State[&quot;requested_at&quot;]))
+    timeout := time.Duration(asFloat(cp.State[&quot;timeout_seconds&quot;]) * float64(time.Second))
+
+    if overdue := now.Sub(requestedAt); overdue &gt; timeout {
+        // deadline is checked FIRST — a late &quot;yes&quot; is void
+        return resolveTimeout(cp, store, now, overdue, timeout)
+    }
+    if !decision {
+        // rejected — the action is NEVER run
+        return resolveRejected(cp, store, now)
+    }
+    // approved &amp; on time — run the action, record performed=true
+    ...
+}
+</code></pre>
+<p>Three outcomes, and the discipline is in the sequencing:</p>
+<ul>
+<li><strong>Past the deadline → <code>timed_out</code>.</strong> The deadline is checked <em>first</em>, against the injected <code>now</code>. If the approval window has closed, the action does not run — <strong>even if the decision was yes</strong>. A late approval is void, not &ldquo;better late than never.&rdquo; Think about why: a refund approved a week after the customer already disputed the charge, or a deploy approved after the release it targeted was rolled back, is worse than no approval at all.</li>
+<li><strong>Rejected → <code>rejected</code>.</strong> The action is not performed. Obvious, but it has to be enforced structurally, not by trusting the caller.</li>
+<li><strong>Approved and on time → run the action</strong>, then save <code>performed=true</code> plus whatever the action returned, merged back into the checkpoint. &ldquo;The action ran&rdquo; is itself durable — you can reload the run later and see that it happened.</li>
+</ul>
+<pre><code class="language-mermaid">stateDiagram-v2
+    [*] --&gt; AwaitingApproval: RequestApproval
+    AwaitingApproval --&gt; Approved: Resume(yes) &amp; on time
+    AwaitingApproval --&gt; Rejected: Resume(no)
+    AwaitingApproval --&gt; TimedOut: past deadline (even a late yes)
+    Approved --&gt; [*]
+    Rejected --&gt; [*]
+    TimedOut --&gt; [*]
+</code></pre>
+<h2 id="injected-clock-deterministic-deadlines">Injected clock, deterministic deadlines</h2>
+<p>Notice that every function takes <code>now time.Time</code> as an argument and never reads the wall clock. That is the single design decision that makes deadline behavior <em>testable</em>. The test file pins a fixed instant and moves it by hand:</p>
+<pre><code class="language-go">var base = time.Date(2026, 7, 11, 12, 0, 0, 0, time.UTC)
+
+func TestLateApprovalTimesOut(t *testing.T) {
+    store := newStore(t)
+    _, _ = RequestApproval(&quot;r3&quot;, &quot;deploy to prod?&quot;, store, base, time.Hour)
+
+    ran := false
+    action := func(s durable.State) (durable.State, error) { ran = true; return nil, nil }
+    // A &quot;yes&quot; that arrives two hours after a one-hour window is void.
+    out, _ := Resume(&quot;r3&quot;, true, store, base.Add(2*time.Hour), action)
+    if out.Status != &quot;timed_out&quot; {
+        t.Fatalf(&quot;status = %s, want timed_out&quot;, out.Status)
+    }
+    if ran {
+        t.Fatal(&quot;a late yes must NOT run the action&quot;)
+    }
+}
+</code></pre>
+<p>No <code>time.Sleep</code>, no flaky &ldquo;wait an hour&rdquo; test. <code>base.Add(2*time.Hour)</code> is a value, not a wait. The companion tests cover the other branches with the same trick: approve-on-time runs the action and merges its output; reject never runs it; a nil action still resolves to <code>approved</code>; and resuming an already-resolved run errors, because the gate is no longer <code>awaiting_approval</code>.</p>
+<h2 id="state-the-leak">State the leak</h2>
+<p>This is where honesty matters most, because approvals are exactly where a naive stand-in feels most complete and is most incomplete.</p>
+<blockquote>
+<p><strong>State the leak:</strong> a real request/response executor also <strong>routes</strong> the request to a person (a Teams card, an email, a web form), authenticates <em>who</em> may approve, and correlates their reply back to the right run. This stand-in does none of that — the &ldquo;approver&rdquo; is simply whoever calls <code>Resume</code>, with no identity, notification, or auth.</p>
+</blockquote>
+<p>Read that carefully. My gate teaches the <em>suspend / resume / deadline</em> shape — the durable state machine. It does not teach the human plumbing, and that plumbing is most of the real work: who gets pinged, whether they&rsquo;re allowed to say yes, and how a &ldquo;yes&rdquo; typed into a Teams card finds its way back to run <code>r3</code>. In production, the Agent Framework executor and your identity provider own that; the Cosmos DB suspension is the only piece my <code>durable.Store</code> genuinely mirrors.</p>
+<p>There&rsquo;s a second, quieter leak carried over from Lesson 2: <strong>execution is at-least-once, not exactly-once.</strong> On approval the order is <code>load → action() → save-terminal-checkpoint</code>. A crash <em>after</em> the action runs but <em>before</em> the terminal checkpoint is written leaves the run still <code>awaiting_approval</code> — so a re-<code>Resume</code> runs the action <strong>again</strong>. The injected <code>action</code> must therefore be idempotent, which is doubly important here because it&rsquo;s sensitive by definition. Issuing a refund twice is not a rounding error. In practice you make the action idempotent with an idempotency key (<code>refund_id: rf_123</code>) so the payment provider dedupes the retry.</p>
+<h2 id="the-seven-pattern-arc">The seven-pattern arc</h2>
+<p>Stepping back, the series built one harness, one seam at a time:</p>
+<ol>
+<li><strong>Guardrails</strong> — a hard block wrapping the model call.</li>
+<li><strong>Durable execution</strong> — checkpoint each step, resume after a crash. <em>The spine.</em></li>
+<li><strong>Retries</strong> — bounded, jittered backoff around flaky calls.</li>
+<li><strong>Memory</strong> — an append-only thread of turns.</li>
+<li><strong>Structured output</strong> — validate the model&rsquo;s JSON against a schema, or reject it.</li>
+<li><strong>Routing</strong> — pick a tool/sub-agent by intent.</li>
+<li><strong>Human-in-the-loop</strong> — this post: a durable approval gate, built on lesson 2.</li>
+</ol>
+<p>Every one of them is the same move: an Azure primitive (Content Safety, Cosmos DB, Foundry, AI Search, a request/response executor) named explicitly, then stood in for by a small Go struct behind an interface, with the leak stated out loud. The caller never learns which side of the seam it&rsquo;s on.</p>
+<h2 id="whats-next">What&rsquo;s next</h2>
+<p>There is exactly one seam left un-swapped, and it&rsquo;s the one I stubbed on purpose in Lesson 1: the agent call itself. Every lesson routes around a <code>// --- agent call (STUB) ---</code> that echoes the input back. The remaining step — the real one — is to replace that stub with a <code>foundryprovider</code> run from microsoft/agent-framework-go, so the guardrails guard a real model, the durable workflow checkpoints real tool calls, and this approval gate pauses a genuinely consequential action. Everything around it already tests offline, runs deterministically, and states where it&rsquo;s weaker than the managed service. That was the whole point: build the harness first, drop the model in last, and never be surprised by the seam.</p>
+<hr>
+<p>Next: <a href="/agent-framework/">My upstream Microsoft Agent Framework Go contributions</a></p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-07-hierarchical-supervision.html">Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation</a>
+      <span class="related-date">Jul 24</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-06-orchestration-handoff.html">Orchestration and Handoff: Routing Intent to a Specialist</a>
+      <span class="related-date">Jul 23</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-05-advanced-memory.html">Advanced Memory: Threads, Keyword Retrieval, and Lossy Summarization</a>
+      <span class="related-date">Jul 22</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://github.com/Hendrixer/harness-engineering" target="_blank" rel="noopener noreferrer">Hendrixer/harness-engineering</a></div>
+      <div class="citation-context">The original TypeScript course defining the seven harness-engineering patterns</div>
+    </div>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://github.com/microsoft/agent-framework-go" target="_blank" rel="noopener noreferrer">microsoft/agent-framework-go</a></div>
+      <div class="citation-context">The request/response (human-in-the-loop) executor that suspends a workflow, emits an approval request, and resumes on reply — with suspension persisted to Cosmos DB</div>
+    </div>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://learn.microsoft.com/en-us/azure/cosmos-db/introduction" target="_blank" rel="noopener noreferrer">Azure Cosmos DB</a></div>
+      <div class="citation-context">The managed store that persists the suspended approval request in production, mirrored locally by the durable checkpoint store</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
