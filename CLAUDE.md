@@ -37,6 +37,10 @@ python3 -m http.server 8765
 
 `build_blog.py` / `build_projects.py` / `build_sitemap.py` need `pip install markdown` (Python 3.9+, standard library otherwise). `gen_og_image.py` additionally needs `pip install Pillow` — it is a one-off asset generator, not part of the normal publish flow.
 
+### Site auditing (not tracked in git)
+
+`squirrel.toml` configures the `squirrelscan` SEO/site auditor and is **gitignored** (along with `.claude/`, `.vercel`, `.wrangler`, `thinkingandplaning.md`) — so it won't show in a fresh clone but exists locally. It crawls up to 100 pages with all rules enabled and can push cloud audits. Use it (or the `audit-website` / `seo-audit` skills) to find broken links, meta-tag, and structured-data issues before publishing.
+
 ---
 
 ## Architecture
@@ -58,7 +62,7 @@ All output in `blog/posts/`, `blog/tags/`, `blog/archive/`, plus `blog/index.htm
 - **`POST_META` dict** — keyed by source filename (e.g. `"2026-06-01-my-post.md"`), contains `slug`, `date`, `tags`, `audience`, `excerpt`, `citations`. Adding a new post requires a new entry here.
 - **`POST_POPULARITY` dict** — maps slug → rank, used to build `blog/popular-posts.json`.
 - Markdown source files live in `blog/source/` following the naming convention `YYYY-MM-DD-slug.md`.
-- `POST_META` has ~110 entries but `blog/source/` holds only 9 markdown files; the rest are legacy posts that exist only as HTML (no markdown source). Their metadata still lives in `POST_META` with an empty or missing source file — the script handles this gracefully. Deleting a `POST_META` entry drops the post from the index/feed/sitemap even if its HTML file remains.
+- `POST_META` holds far more entries than `blog/source/` has markdown files (currently ~134 entries vs. ~33 source files). The excess are legacy posts that exist only as pre-rendered HTML (no markdown source). Their metadata still lives in `POST_META` with an empty or missing source file — the script handles this gracefully. Deleting a `POST_META` entry drops the post from the index/feed/sitemap even if its HTML file remains. (These counts drift as posts are added — don't rely on the exact numbers, only the invariant that entries ≫ source files.)
 - HTML templates are f-strings inside the script (`POST_CSS`, `NAV_HTML`, `SITE_FOOTER`, `render_post_html()`, `render_tag_page()`, `render_index_html()`, `render_rss_feed()`). To change layout or design, edit these functions — there is no separate template file.
 
 ### Adding a new blog post
@@ -89,8 +93,8 @@ This script imports `SITE_ROOT`, `NAV_HTML`, `SITE_FOOTER`, `POST_CSS`, and `POS
 ## Sitemap Strategy
 
 `build_sitemap.py` generates three sub-sitemaps + an index:
-- `sitemap-pages.xml` — 9 static pages
-- `sitemap-blog.xml` — all 105 blog post URLs
+- `sitemap-pages.xml` — the static pages
+- `sitemap-blog.xml` — every blog post URL (one `<loc>` per `POST_META` entry, currently ~129)
 - `sitemap-tags.xml` — only tag pages with ≥3 posts (avoids thin-content indexing)
 
 `lastmod` dates come from `git log` per file; falls back to today with a stderr warning if a file has no git history.

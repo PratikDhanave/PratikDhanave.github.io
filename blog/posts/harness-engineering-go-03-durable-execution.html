@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Durable Execution: Checkpoint Every Step, Resume After a...</title>
+<meta name="description" content="Lesson 2: a workflow that checkpoints after every step and resumes from the last one after a crash, why at-least-once execution forces idempotent...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Durable Execution: Checkpoint Every Step, Resume After a...">
+<meta property="og:description" content="Lesson 2: a workflow that checkpoints after every step and resumes from the last one after a crash, why at-least-once execution forces idempotent steps, and the atomic-rename store that survives a killed process.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/harness-engineering-go-03-durable-execution.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-20T00:00:00Z">
+<meta property="article:tag" content="Harness Engineering">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Durable Execution">
+<meta property="article:tag" content="Azure">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Durable Execution: Checkpoint Every Step, Resume After a...">
+<meta name="twitter:description" content="Lesson 2: a workflow that checkpoints after every step and resumes from the last one after a crash, why at-least-once execution forces idempotent steps, and the atomic-rename store that survives a killed process.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/harness-engineering-go-03-durable-execution.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:980px;margin:0 auto;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;gap:20px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;gap:22px;list-style:none;font-size:14px;font-weight:500}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}.nav-links li:nth-child(n+4){display:none}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Durable Execution: Checkpoint Every Step, Resume After a Crash",
+  "description": "Lesson 2: a workflow that checkpoints after every step and resumes from the last one after a crash, why at-least-once execution forces idempotent steps, and the atomic-rename store that survives a killed process.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-20",
+  "dateModified": "2026-07-20",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Harness Engineering, Go, AI Agents, Durable Execution, Azure",
+  "url": "https://pratikdhanave.com/blog/posts/harness-engineering-go-03-durable-execution.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/harness-engineering-go-03-durable-execution.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Durable Execution: Checkpoint Every Step, Resume After a Crash</h1>
+    <p class="post-subtitle">Lesson 2 of Harness Engineering in Go — a workflow that saves its progress after each step and picks up exactly where it died, proven by a test that kills a real subprocess mid-run.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-20">July 20, 2026</time>
+      <span>·</span>
+      <span>Go developers building a durable workflow runner that checkpoints named steps after each and resumes from the last one after a real process crash, behind a swappable store interface</span>
+      <span>·</span>
+      <span>9 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/harness-engineering/" class="tag-link"><span class="tag">Harness Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">AI Agents</span></a><a href="/blog/tags/durable-execution/" class="tag-link"><span class="tag">Durable Execution</span></a><a href="/blog/tags/azure/" class="tag-link"><span class="tag">Azure</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 3 of 8</span>
+    <span class="series-title">Harness Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/harness-engineering-go-02-agent-harness-guardrails.html" class="series-prev">&larr; Part 2: The Agent Harness: guardrails as middleware around the model</a>
+<a href="/blog/posts/harness-engineering-go-04-secure-sandboxing.html" class="series-next">Part 4: Secure Sandboxing: Running Agent-Written Code Behind a Timeout &rarr;</a></div>
+  </div>
+
+
+
+  <p>This is the second pattern in the <a href="/blog/posts/harness-engineering-go-01-the-seam/">Harness Engineering in Go</a> series. <a href="/blog/posts/harness-engineering-go-02-agent-harness-guardrails/">Lesson 1</a> wrapped the model call in a guardrail and left the agent as a stub. That stub was fine while the agent did one thing. But real agent work is <em>multi-step</em> — retrieve, call a tool, summarize, write a result — and any of those steps can crash, time out, or get OOM-killed halfway. If a crash means starting over, you re-pay for every completed step, including the expensive model calls. Durable execution is the fix, and it&rsquo;s the <strong>spine</strong> of this series: the human-in-the-loop gate in Lesson 7 reuses this exact store.</p>
+<h2 id="the-pattern-named-steps-checkpointed-after-each">The pattern: named steps, checkpointed after each</h2>
+<p>The whole idea is one function. <code>workflow.Run</code> takes a <code>runID</code> and a list of named steps, executes them in order, and writes a checkpoint after each one lands. Re-run with the same <code>runID</code> and it loads the last checkpoint, skips everything already done, and resumes from the next step. That&rsquo;s the local, Azure-free equivalent of a <strong>checkpointed Microsoft Agent Framework workflow</strong> — where the framework persists workflow state to a pluggable backend so a crashed run resumes rather than restarts.</p>
+<p>Here is the fresh-run-then-crash-and-resume sequence, straight from the reference project:</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant C as caller
+    participant W as workflow.Run
+    participant S as durable.Store (FileStore)
+
+    Note over C,S: First attempt — crashes during step c
+    C-&gt;&gt;W: Run(&quot;r&quot;, [a,b,c])
+    W-&gt;&gt;S: Load(&quot;r&quot;) → nil (fresh)
+    W-&gt;&gt;W: run step a
+    W-&gt;&gt;S: Save(step=0, {a})
+    W-&gt;&gt;W: run step b
+    W-&gt;&gt;S: Save(step=1, {a,b})
+    W-&gt;&gt;W: run step c 💥 error/crash
+    W--&gt;&gt;C: error (a,b already checkpointed)
+
+    Note over C,S: Second attempt — resumes, a and b are skipped
+    C-&gt;&gt;W: Run(&quot;r&quot;, [a,b,c])
+    W-&gt;&gt;S: Load(&quot;r&quot;) → {step:1, state:{a,b}}
+    W-&gt;&gt;W: skip to step 2, run step c
+    W-&gt;&gt;S: Save(step=2, {a,b,c})
+    W--&gt;&gt;C: {a,b,c}
+</code></pre>
+<p>The state machine behind that is small enough to hold in your head:</p>
+<pre><code class="language-mermaid">stateDiagram-v2
+    [*] --&gt; Loading
+    Loading --&gt; Fresh: no checkpoint
+    Loading --&gt; Resuming: checkpoint at step N
+    Fresh --&gt; RunningStep
+    Resuming --&gt; RunningStep: start at N+1
+    RunningStep --&gt; Checkpointed: Save after step
+    Checkpointed --&gt; RunningStep: more steps
+    RunningStep --&gt; Failed: step returns error
+    Failed --&gt; [*]: re-run resumes from last checkpoint
+    Checkpointed --&gt; Done: no steps left
+    Done --&gt; [*]
+</code></pre>
+<h2 id="the-runner-in-full">The runner, in full</h2>
+<p>The runner is 30-odd lines with no cleverness, and that&rsquo;s the point — durability comes from <em>discipline</em>, not machinery.</p>
+<pre><code class="language-go">// Run executes steps durably, resuming from the last checkpoint for runID.
+//
+// Execution is at-least-once: the checkpoint is written AFTER a step's function
+// returns, so a crash between a step finishing and its checkpoint landing re-runs
+// that step on resume. Step functions must therefore be idempotent.
+func Run(runID string, steps []Step, store durable.Store) (durable.State, error) {
+    cp, err := store.Load(runID)
+    if err != nil {
+        return nil, fmt.Errorf(&quot;workflow: load checkpoint: %w&quot;, err)
+    }
+
+    start := 0
+    state := durable.State{}
+    if cp != nil {
+        start = cp.Step + 1 // resume after the last completed step
+        state = cloneState(cp.State)
+    }
+
+    for i := start; i &lt; len(steps); i++ {
+        update, err := steps[i].Fn(state)
+        if err != nil {
+            return state, fmt.Errorf(&quot;workflow: step %d (%s): %w&quot;, i, steps[i].Name, err)
+        }
+        for k, v := range update {
+            state[k] = v
+        }
+        if err := store.Save(durable.Checkpoint{RunID: runID, Step: i, State: state}); err != nil {
+            return state, fmt.Errorf(&quot;workflow: save checkpoint: %w&quot;, err)
+        }
+    }
+    return state, nil
+}
+</code></pre>
+<p>Three decisions carry the whole design:</p>
+<p><strong><code>Load</code> returning <code>nil</code> is a fresh start, not an error.</strong> A missing checkpoint means &ldquo;never ran,&rdquo; so <code>start = 0</code> and the state begins empty. This is what makes the <em>same call</em> both start and resume a run — there is no separate &ldquo;begin&rdquo; and &ldquo;resume&rdquo; API, just <code>Run</code>. The caller doesn&rsquo;t need to know or track which case it&rsquo;s in.</p>
+<p><strong>The checkpoint is written <em>after</em> the step&rsquo;s function returns</strong>, carrying <code>Step: i</code> — the index of the last completed step. On resume, <code>start = cp.Step + 1</code>, so completed steps are skipped and never re-run under normal flow. A <code>Step</code> is just a <code>Name</code> and a <code>Fn func(state) (State, error)</code>; its returned map is merged into the accumulated state, which is a plain <code>map[string]any</code> so it round-trips through any JSON backend.</p>
+<p><strong>The loaded state is cloned before the run mutates it.</strong> <code>cloneState</code> copies the map the store handed back so the running copy never aliases stored data. Small thing, but it&rsquo;s the difference between a resume that&rsquo;s a clean re-entry and one that quietly corrupts the checkpoint you loaded from.</p>
+<h2 id="the-seam-durablestore">The seam: <code>durable.Store</code></h2>
+<p>The runner never touches a file. It talks to an interface:</p>
+<pre><code class="language-go">// Store persists at most one checkpoint per run_id.
+//
+// Load returns (nil, nil) when no checkpoint exists for run_id — a missing run is
+// not an error, it is a fresh start. Save upserts, retaining only the latest
+// checkpoint for a run.
+type Store interface {
+    Load(runID string) (*Checkpoint, error)
+    Save(cp Checkpoint) error
+}
+</code></pre>
+<p>Two methods. Behind it locally is <code>FileStore</code> — all runs in one JSON file, a <code>run_id → Checkpoint</code> map. In production that same interface is a <strong>Cosmos DB</strong> store: replicated, access-controlled, one item per run. The workflow code doesn&rsquo;t change a line. That&rsquo;s the seam this whole series is built on — name the Azure primitive, put an interface in front of it, keep the caller ignorant of which side it&rsquo;s on.</p>
+<p>The one detail worth studying in <code>FileStore</code> is how it <em>writes</em>:</p>
+<pre><code class="language-go">// writeAll persists the map atomically: write a temp file in the same directory,
+// then rename over the target. rename(2) is atomic on POSIX, so a reader (or a
+// crash) never sees a half-written file.
+func (s *FileStore) writeAll(all map[string]Checkpoint) error {
+    data, err := json.MarshalIndent(all, &quot;&quot;, &quot;  &quot;)
+    // ... write to a temp file in the same dir ...
+    if err := os.Rename(tmpName, s.path); err != nil {
+        os.Remove(tmpName)
+        return fmt.Errorf(&quot;durable: rename: %w&quot;, err)
+    }
+    return nil
+}
+</code></pre>
+<p>It never writes the target file in place. It marshals to a temp file, then <code>os.Rename</code>s over the target. <code>rename(2)</code> is atomic on POSIX, so a crash mid-write leaves the <em>old</em> checkpoints intact — you never get a truncated, unparseable JSON file that poisons every future resume. Writing to a file rather than memory is the entire reason recovery survives a process restart, and the atomic rename is what makes that file safe to crash against.</p>
+<h2 id="at-least-once-so-steps-must-be-idempotent">At-least-once, so steps must be idempotent</h2>
+<p>Read the runner&rsquo;s ordering again: the step function runs, <em>then</em> the checkpoint saves. There&rsquo;s a window between &ldquo;step c finished its side effect&rdquo; and &ldquo;the checkpoint recording c has landed on disk.&rdquo; Crash in that window, and resume re-runs step c — its side effect already happened once, and now it happens again.</p>
+<p>This is <strong>at-least-once execution</strong>, and it is not a bug to be fixed; it&rsquo;s the honest guarantee of any checkpoint-after model. The consequence is a hard rule on your step functions: <strong>they must be idempotent.</strong> Running a step twice with the same input must land the same result. Append a row keyed by <code>runID</code>, not &ldquo;insert a new row.&rdquo; Set <code>status = done</code>, not &ldquo;increment a counter.&rdquo; Use a deterministic ID for the tool call so a retry is a no-op. If you push the checkpoint <em>before</em> the step instead, you swap this problem for a worse one — at-most-once, where a crash silently <em>skips</em> work. At-least-once with idempotent steps is the combination that actually survives crashes.</p>
+<h2 id="the-test-that-proves-it">The test that proves it</h2>
+<p>Plenty of &ldquo;durable&rdquo; systems only prove durability against a simulated error — a step that returns <code>err</code> while the process stays alive. That tests the resume <em>logic</em>, but it never tests that state actually survived a dead process. The real test kills the process.</p>
+<p><code>TestCheckpointSurvivesProcessRestart</code> re-execs the test binary as a child. The child runs step <code>a</code> (which checkpoints), then step <code>b</code> calls <code>os.Exit(3)</code> — a genuine, unrecoverable process death mid-run, not a returned error:</p>
+<pre><code class="language-go">steps := []Step{
+    {&quot;a&quot;, func(s durable.State) (durable.State, error) { return durable.State{&quot;a&quot;: 1}, nil }},
+    {&quot;b&quot;, func(s durable.State) (durable.State, error) { os.Exit(3); return nil, nil }},
+}
+_, _ = Run(&quot;r&quot;, steps, store)
+</code></pre>
+<p>The parent asserts the child exited with code 3, then constructs a <em>fresh</em> <code>FileStore</code> over the same file and calls <code>Run</code> again. Because <code>a</code>&rsquo;s checkpoint is on disk, only <code>b</code> runs on the resume — the parent checks <code>ran == ["b"]</code> and the final state is <code>{a:1, b:2}</code>. That&rsquo;s the whole claim, proven end to end: a process died in the middle, and the work it finished was not lost. <code>os.Exit</code> can&rsquo;t be caught or deferred past, so there&rsquo;s no way the state could have been flushed on the way out — if it&rsquo;s on disk, the checkpoint put it there.</p>
+<h2 id="state-the-leak">State the leak</h2>
+<p>The <code>FileStore</code> doc comment says it plainly:</p>
+<blockquote>
+<p><code>FileStore</code> is one JSON file, no replication or auth; Cosmos DB is a replicated, access-controlled, per-item store. Execution is <strong>at-least-once</strong> — a crash between a step finishing and its checkpoint landing re-runs that step, so step functions must be idempotent.</p>
+</blockquote>
+<p>Two leaks, both real. First, <strong>coarse whole-file locking</strong>: <code>FileStore</code> rewrites the entire map on every <code>Save</code> under one mutex, so concurrent runs serialize on a single file. Cosmos DB writes one item per run with per-item concurrency and optimistic ETags — the file store&rsquo;s convenience is exactly its scaling ceiling. Second, <strong>no replication or auth</strong>: one disk, one copy, no access control. Lose the disk and you lose every checkpoint; anyone on the box can read or edit a run&rsquo;s state. Cosmos gives you geo-replication and RBAC for free. The at-least-once idempotency requirement, notably, is <em>not</em> a leak — it&rsquo;s true of the managed service too. The local store teaches you the shape of durable execution so that when you swap in Cosmos, you already know which properties you were relying on.</p>
+<h2 id="whats-next">What&rsquo;s next</h2>
+<p>Durable execution gives the agent a memory that survives crashes — but the next problem is the opposite kind of danger. When an agent writes code and you <em>run</em> it, you&rsquo;ve handed an LLM a shell on your machine. Lesson 3 builds a secure sandbox: executing agent-written code behind a hard timeout and a locked-down environment, so a runaway or malicious snippet can&rsquo;t hang your process or reach past its box.</p>
+<hr>
+<p>Next: <a href="/blog/posts/harness-engineering-go-04-secure-sandboxing.html">Secure Sandboxing: Running Agent-Written Code Behind a Timeout</a></p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-07-hierarchical-supervision.html">Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation</a>
+      <span class="related-date">Jul 24</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-06-orchestration-handoff.html">Orchestration and Handoff: Routing Intent to a Specialist</a>
+      <span class="related-date">Jul 23</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://learn.microsoft.com/en-us/azure/cosmos-db/introduction" target="_blank" rel="noopener noreferrer">Azure Cosmos DB</a></div>
+      <div class="citation-context">The replicated, access-controlled, per-item store the local JSON FileStore stands in for</div>
+    </div>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://github.com/Hendrixer/harness-engineering" target="_blank" rel="noopener noreferrer">Hendrixer/harness-engineering</a></div>
+      <div class="citation-context">Lesson 2 of the course: durable execution that checkpoints and resumes across a process restart</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

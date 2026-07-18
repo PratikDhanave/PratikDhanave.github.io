@@ -160,6 +160,130 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+    # ── Harness Engineering in Go series (8 posts) ──
+"2026-07-18-harness-engineering-go-01-the-seam.md": {
+    "slug": "harness-engineering-go-01-the-seam",
+    "date": "2026-07-18",
+    "tags": ["Harness Engineering", "Go", "AI Agents", "Microsoft Agent Framework", "Azure"],
+    "audience": "Go developers who want to understand the infrastructure around an LLM — guardrails, durability, sandboxing, memory, orchestration, and human-in-the-loop — by building each pattern offline behind an interface before wiring Azure",
+    "excerpt": "Seven patterns that turn a bare model call into production agent infrastructure, each written first as offline Go behind an interface (the seam) so the leap to Azure is a swap, not a rewrite.",
+    "series": "Harness Engineering in Go",
+    "series_position": 1,
+    "series_total": 8,
+    "featured": True,
+    "citations": [
+        {"title": "Hendrixer/harness-engineering", "url": "https://github.com/Hendrixer/harness-engineering", "context": "The original TypeScript course that defines the seven harness-engineering patterns"},
+        {"title": "microsoft/agent-framework-go", "url": "https://github.com/microsoft/agent-framework-go", "context": "The Go SDK and Azure primitives each local seam stands in for"},
+    ],
+},
+"2026-07-19-harness-engineering-go-02-agent-harness-guardrails.md": {
+    "slug": "harness-engineering-go-02-agent-harness-guardrails",
+    "date": "2026-07-19",
+    "tags": ["Harness Engineering", "Go", "AI Agents", "Prompt Injection", "Azure"],
+    "audience": "Go developers building the first layer of an agent harness: an input guardrail wrapped as middleware around the model call, with an http.Handler that tests without a running server",
+    "excerpt": "Lesson 1: why the input guardrail is a hard block rather than flag-and-pass, why it counts runes instead of bytes, and how a plain net/http handler wraps the (stubbed) model call so it tests with httptest.",
+    "series": "Harness Engineering in Go",
+    "series_position": 2,
+    "series_total": 8,
+    "citations": [
+        {"title": "Azure AI Content Safety — Prompt Shields", "url": "https://learn.microsoft.com/en-us/azure/ai-services/content-safety/concepts/jailbreak-detection", "context": "The ML-based jailbreak/injection defense the local substring guardrail stands in for"},
+        {"title": "Hendrixer/harness-engineering", "url": "https://github.com/Hendrixer/harness-engineering", "context": "Lesson 1 of the course: the agent harness as middleware around the model"},
+    ],
+},
+    # ── Harness Engineering in Go — Lessons 2–7 (posts 3–8) ──
+    # Post 04
+    "2026-07-21-harness-engineering-go-04-secure-sandboxing.md": {
+        "slug": "harness-engineering-go-04-secure-sandboxing",
+        "date": "2026-07-21",
+        "tags": ["Harness Engineering", "Go", "AI Agents", "Sandboxing", "Azure"],
+        "audience": "Go engineers wiring code-execution tools into an agent who need to know what a local subprocess sandbox does and does not protect against.",
+        "excerpt": "Lesson 3: run agent-written code behind a hard timeout with exec.CommandContext, distinguish OK from TimedOut, and face the leak — a subprocess is not a security boundary.",
+        "series": "Harness Engineering in Go",
+        "series_position": 4,
+        "series_total": 8,
+        "citations": [
+            {"title": "Hendrixer/harness-engineering", "url": "https://github.com/Hendrixer/harness-engineering", "context": "The original TypeScript course defining the seven harness-engineering patterns"},
+            {"title": "microsoft/agent-framework-go", "url": "https://github.com/microsoft/agent-framework-go", "context": "The Go agent framework whose Code Interpreter tool the local sandbox stands in for"},
+            {"title": "Azure Container Apps dynamic sessions", "url": "https://learn.microsoft.com/en-us/azure/container-apps/sessions", "context": "The managed, Hyper-V-isolated code-execution sandbox that provides the real security boundary this lesson's local subprocess only imitates"},
+        ],
+    },
+    # Post 03
+    "2026-07-20-harness-engineering-go-03-durable-execution.md": {
+        "slug": "harness-engineering-go-03-durable-execution",
+        "date": "2026-07-20",
+        "tags": ["Harness Engineering", "Go", "AI Agents", "Durable Execution", "Azure"],
+        "audience": "Go developers building a durable workflow runner that checkpoints named steps after each and resumes from the last one after a real process crash, behind a swappable store interface",
+        "excerpt": "Lesson 2: a workflow that checkpoints after every step and resumes from the last one after a crash, why at-least-once execution forces idempotent steps, and the atomic-rename store that survives a killed process.",
+        "series": "Harness Engineering in Go",
+        "series_position": 3,
+        "series_total": 8,
+        "citations": [
+            {"title": "Azure Cosmos DB", "url": "https://learn.microsoft.com/en-us/azure/cosmos-db/introduction", "context": "The replicated, access-controlled, per-item store the local JSON FileStore stands in for"},
+            {"title": "Hendrixer/harness-engineering", "url": "https://github.com/Hendrixer/harness-engineering", "context": "Lesson 2 of the course: durable execution that checkpoints and resumes across a process restart"},
+        ],
+    },
+    # Post 05
+    "2026-07-22-harness-engineering-go-05-advanced-memory.md": {
+        "slug": "harness-engineering-go-05-advanced-memory",
+        "date": "2026-07-22",
+        "tags": ["Harness Engineering", "Go", "AI Agents", "Retrieval", "Azure"],
+        "audience": "Go developers building an agent's memory layer — a short-term thread, a long-term knowledge index, and a summarizer — each behind an interface so the local stand-in swaps cleanly for Azure managed threads and Azure AI Search",
+        "excerpt": "Lesson 4: memory is three stores, not one — an append-only thread, a keyword knowledge index, and a lossy first-and-last summarizer — and an honest account of where each local stand-in leaks against Azure.",
+        "series": "Harness Engineering in Go",
+        "series_position": 5,
+        "series_total": 8,
+        "citations": [
+            {"title": "Azure AI Search — vector and semantic ranking", "url": "https://learn.microsoft.com/en-us/azure/search/vector-search-overview", "context": "The vector/semantic (and hybrid) retrieval the local keyword-overlap knowledge index stands in for"},
+            {"title": "Hendrixer/harness-engineering", "url": "https://github.com/Hendrixer/harness-engineering", "context": "The original TypeScript course defining the seven harness-engineering patterns"},
+            {"title": "microsoft/agent-framework-go", "url": "https://github.com/microsoft/agent-framework-go", "context": "The Agent Service managed-thread and Foundry summarization primitives the local thread store and roll-up stand in for"},
+        ],
+    },
+    # Post 06
+    "2026-07-23-harness-engineering-go-06-orchestration-handoff.md": {
+        "slug": "harness-engineering-go-06-orchestration-handoff",
+        "date": "2026-07-23",
+        "tags": ["Harness Engineering", "Go", "AI Agents", "Orchestration", "Azure"],
+        "audience": "Go engineers wiring multi-agent systems who need a testable triage/handoff step before introducing a real LLM classifier.",
+        "excerpt": "Lesson 5: a triage router first-matches a keyword to hand intent to a specialist, and the exact point a substring table stops being able to think.",
+        "series": "Harness Engineering in Go",
+        "series_position": 6,
+        "series_total": 8,
+        "citations": [
+            {"title": "Hendrixer/harness-engineering", "url": "https://github.com/Hendrixer/harness-engineering", "context": "The original TypeScript course defining the seven harness-engineering patterns"},
+            {"title": "microsoft/agent-framework-go", "url": "https://github.com/microsoft/agent-framework-go", "context": "The local Router stands in for a Microsoft Agent Framework triage agent using handoff orchestration to route intent to a specialist with full thread context"},
+        ],
+    },
+    # Post 07
+    "2026-07-24-harness-engineering-go-07-hierarchical-supervision.md": {
+        "slug": "harness-engineering-go-07-hierarchical-supervision",
+        "date": "2026-07-24",
+        "tags": ["Harness Engineering", "Go", "AI Agents", "Concurrency", "Azure"],
+        "audience": "Go developers building a supervisor that fans out subtasks to concurrent sub-agent workers bounded by a semaphore and fans results back in decomposition order, with each worker's error or panic isolated to a single result",
+        "excerpt": "Lesson 6: bounded fan-out behind a semaphore, ordered fan-in via a pre-sized results slice, and per-worker fault isolation so one sub-agent panicking becomes one failed result instead of crashing the whole run.",
+        "series": "Harness Engineering in Go",
+        "series_position": 7,
+        "series_total": 8,
+        "citations": [
+            {"title": "Hendrixer/harness-engineering", "url": "https://github.com/Hendrixer/harness-engineering", "context": "The original TypeScript course defining the seven harness-engineering patterns"},
+            {"title": "microsoft/agent-framework-go", "url": "https://github.com/microsoft/agent-framework-go", "context": "The Magentic / concurrent orchestration primitive the local Supervisor's bounded fan-out and ordered fan-in stand in for"},
+        ],
+    },
+    # Post 08 (finale)
+    "2026-07-25-harness-engineering-go-08-human-in-the-loop.md": {
+        "slug": "harness-engineering-go-08-human-in-the-loop",
+        "date": "2026-07-25",
+        "tags": ["Harness Engineering", "Go", "AI Agents", "Human-in-the-Loop", "Azure"],
+        "audience": "Go developers building an approval gate for sensitive agent actions, where the paused request must survive crashes and idling because suspension is just a durable checkpoint",
+        "excerpt": "Series finale, Lesson 7: a sensitive action pauses for human approval, where suspension is just a Lesson 2 checkpoint marked awaiting_approval, the deadline is checked first so a late yes is void, and the action must be idempotent.",
+        "series": "Harness Engineering in Go",
+        "series_position": 8,
+        "series_total": 8,
+        "citations": [
+            {"title": "Hendrixer/harness-engineering", "url": "https://github.com/Hendrixer/harness-engineering", "context": "The original TypeScript course defining the seven harness-engineering patterns"},
+            {"title": "microsoft/agent-framework-go", "url": "https://github.com/microsoft/agent-framework-go", "context": "The request/response (human-in-the-loop) executor that suspends a workflow, emits an approval request, and resumes on reply — with suspension persisted to Cosmos DB"},
+            {"title": "Azure Cosmos DB", "url": "https://learn.microsoft.com/en-us/azure/cosmos-db/introduction", "context": "The managed store that persists the suspended approval request in production, mirrored locally by the durable checkpoint store"},
+        ],
+    },
     # ── Learning the Microsoft Agent Framework series (Python + Go, 24 posts) ──
 # Track 1
 "2026-06-23-maf-python-01-learning-by-building.md": {
