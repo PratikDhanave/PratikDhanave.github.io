@@ -2790,10 +2790,12 @@ nav {
 .nav-brand:hover { text-decoration: none; color: var(--text); }
 .nav-links {
   display: flex;
-  gap: 22px;
+  flex-wrap: wrap;
+  gap: 6px 18px;
   list-style: none;
   font-size: 14px;
   font-weight: 500;
+  justify-content: flex-end;
 }
 .nav-links a { color: var(--text-dim); }
 .nav-links a:hover { color: var(--accent); text-decoration: none; }
