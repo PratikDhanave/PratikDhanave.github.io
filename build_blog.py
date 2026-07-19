@@ -3858,7 +3858,36 @@ def to_html(md_body):
     # Demote h1 → h2 in rendered content (template already has the page h1)
     html = re.sub(r'<h1\b', '<h2', html)
     html = re.sub(r'</h1>', '</h2>', html)
+    # Give every <table> an accessible name (a11y/table-duplicate-name)
+    html = _caption_tables(html)
     return html
+
+
+def _caption_tables(html):
+    """Add a screen-reader caption to each <table> that lacks one.
+
+    Markdown tables render without a <caption>, so assistive tech has no way to
+    tell one table from another on a table-heavy page (e.g. the glossary). Derive
+    an accessible name from the nearest preceding <h2>/<h3> and inject it as a
+    visually-hidden <caption>. Tables already carrying a caption are left alone.
+    """
+    token = re.compile(r'<h([23])\b[^>]*>(.*?)</h\1>|<table\b[^>]*>', re.S)
+    out, pos, last_heading = [], 0, None
+    for m in token.finditer(html):
+        out.append(html[pos:m.start()])
+        chunk = m.group(0)
+        if chunk.startswith('<table'):
+            follows = html[m.end():m.end() + 30]
+            if '<caption' not in follows and last_heading:
+                name = re.sub(r'<[^>]+>', '', last_heading).strip().replace('"', '&quot;')
+                if name:
+                    chunk += f'<caption class="sr-only">{name}</caption>'
+        else:
+            last_heading = m.group(2)
+        out.append(chunk)
+        pos = m.end()
+    out.append(html[pos:])
+    return ''.join(out)
 
 
 # ---------------------------------------------------------------------------
