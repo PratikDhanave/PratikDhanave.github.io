@@ -4,7 +4,7 @@
 
 ---
 
-This is post 11 of 11, the finale of **"LangGraph, Concept by Concept."** Across the series we built up LangGraph one idea at a time using a minimal, dependency-free StateGraph to demystify each piece. This post collects every term into a single glossary you can bookmark: each entry is a one-or-two-sentence, plain-English definition of the concept as it exists in real [LangGraph](https://langchain-ai.github.io/langgraph/concepts/). Skim it as a map, or use it to look up anything the earlier posts left fuzzy.
+This is post 11 of 11, the finale of **"LangGraph, Concept by Concept."** Across the series we built up LangGraph one idea at a time using a minimal, dependency-free StateGraph to demystify each piece. This post collects every term into a single glossary you can bookmark: each entry is a one-or-two-sentence, plain-English definition of the concept as it exists in real [LangGraph](https://langchain-ai.github.io/langgraph/). Skim it as a map, or use it to look up anything the earlier posts left fuzzy.
 
 A quick orientation before the tables. LangGraph is, at its heart, a **Pregel engine** running a **graph of nodes** over **shared state**, with layers bolted on for **persistence**, **human-in-the-loop**, **agents/tools**, and an **ecosystem** of tooling. The groups below follow that same arc.
 

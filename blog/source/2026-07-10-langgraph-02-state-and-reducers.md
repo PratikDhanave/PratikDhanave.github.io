@@ -115,6 +115,6 @@ Think of the state as a spreadsheet row and each channel as a column with its ow
 
 Shared-state-plus-reducers is what makes **fan-in** and **cycles** sane. When two branches both write `messages`, you don't want the second to clobber the first — the `add_messages` reducer merges them. When an agent loops, each pass appends to the same `messages` channel and increments the same `count`, without any node needing to know how many times it has run. The reducer encodes the accumulation policy once, at the channel level, so every node — and every future node — inherits it for free.
 
-Real LangGraph docs describe channels and reducers under the [low-level concepts](https://langchain-ai.github.io/langgraph/concepts/low_level/) and [graph API](https://langchain-ai.github.io/langgraph/concepts/) pages; `add_messages` and the `Annotated` syntax are covered there as well.
+Real LangGraph docs describe channels and reducers under the [low-level concepts](https://langchain-ai.github.io/langgraph/concepts/low_level/) and [graph API](https://langchain-ai.github.io/langgraph/) pages; `add_messages` and the `Annotated` syntax are covered there as well.
 
 Next in the series: **Nodes and edges** — how those partial updates actually flow from one node to the next.
