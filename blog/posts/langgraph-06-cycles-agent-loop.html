@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cycles and the Agent Loop: Branch, Act, Loop Back</title>
+<meta name="description" content="Branching plus a back-edge is a cycle, and that cycle IS the agent loop: model proposes tool calls, tools run, control returns to the model, repeat...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Cycles and the Agent Loop: Branch, Act, Loop Back">
+<meta property="og:description" content="Branching plus a back-edge is a cycle, and that cycle IS the agent loop: model proposes tool calls, tools run, control returns to the model, repeat until done. Plus recursion_limit, the guardrail that stops a runaway loop.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/langgraph-06-cycles-agent-loop.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-14T00:00:00Z">
+<meta property="article:tag" content="LangGraph">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Agentic AI">
+<meta property="article:tag" content="Python">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cycles and the Agent Loop: Branch, Act, Loop Back">
+<meta name="twitter:description" content="Branching plus a back-edge is a cycle, and that cycle IS the agent loop: model proposes tool calls, tools run, control returns to the model, repeat until done. Plus recursion_limit, the guardrail that stops a runaway loop.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/langgraph-06-cycles-agent-loop.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:980px;margin:0 auto;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;gap:20px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;font-size:14px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:820px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Cycles and the Agent Loop: Branch, Act, Loop Back",
+  "description": "Branching plus a back-edge is a cycle, and that cycle IS the agent loop: model proposes tool calls, tools run, control returns to the model, repeat until done. Plus recursion_limit, the guardrail that stops a runaway loop.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-14",
+  "dateModified": "2026-07-14",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "LangGraph, AI Agents, Agentic AI, Python",
+  "url": "https://pratikdhanave.com/blog/posts/langgraph-06-cycles-agent-loop.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/langgraph-06-cycles-agent-loop.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Cycles and the Agent Loop: Branch, Act, Loop Back</h1>
+    <p class="post-subtitle">The single most important pattern in LangGraph — a branch plus a back-edge, and the `recursion_limit` that keeps it from running forever.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-14">July 14, 2026</time>
+      <span>·</span>
+      <span>LangGraph developers building an agent: the branch-act-loop cycle that every agent tutorial is built on.</span>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/langgraph/" class="tag-link"><span class="tag">LangGraph</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">AI Agents</span></a><a href="/blog/tags/agentic-ai/" class="tag-link"><span class="tag">Agentic AI</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">Python</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 6 of 11</span>
+    <span class="series-title">LangGraph, Concept by Concept</span>
+    <div class="series-nav"><a href="/blog/posts/langgraph-05-conditional-edges.html" class="series-prev">&larr; Part 5: Conditional Edges: Routing with a Function and a Path Map</a>
+<a href="/blog/posts/langgraph-07-command.html" class="series-next">Part 7: Command: Update State and Pick the Next Node in One Return &rarr;</a></div>
+  </div>
+
+
+
+  <p>Every LangGraph agent tutorial you have ever read is the same three-line graph: enter the model, conditionally branch to tools, and loop the tools back to the model. That is not a coincidence or a starter template you outgrow — it <em>is</em> the ReAct agent. This post walks one full turn of that loop over the shared state, then explains <code>recursion_limit</code>: why a graph with a cycle needs a superstep cap, and how it differs from a hard safety ceiling.</p>
+<h2 id="a-branch-plus-a-back-edge-is-a-loop">A branch plus a back-edge is a loop</h2>
+<p>By now the pieces are familiar from earlier in the series. An edge moves work from one node to the next. A <strong>conditional edge</strong> runs a router over the state and picks exactly one target. Put those together with an edge that points <em>backward</em> and you have a cycle:</p>
+<pre><code class="language-python">from langgraph.graph import StateGraph, START, END, add_messages
+from typing import Annotated, TypedDict
+
+class State(TypedDict):
+    messages: Annotated[list, add_messages]
+
+def should_continue(state: State) -&gt; str:
+    last = state[&quot;messages&quot;][-1]
+    return &quot;continue&quot; if last.tool_calls else &quot;end&quot;
+
+graph = StateGraph(State)
+graph.add_node(&quot;agent&quot;, call_model)      # the &quot;think&quot; step — invoke the LLM
+graph.add_node(&quot;tools&quot;, run_tools)       # the &quot;act&quot; step — a ToolNode
+
+graph.add_edge(START, &quot;agent&quot;)
+graph.add_conditional_edges(
+    &quot;agent&quot;,
+    should_continue,
+    {&quot;continue&quot;: &quot;tools&quot;, &quot;end&quot;: END},   # branch: keep going, or finish
+)
+graph.add_edge(&quot;tools&quot;, &quot;agent&quot;)         # the back-edge — this is the loop
+
+app = graph.compile()
+</code></pre>
+<p>Three structural lines carry the whole idea: <code>add_edge(START, "agent")</code> sets the entry, <code>add_conditional_edges("agent", should_continue, {...})</code> is the branch, and <code>add_edge("tools", "agent")</code> is the back-edge that closes the cycle. The shape looks like this:</p>
+<pre><code>        START -&gt; agent -&gt; (should_continue?) --&quot;continue&quot;--&gt; tools --+
+                   ^                                                 |
+                   +--------------- loop back ----------------------+
+                             \--&quot;end&quot;--&gt; END
+</code></pre>
+<h2 id="one-turn-of-the-loop-over-the-state">One turn of the loop, over the state</h2>
+<p>The important thing is that the cycle is not recursion in the call-stack sense — no node calls another node. Each hop is a <strong>superstep</strong>: the engine runs the active node, reduces its update into the shared state, then schedules whatever the edges point to next. Here is a full turn, channel by channel, for a &ldquo;what&rsquo;s the weather in Paris?&rdquo; question.</p>
+<ol>
+<li>
+<p><strong><code>START -&gt; agent</code>.</strong> The <code>agent</code> node runs the model against <code>state["messages"]</code>. The model decides it needs a tool and returns an assistant message carrying <code>tool_calls</code>. Because <code>messages</code> uses the <code>add_messages</code> reducer, that message is <em>appended</em> to the history, not overwritten.</p>
+</li>
+<li>
+<p><strong>Branch: <code>should_continue</code>.</strong> The router reads the last message. It has <code>tool_calls</code>, so the router returns <code>"continue"</code>, and the <code>path_map</code> sends the state to <code>tools</code>. (Only one edge fires — the branch picks a single target.)</p>
+</li>
+<li>
+<p><strong><code>tools</code> runs.</strong> The <code>ToolNode</code> executes each requested tool call (here, <code>get_weather("Paris")</code>) and returns the results as tool messages. Again these are appended to <code>messages</code> by the reducer. The state now holds: the human question, the assistant&rsquo;s tool-call message, and the tool results.</p>
+</li>
+<li>
+<p><strong>Back-edge: <code>tools -&gt; agent</code>.</strong> The state — now richer by two messages — flows back into <code>agent</code>. The model runs again, this time <em>sees the tool output in its own context</em>, and produces a final natural-language answer with <strong>no</strong> <code>tool_calls</code>.</p>
+</li>
+<li>
+<p><strong>Branch again, then END.</strong> <code>should_continue</code> sees no tool calls on the last message and returns <code>"end"</code>. The state routes to <code>END</code>, which surfaces the final state as the result of <code>invoke</code>. The loop is over.</p>
+</li>
+</ol>
+<p>That is the entire ReAct pattern: <em>think → act → observe → think → answer</em>, expressed as supersteps over one growing <code>messages</code> channel. Every agent, no matter how many tools, is this loop with a bigger tool set and a smarter router.</p>
+<blockquote>
+<p><strong>Mental model.</strong> The model never &ldquo;keeps control&rdquo; across a tool call. Each visit to <code>agent</code> is a fresh superstep that reads the whole conversation so far and adds to it. The loop is what gives the model another look at the board after the tools have moved — not a nested function call waiting on a return value.</p>
+</blockquote>
+<h3 id="the-minimal-version-to-demystify-it">The minimal version, to demystify it</h3>
+<p>You can build the same loop over a ~30-line StateGraph with no LLM at all — a toy &ldquo;agent&rdquo; that must collect three facts, one tool call per turn:</p>
+<pre><code class="language-python">TARGET = 3
+
+def agent(state: dict) -&gt; dict:
+    have = len(state.get(&quot;facts&quot;, []))
+    return {&quot;log&quot;: f&quot;agent: have {have}/{TARGET} facts&quot;}
+
+def tools(state: dict) -&gt; dict:
+    n = len(state.get(&quot;facts&quot;, [])) + 1
+    return {&quot;facts&quot;: f&quot;fact#{n}&quot;, &quot;log&quot;: f&quot;tools: fetched fact#{n}&quot;}
+
+def should_continue(state: dict) -&gt; str:
+    return &quot;continue&quot; if len(state.get(&quot;facts&quot;, [])) &lt; TARGET else &quot;end&quot;
+
+graph = StateGraph({&quot;facts&quot;: add_messages, &quot;log&quot;: add_messages})
+graph.add_node(&quot;agent&quot;, agent)
+graph.add_node(&quot;tools&quot;, tools)
+graph.add_edge(START, &quot;agent&quot;)
+graph.add_conditional_edges(&quot;agent&quot;, should_continue,
+                            {&quot;continue&quot;: &quot;tools&quot;, &quot;end&quot;: END})
+graph.add_edge(&quot;tools&quot;, &quot;agent&quot;)           # the back-edge
+</code></pre>
+<p>Run it and <code>facts</code> fills to <code>["fact#1", "fact#2", "fact#3"]</code> over three trips through the loop, then the router returns <code>"end"</code>. Swap the toy <code>agent</code> for an LLM call and the toy <code>tools</code> for a real <code>ToolNode</code> and you have the production agent. Nothing else changes.</p>
+<h2 id="recursion_limit-a-runaway-loop-must-terminate"><code>recursion_limit</code>: a runaway loop must terminate</h2>
+<p>A cycle raises an obvious danger: what if the router <em>never</em> returns <code>"end"</code>? A model that keeps proposing tool calls, or a router bug, would loop forever. LangGraph guards this with <strong><code>recursion_limit</code></strong> — a cap on the number of supersteps a single <code>invoke</code> may run. Exceed it and the run raises <strong><code>GraphRecursionError</code></strong> instead of hanging:</p>
+<pre><code class="language-python">try:
+    result = app.invoke({&quot;messages&quot;: [user_msg]}, {&quot;recursion_limit&quot;: 25})
+except GraphRecursionError:
+    # the loop didn't converge within 25 supersteps — surface it, don't hang
+    ...
+</code></pre>
+<p>The <a href="https://langchain-ai.github.io/langgraph/concepts/low_level/">LangGraph docs</a> frame this as counting supersteps, not stack frames — because, as we saw, the loop isn&rsquo;t recursion. The mechanism is small enough to state in full. A minimal engine&rsquo;s run loop looks like:</p>
+<pre><code class="language-python">while state.pending:
+    if max_supersteps is not None and steps_run &gt;= max_supersteps:
+        state.status = &quot;suspended&quot;      # bounded on purpose -&gt; caller decides
+        return
+    if max_supersteps is None and steps_run &gt;= SAFETY_CEILING:
+        raise RuntimeError(&quot;exceeded safety ceiling — likely an unbounded cycle&quot;)
+    steps_run += 1
+    run_superstep(state)
+</code></pre>
+<p>Two distinct guards live here, and the difference matters:</p>
+<ul>
+<li><strong><code>recursion_limit</code></strong> is <em>your</em> deliberate bound, passed per run. When the run hits it before reaching <code>END</code>, that is a real condition — the agent didn&rsquo;t converge in the budget you gave it — and it surfaces as <code>GraphRecursionError</code>. Catching it lets you fall back, ask for clarification, or fail loudly rather than silently spin.</li>
+<li><strong>The hard safety ceiling</strong> (a very large fixed number, e.g. 10,000 supersteps) is a last-resort backstop that fires only when you <em>didn&rsquo;t</em> set a limit at all. It exists so a forgotten <code>recursion_limit</code> on a buggy graph fails fast instead of pinning a CPU. You should never rely on it; it is the smoke detector, not the thermostat.</li>
+</ul>
+<p>So the same cycle that makes agents possible is exactly the cycle that could hang your process — and <code>recursion_limit</code> is the one line that turns &ldquo;hang&rdquo; into &ldquo;clear, catchable error.&rdquo; That is why this loop, with its cap, is the single most important pattern in the whole framework: master <code>START -&gt; agent -&gt; branch -&gt; tools -&gt; back to agent</code>, and bound it with <code>recursion_limit</code>, and you understand the mechanism behind every LangGraph agent.</p>
+<p><strong>Next in the series:</strong> the <code>Command</code> object — how a node can return a state update <em>and</em> a <code>goto</code> in one move, collapsing the branch into the node itself.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/langgraph-11-glossary.html">The LangGraph Glossary: Every Concept in One Place</a>
+      <span class="related-date">Jul 19</span>
+    </li>
+    <li>
+      <a href="/blog/posts/langgraph-10-human-in-the-loop-and-tools.html">Human-in-the-Loop, Tools, and the Send API</a>
+      <span class="related-date">Jul 18</span>
+    </li>
+    <li>
+      <a href="/blog/posts/langgraph-09-checkpointing-persistence.html">Checkpointing and Persistence: Pause, Resume, Time-Travel</a>
+      <span class="related-date">Jul 17</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://langchain-ai.github.io/langgraph/concepts/agentic_concepts/" target="_blank" rel="noopener noreferrer">LangGraph — agentic concepts</a></div>
+      <div class="citation-context">The agent loop this cycle implements</div>
+    </div>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://langchain-ai.github.io/langgraph/concepts/low_level/#recursion-limit" target="_blank" rel="noopener noreferrer">LangGraph — low-level concepts</a></div>
+      <div class="citation-context">recursion_limit and GraphRecursionError</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
