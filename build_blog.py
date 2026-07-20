@@ -3507,8 +3507,6 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
       <span>·</span>
       <time datetime="{date_iso}">{date_human}</time>
       <span>·</span>
-      <span>{meta['audience']}</span>
-      <span>·</span>
       <span>{read_time_text}</span>
     </div>
     <div class="post-tags">{tags_html}</div>
@@ -3555,8 +3553,6 @@ def _render_post_card(p, link_prefix="/blog/posts/"):
         <span><a href="/about/" class="author-link">Pratik Dhanave</a></span>
         <span>·</span>
         <time datetime="{date_iso}">{date_human}</time>
-        <span>·</span>
-        <span>{p["meta"]["audience"]}</span>
         {read_time_html}
       </div>
       <h2 class="post-card-title"><a href="{link_prefix}{p['meta']['slug']}.html">{p['title']}</a></h2>
@@ -3960,8 +3956,6 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
         <span><a href="/about/" class="author-link">Pratik Dhanave</a></span>
         <span>·</span>
         <time datetime="{date_iso}">{date_human}</time>
-        <span>·</span>
-        <span>{p["meta"]["audience"]}</span>
         {read_time_html}
       </div>
       <h2 class="post-card-title"><a href="/blog/posts/{p['meta']['slug']}.html">{p['title']}</a></h2>
@@ -4090,8 +4084,6 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
         <span>Pratik Dhanave</span>
         <span>·</span>
         <time datetime="{date_iso}">{date_human}</time>
-        <span>·</span>
-        <span>{p["meta"]["audience"]}</span>
         {read_time_html}
       </div>
       <h2 class="post-card-title"><a href="/blog/posts/{p['meta']['slug']}.html">{p['title']}</a></h2>
