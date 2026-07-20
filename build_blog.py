@@ -2785,13 +2785,13 @@ nav {
   nav { background: rgba(13,17,23,0.85); }
 }
 .nav-container {
-  max-width: 980px;
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 16px 24px;
+  padding: 12px 22px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 .nav-brand {
   font-weight: 700;
@@ -2802,12 +2802,13 @@ nav {
 .nav-brand:hover { text-decoration: none; color: var(--text); }
 .nav-links {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
+  flex-wrap: nowrap;
+  gap: 10px;
   list-style: none;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   justify-content: flex-end;
+  min-width: 0;
 }
 .nav-links a { color: var(--text-dim); }
 .nav-links a:hover { color: var(--accent); text-decoration: none; }
@@ -2819,7 +2820,7 @@ nav {
 .nav-toggle { display: none; }
 .nav-burger { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 36px; height: 36px; padding: 6px; cursor: pointer; margin-left: auto; border-radius: 6px; }
 .nav-burger span { display: block; height: 2px; width: 22px; background: var(--text); border-radius: 2px; transition: 0.2s; }
-@media (max-width: 820px) {
+@media (max-width: 1240px) {
   .nav-container { flex-wrap: wrap; }
   .nav-burger { display: flex; }
   .nav-links { display: none !important; width: 100%; flex-direction: column; align-items: stretch; gap: 0; padding: 6px 0 2px; }
