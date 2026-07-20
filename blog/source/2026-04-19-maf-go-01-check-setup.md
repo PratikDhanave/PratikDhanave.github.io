@@ -1,4 +1,4 @@
-# Check Setup
+# Check Setup: Foundry & Azure Preflight
 
 *The zero-network preflight that confirms your Foundry config and Azure credential chain exist before you run a single agent.*
 
