@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Runtime &amp; Events in ADK: The Runner, the Invocation, and...</title>
+<meta name="description" content="How ADK runs an agent: the Runner drives an invocation that yields a stream of Event objects — content, tool calls, state deltas, control signals. The...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Runtime &amp; Events in ADK: The Runner, the Invocation, and...">
+<meta property="og:description" content="How ADK runs an agent: the Runner drives an invocation that yields a stream of Event objects — content, tool calls, state deltas, control signals. The event loop explains streaming, callbacks, and state.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/adk-10-runtime-and-events.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-06T00:00:00Z">
+<meta property="article:tag" content="Google ADK">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Runtime &amp; Events in ADK: The Runner, the Invocation, and...">
+<meta name="twitter:description" content="How ADK runs an agent: the Runner drives an invocation that yields a stream of Event objects — content, tool calls, state deltas, control signals. The event loop explains streaming, callbacks, and state.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/adk-10-runtime-and-events.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Runtime & Events in ADK: The Runner, the Invocation, and the Event Stream",
+  "description": "How ADK runs an agent: the Runner drives an invocation that yields a stream of Event objects \u2014 content, tool calls, state deltas, control signals. The event loop explains streaming, callbacks, and state.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-06",
+  "dateModified": "2026-07-06",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Google ADK, AI Agents, Python, Go",
+  "url": "https://pratikdhanave.com/blog/posts/adk-10-runtime-and-events.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/adk-10-runtime-and-events.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Runtime & Events in ADK: The Runner, the Invocation, and the Event Stream</h1>
+    <p class="post-subtitle">How an agent actually runs — a Runner drives an invocation and hands you back a stream of events, not a single answer.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-06">July 06, 2026</time>
+      <span>·</span>
+      <span>5 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/google-adk/" class="tag-link"><span class="tag">Google ADK</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">AI Agents</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">Python</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 11 of 26</span>
+    <span class="series-title">Google ADK, Concept by Concept</span>
+    <div class="series-nav"><a href="/blog/posts/adk-09-callbacks.html" class="series-prev">&larr; Part 10: Callbacks in Google ADK: Six Hooks and One Rule</a>
+<a href="/blog/posts/adk-11-streaming.html" class="series-next">Part 12: Streaming in Google ADK: Render as You Go, Confirm at the End &rarr;</a></div>
+  </div>
+
+
+
+  <p>By this point in the series you have agents, tools, callbacks, and services. This post is where they all meet. When you <em>run</em> an agent in Google&rsquo;s Agent Development Kit (ADK), you don&rsquo;t call a function that returns a string — you start an <strong>invocation</strong>, and the <strong>Runner</strong> drives it, streaming back a sequence of <strong><code>Event</code></strong> objects. Understanding that loop is what makes streaming, callbacks, and state updates stop feeling like magic.</p>
+<h2 id="three-terms-in-order">Three terms, in order</h2>
+<ul>
+<li><strong>Invocation</strong> — everything triggered by <em>one</em> user message. It can span multiple agents and multiple LLM calls before it&rsquo;s done.</li>
+<li><strong>Event</strong> — one discrete thing that happened: user input, a partial or final model response, a tool call, a tool result. Events are the <em>only</em> output of a run.</li>
+<li><strong>Runner</strong> — the engine. It owns the loop, holds the services (session, artifact, memory), fires the callbacks, and persists every event as it goes.</li>
+</ul>
+<p>The loop is simple to state: the Runner appends the user message to the session, then repeatedly asks the agent to run, and each time the agent yields an event, the Runner persists it, applies any state or artifact deltas it carries, and forwards it to you. The invocation ends when the final response is emitted.</p>
+<h2 id="you-iterate-a-stream-not-read-a-return-value">You iterate a stream, not read a return value</h2>
+<p>In Python you consume the stream with <code>async for</code>:</p>
+<pre><code class="language-python">from google.adk.runners import InMemoryRunner
+from google.genai import types
+
+runner = InMemoryRunner(agent=root_agent, app_name=&quot;events&quot;)
+session = await runner.session_service.create_session(
+    app_name=&quot;events&quot;, user_id=&quot;ada&quot;
+)
+trigger = types.Content(role=&quot;user&quot;, parts=[types.Part(text=&quot;go&quot;)])
+
+async for event in runner.run_async(
+    user_id=&quot;ada&quot;, session_id=session.id, new_message=trigger
+):
+    print(event.author, &quot;-&gt;&quot;, event.content.parts[0].text if event.content else &quot;&quot;)
+    if event.is_final_response():
+        print(&quot;FINAL:&quot;, event.content.parts[0].text)
+</code></pre>
+<p><code>InMemoryRunner</code> bundles the in-memory services for you; you create the session first, then feed each new message in. There is a synchronous <code>runner.run(...)</code> too, but <code>run_async</code> is the primary path.</p>
+<p>Go models the exact same stream, but with an idiom that fits the language — a range-over-function iterator that yields <code>(event, error)</code> pairs, so you check <code>err</code> on every step instead of catching an exception:</p>
+<pre><code class="language-go">r, err := runner.New(runner.Config{
+    AppName:           &quot;events&quot;,
+    Agent:             a,
+    SessionService:    session.InMemoryService(),
+    ArtifactService:   artifact.InMemoryService(),
+    MemoryService:     memory.InMemoryService(),
+    AutoCreateSession: true,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+msg := &amp;genai.Content{Role: &quot;user&quot;, Parts: []*genai.Part{{Text: &quot;go&quot;}}}
+for ev, err := range r.Run(ctx, &quot;ada&quot;, &quot;s1&quot;, msg, agent.RunConfig{}) {
+    if err != nil {
+        log.Fatal(err)
+    }
+    if ev.IsFinalResponse() {
+        fmt.Println(&quot;FINAL:&quot;, ev.Content.Parts[0].Text)
+    }
+}
+</code></pre>
+<p>Both give you a <em>stream</em>. Python&rsquo;s <code>is_final_response()</code> maps to Go&rsquo;s <code>ev.IsFinalResponse()</code>; <code>run_async(...)</code> maps to <code>r.Run(ctx, ...)</code>. Setting <code>AutoCreateSession: true</code> in Go means passing a fresh session id just works, mirroring how <code>InMemoryRunner</code> manages sessions in Python.</p>
+<h2 id="anatomy-of-an-event">Anatomy of an Event</h2>
+<p>Every event you receive carries the same shape, in both SDKs:</p>
+<table><caption class="sr-only">Anatomy of an Event</caption>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>author</code></td>
+<td>who produced it — <code>user</code>, or an agent&rsquo;s name</td>
+</tr>
+<tr>
+<td><code>content</code></td>
+<td>the payload as <code>Part</code>s: text, <code>function_call</code>, <code>function_response</code>, inline data</td>
+</tr>
+<tr>
+<td><code>actions</code></td>
+<td>side effects: <code>state_delta</code>, <code>artifact_delta</code>, <code>escalate</code>, <code>transfer_to_agent</code></td>
+</tr>
+<tr>
+<td><code>partial</code></td>
+<td>true for streaming chunks that aren&rsquo;t the complete message yet</td>
+</tr>
+<tr>
+<td><code>is_final_response()</code></td>
+<td>convenience predicate: is this the agent&rsquo;s finished answer for this turn?</td>
+</tr>
+</tbody>
+</table>
+<p><code>is_final_response()</code> is roughly &ldquo;has content, isn&rsquo;t a streaming <code>partial</code>, and isn&rsquo;t a pending function call.&rdquo; It&rsquo;s how you decide which event to <em>show the user</em>: a single invocation emits many events — tool calls, tool results, partial tokens — but usually only the final one is the answer. Caveat for multi-agent runs (Module 03): <strong>each participating agent can emit its own final response</strong>, so don&rsquo;t assume exactly one per invocation.</p>
+<p>You can watch this directly with a tiny custom agent that yields a few events by hand — no model required. The core is that the agent&rsquo;s run method is itself a generator of events:</p>
+<pre><code class="language-python">from google.adk.agents import BaseAgent
+
+class Narrator(BaseAgent):
+    async def _run_async_impl(self, ctx):
+        for text in [&quot;processing step 1&quot;, &quot;processing step 2&quot;, &quot;final answer: 42&quot;]:
+            yield Event(
+                author=self.name,
+                content=types.Content(role=&quot;model&quot;, parts=[types.Part(text=text)]),
+            )
+</code></pre>
+<p>Run that through the Runner and you&rsquo;ll see three events stream past, all authored by <code>narrator</code>, with the last classified as the final response. In Go the same agent is an <code>agent.New(agent.Config{Run: ...})</code> whose <code>Run</code> returns an <code>iter.Seq2[*session.Event, error]</code> — the yield function <em>is</em> the event stream.</p>
+<h2 id="why-a-stream-at-all">Why a stream at all?</h2>
+<p>You could imagine an API that just returns the final string. ADK streams events because that&rsquo;s what makes everything else in the framework work. <strong>Callbacks fire between events. State deltas apply per event. The dev UI renders its trace from events. Streaming (next module) is just consuming <code>partial</code> events as they arrive.</strong> The event stream is the backbone.</p>
+<p>It also gives you durability almost for free. The Runner appends every event — each carrying its <code>state_delta</code> — to the session as it happens, so the session <em>is</em> an append-only log of exactly what occurred. There&rsquo;s no separate checkpoint to manage: to resume an interrupted run, ADK replays that log to rebuild state and continues from the last event, so completed work isn&rsquo;t re-run. This is the same machinery human-in-the-loop tools (Module 04) already ride: a paused tool records a pending function call as an event, control returns to you, and the run resumes when the matching function-response arrives.</p>
+<p>A few honest caveats. Durability is only as good as your session store — in-memory services are wiped on process exit, so real resumption needs a persistent store (<code>DatabaseSessionService</code> / <code>VertexAiSessionService</code> in Python). Full durable resumption of a <em>normal</em> invocation is currently a Python feature (<code>App(resumability_config=...)</code>, experimental); the Go SDK carries the event-log-as-checkpoint principle and HITL re-entry, but not that specific knob yet. The dual of resuming is cancelling: in Python you <code>break</code> out of the <code>async for</code> (the runner cancels its root task) or set <code>ctx.end_invocation = True</code>; in Go you cancel the <code>context.Context</code> you passed to <code>Run</code>, or call <code>ctx.EndInvocation()</code>.</p>
+<h2 id="mental-model">Mental model</h2>
+<p>Think of the Runner as a driver reading the agent&rsquo;s script aloud, and the session as a stenographer transcribing every line as it&rsquo;s spoken. You&rsquo;re the audience receiving each line live — nothing is hidden until the end. You see the tool calls, the partial tokens, the state changes as they happen. The final answer is just the line marked as the conclusion.</p>
+<p>Both SDKs converge here: the shape of an event, the meaning of &ldquo;final,&rdquo; and the discipline of iterating a stream are the same across Python and Go. Get comfortable reading the event stream and the rest of ADK reads like open source, because it is — see the official docs at <a href="https://google.github.io/adk-docs/">google.github.io/adk-docs</a>.</p>
+<p><strong>Next in the series:</strong> Streaming — consuming <code>partial</code> events token by token, and bidirectional (live) streaming.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/adk-24-agent-config.html">Agent Config: Defining an ADK Agent in YAML, No Code Required</a>
+      <span class="related-date">Jul 20</span>
+    </li>
+    <li>
+      <a href="/blog/posts/adk-23-context-caching.html">Context Caching in ADK: Stop Paying for the Same Tokens Every Turn</a>
+      <span class="related-date">Jul 19</span>
+    </li>
+    <li>
+      <a href="/blog/posts/adk-22-planners-and-thinking.html">Planners & Thinking: Making an ADK Agent Reason Before It Acts</a>
+      <span class="related-date">Jul 18</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://google.github.io/adk-docs/" target="_blank" rel="noopener noreferrer">Google ADK docs</a></div>
+      <div class="citation-context">The Runner, invocations, and events</div>
+    </div>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://github.com/google/adk-go" target="_blank" rel="noopener noreferrer">google/adk-go</a></div>
+      <div class="citation-context">The Go SDK (google.golang.org/adk/v2)</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
