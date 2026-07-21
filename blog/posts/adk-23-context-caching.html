@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Context Caching in ADK: Stop Paying for the Same Tokens...</title>
+<meta name="description" content="Context caching cuts latency and cost by caching large, stable context — system prompt, reference docs, tool definitions — so repeated calls don&#x27;t...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Context Caching in ADK: Stop Paying for the Same Tokens...">
+<meta property="og:description" content="Context caching cuts latency and cost by caching large, stable context — system prompt, reference docs, tool definitions — so repeated calls don&#x27;t re-send and re-process the same tokens.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/adk-23-context-caching.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-19T00:00:00Z">
+<meta property="article:tag" content="Google ADK">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Context Caching in ADK: Stop Paying for the Same Tokens...">
+<meta name="twitter:description" content="Context caching cuts latency and cost by caching large, stable context — system prompt, reference docs, tool definitions — so repeated calls don&#x27;t re-send and re-process the same tokens.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/adk-23-context-caching.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Context Caching in ADK: Stop Paying for the Same Tokens Every Turn",
+  "description": "Context caching cuts latency and cost by caching large, stable context \u2014 system prompt, reference docs, tool definitions \u2014 so repeated calls don't re-send and re-process the same tokens.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-19",
+  "dateModified": "2026-07-19",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Google ADK, AI Agents, Python, Go",
+  "url": "https://pratikdhanave.com/blog/posts/adk-23-context-caching.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/adk-23-context-caching.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Context Caching in ADK: Stop Paying for the Same Tokens Every Turn</h1>
+    <p class="post-subtitle">How caching a large, stable prompt prefix cuts latency and cost — and the ADK config that decides when it pays off.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-19">July 19, 2026</time>
+      <span>·</span>
+      <span>5 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/google-adk/" class="tag-link"><span class="tag">Google ADK</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">AI Agents</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">Python</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 24 of 26</span>
+    <span class="series-title">Google ADK, Concept by Concept</span>
+    <div class="series-nav"><a href="/blog/posts/adk-22-planners-and-thinking.html" class="series-prev">&larr; Part 23: Planners & Thinking: Making an ADK Agent Reason Before It Acts</a>
+<a href="/blog/posts/adk-24-agent-config.html" class="series-next">Part 25: Agent Config: Defining an ADK Agent in YAML, No Code Required &rarr;</a></div>
+  </div>
+
+
+
+  <p>Every turn, a chat agent quietly re-sends the same material: a long system persona, a fixed reference document, a big tool schema. The model re-reads and re-bills all of it, even though not a single byte changed since the last turn. <strong>Context caching</strong> stores that stable <em>prefix</em> on the model side so subsequent turns re-process and re-charge only the <em>new</em> tokens. On long, repetitive prompts it is a straight cut to both cost and latency, and in Google&rsquo;s Agent Development Kit (ADK) it is one line of config.</p>
+<h2 id="the-mental-model-a-prompt-has-a-head-and-a-tail">The mental model: a prompt has a head and a tail</h2>
+<p>Think of every request as two regions. The <strong>head</strong> is stable — the same system instruction and reference context on turn 1 and turn 50. The <strong>tail</strong> changes every turn — the templated instruction, history, the new user message. Caching is a lever on the head: reuse the identical prefix instead of re-sending it.</p>
+<pre><code class="language-mermaid">flowchart LR
+    subgraph Head[&quot;stable prefix — cacheable&quot;]
+        S[&quot;system instruction&lt;br/&gt;fixed doc / tool schema&quot;]
+    end
+    subgraph Tail[&quot;changes every turn&quot;]
+        I[&quot;templated instruction&quot;]
+        H[&quot;conversation history&quot;]
+        U[&quot;new user turn&quot;]
+    end
+    S --&gt; I --&gt; H --&gt; U
+</code></pre>
+<h2 id="when-it-pays-off-and-when-it-doesnt">When it pays off (and when it doesn&rsquo;t)</h2>
+<table><caption class="sr-only">When it pays off (and when it doesn&rsquo;t)</caption>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Cache?</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Long, stable system prompt reused every turn</td>
+<td>Yes</td>
+<td>The prefix is identical across turns</td>
+</tr>
+<tr>
+<td>A fixed document or large tool schema in context</td>
+<td>Yes</td>
+<td>Re-processing it each turn is wasted work</td>
+</tr>
+<tr>
+<td>First turn of a session</td>
+<td>No</td>
+<td>There is no prior token count to cache against yet</td>
+</tr>
+<tr>
+<td>Short, single-turn prompts</td>
+<td>No</td>
+<td>The prefix never reaches the model&rsquo;s minimum</td>
+</tr>
+<tr>
+<td>Prefix that changes every turn</td>
+<td>No</td>
+<td>Nothing stable to reuse</td>
+</tr>
+</tbody>
+</table>
+<p>The pattern: caching wins when a <strong>large, stable prefix dominates a multi-turn prompt</strong>. Below the model&rsquo;s token floor the storage overhead outweighs the saving — which is exactly why ADK refuses to cache short prompts.</p>
+<h2 id="the-config">The config</h2>
+<p>In Python ADK, caching is an <strong>App-level</strong> feature. You attach a <code>ContextCacheConfig</code> to the <code>App</code>, and every <code>LlmAgent</code> under it inherits the policy — you don&rsquo;t configure it per agent.</p>
+<pre><code class="language-python">from google.adk.apps import App
+from google.adk.agents import LlmAgent
+from google.adk.agents.context_cache_config import ContextCacheConfig
+
+cfg = ContextCacheConfig(
+    cache_intervals=5,     # how many invocations reuse one cache before refresh
+    ttl_seconds=600,       # how long the cache lives
+    min_tokens=2048,       # floor on the previous request's prompt tokens
+)
+
+agent = LlmAgent(
+    name=&quot;cached_assistant&quot;,
+    model=&quot;gemini-flash-latest&quot;,
+    instruction=&quot;You are a helpful assistant with a long, stable system prompt.&quot;,
+)
+
+app = App(name=&quot;caching_demo&quot;, root_agent=agent, context_cache_config=cfg)
+</code></pre>
+<p>The defaults: <code>cache_intervals</code> is 10, <code>ttl_seconds</code> is 1800 (30 minutes), <code>min_tokens</code> is 0. Leaving <code>context_cache_config=None</code> — the default — disables caching entirely.</p>
+<h2 id="the-caching-decision-per-turn">The caching decision, per turn</h2>
+<p>Caching doesn&rsquo;t fire indiscriminately. ADK applies a rule with three facts baked in, and it&rsquo;s worth understanding because it explains every &ldquo;why didn&rsquo;t my prompt cache?&rdquo; surprise:</p>
+<ol>
+<li><strong>No cache on turn 1.</strong> Caching needs the <em>previous</em> request&rsquo;s token count, which doesn&rsquo;t exist yet on the first turn. Caching starts on the second turn at the earliest.</li>
+<li><strong>A floor applies.</strong> The prefix must clear both your <code>min_tokens</code> and Gemini&rsquo;s own model-specific minimum — <strong>2048 tokens for Gemini 2.5, 4096 for Gemini 3</strong> — whichever is larger.</li>
+<li><strong>Caches expire.</strong> A cache is reused up to <code>cache_intervals</code> invocations and up to <code>ttl_seconds</code> of wall-clock time before it is refreshed.</li>
+</ol>
+<p>That rule is pure and testable. Expressed directly:</p>
+<pre><code class="language-python">def should_cache(cfg, model, turn, prev_prompt_tokens):
+    if turn &lt;= 1:
+        return False, &quot;first turn — no prior token count yet&quot;
+    floor = max(cfg.min_tokens, model_min_tokens(model))  # 2048 or 4096
+    if prev_prompt_tokens &lt; floor:
+        return False, f&quot;prefix {prev_prompt_tokens} tok below minimum {floor}&quot;
+    return True, &quot;stable prefix reused from cache&quot;
+</code></pre>
+<h2 id="making-the-prefix-genuinely-stable-static_instruction">Making the prefix genuinely stable: <code>static_instruction</code></h2>
+<p>Caching only reuses what is <em>byte-for-byte identical</em> across turns, so it pays to keep the top of your prompt truly fixed. <code>LlmAgent.static_instruction</code> holds non-templated content — a persona, a policy, a reference document — that ADK sends <strong>verbatim as the system instruction at the very start</strong> of every request, with no <code>{placeholder}</code> substitution. That is precisely the region the cache can reuse. Setting it also relocates the ordinary, templated <code>instruction</code> to user content <em>after</em> the static prefix, so the cacheable region ends cleanly before anything varies per turn.</p>
+<pre><code class="language-python">agent = LlmAgent(
+    name=&quot;prefixed_assistant&quot;,
+    model=&quot;gemini-flash-latest&quot;,
+    # Fixed and literal -&gt; the stable cache PREFIX (system instruction, sent first).
+    static_instruction=&quot;You are ACME Corp's support agent. Never disclose internal pricing.&quot;,
+    # Templated, re-resolved each turn -&gt; the CHANGING tail, placed after the prefix.
+    instruction=&quot;Reply in a {tone} tone.&quot;,
+)
+</code></pre>
+<p>One caveat: the Live API ignores <code>static_instruction</code> — it has its own cache mechanism.</p>
+<h2 id="the-go-picture-an-honest-note">The Go picture (an honest note)</h2>
+<p>ADK is a dual-language framework, but this feature is asymmetric. <code>adk/v2 v2.0.0</code> has <strong>no</strong> first-class <code>ContextCacheConfig</code> and no <code>StaticInstruction</code> field — context caching lives on the Python side. On the Go side, adk-go only <em>observes</em> caching: it records <code>UsageMetadata.CachedContentTokenCount</code> in telemetry. To manage caches yourself in Go, the underlying <code>google.golang.org/genai</code> SDK exposes manual <code>CachedContent</code> create/get/delete.</p>
+<p>The decision <em>rule</em>, though, is language-independent — it&rsquo;s just data plus a pure function. The same logic in Go:</p>
+<pre><code class="language-go">func ShouldCache(cfg CacheConfig, model string, turn, prevPromptTokens int) (bool, string) {
+    if turn &lt;= 1 {
+        return false, &quot;first turn — no prior token count yet&quot;
+    }
+    floor := cfg.MinTokens
+    if m := ModelMinTokens(model); m &gt; floor { // 2048 for gemini-2.5, 4096 for gemini-3
+        floor = m
+    }
+    if prevPromptTokens &lt; floor {
+        return false, fmt.Sprintf(&quot;prefix %d tok below minimum %d&quot;, prevPromptTokens, floor)
+    }
+    return true, &quot;stable prefix reused from cache&quot;
+}
+</code></pre>
+<h2 id="a-neighbour-context-compaction">A neighbour: context compaction</h2>
+<p>Caching reuses the stable <strong>head</strong> of the prompt. <strong>Compaction</strong> attacks the growing <strong>tail</strong>: as a session accumulates events, ADK can summarize old ones so the history keeps fitting the context window. It is a separate, App-level policy (experimental in current ADK), attached via <code>App(events_compaction_config=EventsCompactionConfig(...))</code> — a runtime rewrite of session events, not model-side token reuse. The two compose cleanly: caching cuts the cost of the stable prefix, compaction bounds the growing history.</p>
+<p>You can read the field reference for both under <code>App</code> in the official ADK docs at <a href="https://google.github.io/adk-docs/">google.github.io/adk-docs</a>. The takeaway: reach for caching when a large, stable prefix dominates a multi-turn conversation — and let ADK&rsquo;s floor decide when it actually pays off.</p>
+<p><em>Next in the series: describing agents declaratively with Agent Config (YAML).</em></p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/adk-24-agent-config.html">Agent Config: Defining an ADK Agent in YAML, No Code Required</a>
+      <span class="related-date">Jul 20</span>
+    </li>
+    <li>
+      <a href="/blog/posts/adk-22-planners-and-thinking.html">Planners & Thinking: Making an ADK Agent Reason Before It Acts</a>
+      <span class="related-date">Jul 18</span>
+    </li>
+    <li>
+      <a href="/blog/posts/adk-21-code-execution.html">Google ADK Code Execution: Let the Agent Run the Code, Not Guess the Answer</a>
+      <span class="related-date">Jul 17</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://google.github.io/adk-docs/" target="_blank" rel="noopener noreferrer">Google ADK docs</a></div>
+      <div class="citation-context">Context caching in ADK</div>
+    </div>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://github.com/google/adk-go" target="_blank" rel="noopener noreferrer">google/adk-go</a></div>
+      <div class="citation-context">The Go SDK (google.golang.org/adk/v2)</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
