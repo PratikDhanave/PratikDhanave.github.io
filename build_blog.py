@@ -3457,6 +3457,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
 <title>{meta_title_html}</title>
 <meta name="description" content="{desc_html}">
 <meta name="author" content="Pratik Dhanave">
@@ -3884,6 +3885,8 @@ def to_html(md_body):
     html = re.sub(r'</h1>', '</h2>', html)
     # Give every <table> an accessible name (a11y/table-duplicate-name)
     html = _caption_tables(html)
+    # Add aria-label to bare <table> tags for accessibility
+    html = re.sub(r'<table>(?!\s*<caption)', '<table aria-label="Data table">', html)
     return html
 
 
