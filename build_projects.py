@@ -1107,6 +1107,7 @@ def _wrap_page_html(page_title, body_html, schema_html="", slug="", meta_descrip
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
 <title>{full_title}</title>
 <meta name="description" content="{meta_description}">
 <meta name="author" content="Pratik Dhanave">
