@@ -1,4 +1,4 @@
-# How I Cut a Fortune 500 BigQuery Bill by 57%
+# How I Cut Tata Group's BigQuery Bill by 57%
 
 *Architecture decisions that delivered multi-million dollar savings at petabyte scale.*
 
@@ -10,7 +10,7 @@ Here's how I approach cost as an architectural problem in large systems.
 
 ## The Problem
 
-I joined as the Solution Architect for a Fortune 500 financial company running BigQuery at scale — hundreds of analysts, dozens of automated pipelines, 4+ TB of daily ingestion across finance, risk, and regulatory reporting workloads.
+I joined as the Solution Architect for Tata Group's BigQuery estate running at scale — hundreds of analysts, dozens of automated pipelines, 4+ TB of daily ingestion across finance, risk, and regulatory reporting workloads.
 
 The platform had grown organically. Datasets were added without architectural standards. Queries ran without cost awareness. The pricing model was never revisited as workloads matured. Leadership was asking "how much are we spending?" We needed to answer a different question: "why does our architecture force us to spend this much?"
 

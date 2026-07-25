@@ -163,7 +163,7 @@ POST_META = {
 "2026-07-25-per-agent-identity-three-layers.md": {
     "slug": "per-agent-identity-three-layers",
     "date": "2026-07-25",
-    "tags": ["Agentic AI", "Security", "Azure", "Identity", "Multi-Agent"],
+    "tags": ["Agentic AI", "Security", "Azure", "Multi-Agent AI"],
     "audience": "Architects and security engineers who want to shrink the blast radius of a compromised or prompt-injected agent in a multi-agent system",
     "excerpt": "Most teams give a whole multi-agent app one workload identity, so one hijacked agent has every agent's blast radius. Splitting identity across app, cloud, and crypto layers shrinks it to a single role and makes the audit trail provable.",
     "citations": [
@@ -185,7 +185,7 @@ POST_META = {
 "2026-07-23-durable-workflow-checkpoint-serialization.md": {
     "slug": "durable-workflow-checkpoint-serialization",
     "date": "2026-07-23",
-    "tags": ["Microsoft Agent Framework", "Workflows", "Debugging", "Agentic AI", "Python"],
+    "tags": ["Microsoft Agent Framework", "Workflows", "Agentic AI", "Python"],
     "audience": "Python developers using durable @workflow/@step orchestration who hit serialization crashes when suspending and resuming a run",
     "excerpt": "Threading an SDK client through a checkpointed workflow crashed with maximum recursion depth exceeded. The checkpoint boundary is a serialization boundary: JSON only, values and keys, and anything non-serializable gets injected out-of-band at the composition root.",
     "citations": [
@@ -206,7 +206,7 @@ POST_META = {
 "2026-07-21-tell-the-agent-what-its-allowed-to-do.md": {
     "slug": "tell-the-agent-what-its-allowed-to-do",
     "date": "2026-07-21",
-    "tags": ["Agentic AI", "Guardrails", "Cost Optimisation", "Prompt Engineering"],
+    "tags": ["Agentic AI", "Guardrails", "Cost Optimisation"],
     "audience": "Engineers whose agents waste turns and tokens probing tools the policy layer then blocks",
     "excerpt": "If your gateway will block a tool call, don't make the agent find out by trying, because each blocked attempt is a wasted turn. A capabilities brief aligns what the model thinks it can do with what enforcement actually allows.",
     "citations": [
@@ -248,7 +248,7 @@ POST_META = {
 "2026-07-17-most-restrictive-wins-policy-composition.md": {
     "slug": "most-restrictive-wins-policy-composition",
     "date": "2026-07-17",
-    "tags": ["Agentic AI", "Security", "AI Governance", "Authorization"],
+    "tags": ["Agentic AI", "Security", "AI Governance"],
     "audience": "Engineers composing layered tool-use policy who need delegation without privilege escalation",
     "excerpt": "An agent can tighten a workload's policy or claim a tool it never mentioned, but it can't loosen an explicit forbid. The subtlety everyone botches: an explicit forbid is a floor, while silence is an absence a tighter layer may fill.",
     "citations": [
@@ -2026,7 +2026,7 @@ POST_META = {
         "date": "2026-05-17",
         "tags": ['BigQuery', 'FinOps', 'Cloud Architecture', 'Solution Architecture', 'Data Warehouse'],
         "audience": "Engineering",
-        "excerpt": "Architecture decisions that delivered 57% cost reduction on a Fortune 500 BigQuery data warehouse. The MERGE anti-pattern fix, partition strategy, capacity model, and the trust gap I'd handle differently next time.",
+        "excerpt": "Architecture decisions that delivered 57% cost reduction on Tata Group's BigQuery data warehouse. The MERGE anti-pattern fix, partition strategy, capacity model, and the trust gap I'd handle differently next time.",
     },
     "auto-002-a2a-protocol-go-client.md": {
         "slug": "a2a-protocol-go-client",

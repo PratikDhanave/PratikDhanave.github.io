@@ -83,7 +83,7 @@ As cost governance: you never pay model tokens for a problem a rule could solve,
 
 As reliability: the tier that handles the most volume is the tier with zero external dependencies, so your busiest path is also your most available path. Capability and availability run in opposite directions up the ladder, and that's fine, because volume runs down it.
 
-Note this is a different axis from latency- or budget-based dispatch — routing by SLA or by a token allowance. Those are real and complementary. The claim here is narrower and, I think, more foundational: **rules first, then graduate.** Sort your executors by cost-times-fallibility and always try the cheapest reliable one first.
+Note this is a different axis from latency- or budget-based dispatch — routing by SLA or by a token allowance. Those are real and complementary; I've written about [cost-aware agent dispatch](/blog/posts/cost-aware-agent-dispatch.html) on its own terms. The claim here is narrower and, I think, more foundational: **rules first, then graduate.** Sort your executors by cost-times-fallibility and always try the cheapest reliable one first.
 
 ## Why it matters
 
