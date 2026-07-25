@@ -160,6 +160,122 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+"2026-07-25-per-agent-identity-three-layers.md": {
+    "slug": "per-agent-identity-three-layers",
+    "date": "2026-07-25",
+    "tags": ["Agentic AI", "Security", "Azure", "Identity", "Multi-Agent"],
+    "audience": "Architects and security engineers who want to shrink the blast radius of a compromised or prompt-injected agent in a multi-agent system",
+    "excerpt": "Most teams give a whole multi-agent app one workload identity, so one hijacked agent has every agent's blast radius. Splitting identity across app, cloud, and crypto layers shrinks it to a single role and makes the audit trail provable.",
+    "citations": [
+        {"title": "Azure Managed identities", "url": "https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview", "context": "One Azure user-assigned managed identity per agent is the real containment boundary, enforced by Azure AD"},
+        {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Agents, tools, and middleware in the Microsoft Agent Framework"},
+    ],
+},
+"2026-07-24-policy-is-code-not-a-prompt.md": {
+    "slug": "policy-is-code-not-a-prompt",
+    "date": "2026-07-24",
+    "tags": ["Agentic AI", "Security", "Guardrails", "AI Governance"],
+    "audience": "Engineers securing agentic systems who want tool-use authorization the model cannot talk its way past",
+    "excerpt": "A system prompt saying never delete records is a suggestion the model can be talked out of. A gateway that returns FORBID for the delete tool cannot. Put enforcement where the model can't reach it and prompt injection stops mattering for access control.",
+    "citations": [
+        {"title": "OWASP LLM01: Prompt Injection", "url": "https://genai.owasp.org/llmrisk/llm01-prompt-injection/", "context": "Why prompt-level guardrails fail: the model is untrusted input"},
+        {"title": "Open Policy Agent", "url": "https://www.openpolicyagent.org/docs/latest/", "context": "Backing tool-call authorization decisions with policy-as-code"},
+    ],
+},
+"2026-07-23-durable-workflow-checkpoint-serialization.md": {
+    "slug": "durable-workflow-checkpoint-serialization",
+    "date": "2026-07-23",
+    "tags": ["Microsoft Agent Framework", "Workflows", "Debugging", "Agentic AI", "Python"],
+    "audience": "Python developers using durable @workflow/@step orchestration who hit serialization crashes when suspending and resuming a run",
+    "excerpt": "Threading an SDK client through a checkpointed workflow crashed with maximum recursion depth exceeded. The checkpoint boundary is a serialization boundary: JSON only, values and keys, and anything non-serializable gets injected out-of-band at the composition root.",
+    "citations": [
+        {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Durable @workflow / @step orchestration and checkpointing"},
+        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "Checkpoint codec and workflow message serialization"},
+    ],
+},
+"2026-07-22-exhausted-is-not-failure-bounded-agent-runs.md": {
+    "slug": "exhausted-is-not-failure-bounded-agent-runs",
+    "date": "2026-07-22",
+    "tags": ["Agentic AI", "Reliability", "Guardrails", "Observability"],
+    "audience": "Engineers running autonomous agents who need a runaway loop to be a routine, observable event instead of a 3am page",
+    "excerpt": "The scariest agent failure is the runaway loop that never finishes. Cap every run at max_turns and make EXHAUSTED a first-class outcome, neither a failure nor a silent success, with a typed event stream you can route on.",
+    "citations": [
+        {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Agent run loops, turns, and function-calling"},
+    ],
+},
+"2026-07-21-tell-the-agent-what-its-allowed-to-do.md": {
+    "slug": "tell-the-agent-what-its-allowed-to-do",
+    "date": "2026-07-21",
+    "tags": ["Agentic AI", "Guardrails", "Cost Optimisation", "Prompt Engineering"],
+    "audience": "Engineers whose agents waste turns and tokens probing tools the policy layer then blocks",
+    "excerpt": "If your gateway will block a tool call, don't make the agent find out by trying, because each blocked attempt is a wasted turn. A capabilities brief aligns what the model thinks it can do with what enforcement actually allows.",
+    "citations": [
+        {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Agent instructions, tools, and middleware"},
+    ],
+},
+"2026-07-20-governing-the-tools-you-didnt-write.md": {
+    "slug": "governing-the-tools-you-didnt-write",
+    "date": "2026-07-20",
+    "tags": ["Agentic AI", "Security", "Guardrails", "Microsoft Agent Framework"],
+    "audience": "Engineers governing autonomous harness agents that inject their own plan-and-execute tools at runtime",
+    "excerpt": "An autonomous harness injects its own tools at runtime, tools that don't exist at build time. Fail-closed governance is only complete when it turns that blind spot into a visible block, then allowlists the known-safe internals deliberately.",
+    "citations": [
+        {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Function middleware runs on every tool invocation, including runtime-injected tools"},
+    ],
+},
+"2026-07-19-testing-agents-without-a-model.md": {
+    "slug": "testing-agents-without-a-model",
+    "date": "2026-07-19",
+    "tags": ["Agentic AI", "Testing", "Engineering", "CI/CD"],
+    "audience": "Engineers who think agentic systems are untestable because they couple every test to a live model",
+    "excerpt": "Put the seam at the router: same interface, a deterministic classifier for tests. The whole orchestration, routing, gateway, human-in-the-loop, and checkpointing, runs in CI with zero API keys and zero network.",
+    "citations": [
+        {"title": "HTTPX ASGITransport", "url": "https://www.python-httpx.org/advanced/transports/", "context": "In-process FastAPI testing via ASGITransport, no live server"},
+        {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Provider configuration and swappable model clients"},
+    ],
+},
+"2026-07-18-azure-preferred-in-memory-fallback.md": {
+    "slug": "azure-preferred-in-memory-fallback",
+    "date": "2026-07-18",
+    "tags": ["Cloud Architecture", "Testing", "Azure", "Design Pattern", "Engineering"],
+    "audience": "Engineers who want their cloud service to boot and test with zero external dependencies",
+    "excerpt": "Same store interface, two implementations: cloud-backed when config exists, in-memory when it doesn't. Don't let a subscription be a hard dependency for make test, it's the ports-and-adapters move teams skip under pressure.",
+    "citations": [
+        {"title": "Azure Cosmos DB", "url": "https://learn.microsoft.com/en-us/azure/cosmos-db/introduction", "context": "The durable audit and checkpoint store backend"},
+        {"title": "Azure AI Search", "url": "https://learn.microsoft.com/en-us/azure/search/search-what-is-azure-search", "context": "The knowledge store backend behind the in-memory fallback"},
+    ],
+},
+"2026-07-17-most-restrictive-wins-policy-composition.md": {
+    "slug": "most-restrictive-wins-policy-composition",
+    "date": "2026-07-17",
+    "tags": ["Agentic AI", "Security", "AI Governance", "Authorization"],
+    "audience": "Engineers composing layered tool-use policy who need delegation without privilege escalation",
+    "excerpt": "An agent can tighten a workload's policy or claim a tool it never mentioned, but it can't loosen an explicit forbid. The subtlety everyone botches: an explicit forbid is a floor, while silence is an absence a tighter layer may fill.",
+    "citations": [
+        {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Middleware-based tool authorization"},
+        {"title": "Open Policy Agent", "url": "https://www.openpolicyagent.org/docs/latest/", "context": "Layered policy evaluation and most-restrictive-wins composition"},
+    ],
+},
+"2026-07-16-eval-regression-gate-in-ci.md": {
+    "slug": "eval-regression-gate-in-ci",
+    "date": "2026-07-16",
+    "tags": ["Agentic AI", "Evaluation", "Testing", "CI/CD"],
+    "audience": "Teams whose agent quality silently regresses until users notice, from prompt drift, model bumps, or refactors",
+    "excerpt": "Agent systems rot because nobody catches quality regressions until users do. A committed baseline plus a gate that fails the build turns the agents got worse into a red X and a reviewable diff in the pull request.",
+    "citations": [
+        {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Evaluating agent behavior against expected outcomes"},
+    ],
+},
+"2026-07-15-cheapest-reliable-executor-wins.md": {
+    "slug": "cheapest-reliable-executor-wins",
+    "date": "2026-07-15",
+    "tags": ["Agentic AI", "Cost Optimisation", "Architecture", "Reliability"],
+    "audience": "Architects who reach for an LLM as the first executor instead of the last",
+    "excerpt": "Deterministic rules get first refusal at zero cost and still fire when the model is down; only the novel long tail escalates to graduated agents; a human approves anything that mutates. Build a ladder, not a model call.",
+    "citations": [
+        {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Graduated agents, model providers, and human-in-the-loop"},
+    ],
+},
     # ── Google ADK, Concept by Concept series (26 posts) ──
     "2026-06-26-adk-00-foundations.md": {"slug": "adk-00-foundations", "date": "2026-06-26", "tags": ["Google ADK", "AI Agents", "Python", "Go"], "audience": "Developers new to Google's Agent Development Kit who want the smallest working agent and the project shape everything builds on.", "excerpt": "The smallest ADK agent and the machinery around it: an LlmAgent, the Runner, a Session, and the adk CLI (adk web / adk run) that runs your agent with a dev UI or REPL — no server code.", "series": "Google ADK, Concept by Concept", "series_position": 1, "series_total": 26, "featured": True, "citations": [{"title": "Google ADK docs", "url": "https://google.github.io/adk-docs/get-started/", "context": "ADK quickstart and project setup"}, {"title": "google/adk-go", "url": "https://github.com/google/adk-go", "context": "The Go SDK (google.golang.org/adk/v2)"}]},
     "2026-06-27-adk-01-llm-agents.md": {"slug": "adk-01-llm-agents", "date": "2026-06-27", "tags": ["Google ADK", "AI Agents", "Python", "Go"], "audience": "ADK developers configuring an LLM agent's behavior — instructions, generation settings, and typed output.", "excerpt": "The four knobs on almost every ADK agent: description (for delegation), instruction with {state} templating, generation params, and structured output — Python Pydantic model vs Go genai.Schema.", "series": "Google ADK, Concept by Concept", "series_position": 2, "series_total": 26, "citations": [{"title": "Google ADK docs", "url": "https://google.github.io/adk-docs/agents/", "context": "Configuring LLM agents in ADK"}, {"title": "google/adk-go", "url": "https://github.com/google/adk-go", "context": "The Go SDK (google.golang.org/adk/v2)"}]},
