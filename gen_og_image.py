@@ -8,9 +8,16 @@ Output: og-default.png in the repo root
 """
 
 from PIL import Image, ImageDraw, ImageFont
+import glob
 import os
 
 W, H = 1200, 630
+
+# Article count is derived from disk (never hardcoded, so it can't go stale)
+# and rounded down to the nearest 50 so "300+ articles" stays accurate even
+# as a few more posts are added between regenerations.
+_post_count = len(glob.glob(os.path.join(os.path.dirname(__file__), "blog", "posts", "*.html")))
+ARTICLE_LABEL = f"{(_post_count // 50) * 50}+ articles" if _post_count >= 50 else f"{_post_count} articles"
 
 # ── Colours ─────────────────────────────────────────────────────────────────
 BG_TOP      = (255, 255, 255)  # white
@@ -28,6 +35,10 @@ FONT_PATHS = [
     "/System/Library/Fonts/Helvetica.ttc",
     "/Library/Fonts/Arial Unicode.ttf",
     "/System/Library/Fonts/ArialHB.ttc",
+    # Linux fallbacks (e.g. if ever regenerated off macOS) so the card still
+    # renders with a real typeface instead of Pillow's bitmap default font.
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
 ]
 
 def load_font(size, bold=False):
@@ -107,7 +118,7 @@ for chip in chips:
 # ── Bottom strip ──────────────────────────────────────────────────────────────
 draw.rectangle([(0, H - 58), (W, H)], fill=(241, 245, 249))
 draw.line([(0, H - 58), (W, H - 58)], fill=(215, 225, 240), width=1)
-draw.text((100, H - 40), "Building production-grade AI systems · 105 articles · Open Source", font=f_url, fill=DIM_GREY)
+draw.text((100, H - 40), f"Building production-grade AI systems · {ARTICLE_LABEL} · Open Source", font=f_url, fill=DIM_GREY)
 
 # ── Small accent circle (bottom-right branding dot) ──────────────────────────
 draw.ellipse([(1110, H - 58 - 60), (1170, H - 58)], fill=(239, 246, 255), outline=ACCENT, width=2)

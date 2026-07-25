@@ -87,6 +87,7 @@ def collect_main_pages():
     pages = [
         ("/", "index.html", "daily", "1.0"),
         ("/blog/", "blog/index.html", "daily", "0.9"),
+        ("/blog/tags/", "blog/tags/index.html", "weekly", "0.6"),
         ("/blog/archive/", "blog/archive/index.html", "weekly", "0.85"),
         ("/articles/", "articles/index.html", "weekly", "0.9"),
         ("/projects/", "projects/index.html", "weekly", "0.8"),

@@ -3395,9 +3395,9 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
             for sp in series_posts:
                 sp_pos = sp["meta"].get("series_position", 0)
                 if sp_pos == position - 1:
-                    nav_items.insert(0, f'<a href="/blog/posts/{sp["meta"]["slug"]}.html" class="series-prev">&larr; Part {sp_pos}: {sp["title"]}</a>')
+                    nav_items.insert(0, f'<a href="/blog/posts/{sp["meta"]["slug"]}.html" class="series-prev">&larr; Part {sp_pos}: {_html_escape(sp["title"])}</a>')
                 elif sp_pos == position + 1:
-                    nav_items.append(f'<a href="/blog/posts/{sp["meta"]["slug"]}.html" class="series-next">Part {sp_pos}: {sp["title"]} &rarr;</a>')
+                    nav_items.append(f'<a href="/blog/posts/{sp["meta"]["slug"]}.html" class="series-next">Part {sp_pos}: {_html_escape(sp["title"])} &rarr;</a>')
             if nav_items:
                 series_nav = f'<div class="series-nav">{chr(10).join(nav_items)}</div>'
 
@@ -3426,7 +3426,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
             for post in related_posts:
                 post_date = datetime.strptime(post["meta"]["date"], "%Y-%m-%d").strftime("%b %d")
                 related_items.append(f"""    <li>
-      <a href="/blog/posts/{post['meta']['slug']}.html">{post['title']}</a>
+      <a href="/blog/posts/{post['meta']['slug']}.html">{_html_escape(post['title'])}</a>
       <span class="related-date">{post_date}</span>
     </li>""")
             related_html = f"""
@@ -3443,8 +3443,8 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
         citations_items = []
         for citation in meta["citations"]:
             citations_items.append(f"""    <div class="citation-item">
-      <div class="citation-title"><a href="{citation['url']}" target="_blank" rel="noopener noreferrer">{citation['title']}</a></div>
-      <div class="citation-context">{citation['context']}</div>
+      <div class="citation-title"><a href="{_html_escape(citation['url'], quote=True)}" target="_blank" rel="noopener noreferrer">{_html_escape(citation['title'])}</a></div>
+      <div class="citation-context">{_html_escape(citation['context'])}</div>
     </div>""")
         citations_html = f"""
   <section class="post-citations">
@@ -3512,7 +3512,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
       "url": "{SITE_URL}/pratik.png"
     }}
   }},
-  "keywords": "{', '.join(meta['tags'])}",
+  "keywords": "{_json.dumps(', '.join(meta['tags']))[1:-1]}",
   "url": "{canonical}",
   "mainEntityOfPage": {{
     "@type": "WebPage",
@@ -3528,8 +3528,8 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 <main>
 <article>
   <header>
-    <h1>{title}</h1>
-    <p class="post-subtitle">{subtitle}</p>
+    <h1>{_html_escape(title)}</h1>
+    <p class="post-subtitle">{_html_escape(subtitle)}</p>
     <div class="post-meta">
       <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
       <span>·</span>
@@ -3583,9 +3583,9 @@ def _render_post_card(p, link_prefix="/blog/posts/"):
         <time datetime="{date_iso}">{date_human}</time>
         {read_time_html}
       </div>
-      <h2 class="post-card-title"><a href="{link_prefix}{p['meta']['slug']}.html">{p['title']}</a></h2>
-      <p class="post-card-subtitle">{p['subtitle']}</p>
-      <p class="post-card-excerpt">{p['meta']['excerpt']}</p>
+      <h2 class="post-card-title"><a href="{link_prefix}{p['meta']['slug']}.html">{_html_escape(p['title'])}</a></h2>
+      <p class="post-card-subtitle">{_html_escape(p['subtitle'])}</p>
+      <p class="post-card-excerpt">{_html_escape(p['meta']['excerpt'])}</p>
       <div class="post-tags">{tags_html}</div>
     </article>"""
 
@@ -3988,9 +3988,9 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
         <time datetime="{date_iso}">{date_human}</time>
         {read_time_html}
       </div>
-      <h2 class="post-card-title"><a href="/blog/posts/{p['meta']['slug']}.html">{p['title']}</a></h2>
-      <p class="post-card-subtitle">{p['subtitle']}</p>
-      <p class="post-card-excerpt">{p['meta']['excerpt']}</p>
+      <h2 class="post-card-title"><a href="/blog/posts/{p['meta']['slug']}.html">{_html_escape(p['title'])}</a></h2>
+      <p class="post-card-subtitle">{_html_escape(p['subtitle'])}</p>
+      <p class="post-card-excerpt">{_html_escape(p['meta']['excerpt'])}</p>
       <div class="post-tags">{tags_html}</div>
     </article>""")
 
@@ -4116,9 +4116,9 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
         <time datetime="{date_iso}">{date_human}</time>
         {read_time_html}
       </div>
-      <h2 class="post-card-title"><a href="/blog/posts/{p['meta']['slug']}.html">{p['title']}</a></h2>
-      <p class="post-card-subtitle">{p['subtitle']}</p>
-      <p class="post-card-excerpt">{p['meta']['excerpt']}</p>
+      <h2 class="post-card-title"><a href="/blog/posts/{p['meta']['slug']}.html">{_html_escape(p['title'])}</a></h2>
+      <p class="post-card-subtitle">{_html_escape(p['subtitle'])}</p>
+      <p class="post-card-excerpt">{_html_escape(p['meta']['excerpt'])}</p>
       <div class="post-tags">{tags_html}</div>
     </article>""")
 
@@ -4376,7 +4376,13 @@ def render_rss_feed(posts, limit=50):
       <description>{escape(p['meta'].get('excerpt', ''))}</description>
 {categories}    </item>""")
 
-    build_date = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S +0000")
+    # Derive lastBuildDate from the newest post so feed.xml is deterministic
+    # (no spurious diff on every rebuild) and reflects real content changes.
+    if posts:
+        newest = max(datetime.strptime(p["meta"]["date"], "%Y-%m-%d") for p in posts)
+        build_date = newest.strftime("%a, %d %b %Y 00:00:00 +0000")
+    else:
+        build_date = "Thu, 01 Jan 1970 00:00:00 +0000"
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
