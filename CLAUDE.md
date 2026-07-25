@@ -48,7 +48,7 @@ python3 -m http.server 8765
 The site has two distinct content tiers:
 
 ### 1. Static pages (manually edited HTML)
-`index.html`, `about/`, `resume/`, `projects/`, `speaking/`, `resources/`, `articles/`, `certifications/`, `404.html` — edit these files directly. They are never touched by the build scripts.
+`index.html`, `about/`, `resume/`, `projects/`, `speaking/`, `articles/`, `certifications/`, `contact/`, `privacy/`, `404.html` — edit these files directly. They are never touched by the build scripts. (`blog/tags/index.html`, the tags hub, is also a hand-maintained static page — only the per-tag directories under it are generated.)
 
 ### 2. Generated content (driven by `build_blog.py`)
 All output in `blog/posts/`, `blog/tags/`, `blog/archive/`, plus `blog/index.html`, `blog/feed.xml`, `blog/search-index.json` (client-side search index, fetched at runtime), and `blog/popular-posts.json` is fully regenerated on each run. **Never hand-edit these** — changes will be overwritten.
@@ -59,10 +59,12 @@ All output in `blog/posts/`, `blog/tags/`, `blog/archive/`, plus `blog/index.htm
 
 `build_blog.py` is the single source of truth for all blog content. Key structures:
 
-- **`POST_META` dict** — keyed by source filename (e.g. `"2026-06-01-my-post.md"`), contains `slug`, `date`, `tags`, `audience`, `excerpt`, `citations`. Adding a new post requires a new entry here.
-- **`POST_POPULARITY` dict** — maps slug → rank, used to build `blog/popular-posts.json`.
+- **`POST_META` dict** (defined near line 162, ~337 entries) — keyed by source filename (e.g. `"2026-06-01-my-post.md"`), contains `slug`, `date`, `tags`, `audience`, `excerpt`, `citations`. Adding a new post requires a new entry here. `POST_META` is the true source of truth: rendered post count, `feed.xml`, `search-index.json`, and `sitemap-blog.xml` all track it (currently 337 each), not the source-file count.
+- **`POST_POPULARITY` dict** (near line 2719) — maps slug → rank for the handful of featured posts (currently ~12), used to build `blog/popular-posts.json`.
 - Markdown source files live in `blog/source/` following the naming convention `YYYY-MM-DD-slug.md`.
-- `POST_META` holds far more entries than `blog/source/` has markdown files (currently ~134 entries vs. ~33 source files). The excess are legacy posts that exist only as pre-rendered HTML (no markdown source). Their metadata still lives in `POST_META` with an empty or missing source file — the script handles this gracefully. Deleting a `POST_META` entry drops the post from the index/feed/sitemap even if its HTML file remains. (These counts drift as posts are added — don't rely on the exact numbers, only the invariant that entries ≫ source files.)
+- `POST_META` holds far more entries than `blog/source/` has markdown files (currently ~337 entries vs. ~241 source files — ~84 `.md`-keyed entries plus ~12 legacy `.html`-keyed entries have no markdown on disk). The excess are legacy posts that exist only as pre-rendered HTML. Their metadata still lives in `POST_META` with a missing source file — the script handles this gracefully. Deleting a `POST_META` entry drops the post from the **index and feed** (both are `POST_META`-driven). **The sitemap is the exception**: `build_sitemap.py` globs `blog/posts/*.html` off disk, so a deleted `POST_META` entry (or renamed `slug`) leaves the orphaned HTML on disk and it will *still* appear in `sitemap-blog.xml` until you delete the file. No build script prunes stale post/tag/archive files — removals are manual. (These counts drift as posts are added — don't rely on the exact numbers, only the invariant that entries ≫ source files.)
+
+Note: the ~84 legacy pre-rendered posts are **not re-rendered** by `build_blog.py` — a change to the HTML templates (`render_post_html` etc.) only reaches the markdown-backed posts. Site-wide changes to legacy posts (e.g. the one-off GA4 backfill) require a separate script that rewrites those HTML files directly.
 - HTML templates are f-strings inside the script (`POST_CSS`, `NAV_HTML`, `SITE_FOOTER`, `render_post_html()`, `render_tag_page()`, `render_index_html()`, `render_rss_feed()`). To change layout or design, edit these functions — there is no separate template file.
 
 ### Adding a new blog post
@@ -78,9 +80,10 @@ All output in `blog/posts/`, `blog/tags/`, `blog/archive/`, plus `blog/index.htm
 
 Every generated blog post includes a `BlogPosting` JSON-LD schema. Tag pages with 5+ posts get a `CollectionPage` schema; those with <3 posts get `<meta name="robots" content="noindex">`. Static pages embed `Person`, `BreadcrumbList`, or `SoftwareApplication` schemas — these must be maintained manually.
 
-**Pending placeholders** (require Google account setup):
-- GA4 Measurement ID: search for `G-XXXXXXXXXX` — appears in `build_blog.py` template and 9 static HTML files
-- Google Search Console: search for `YOUR_VERIFICATION_CODE` — appears in `index.html`
+**Analytics & verification are live** (no longer placeholders):
+- GA4 Measurement ID is `G-3BZ8MDPHE1` (constant `GA4_ID` in `build_blog.py`; also hard-coded in the static pages and `blog/tags/index.html`). When adding a new **static** page, copy the GA snippet in by hand — the build scripts don't touch static pages.
+- Google Search Console is verified via the `google-site-verification` meta tag in `index.html` plus the `googlead70835cf95909b9.html` token file at the repo root.
+- Bing/IndexNow verification uses the `b6b1ed31…​.txt` key file at the repo root; `build_blog.py` pings IndexNow with new/updated URLs on each run.
 
 ---
 
@@ -94,7 +97,7 @@ This script imports `SITE_ROOT`, `NAV_HTML`, `SITE_FOOTER`, `POST_CSS`, and `POS
 
 `build_sitemap.py` generates three sub-sitemaps + an index:
 - `sitemap-pages.xml` — the static pages
-- `sitemap-blog.xml` — every blog post URL (one `<loc>` per `POST_META` entry, currently ~129)
+- `sitemap-blog.xml` — every blog post URL (one `<loc>` per `POST_META` entry, currently ~337)
 - `sitemap-tags.xml` — only tag pages with ≥3 posts (avoids thin-content indexing)
 
 `lastmod` dates come from `git log` per file; falls back to today with a stderr warning if a file has no git history.

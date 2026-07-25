@@ -10,6 +10,7 @@ Architecture:
 """
 
 import re
+from html import escape as _html_escape
 from pathlib import Path
 from datetime import datetime
 from build_blog import (
@@ -968,10 +969,13 @@ def render_project_detail_html(project_slug, tag_index):
             # Explicit pins first (track slugs to avoid duplicates)
             pinned_slugs = set()
             for post_path in project.get("blog_posts", []):
-                # Try to find in POST_META
+                # Match POST_META by exact slug (basename without .html), not a
+                # substring — a short slug that is a substring of a longer path
+                # would otherwise pin the wrong post.
+                path_slug = post_path.rsplit("/", 1)[-1].removesuffix(".html")
                 for meta in POST_META.values():
-                    if meta.get("slug") in post_path:
-                        related_posts_html += f'<div style="margin-bottom: 12px;"><a href="{post_path}">{meta.get("title", "Untitled")}</a></div>'
+                    if meta.get("slug") == path_slug:
+                        related_posts_html += f'<div style="margin-bottom: 12px;"><a href="{post_path}">{_html_escape(meta.get("title", "Untitled"))}</a></div>'
                         pinned_slugs.add(meta.get("slug"))
                         break
 
@@ -981,7 +985,7 @@ def render_project_detail_html(project_slug, tag_index):
                 post_slug = post["meta"]["slug"]
                 if post_slug in pinned_slugs:
                     continue
-                related_posts_html += f'<div style="margin-bottom: 12px;"><a href="/blog/posts/{post_slug}.html">{post["meta"].get("title", "Untitled")}</a> <span style="color: var(--text-muted); font-size: 0.9rem;">({post_date})</span></div>'
+                related_posts_html += f'<div style="margin-bottom: 12px;"><a href="/blog/posts/{post_slug}.html">{_html_escape(post["meta"].get("title", "Untitled"))}</a> <span style="color: var(--text-muted); font-size: 0.9rem;">({post_date})</span></div>'
 
             related_posts_html += '</section>'
 
