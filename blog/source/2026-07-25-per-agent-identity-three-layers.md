@@ -75,4 +75,6 @@ The default architecture — one workload identity for the whole app — quietly
 
 Per-agent identity breaks that coupling three ways at once. The `agent_id` makes policy and audit agent-specific, so you can reason about one agent at a time. The per-agent managed identity turns a compromise into a bounded incident — one role's worth of damage, enforced by the cloud rather than your own code. The signed token makes the audit trail something you can stand behind in a post-incident review instead of a set of unverifiable log lines.
 
+Outside Azure, the same containment idea shows up as [SPIFFE/SPIRE workload identity](/blog/posts/spiffe-spire-workload-identity-basics.html); and per-agent identity is only one layer of a broader [defence-in-depth for agentic systems](/blog/posts/defence-in-depth-for-agentic-ai.html).
+
 **Why it matters:** identity is the cheapest lever you have on blast radius, and almost everyone leaves it at its worst setting. One workload identity means the worst-behaved agent defines your worst day. Give every agent its own credential — attributed at the app, contained by the cloud, proven by crypto — and the worst-behaved agent can only ever cost you a single role, on a trail you can prove. That's the difference between an incident and a breach.

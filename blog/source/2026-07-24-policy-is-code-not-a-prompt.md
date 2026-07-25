@@ -76,6 +76,8 @@ One detail separates a real control from theater: the default. In the gateway, a
 
 Fail-open defaults are how systems that *look* governed quietly aren't. Every new capability that lands without a corresponding rule becomes an ungoverned hole. Inverting the default means your blast radius only ever grows by deliberate, reviewable decisions.
 
+This post is about *where* you enforce policy. For how you author it, I've written separately on [keeping policy as code you don't redeploy to change](/blog/posts/policy-as-code-without-shipping-code.html) and [treating the policy as a reviewable YAML file the board can read](/blog/posts/the-board-policy-is-a-yaml-file.html) — the placement argument here is what makes those authoring choices safe.
+
 ## Why it matters
 
 Every serious agent system eventually has to answer one question: when the model is wrong — because it was fooled, or jailbroken, or simply confused — does anything bad actually happen? If your answer lives in the system prompt, you don't have an answer; you have a hope, and you're pinning it on the exact component an attacker gets to manipulate. Move the enforcement out-of-band, into a fail-closed middleware pipeline the model never sees, and the question resolves itself: the model can be as wrong as it likes, and the forbidden call still doesn't run. A prompt is advice. A middleware pipeline is a control. Build the thing that can't be talked out of anything.

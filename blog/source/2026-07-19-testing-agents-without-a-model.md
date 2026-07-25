@@ -3,7 +3,7 @@
 
 "Agents are untestable." I have heard this on every team that ships an LLM-driven system, and it is almost always wrong. What people actually mean is: "We wired our orchestration directly to a live model, so now every test needs an API key, a network round trip, and a coin flip on whether the assertions pass." That is not a property of agents. That is a design mistake, and it is fixable.
 
-I build a governed multi-agent system for operational incident triage on the `Microsoft Agent Framework` in Python on Azure. The orchestration is a multi-phase pipeline: `triage → specialist → engineering → remediation → documentation`. Each phase can consult a function-calling agent, hit a policy gateway, suspend for human approval, and checkpoint its state. That is a lot of orchestration surface, and none of it is interesting to test through a live model. The model's job is to classify and draft text. The pipeline's job is to route, gate, suspend, resume, and serialize correctly. Those are different concerns, and they deserve different test strategies.
+I built a governed multi-agent system for operational incident triage on the `Microsoft Agent Framework` in Python on Azure. The orchestration is a multi-stage pipeline: `triage → enrich → diagnose → approval → close`. Each phase can consult a function-calling agent, hit a policy gateway, suspend for human approval, and checkpoint its state. That is a lot of orchestration surface, and none of it is interesting to test through a live model. The model's job is to classify and draft text. The pipeline's job is to route, gate, suspend, resume, and serialize correctly. Those are different concerns, and they deserve different test strategies.
 
 ## Put the seam at the classifier
 
