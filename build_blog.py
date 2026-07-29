@@ -65,7 +65,6 @@ def tag_to_slug(tag):
 
 # Display overrides: tag names that should render differently from their slug key.
 TAG_DISPLAY_NAMES = {
-    "MAF": "Microsoft Agent Framework",
 }
 
 
@@ -1883,7 +1882,7 @@ POST_META = {
     "05-mara-five-interfaces.md": {
         "slug": "mara-five-interfaces",
         "date": "2026-05-23",
-        "tags": ["Software Architecture", "Multi-Agent", "MAF", "Go"],
+        "tags": ["Software Architecture", "Multi-Agent", "Microsoft Agent Framework", "Go"],
         "audience": "Software architects",
         "excerpt": "Five interfaces hold the whole platform together. The 30-line orchestrator closure that makes the rest of the architecture testable, auditable, and safe to evolve.",
     },
@@ -1918,7 +1917,7 @@ POST_META = {
     "2026-06-01-adk-to-maf-migration-why.md": {
         "slug": "adk-to-maf-migration-why",
         "date": "2026-06-01",
-        "tags": ["ADK", "MAF", "Architecture", "Multi-Agent AI"],
+        "tags": ["ADK", "Microsoft Agent Framework", "Architecture", "Multi-Agent AI"],
         "audience": "Software architects + platform engineers",
         "excerpt": "The philosophy, trade-offs, and what we learned converting 18+ agents in 3 months. Provider abstraction as the foundation for portable agents.",
         "featured": True,
@@ -1946,7 +1945,7 @@ POST_META = {
     "2026-06-02-adk-to-maf-executor-pattern.md": {
         "slug": "adk-to-maf-executor-pattern",
         "date": "2026-06-02",
-        "tags": ["ADK", "MAF", "Orchestration", "Design Pattern"],
+        "tags": ["ADK", "Microsoft Agent Framework", "Orchestration", "Design Pattern"],
         "audience": "Platform architects",
         "excerpt": "How to port ADK's orchestration callbacks to Microsoft Agent Framework builders without losing control. The executor pattern: you own the loop.",
         "series": "ADK to Microsoft Agent Framework Migration",
@@ -1956,7 +1955,7 @@ POST_META = {
     "2026-06-03-adk-to-maf-token-exchange.md": {
         "slug": "adk-to-maf-token-exchange",
         "date": "2026-06-03",
-        "tags": ["ADK", "MAF", "State Management", "Token Budgeting"],
+        "tags": ["ADK", "Microsoft Agent Framework", "State Management", "Token Budgeting"],
         "audience": "Backend + ML engineers",
         "excerpt": "Sessions to threads: porting multi-turn state from ADK to Microsoft Agent Framework. Token budgeting, long-term memory, and conversation audit trails.",
         "series": "ADK to Microsoft Agent Framework Migration",
@@ -1966,7 +1965,7 @@ POST_META = {
     "2026-06-04-adk-to-maf-tool-wrapping.md": {
         "slug": "adk-to-maf-tool-wrapping",
         "date": "2026-06-04",
-        "tags": ["ADK", "MAF", "Tools", "Governance", "OPA"],
+        "tags": ["ADK", "Microsoft Agent Framework", "Tools", "Governance", "OPA"],
         "audience": "Governance + backend engineers",
         "excerpt": "Migrate ADK functions to Microsoft Agent Framework governed tools with policy enforcement, DLP scanning, approval gates, and OPA integration for production agent systems.",
         "series": "ADK to Microsoft Agent Framework Migration",
@@ -1976,7 +1975,7 @@ POST_META = {
     "2026-06-05-adk-to-maf-provider-config.md": {
         "slug": "adk-to-maf-provider-config",
         "date": "2026-06-05",
-        "tags": ["ADK", "MAF", "Provider Abstraction", "Config"],
+        "tags": ["ADK", "Microsoft Agent Framework", "Provider Abstraction", "Config"],
         "audience": "DevOps + platform engineers",
         "excerpt": "Zero-code LLM provider swaps across environments: Ollama for dev, OpenAI for staging, Azure Foundry for prod. Same agents, different models.",
         "series": "ADK to Microsoft Agent Framework Migration",
@@ -1986,7 +1985,7 @@ POST_META = {
     "2026-06-06-adk-to-maf-callbacks.md": {
         "slug": "adk-to-maf-callbacks",
         "date": "2026-06-06",
-        "tags": ["ADK", "MAF", "Middleware", "Observability", "OTel"],
+        "tags": ["ADK", "Microsoft Agent Framework", "Middleware", "Observability", "OTel"],
         "audience": "SRE + observability engineers",
         "excerpt": "Migrate ADK callbacks to Microsoft Agent Framework composable middleware: decorators for audit logging, retry with backoff, token budget enforcement, and OpenTelemetry tracing.",
         "series": "ADK to Microsoft Agent Framework Migration",
@@ -1996,7 +1995,7 @@ POST_META = {
     "2026-06-07-adk-to-maf-deployment.md": {
         "slug": "adk-to-maf-deployment",
         "date": "2026-06-07",
-        "tags": ["ADK", "MAF", "Deployment", "Cloud Run", "A2A"],
+        "tags": ["ADK", "Microsoft Agent Framework", "Deployment", "Cloud Run", "A2A"],
         "audience": "Cloud architects + SRE",
         "excerpt": "Deploy Microsoft Agent Framework multi-agent systems on Cloud Run with A2A agent-to-agent communication, autoscaling, load balancing, and production observability dashboards.",
         "series": "ADK to Microsoft Agent Framework Migration",
@@ -2006,7 +2005,7 @@ POST_META = {
     "2026-06-08-adk-to-maf-lessons.md": {
         "slug": "adk-to-maf-lessons",
         "date": "2026-06-08",
-        "tags": ["ADK", "MAF", "Case Study", "Lessons Learned"],
+        "tags": ["ADK", "Microsoft Agent Framework", "Case Study", "Lessons Learned"],
         "audience": "All engineers",
         "excerpt": "What worked, what was hard, and what we'd do differently. Real numbers: 18 agents, 90 days, 5 governance policies, 4 provider swaps.",
         "featured": True,
@@ -2038,7 +2037,7 @@ POST_META = {
     "auto-003-agentic-architecture-on-mara.md": {
         "slug": "agentic-architecture-on-mara",
         "date": "2026-04-10",
-        "tags": ['Architecture', 'MAF', 'Go', 'Multi-Agent AI'],
+        "tags": ["Architecture", "Microsoft Agent Framework", "Go", "Multi-Agent AI"],
         "audience": "Engineering",
         "excerpt": "Microsoft\'s Multi-Agent Reference Architecture in Go. Protocol, registry, bus, governance, orchestration, observability, evaluation — and how the seven hold each other up.",
     },
@@ -2543,77 +2542,77 @@ POST_META = {
     "june-maf-reference-architecture-overview.html": {
         "slug": "maf-reference-architecture-overview",
         "date": "2026-06-09",
-        "tags": ['Multi-Agent', 'MAF', 'Architecture', 'Python'],
+        "tags": ["Multi-Agent", "Microsoft Agent Framework", "Architecture", "Python"],
         "audience": "Engineering",
         "excerpt": "Microsoft published a 12-chapter reference architecture for multi-agent systems and a separate framework — the Microsoft Agent Framework — to build them. Here is what the 102 Python files actually contain and how they map to the chapters.",
     },
     "june-maf-four-orchestration-patterns.html": {
         "slug": "maf-four-orchestration-patterns",
         "date": "2026-06-10",
-        "tags": ['MAF', 'Workflows', 'Orchestration', 'Python'],
+        "tags": ["Microsoft Agent Framework", "Workflows", "Orchestration", "Python"],
         "audience": "Engineering",
         "excerpt": "Sequential, Concurrent, Handoff, and Custom WorkflowBuilder. Four shapes the Microsoft Agent Framework ships out of the box, when to pick each, and the gotchas that cost me a day.",
     },
     "june-maf-five-patterns-group-chat-magentic.html": {
         "slug": "maf-five-patterns-group-chat-magentic",
         "date": "2026-06-11",
-        "tags": ['MAF', 'Workflows', 'Orchestration', 'Magentic'],
+        "tags": ["Microsoft Agent Framework", "Workflows", "Orchestration", "Magentic"],
         "audience": "Engineering",
         "excerpt": "The first ten posts treated the Microsoft Agent Framework as having four orchestration patterns. The official docs say five. Here are the two I missed — Group Chat and Magentic — and why they matter.",
     },
     "june-maf-ollama-as-default.html": {
         "slug": "maf-ollama-as-default",
         "date": "2026-06-12",
-        "tags": ['MAF', 'Ollama', 'Local AI', 'Developer Experience'],
+        "tags": ["Microsoft Agent Framework", "Ollama", "Local AI", "Developer Experience"],
         "audience": "Engineering",
         "excerpt": "PROVIDER=ollama, granite4.1:3b, zero API keys, no Azure account. How to make a multi-agent project that demonstrates enterprise patterns without requiring enterprise infrastructure.",
     },
     "june-maf-agent-registry-convention.html": {
         "slug": "maf-agent-registry-convention",
         "date": "2026-06-13",
-        "tags": ['MAF', 'Architecture', 'Python', 'Registry'],
+        "tags": ["Microsoft Agent Framework", "Architecture", "Python", "Registry"],
         "audience": "Engineering",
         "excerpt": "The Microsoft Agent Framework deliberately does not ship an agent registry. Here is why that is the right call, and what to build as a project-local convention when you need one.",
     },
     "june-maf-memory-done-right.html": {
         "slug": "maf-memory-done-right",
         "date": "2026-06-14",
-        "tags": ['MAF', 'Memory', 'Python', 'Architecture'],
+        "tags": ["Microsoft Agent Framework", "Memory", "Python", "Architecture"],
         "audience": "Engineering",
         "excerpt": "AgentSession is short-term memory. MemoryContextProvider + MemoryFileStore is long-term memory. Mem0 is long-term memory for serious workloads. The boundary that matters and how to implement each.",
     },
     "june-maf-a2a-workflow-is-broker.html": {
         "slug": "maf-a2a-workflow-is-broker",
         "date": "2026-06-15",
-        "tags": ['MAF', 'A2A', 'Communication', 'Architecture'],
+        "tags": ["Microsoft Agent Framework", "A2A", "Communication", "Architecture"],
         "audience": "Engineering",
         "excerpt": "The reference architecture distinguishes request-based and message-driven agent communication. For in-process orchestration, the workflow IS the broker — and A2A is just the wire format.",
     },
     "june-maf-observability-traces-metrics.html": {
         "slug": "maf-observability-traces-metrics",
         "date": "2026-06-16",
-        "tags": ['MAF', 'Observability', 'OpenTelemetry', 'Grafana'],
+        "tags": ["Microsoft Agent Framework", "Observability", "OpenTelemetry", "Grafana"],
         "audience": "Engineering",
         "excerpt": "OpenTelemetry through the Microsoft Agent Framework's configure_otel_providers, custom workflow spans, custom metrics for runs/duration/agent selection, Jaeger + Prometheus + Grafana wiring, and the set-once latch gotcha.",
     },
     "june-maf-multi-turn-evals-first-principles.html": {
         "slug": "maf-multi-turn-evals-first-principles",
         "date": "2026-06-17",
-        "tags": ['MAF', 'Evaluation', 'LLM-as-Judge', 'Python'],
+        "tags": ["Microsoft Agent Framework", "Evaluation", "LLM-as-Judge", "Python"],
         "audience": "Engineering",
         "excerpt": "Single-turn evals check one decision. Multi-turn evals check the whole trajectory. A Python harness with three evaluators, an offline test suite, and the judge prompt that actually works.",
     },
     "june-maf-refactor-to-native-packages.html": {
         "slug": "maf-refactor-to-native-packages",
         "date": "2026-06-18",
-        "tags": ['MAF', 'Refactor', 'Engineering'],
+        "tags": ["Microsoft Agent Framework", "Refactor", "Engineering"],
         "audience": "Engineering",
         "excerpt": "I built memory, communication, security, governance, and evals from scratch first. Then I deleted most of it and used the Microsoft Agent Framework-native packages. Here is the audit table and what survived.",
     },
     "june-maf-governance-with-agt.html": {
         "slug": "maf-governance-with-agt",
         "date": "2026-06-19",
-        "tags": ['MAF', 'Governance', 'AGT', 'OWASP', 'Security'],
+        "tags": ["Microsoft Agent Framework", "Governance", "AGT", "OWASP", "Security"],
         "audience": "Engineering",
         "excerpt": "OWASP Agentic Top 10 coverage with YAML policy files, two API surfaces, and a metric bridge that shows policy denials in Grafana.",
     },
@@ -2640,7 +2639,7 @@ TAG_DESCRIPTIONS = {
     "Evaluation": "Evaluation in AI and ML systems means measuring whether models and agents actually perform correctly on tasks that matter. These articles cover benchmark design, LLM-as-judge patterns, OpenTelemetry-based evaluation pipelines, and the tooling needed to move from demo accuracy to production-grade reliability.",
     "Go": "Go is the primary implementation language across these projects, chosen for its compile-time safety, goroutine concurrency, and deployment simplicity. Posts tagged with Go cover idiomatic patterns, standard-library techniques, performance tuning, and real-world architecture decisions in production Go services.",
     "HIPAA": "HIPAA (Health Insurance Portability and Accountability Act) sets the technical safeguards that protect patient health information in the United States. These posts translate HIPAA requirements into engineering artifacts: row-level security policies, append-only audit logs, PHI redaction at the logger seam, and access control as Go interfaces.",
-    "MAF": "Microsoft Agent Framework (MAF) is a production-grade SDK for building multi-agent AI applications with structured orchestration, tool governance, and observability. These articles cover Microsoft Agent Framework architecture, workflow patterns, memory management, agent registry conventions, and migration paths from other frameworks.",
+    "Microsoft Agent Framework": "Microsoft Agent Framework (MAF) is a production-grade SDK for building multi-agent AI applications with structured orchestration, tool governance, and observability. These articles cover Microsoft Agent Framework architecture, workflow patterns, memory management, agent registry conventions, and migration paths from other frameworks.",
     "Multi-Agent AI": "Multi-agent AI systems coordinate multiple specialized agents to solve problems that are too complex for a single model. Posts here explore supervisor-worker topologies, agent lifecycle management, tool governance, security envelopes, and the operational patterns required to run multi-agent systems in production.",
     "Multi-Agent": "Multi-agent systems decompose complex workflows into cooperating specialized components. These articles cover orchestration patterns, state management, deployment strategies, and the architectural trade-offs involved in coordinating multiple autonomous agents within a single platform. Topics include supervisor-worker topologies, parallel dispatch with errgroup, and production deployment on Cloud Run.",
     "Architecture": "Software architecture defines the structural decisions that shape a system's quality attributes: performance, maintainability, and resilience. These posts present architecture patterns, framework comparisons, monolith-to-microservices migration, and the design trade-offs behind production systems.",
@@ -3766,6 +3765,9 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
   <h2 class="section-heading">Browse by Topic</h2>
   <div class="tag-cloud">
     {tag_items}
+  </div>
+  <div class="view-all-cta">
+    <a href="/blog/tags/">View all topics &rarr;</a>
   </div>
 </section>"""
 
