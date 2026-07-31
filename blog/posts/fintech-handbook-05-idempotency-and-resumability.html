@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Idempotency and Full Resumability — Pratik Dhanave</title>
+<meta name="description" content="The network times out ambiguously, so every request runs zero, one, or many times. Idempotency keys make many behave like one; full resumability lets a...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Idempotency and Full Resumability — Pratik Dhanave">
+<meta property="og:description" content="The network times out ambiguously, so every request runs zero, one, or many times. Idempotency keys make many behave like one; full resumability lets a crashed money flow resume from its last committed step.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-handbook-05-idempotency-and-resumability.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-29T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Idempotency">
+<meta property="article:tag" content="Reliability">
+<meta property="article:tag" content="Resilience">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Idempotency and Full Resumability — Pratik Dhanave">
+<meta name="twitter:description" content="The network times out ambiguously, so every request runs zero, one, or many times. Idempotency keys make many behave like one; full resumability lets a crashed money flow resume from its last committed step.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-handbook-05-idempotency-and-resumability.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Idempotency and Full Resumability",
+  "description": "The network times out ambiguously, so every request runs zero, one, or many times. Idempotency keys make many behave like one; full resumability lets a crashed money flow resume from its last committed step.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-29",
+  "dateModified": "2026-07-29",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Idempotency, Reliability, Resilience",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-handbook-05-idempotency-and-resumability.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-handbook-05-idempotency-and-resumability.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Idempotency and Full Resumability</h1>
+    <p class="post-subtitle">The network will time out mid-transfer. The only safe assumption is that every request runs zero, one, or many times — so make &quot;many&quot; behave like &quot;one.&quot;</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-29">July 29, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/idempotency/" class="tag-link"><span class="tag">Idempotency</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">Reliability</span></a><a href="/blog/tags/resilience/" class="tag-link"><span class="tag">Resilience</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 5 of 8</span>
+    <span class="series-title">The Fintech Engineering Handbook</span>
+    <div class="series-nav"><a href="/blog/posts/fintech-handbook-04-executing-money-flows.html" class="series-prev">&larr; Part 4: Executing Money Flows: Invariants, Reservations, and Overdrafts</a>
+<a href="/blog/posts/fintech-handbook-06-apis-and-webhooks.html" class="series-next">Part 6: Consuming APIs and Handling Webhooks &rarr;</a></div>
+  </div>
+
+
+
+  <p>Here is the uncomfortable truth about distributed money movement: the wire does not tell you the truth. A client fires a request to move funds, the server does the work, and then the connection dies before the response comes back. The client is now stuck in the worst possible epistemic state — it has no idea whether the transfer happened. Did the server commit and lose the ack on the way home? Or did the request never land at all? From where the client sits, those two outcomes are indistinguishable.</p>
+<p>So the client does the only sane thing: it retries. And a naive server, seeing what looks like a brand-new request, cheerfully moves the money a second time. Now you have double-charged a customer because of a dropped TCP packet. This is not a hypothetical. This is the default behavior of any HTTP API that treats a <code>POST /transfers</code> as unconditionally fresh work.</p>
+<h2 id="the-timeout-tells-you-nothing">The timeout tells you nothing</h2>
+<p>Engineers new to payments often assume a timeout means failure. It does not. A timeout means <em>unknown</em>. The three possible states after any network call are: it ran zero times, it ran exactly once, or — after retries — it ran many times. Your job as a backend engineer is to collapse &ldquo;zero, one, or many&rdquo; down to a single guaranteed outcome: the effect happens <strong>at most once</strong>, and if the client keeps asking, it eventually learns that it <em>did</em> happen.</p>
+<p>Notice the framing. We are not chasing exactly-once <em>delivery</em> — that is provably impossible over an unreliable network without an infinite retry budget. We are chasing exactly-once <em>effect</em>. Messages can arrive as often as they like; the money moves precisely once. That distinction is the whole game.</p>
+<h2 id="idempotency-keys-and-where-the-guarantee-actually-lives">Idempotency keys, and where the guarantee actually lives</h2>
+<p>The mechanism is a client-generated <strong>idempotency key</strong> — a unique token, typically a UUID, that the client mints once per <em>logical</em> operation and reuses across every retry of that same operation. It travels in a header like <code>Idempotency-Key: 7f3a...</code>. The key says &ldquo;these requests are all the same intent; do the work at most once.&rdquo;</p>
+<p>The subtlety that separates a correct implementation from a broken one is <em>where the guarantee is enforced</em>. The server must record <code>(key -&gt; result)</code> in the <strong>same database transaction</strong> as the effect itself. If you charge the account in one transaction and write the idempotency record in another, you have opened a window: crash between the two and a retry sees no record, redoes the charge, and your dedup layer was theater. Atomicity is not a nice-to-have here; it is the entire contract.</p>
+<pre><code>                    ┌─────────────────────────────────────────┐
+  FIRST REQUEST     │  key=K not found in dedup store          │
+  Idempotency-Key:K │  BEGIN TX                                │
+  ───────────────►  │    debit account  (the real effect)      │
+                    │    INSERT (K -&gt; result) in same TX       │
+                    │  COMMIT                                   │
+  ◄───────────────  │  return result, HTTP 201                 │
+   201 Created      └─────────────────────────────────────────┘
+
+                    ┌─────────────────────────────────────────┐
+  REPLAY (retry)    │  key=K FOUND in dedup store              │
+  Idempotency-Key:K │  ── skip the effect entirely ──          │
+  ───────────────►  │  no debit, no new TX for the money       │
+                    │  read stored result for K                │
+  ◄───────────────  │  return SAME result, HTTP 200            │
+   200 OK (replay)  └─────────────────────────────────────────┘
+</code></pre>
+<p>The replay path is the point of the whole design: it returns the <em>stored</em> answer and performs <strong>no new effect</strong>. The customer sees one debit no matter how many times the client panics and retries.</p>
+<p>A minimal server sketch:</p>
+<pre><code class="language-python">def transfer(key, account, amount):
+    with db.transaction() as tx:
+        existing = tx.get_idempotency(key)
+        if existing is not None:
+            return existing.result          # replay: no effect
+        result = do_debit(tx, account, amount)  # the real effect
+        tx.put_idempotency(key, result)         # same TX as the debit
+        return result
+</code></pre>
+<p>One more wrinkle: what if a <em>second</em> request with key <code>K</code> arrives while the first is still in flight? Take a lock or a unique constraint on the key so the concurrent caller blocks or gets a <code>409</code>, rather than racing past an as-yet-uncommitted record.</p>
+<h2 id="scoping-and-ttl-the-boring-details-that-bite">Scoping and TTL — the boring details that bite</h2>
+<p>Two operational decisions decide whether your dedup layer is trustworthy.</p>
+<p><strong>Scoping.</strong> A key is not globally unique; it is unique <em>within a context</em>. Scope it per endpoint <strong>and</strong> per account. Otherwise a stray key reused across a refund endpoint and a transfer endpoint could return the wrong stored result, and a key colliding across two accounts leaks one customer&rsquo;s outcome to another. The dedup store&rsquo;s primary key should effectively be <code>(endpoint, account_id, idempotency_key)</code>.</p>
+<p><strong>TTL.</strong> You cannot keep every key forever; the dedup store would grow without bound. So you set a TTL — commonly 24 to 72 hours — long enough to outlive any realistic retry window. The trade-off is explicit: a retry that arrives <em>after</em> the TTL expires is treated as fresh and may re-run the effect. Size the TTL to your maximum client retry horizon, and make sure clients stop retrying before it. For a deeper treatment of enforcing this at more than one point in the stack, see <a href="/blog/posts/globe-idempotency-three-layers.html">three layers of idempotency</a>.</p>
+<h2 id="tame-the-retry-storm">Tame the retry storm</h2>
+<p>Idempotency makes retries <em>safe</em>; it does not make them <em>free</em>. A thousand clients all retrying a struggling service on a tight fixed interval will synchronize into a thundering herd and keep the service down. Retries need <strong>exponential backoff with jitter</strong> — each attempt waits longer, and a random component smears the retries across time so they do not all hammer the server on the same tick.</p>
+<pre><code>attempt n:  wait = random(0, min(cap, base * 2**n))
+</code></pre>
+<p>The jitter is not optional decoration. Without it, backoff still leaves every client firing in lockstep. With it, the load spreads and the service gets room to recover.</p>
+<h2 id="full-resumability-idempotency-across-steps">Full resumability: idempotency across steps</h2>
+<p>A single debit is the easy case. Real money flows have several committed steps — reserve funds, debit the source, credit the destination, emit a ledger entry, notify downstream. If the process crashes halfway and simply <em>restarts from the top</em>, you double-apply every completed step. That is the same double-charge bug, just wearing a longer coat.</p>
+<p>The fix is <strong>full resumability</strong>: persist the workflow&rsquo;s state to durable storage after each committed step — a checkpoint. On restart, the orchestrator reads the last checkpoint and resumes from the <em>next</em> step, not the first. Crucially, make <strong>each individual step idempotent</strong> (its own key, its own dedup record), so that if a crash lands right on a checkpoint boundary and a step is retried, re-running it is a safe no-op.</p>
+<pre><code>  reserve ──✓──► debit ──✓──► credit ──✗ CRASH
+                                 │
+                                 └─ checkpoint says: reserve✓ debit✓ credit?
+  RESUME: re-run credit (idempotent → safe), then continue.
+          reserve and debit are NOT repeated.
+</code></pre>
+<p>Checkpoint plus per-step idempotency turns a fragile multi-step flow into one that tolerates crashes anywhere without ever applying an effect twice.</p>
+<h2 id="why-it-matters">Why it matters</h2>
+<p>Money is the one domain where &ldquo;eventually roughly right&rdquo; is a breach of trust. A duplicated charge is not a minor glitch a user shrugs off — it is a support ticket, a chargeback, a regulator&rsquo;s raised eyebrow, and a customer who never comes back. Idempotency keys and resumable, checkpointed workflows are how you keep the one promise that actually matters: no matter how badly the network behaves, no matter how many times a nervous client retries, the money moves exactly once. Build it into the transaction boundary from day one. Bolting it on after the first double-charge incident is always more expensive than the incident itself.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-handbook-07-outbox-cdc-reconciliation.html">Reliable Delivery: The Outbox, CDC, and Reconciliation</a>
+      <span class="related-date">Jul 31</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-handbook-06-apis-and-webhooks.html">Consuming APIs and Handling Webhooks</a>
+      <span class="related-date">Jul 30</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-handbook-04-executing-money-flows.html">Executing Money Flows: Invariants, Reservations, and Overdrafts</a>
+      <span class="related-date">Jul 28</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://docs.stripe.com/api/idempotent_requests" target="_blank" rel="noopener noreferrer">Stripe — idempotent requests</a></div>
+      <div class="citation-context">Reference for this topic</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
