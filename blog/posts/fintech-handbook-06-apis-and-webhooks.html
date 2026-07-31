@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Consuming APIs and Handling Webhooks — Pratik Dhanave</title>
+<meta name="description" content="Talking to a payment rail is the least reliable part of your system. Treat every outbound call as fallible and reconcile on ambiguity; treat every...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Consuming APIs and Handling Webhooks — Pratik Dhanave">
+<meta property="og:description" content="Talking to a payment rail is the least reliable part of your system. Treat every outbound call as fallible and reconcile on ambiguity; treat every inbound webhook as hostile — verify, dedupe, ack fast, and go read the truth.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-handbook-06-apis-and-webhooks.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-30T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="Webhooks">
+<meta property="article:tag" content="Reliability">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Consuming APIs and Handling Webhooks — Pratik Dhanave">
+<meta name="twitter:description" content="Talking to a payment rail is the least reliable part of your system. Treat every outbound call as fallible and reconcile on ambiguity; treat every inbound webhook as hostile — verify, dedupe, ack fast, and go read the truth.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-handbook-06-apis-and-webhooks.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Consuming APIs and Handling Webhooks",
+  "description": "Talking to a payment rail is the least reliable part of your system. Treat every outbound call as fallible and reconcile on ambiguity; treat every inbound webhook as hostile \u2014 verify, dedupe, ack fast, and go read the truth.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-30",
+  "dateModified": "2026-07-30",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Payments, Webhooks, Reliability",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-handbook-06-apis-and-webhooks.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-handbook-06-apis-and-webhooks.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Consuming APIs and Handling Webhooks</h1>
+    <p class="post-subtitle">Talking to a payment rail is the least reliable part of your system. Treat every outbound call as fallible and every inbound webhook as hostile.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-30">July 30, 2026</time>
+      <span>·</span>
+      <span>7 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">Payments</span></a><a href="/blog/tags/webhooks/" class="tag-link"><span class="tag">Webhooks</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">Reliability</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 6 of 8</span>
+    <span class="series-title">The Fintech Engineering Handbook</span>
+    <div class="series-nav"><a href="/blog/posts/fintech-handbook-05-idempotency-and-resumability.html" class="series-prev">&larr; Part 5: Idempotency and Full Resumability</a>
+<a href="/blog/posts/fintech-handbook-07-outbox-cdc-reconciliation.html" class="series-next">Part 7: Reliable Delivery: The Outbox, CDC, and Reconciliation &rarr;</a></div>
+  </div>
+
+
+
+  <p>Inside your own process, a function call either returns or throws, and you believe the answer. The moment a request leaves your machine for a payment rail, a KYC provider, or a card network, that certainty is gone. The network can drop the reply after the work was done. The far side can be mid-deploy. A load balancer can quietly hold your connection open for thirty seconds and then reset it. If you write integration code that assumes the happy path, production will teach you the rest of the state space one incident at a time. This chapter is about the two directions of that conversation: the calls you make out, and the events that come back in.</p>
+<h2 id="every-outbound-call-is-a-bet">Every outbound call is a bet</h2>
+<p>Start with the boring discipline, because it prevents the exciting outages. Every single outbound call gets an explicit timeout — connect and read, both bounded, both short. A payment authorization that has not answered in four seconds is not going to redeem itself at forty; it is just holding a goroutine, a thread, or a connection-pool slot that you will need when traffic spikes. The default timeout in most HTTP clients is effectively infinity, and infinity is how a single slow dependency turns into a cascading thread-pool exhaustion that takes down endpoints that never even touched that dependency.</p>
+<p>When a call fails in a way that might be transient — a <code>503</code>, a connection reset, a timeout — you retry, but retries are where naive code does real damage. Two rules are non-negotiable. First, every retry carries an <strong>idempotency key</strong>: a stable token, usually a UUID you generate once per logical operation, sent as a header so the rail can recognize &ldquo;this is the same payment you already saw&rdquo; and return the original result instead of charging the customer twice. Second, retries back off exponentially <em>with jitter</em> — <code>1s</code>, <code>2s</code>, <code>4s</code>, each randomized within a window. Without jitter, a rail that blips for a moment gets a synchronized thundering herd from every one of your instances retrying in lockstep, and you become the reason it stays down. A little randomness spreads the load and lets it recover.</p>
+<pre><code>attempt 1 ──▶ timeout (4s)
+     wait 1s ± jitter, same idempotency-key
+attempt 2 ──▶ timeout
+     wait 2s ± jitter, same idempotency-key
+attempt 3 ──▶ 200 OK  (rail replays original result)
+</code></pre>
+<p>And you cap it. After N failures, or once the error rate to a dependency crosses a threshold, a <strong>circuit breaker</strong> trips: you stop calling for a cooling-off window and fail fast locally. Hammering a dependency that is already on the floor does not help it stand up, and it burns your own capacity generating requests that will only time out. An open breaker is a mercy to both sides — and it gives you a clean signal to degrade gracefully instead of stalling.</p>
+<h2 id="the-ambiguous-result-problem">The ambiguous result problem</h2>
+<p>Here is the part that separates people who have run money at scale from people who have not. A timeout does not mean the operation failed. It means <em>you do not know</em>. Your request may have reached the rail, debited the customer, and then the response got lost on the way back. If you treat that timeout as a failure and retry without an idempotency key — or worse, without checking — you can double-charge. If you treat it as a failure and give up, you can lose a payment the rail actually completed.</p>
+<p>You cannot resolve ambiguity by guessing. You resolve it by asking the authoritative system what actually happened. The move is <strong>reconcile, not blindly retry</strong>: on an ambiguous outcome, call the rail&rsquo;s status endpoint for that idempotency key or reference and let the rail tell you the truth. Only act on what it reports. This is exactly the class of edge case that the <a href="/blog/posts/upi-integration-spec-quirks.html">UPI integration spec quirks</a> will bite you on — deemed-approved states, pending-that-becomes-success, and status codes that mean something narrower than they appear.</p>
+<pre><code>your service ──charge (idempotency-key=K)──▶ rail
+                        │
+                   (timeout — no reply)
+                        │
+                UNKNOWN, not FAILED
+                        │
+your service ──GET status?key=K──────────▶ rail
+              ◀── {status: SUCCEEDED} ─────
+                        │
+              record truth, move on
+</code></pre>
+<p>Practically, this means an operation is never &ldquo;done&rdquo; just because your code returned. It is done when authoritative state confirms it. Persist the intent <em>before</em> the call (<code>PENDING</code>), record the idempotency key, and run a reconciliation sweep that revisits anything stuck in an ambiguous state. That background job is not optional polish; it is the safety net under every timeout you will ever get.</p>
+<h2 id="webhooks-are-hints-not-truth">Webhooks are hints, not truth</h2>
+<p>The inbound direction inverts your trust model. A webhook is an HTTP request from the outside world hitting a public endpoint, and you must assume anyone on the internet can send you a forged one. Treat every payload as hostile until proven otherwise.</p>
+<p><strong>Verify the signature first, before you parse anything meaningfully.</strong> Rails sign each webhook with an HMAC over the raw request body using a shared secret. You recompute it and compare — with a constant-time comparison, not <code>==</code>, so you do not leak the secret through timing.</p>
+<pre><code class="language-python">import hmac, hashlib
+
+def valid(raw_body: bytes, header_sig: str, secret: bytes) -&gt; bool:
+    expected = hmac.new(secret, raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, header_sig)
+</code></pre>
+<p>Note it hashes the <em>raw</em> bytes — if your framework parses and re-serializes the JSON first, the signature will not match, so capture the body before any middleware touches it.</p>
+<p>Signature alone is not enough. A valid signed request can still be a <strong>replay</strong> — an attacker capturing a real webhook and resending it. Rails include a timestamp in the signed material; reject anything older than a few minutes, and track a nonce or event ID so the same event cannot be processed twice. Which leads to the two assumptions that break people: webhooks are <strong>not ordered</strong> and <strong>not exactly-once</strong>. You will receive <code>payment.succeeded</code> before <code>payment.created</code>. You will receive the same event twice. Both are normal. Your handler must be idempotent — keyed on the event ID — so a duplicate is a no-op and out-of-order arrivals converge to the right state regardless of sequence.</p>
+<h2 id="ack-fast-process-later">Ack fast, process later</h2>
+<p>The last mistake is doing real work inside the webhook request. The sender has its own timeout, and if your handler spends eight seconds updating ledgers and calling downstream services before returning <code>200</code>, the rail concludes delivery failed and retries — so your slow handler manufactures the very duplicates you are trying to avoid. Instead: verify, dedupe, enqueue, and return <code>200</code> immediately. Do the actual processing asynchronously off a queue.</p>
+<pre><code>rail ──▶ POST /webhooks
+           │ verify HMAC        (reject 401 if bad)
+           │ check timestamp    (reject stale replays)
+           │ dedupe on event-id (seen? ack + drop)
+           │ enqueue raw event
+           └─▶ 200 OK  (fast)          ▶ worker: process idempotently
+</code></pre>
+<p>And process the event the same way you handle an ambiguous outbound call: the webhook tells you <em>something changed</em> — it is a hint to go read authoritative state, not a fact to trust wholesale. Fetch the current status from the rail&rsquo;s API and act on that. This also gives you a clean seam for policy — the point where an event, once verified, gets acted on is exactly where logic like <a href="/blog/posts/npci-rail-routing-with-hitl.html">routing NPCI rails with a human in the loop</a> belongs.</p>
+<h2 id="why-it-matters">Why it matters</h2>
+<p>Every rule here — timeouts, idempotency keys, jittered backoff, breakers, reconciliation, signature checks, replay rejection, fast acks, idempotent async handlers — exists because a real system moved real money into a state nobody could explain. The integration layer is where your clean internal model meets an unreliable, adversarial outside world, and it is the layer that determines whether a bad network day is a shrug or a support queue full of double charges. Assume the call can lie about whether it worked. Assume the webhook is forged, replayed, out of order, and doubled. Build so that none of that corrupts your books. Get this boundary right and everything upstream of it gets to stay simple.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-handbook-04-executing-money-flows.html">Executing Money Flows: Invariants, Reservations, and Overdrafts</a>
+      <span class="related-date">Jul 28</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-handbook-07-outbox-cdc-reconciliation.html">Reliable Delivery: The Outbox, CDC, and Reconciliation</a>
+      <span class="related-date">Jul 31</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-handbook-05-idempotency-and-resumability.html">Idempotency and Full Resumability</a>
+      <span class="related-date">Jul 29</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://docs.stripe.com/webhooks" target="_blank" rel="noopener noreferrer">Stripe — webhooks</a></div>
+      <div class="citation-context">Reference for this topic</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

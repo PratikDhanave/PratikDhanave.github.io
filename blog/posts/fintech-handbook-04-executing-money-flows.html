@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Executing Money Flows: Invariants, Reservations, and...</title>
+<meta name="description" content="A transfer is a state machine with money on the line. Model the states explicitly, reserve funds before you commit, enforce invariants at every...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Executing Money Flows: Invariants, Reservations, and...">
+<meta property="og:description" content="A transfer is a state machine with money on the line. Model the states explicitly, reserve funds before you commit, enforce invariants at every transition, and decide up front what an overdraft even means.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-handbook-04-executing-money-flows.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-28T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="Reliability">
+<meta property="article:tag" content="State Machine">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Executing Money Flows: Invariants, Reservations, and...">
+<meta name="twitter:description" content="A transfer is a state machine with money on the line. Model the states explicitly, reserve funds before you commit, enforce invariants at every transition, and decide up front what an overdraft even means.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-handbook-04-executing-money-flows.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Executing Money Flows: Invariants, Reservations, and Overdrafts",
+  "description": "A transfer is a state machine with money on the line. Model the states explicitly, reserve funds before you commit, enforce invariants at every transition, and decide up front what an overdraft even means.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-28",
+  "dateModified": "2026-07-28",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Payments, Reliability, State Machine",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-handbook-04-executing-money-flows.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-handbook-04-executing-money-flows.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Executing Money Flows: Invariants, Reservations, and Overdrafts</h1>
+    <p class="post-subtitle">A transfer is a state machine with money on the line. Model the states explicitly, reserve funds before you commit, and decide up front what an overdraft even means.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-28">July 28, 2026</time>
+      <span>·</span>
+      <span>7 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">Payments</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">Reliability</span></a><a href="/blog/tags/state-machine/" class="tag-link"><span class="tag">State Machine</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 4 of 8</span>
+    <span class="series-title">The Fintech Engineering Handbook</span>
+    <div class="series-nav"><a href="/blog/posts/fintech-handbook-03-audit-trails-event-sourcing.html" class="series-prev">&larr; Part 3: Audit Trails, Event Sourcing, and the GDPR Problem</a>
+<a href="/blog/posts/fintech-handbook-05-idempotency-and-resumability.html" class="series-next">Part 5: Idempotency and Full Resumability &rarr;</a></div>
+  </div>
+
+
+
+  <p>The first time you move money in production, you learn that &ldquo;success&rdquo; is a lie. A transfer is not a function that returns <code>true</code> or <code>false</code>. It is a small, stubborn machine that lives across time, survives process restarts, and occasionally gets stuck halfway between &ldquo;the money left&rdquo; and &ldquo;the money arrived.&rdquo; If your code represents that machine as a single boolean column called <code>is_complete</code>, you have already lost — no boolean honestly describes a payment whose funds are held but not yet posted.</p>
+<p>This post treats money movement as what it is: an explicit state machine, guarded by invariants you refuse to violate, funded through a two-phase reserve-then-capture pattern, and bounded by an overdraft policy you decided on purpose.</p>
+<h2 id="model-the-transfer-as-a-state-machine-not-a-flag">Model the transfer as a state machine, not a flag</h2>
+<p>Every money movement occupies exactly one state at any instant, and moves between states only along edges you have explicitly allowed. Write the states down, persist the current one, and make every illegal transition impossible to express.</p>
+<pre><code>                 +-----------+
+                 | INITIATED |
+                 +-----+-----+
+                       | reserve()
+                       v
+             +-------------------+       expire / release
+             |  FUNDS_RESERVED   +----------------+
+             +---+-----------+---+                |
+      capture()  |           | reject            v
+                 v           v             +-----------+
+            +--------+   +--------+         | EXPIRED   |
+            | POSTED |   | FAILED |         +-----------+
+            +---+----+   +--------+
+                | settle()
+                v
+           +----------+     reverse()   +-----------+
+           | SETTLED  +----------------&gt;| REVERSED  |
+           +----------+                 +-----------+
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/handbook-diagrams/transfer-state-machine.html">Open the interactive lifecycle diagram</a></strong> — pan, zoom, and trace every transition in the state machine above.</p>
+</blockquote>
+<p>Notice what the diagram forbids. You cannot go from <code>INITIATED</code> straight to <code>POSTED</code>; funds must be reserved first. You cannot <code>capture()</code> a transfer that already <code>EXPIRED</code>. <code>FAILED</code> and <code>EXPIRED</code> are terminal. <code>REVERSED</code> exists because <code>SETTLED</code> is terminal for the <em>forward</em> flow — you never mutate a settled transfer, you post a compensating one.</p>
+<p>In code, this is a transition table, not a pile of <code>if</code> statements scattered across services — something like <code>ALLOWED = {("initiated","funds_reserved"), ...}</code>. Every write goes through one function that checks membership before it touches the row. An unknown transition raises, loudly, before any balance changes. The state column is the source of truth; timestamps, ledger rows, and webhook receipts hang off it.</p>
+<p>The payoff is that &ldquo;where is this payment?&rdquo; stops being a forensic exercise. When something breaks at 3am, the on-call engineer sees <code>funds_reserved</code> and knows which recovery path applies, instead of staring at <code>is_complete = false</code> and guessing whether the money moved.</p>
+<h2 id="the-invariants-you-enforce-at-every-edge">The invariants you enforce at every edge</h2>
+<p>A state machine tells you <em>what order</em> things happen in. Invariants tell you <em>what must stay true</em> regardless of order. Run these checks inside the same database transaction as the state change, so a violation aborts the whole thing. Three earn their keep in almost every system:</p>
+<ul>
+<li><strong>Balances never go negative unless overdraft is explicitly permitted.</strong> A guard on the debit side of every posting. Default to a hard floor of zero; loosen it only where policy says so.</li>
+<li><strong>The sum of a transfer&rsquo;s postings is zero.</strong> Money is conserved. A <code>$50</code> movement is a <code>-50</code> on one account and a <code>+50</code> on another — double-entry, always balanced. If your postings sum to anything but zero, you have invented or destroyed money. A cheap <code>assert sum(postings) == 0</code> before commit has caught more bugs than any amount of unit testing.</li>
+<li><strong>Reserved funds are never double-spent.</strong> Once an amount is held, it is unavailable to any other movement until the hold is captured or released — which only holds if &ldquo;available balance&rdquo; accounts for holds.</li>
+</ul>
+<p>Enforce these at the lowest layer you own, ideally with database constraints backing the application checks. A <code>CHECK (balance &gt;= overdraft_limit)</code> constraint is a seatbelt: application code should never trip it, but the day a race condition slips through, the database refuses rather than recording a negative balance you can&rsquo;t explain to an auditor.</p>
+<h2 id="reserve-first-capture-second">Reserve first, capture second</h2>
+<p>The single most useful pattern in money movement is borrowed from card networks: <strong>two-phase capture</strong>. You do not debit an account the moment someone asks to move money. You <em>reserve</em> (authorize, hold, earmark) the amount first, then <em>capture</em> (post, settle) it in a separate step — or <em>release</em> the hold if the second step never comes.</p>
+<p>Reserving does not move money. It records a claim: &ldquo;this <code>$50</code> is spoken for.&rdquo; The funds still sit in the account, but are subtracted from what&rsquo;s spendable. That claim is what makes double-spending impossible — a second concurrent transfer sees the reduced availability and cannot grab the same dollars.</p>
+<pre><code>available = current_balance - active_holds + overdraft_limit
+</code></pre>
+<p>That formula is the heart of it. A <code>$100</code> balance with a <code>$30</code> hold and no overdraft exposes <code>$70</code> as available. Every reservation checks <code>available &gt;= amount</code> before it succeeds, and the check plus the hold insert happen atomically so two requests can&rsquo;t both pass.</p>
+<p>Capture converts the hold into a real posting: the balance drops, the double-entry rows are written, the transfer moves to <code>POSTED</code>. Release throws the hold away and returns the amount to availability — no ledger movement, because nothing was ever posted.</p>
+<p>This two-phase shape also makes partial failures survivable. When a downstream step fails after you&rsquo;ve reserved but before you&rsquo;ve captured, you have a clean, reversible position: release the hold and you&rsquo;re back where you started. That is exactly the discipline you need when <a href="/blog/posts/saga-rollback-half-succeeded.html">rolling back a half-succeeded saga</a> — each reservation is a compensable step, and &ldquo;release&rdquo; is its compensation.</p>
+<h2 id="holds-expire-make-expiry-a-first-class-transition">Holds expire; make expiry a first-class transition</h2>
+<p>A hold you never resolve is a slow leak. It quietly reduces available balance forever, and eventually a customer with money in their account is told they have insufficient funds because of three abandoned authorizations from last Tuesday.</p>
+<p>So every hold gets an <code>expires_at</code> at creation. A background sweep — or a lazy check the next time the account is touched — moves any expired hold into <code>EXPIRED</code> and returns the amount to availability. Treat expiry as a real edge, not a cleanup script bolted on the side: <code>FUNDS_RESERVED -&gt; EXPIRED</code> carries the same invariant checks and audit trail as any other transition.</p>
+<p>The subtle part is ordering against capture. A capture arriving at the exact moment a hold expires is a race, and you must pick a winner deterministically. The safe rule: capture only succeeds against a hold still in <code>FUNDS_RESERVED</code>. If expiry got there first, the capture is rejected and the caller re-reserves — never let both win.</p>
+<h2 id="overdrafts-are-a-policy-decision-not-an-accident">Overdrafts are a policy decision, not an accident</h2>
+<p>&ldquo;Can this account go negative?&rdquo; is a product question, but engineering has to encode the answer precisely. There are two distinct behaviors, and conflating them is how you end up either blocking legitimate transactions or handing out unlimited free credit.</p>
+<p>A <strong>hard stop</strong> rejects any movement that would push the balance below zero. <code>overdraft_limit = 0</code>, availability floors at the current balance, and the reservation fails. This is the correct default for the vast majority of accounts.</p>
+<p>An <strong>allowed overdraft</strong> permits the balance to go down to <code>-X</code>. The limit is a negative floor, and it flows through the same availability formula: an account at <code>$0</code> with a <code>$200</code> overdraft limit exposes <code>$200</code> of availability. The invariant doesn&rsquo;t disappear — it shifts. &ldquo;Balance never goes negative&rdquo; becomes &ldquo;balance never drops below <code>overdraft_limit</code>,&rdquo; and the database <code>CHECK</code> enforces the new floor as rigorously as it enforced zero.</p>
+<p>Encoding the limit <em>per account</em> rather than as a global constant keeps this sane. Most accounts carry a limit of zero and behave as hard stops; a few carry a negative limit and are allowed to dip. Same code path, one number that varies.</p>
+<h2 id="why-it-matters">Why it matters</h2>
+<p>Money movement is unforgiving because the failures are visible, expensive, and sometimes illegal. A boolean success flag hides the exact states where money is most at risk — held-but-not-posted, posted-but-not-settled — and those are precisely the states an auditor, a customer, or a regulator will ask you to explain.</p>
+<p>An explicit state machine makes &ldquo;where is my money&rdquo; a single column read. Invariants enforced inside the transaction mean the system fails closed — it refuses to invent money — instead of committing a corruption you find in a reconciliation report weeks later. Reserve-then-capture makes concurrency and partial failure survivable instead of catastrophic. And a deliberate overdraft policy turns &ldquo;how did this account go negative&rdquo; into a configured, defensible number.</p>
+<p>None of this is exotic. It is the boring, load-bearing machinery that lets you move real money and still sleep. Model the states, guard the edges, reserve before you commit — and decide, on purpose, what an overdraft means before your system decides it for you.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-handbook-06-apis-and-webhooks.html">Consuming APIs and Handling Webhooks</a>
+      <span class="related-date">Jul 30</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-handbook-07-outbox-cdc-reconciliation.html">Reliable Delivery: The Outbox, CDC, and Reconciliation</a>
+      <span class="related-date">Jul 31</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-handbook-05-idempotency-and-resumability.html">Idempotency and Full Resumability</a>
+      <span class="related-date">Jul 29</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://docs.stripe.com/payments/paymentintents/lifecycle" target="_blank" rel="noopener noreferrer">Stripe — PaymentIntent lifecycle</a></div>
+      <div class="citation-context">Reference for this topic</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
