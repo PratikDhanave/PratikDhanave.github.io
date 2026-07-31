@@ -29,6 +29,8 @@ Segregation of duties is a boundary across the system:
          └─────────────────────────────────────────────┘
 ```
 
+> **▸ [Open the interactive diagram](/blog/handbook-diagrams/maker-checker.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Whoever operates in the initiate domain for a transaction must never also operate in the approve domain for that same transaction. The boundary is enforced by the system — checked at the point of action — not printed in a policy PDF everyone signed once and forgot.
 
 ## Four-eyes and maker-checker: enforced, not requested

@@ -45,6 +45,8 @@ A separate process — the relay, sometimes called the message relay or poller �
                    └────────────────────┘
 ```
 
+> **▸ [Open the interactive diagram](/blog/handbook-diagrams/outbox-reconciliation.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Notice what this buys you and what it does not. It guarantees the event is *durable* the moment the business transaction commits — you can no longer lose it. But the relay can crash after publishing and before it updates `sent_at`, in which case it will publish the same row again on restart. So the outbox is an **at-least-once** delivery mechanism. It trades "might lose events" for "might send duplicates," which is the correct trade, because duplicates are a problem you can engineer around and lost money is not.
 
 The consequence lands on the consumer: **every consumer must be idempotent.** Give each outbox event a stable ID and have consumers record processed IDs (a dedup table, or a unique constraint on the effect they produce). Processing `payment.initiated` with ID `evt_abc` twice must move the money exactly once. If you take one thing from this section: the outbox is only half a pattern; idempotent consumers are the other half.

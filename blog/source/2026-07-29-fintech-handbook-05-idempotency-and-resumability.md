@@ -36,6 +36,8 @@ The subtlety that separates a correct implementation from a broken one is *where
    200 OK (replay)  └─────────────────────────────────────────┘
 ```
 
+> **▸ [Open the interactive diagram](/blog/handbook-diagrams/idempotency-key-flow.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 The replay path is the point of the whole design: it returns the *stored* answer and performs **no new effect**. The customer sees one debit no matter how many times the client panics and retries.
 
 A minimal server sketch:

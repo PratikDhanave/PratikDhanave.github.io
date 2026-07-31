@@ -25,6 +25,8 @@ Transaction #48213 — customer pays invoice
 +-------------------------+--------+--------+
 ```
 
+> **▸ [Open the interactive diagram](/blog/handbook-diagrams/double-entry-postings.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Notice there is no "balance" being written anywhere. A balance is *derived*: it is the sum of an account's postings, nothing more. That derivation is the second pillar of the whole design, and I will come back to it.
 
 The invariant is not a nice-to-have you check in a nightly reconciliation job. It is a **hard constraint enforced at write time**. If a transaction's postings do not net to zero, the write fails — the transaction never lands. In code, the guard is almost embarrassingly small:
