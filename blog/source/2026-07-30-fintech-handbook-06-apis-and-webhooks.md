@@ -17,6 +17,8 @@ attempt 2 ──▶ timeout
 attempt 3 ──▶ 200 OK  (rail replays original result)
 ```
 
+> **▸ [Open the interactive diagram](/blog/handbook-diagrams/webhook-handling.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 And you cap it. After N failures, or once the error rate to a dependency crosses a threshold, a **circuit breaker** trips: you stop calling for a cooling-off window and fail fast locally. Hammering a dependency that is already on the floor does not help it stand up, and it burns your own capacity generating requests that will only time out. An open breaker is a mercy to both sides — and it gives you a clean signal to degrade gracefully instead of stalling.
 
 ## The ambiguous result problem

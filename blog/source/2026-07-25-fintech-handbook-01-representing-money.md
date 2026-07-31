@@ -36,6 +36,8 @@ Money value object
   shown:    "1,299.50"  (formatted only at the edge, for humans)
 ```
 
+> **▸ [Open the interactive diagram](/blog/handbook-diagrams/money-representation.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 The integer is the source of truth. Formatting to `1,299.50` happens at the very edge of the system, when you render a screen or a statement — never in between. Everything internal — sums, comparisons, ledger entries — operates on integers, which are exact by definition.
 
 Keep the scale explicit rather than assuming "two decimals everywhere." It is not true. Dinar-denominated currencies use three minor digits; some accounting contexts need four for unit prices. A `Money` that carries its own scale refuses to guess.

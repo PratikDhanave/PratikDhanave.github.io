@@ -39,6 +39,8 @@ Concretely, you never write `UPDATE accounts SET balance = 142.30`. You append a
   └───────────────────┘                 └────────────────────────┘
 ```
 
+> **▸ [Open the interactive diagram](/blog/handbook-diagrams/event-sourcing-fold.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 The property that makes this powerful: projections are disposable. Corrupt your `balances` table, ship a bug in the fold, or invent a brand-new read model two years later — you `DELETE` the projection and replay the log to rebuild it exactly. The events are the asset; the tables are a cache.
 
 ## You correct with new events, never edits
