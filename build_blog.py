@@ -3090,7 +3090,7 @@ nav {
   justify-content: flex-end;
   min-width: 0;
 }
-.nav-links a { color: var(--text-dim); }
+.nav-links a { color: var(--text-dim); min-height: 44px; display: inline-flex; align-items: center; }
 .nav-links a:hover { color: var(--accent); text-decoration: none; }
 .nav-links a.active { color: var(--accent); }
 @media (max-width: 640px) {
@@ -3106,7 +3106,7 @@ nav {
   .nav-links { display: none !important; width: 100%; flex-direction: column; align-items: stretch; gap: 0; padding: 6px 0 2px; }
   .nav-toggle:checked ~ .nav-links { display: flex !important; }
   .nav-links li { display: block !important; width: 100%; }
-  .nav-links a { display: block; padding: 10px 4px; }
+  .nav-links a { display: flex; align-items: center; min-height: 44px; padding: 10px 4px; }
 }
 
 main {
