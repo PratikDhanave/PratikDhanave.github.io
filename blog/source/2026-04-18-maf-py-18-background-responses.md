@@ -26,6 +26,8 @@ while response.continuation_token is not None:
 print(response.text)
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-py-18-background-responses.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 A `session` ties the polling calls back to the original background run. Poll calls need no messages, just the token.
 
 ## The gotcha

@@ -25,6 +25,8 @@ async def approval_flow(draft: str, ctx: RunContext) -> str:
     return "REJECTED ❌ — sent back for edits."
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-py-47-human-in-the-loop.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Driving it is two runs — one that suspends, one that resumes:
 
 ```python

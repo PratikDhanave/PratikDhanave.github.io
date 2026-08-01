@@ -29,6 +29,8 @@ return GroupChatBuilder(
 ).build()
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-py-63-group-chat.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 ## The gotcha
 
 Speaker selection is set once via **one of** `selection_func` (a function over `GroupChatState`), `orchestrator_agent` (an intelligent `Agent`), or a custom orchestrator. `termination_condition` is a callable over the messages list — set a hard cap so the run always ends (an agent orchestrator may stop earlier on its own). Without `intermediate_output_from=[...]`, only the orchestrator's terminal `"output"` event is emitted — you won't see individual turns. Agents do **not** share one `AgentSession`; the orchestrator broadcasts each response so every agent has the full history before its next turn. Run with `stream=True`, then `await stream.get_final_response()` for the terminal `AgentResponse`.

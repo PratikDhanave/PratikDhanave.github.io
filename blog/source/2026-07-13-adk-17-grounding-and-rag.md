@@ -28,6 +28,8 @@ agent = Agent(name="researcher", model="gemini-flash-latest", tools=[google_sear
 # responses carry .grounding_metadata with the cited web sources
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/adk-17-grounding-and-rag.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 ```go
 // Go
 import "google.golang.org/adk/v2/tool/geminitool"

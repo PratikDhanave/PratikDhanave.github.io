@@ -27,6 +27,8 @@ toolset = MCPToolset(
 agent = LlmAgent(name="researcher", model="gemini-flash-latest", tools=[toolset])
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/adk-16-protocols-mcp-a2a.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 ```go
 // Go — mcptoolset.New with an MCP transport (in-memory, stdio, or remote HTTP)
 import (

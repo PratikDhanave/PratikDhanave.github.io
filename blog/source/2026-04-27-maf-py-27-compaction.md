@@ -24,6 +24,8 @@ history = InMemoryHistoryProvider()
 compaction = CompactionProvider(before_strategy=pipeline, history_source_id=history.source_id)
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-py-27-compaction.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 The composed strategy runs children gentlest-first and stops as soon as the budget is met.
 
 ## The gotcha

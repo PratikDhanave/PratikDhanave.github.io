@@ -19,6 +19,8 @@ The `Worker` is the seam. In production it's a real LLM sub-agent invocation; in
 type Worker func(subtask string) (string, error)
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/harness-engineering-go-07-hierarchical-supervision.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 ```mermaid
 sequenceDiagram
     participant Sup as Supervisor.Run

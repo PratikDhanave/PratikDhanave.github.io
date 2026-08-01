@@ -27,6 +27,8 @@ for cp in checkpoints:
     print(f"  • {cp.checkpoint_id[:8]}…  iteration={cp.iteration_count}")
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-py-46-checkpointing.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 ## What to notice
 
 - **Two storage backends.** `FileCheckpointStorage("./checkpoints")` persists JSON to disk; `InMemoryCheckpointStorage()` keeps snapshots in memory for tests.

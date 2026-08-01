@@ -43,6 +43,8 @@ coordinator = LlmAgent(
 )
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/adk-03-multi-agent-systems.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Ask `"what's the weather in Paris?"` and the coordinator transfers to `weather_specialist`; ask `"tell me a joke"` and it transfers to `joke_specialist`. The `instruction` nudges the coordinator's *behaviour* ("don't answer yourself"), but the actual matching is driven by the sub-agents' `description` fields. This is why Module 01 insisted on writing a crisp one-liner for every agent — in a multi-agent system that line is load-bearing.
 
 ## The Go form

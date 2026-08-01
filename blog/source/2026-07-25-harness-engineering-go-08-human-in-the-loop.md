@@ -35,6 +35,8 @@ func RequestApproval(runID, prompt string, store durable.Store, now time.Time, t
 }
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/harness-engineering-go-08-human-in-the-loop.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Because the pending request is a checkpoint on disk, the process may crash, restart, or idle for a week — a resume loses nothing. That's the whole payoff. A human decision runs on human time, which is to say: unbounded and unreliable. If the "waiting" lived only in memory, a deploy or a crash between the ask and the answer would silently drop the request. Here it just sits in `checkpoints.json` (or Cosmos DB in production) until someone shows up.
 
 ```mermaid

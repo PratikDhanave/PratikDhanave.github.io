@@ -25,6 +25,8 @@ return MagenticBuilder(
 ).build()
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-py-64-magentic.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 ## The gotcha
 
 The manager reads each participant's **`description`** to decide who acts next, so make each capability distinct. The three limits guard the inner loop: `max_stall_count` triggers an auto-replan after consecutive non-progress rounds, `max_reset_count` caps full plan restarts. `intermediate_output_from=[...]` promotes participant outputs to `"intermediate"` events; the manager's synthesized answer stays the `"output"`. Planning milestones arrive as `event.type == "magentic_orchestrator"` (`event_type` = `PLAN_CREATED` / `REPLANNED` / `PROGRESS_LEDGER_UPDATED`). Plan review is **off** by default in Python (`enable_plan_review=False`), so it runs end-to-end without interaction; the final answer comes from `await stream.get_final_response().get_outputs()[-1]`.

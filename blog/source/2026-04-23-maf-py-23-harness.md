@@ -23,6 +23,8 @@ return create_harness_agent(
 )
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-py-23-harness.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Task-specific prompt goes in `agent_instructions`; general operating rules go in `harness_instructions` (default `DEFAULT_HARNESS_INSTRUCTIONS`). Extra tools pass via `tools=`.
 
 ## The gotcha

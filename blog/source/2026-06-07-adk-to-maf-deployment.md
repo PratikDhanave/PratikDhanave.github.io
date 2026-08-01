@@ -23,6 +23,8 @@ def ask():
     return jsonify({"answer": result.message.content})
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/adk-to-maf-deployment.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Problem: The agent is stateless, but if you use callbacks or session state, it's confusing.
 
 **Microsoft Agent Framework**:
