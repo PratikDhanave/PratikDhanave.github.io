@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Designing a Deterministic Order-Book Matching Engine</title>
+<meta name="description" content="Teaches how to build a deterministic matching engine: price-time priority order book, limit/market/IOC/FOK order types, single-threaded sequencer for...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Designing a Deterministic Order-Book Matching Engine">
+<meta property="og:description" content="Teaches how to build a deterministic matching engine: price-time priority order book, limit/market/IOC/FOK order types, single-threaded sequencer for determinism, and gap-free trade/execution event streaming.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-matching-engine-design.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-13T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Trading">
+<meta property="article:tag" content="Markets">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Designing a Deterministic Order-Book Matching Engine">
+<meta name="twitter:description" content="Teaches how to build a deterministic matching engine: price-time priority order book, limit/market/IOC/FOK order types, single-threaded sequencer for determinism, and gap-free trade/execution event streaming.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-matching-engine-design.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Designing a Deterministic Order-Book Matching Engine",
+  "description": "Teaches how to build a deterministic matching engine: price-time priority order book, limit/market/IOC/FOK order types, single-threaded sequencer for determinism, and gap-free trade/execution event streaming.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-13",
+  "dateModified": "2026-08-13",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Trading, Markets",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-matching-engine-design.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-matching-engine-design.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Designing a Deterministic Order-Book Matching Engine</h1>
+    <p class="post-subtitle">How price-time priority, a single-threaded sequencer, and gap-free event streaming combine into an exchange core you can replay byte-for-byte.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-13">August 13, 2026</time>
+      <span>·</span>
+      <span>7 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/trading/" class="tag-link"><span class="tag">Trading</span></a><a href="/blog/tags/markets/" class="tag-link"><span class="tag">Markets</span></a></div>
+  </header>
+
+
+
+
+
+  <p>A matching engine is the smallest possible piece of an exchange that has to be perfectly correct. Everything around it — gateways, risk checks, market-data fan-out, clearing — can be scaled, retried, and load-balanced with ordinary distributed-systems tools. The core itself cannot. The moment two orders can match against the book in a non-deterministic order, you lose the one property the whole venue is sold on: that every participant sees the same book evolve the same way, and that you can prove it after the fact.</p>
+<p>This post walks through the engineering decisions that give you that property: how the book is structured for price-time priority, why the hot path is single-threaded on purpose, how order types fold into one match loop, and how the engine emits a gap-free event stream that doubles as its own replay log.</p>
+<h2 id="the-order-book-as-two-priced-ladders">The order book as two priced ladders</h2>
+<p>An order book is two sorted collections: bids (descending by price) and asks (ascending by price). Within a price level, resting orders queue in arrival order — this is the &ldquo;time&rdquo; in price-time priority. The data structure choice is driven entirely by the operations the match loop performs: read the best price, walk orders at a level in FIFO order, and insert or cancel at an arbitrary level.</p>
+<p>A common and cache-friendly layout is a map from price level to an intrusive doubly-linked list of orders, plus a structure that tracks the best bid and best ask cheaply. Prices are stored as integer ticks, never floats — a price is <code>mantissa * 10^-scale</code> carried as an <code>int64</code>, so comparisons are exact and the &ldquo;best price&rdquo; is an integer min/max.</p>
+<pre><code>        BIDS (buy)                    ASKS (sell)
+  price   qty   FIFO queue      price   qty   FIFO queue
+  ┌──────────────────────┐     ┌──────────────────────┐
+  │ 100.03  5  [o7,o2]    │     │ 100.05  8  [o4]      │  ← best ask
+  │ 100.02  12 [o9]       │     │ 100.06  3  [o1,o5]   │
+  │ 100.01  4  [o3,o8,o6] │     │ 100.07  20 [o11]     │
+  └──────────────────────┘     └──────────────────────┘
+     ↑ best bid 100.03            spread = 100.05 - 100.03
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-matching-engine-design.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<p>An incoming buy order at 100.06 crosses the spread: it matches the best ask (100.05, qty 8) first, then walks up to 100.06 until it is filled or its limit price is exhausted. Each match generates a trade at the <em>resting</em> order&rsquo;s price — the passive side sets the price, the aggressor pays it. That single rule, applied consistently, is what makes the book fair and auditable.</p>
+<h2 id="order-types-are-variations-on-one-match-loop">Order types are variations on one match loop</h2>
+<p>It is tempting to write a separate handler per order type. Resist it. Every order type is a combination of three independent parameters: a limit price (or none, for market orders), a time-in-force, and a fill constraint. Model them as fields, then run one loop.</p>
+<ul>
+<li><strong>Limit</strong> — match against the opposite side while the price crosses; rest the remainder on the book.</li>
+<li><strong>Market</strong> — a limit with no price bound; match until filled or the book is empty, never rest.</li>
+<li><strong>IOC (immediate-or-cancel)</strong> — match what you can right now, cancel the remainder instead of resting.</li>
+<li><strong>FOK (fill-or-kill)</strong> — a pre-check: if the available liquidity across levels cannot fully fill the order, reject it whole before mutating any state.</li>
+</ul>
+<p>The FOK pre-check is the only one that needs a &ldquo;dry run&rdquo; pass over the book before committing. Everything else is the same walk: peek the best opposing level, take <code>min(incoming_qty, resting_qty)</code>, emit a trade, decrement both, advance the FIFO queue when a resting order is exhausted. When you are done, the residual either rests, cancels, or the order was rejected. One loop, four behaviors selected by fields.</p>
+<h2 id="determinism-means-one-thread-and-one-clock">Determinism means one thread and one clock</h2>
+<p>Here is the decision that surprises engineers coming from typical service work: the match loop runs on a single thread, and that is a feature, not a bottleneck. The instant you introduce concurrency into the book, order of execution depends on scheduler timing, and two replays of the same inputs can diverge. Determinism requires that the sequence of state transitions be a pure function of the input sequence.</p>
+<p>So the architecture front-loads all the non-deterministic work — network I/O, parsing, credit and risk checks, memory allocation — into stages <em>before</em> the core, and drains everything else <em>after</em> it.</p>
+<pre><code>  gateways ──▶ sequencer ──▶ [ matching core ]  ──▶ event stream
+  (parse,      (assign a       (single thread,       (trades +
+   validate)    global seq #)   pure function)        book deltas)
+</code></pre>
+<p>The <strong>sequencer</strong> is the linearization point. It takes validated orders from many gateways and stamps each with a monotonic sequence number, producing one canonical input stream. From that point on, the sequence number <em>is</em> the clock — the engine never reads wall-clock time inside a decision, because wall-clock time is not reproducible. Any timestamp a trade needs is derived from the sequenced input, not from <code>now()</code>.</p>
+<p>A well-tuned single-threaded core matches on the order of millions of operations per second because the working set stays in cache and there are no locks. Scaling out is done by <em>sharding by instrument</em> — each symbol (or group of symbols) owns an independent single-threaded engine — not by parallelizing one book.</p>
+<h2 id="the-event-stream-is-the-source-of-truth">The event stream is the source of truth</h2>
+<p>The core does not &ldquo;update a database.&rdquo; It emits an ordered stream of events — a trade event for every match, a book-delta event for every add, cancel, or fill that changes a price level. This stream is the primary artifact. Two very different consumers read it:</p>
+<ul>
+<li><strong>Market data</strong>, which reconstructs the public book and trade tape for participants.</li>
+<li><strong>Clearing and settlement</strong>, which turns fills into positions and money movement downstream.</li>
+</ul>
+<p>Because every event carries the sequence number of the input that produced it, the stream is <em>gap-free and ordered by construction</em>. A consumer that receives event <code>N+2</code> after <code>N</code> knows <code>N+1</code> is missing and can request a replay rather than silently showing a wrong book. This is the same discipline as a database write-ahead log: append first, derive views later.</p>
+<h2 id="replay-is-what-makes-it-auditable">Replay is what makes it auditable</h2>
+<p>Persist the sequenced input stream to an append-only journal, and the engine gains its most valuable property: <strong>it can be rebuilt exactly by replaying its inputs.</strong> Start a fresh engine at an empty book, feed it the journaled inputs in sequence order, and it produces bit-for-bit the same trades and book deltas as the original run — because the core is a pure function of that sequence and reads no external clock or random source.</p>
+<p>This underwrites several things at once. Recovery is just replay from the last snapshot. A hot standby is an identical engine consuming the same sequenced stream, ready to take over at a known offset. And a dispute — &ldquo;why did my order not fill?&rdquo; — is answered by replaying to the exact sequence number and inspecting the book, not by guessing from logs.</p>
+<pre><code>  journal ──▶ replay ──▶ fresh engine ──▶ identical trades
+  (inputs)   (in seq order)               (bit-for-bit)
+</code></pre>
+<p>To keep replay bounded, snapshot the full book state at periodic sequence numbers. Recovery then loads the latest snapshot and replays only the tail of inputs after it. The snapshot must be taken <em>between</em> sequenced inputs, never mid-match, so it always represents a clean, reproducible state boundary.</p>
+<h2 id="what-to-get-right-first">What to get right first</h2>
+<p>If you build one of these, the invariants matter more than throughput. Integer prices and quantities, never floats. A sequencer that is the single linearization point, so ordering is decided once. A core that reads no clock, no random source, and no shared mutable state outside the book. And an event stream that is append-only and gap-checked end to end. Get those four right and you have an engine whose behavior you can prove; optimize the match loop afterward, because a fast engine that cannot be replayed is not an exchange core — it is a liability with good latency numbers.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-reconciliation-break-detection.html">Three-Way Reconciliation That Closes the Long Tail</a>
+      <span class="related-date">Aug 15</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-hsm-key-management-ceremony.html">Key Ceremonies and HSM Key Hierarchies for Payments</a>
+      <span class="related-date">Aug 15</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-interbank-mtls-message-signing.html">Interbank mTLS and Message Signing</a>
+      <span class="related-date">Aug 15</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

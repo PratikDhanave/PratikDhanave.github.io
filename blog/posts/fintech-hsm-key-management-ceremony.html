@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Key Ceremonies and HSM Key Hierarchies for Payments</title>
+<meta name="description" content="Teaches how to run cryptographic key management for payments: HSM-backed key hierarchies (LMK/ZMK/ZPK), key ceremonies with split knowledge and dual...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Key Ceremonies and HSM Key Hierarchies for Payments">
+<meta property="og:description" content="Teaches how to run cryptographic key management for payments: HSM-backed key hierarchies (LMK/ZMK/ZPK), key ceremonies with split knowledge and dual control, rotation, and PIN-block translation.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-hsm-key-management-ceremony.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-15T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Security">
+<meta property="article:tag" content="Engineering">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Key Ceremonies and HSM Key Hierarchies for Payments">
+<meta name="twitter:description" content="Teaches how to run cryptographic key management for payments: HSM-backed key hierarchies (LMK/ZMK/ZPK), key ceremonies with split knowledge and dual control, rotation, and PIN-block translation.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-hsm-key-management-ceremony.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Key Ceremonies and HSM Key Hierarchies for Payments",
+  "description": "Teaches how to run cryptographic key management for payments: HSM-backed key hierarchies (LMK/ZMK/ZPK), key ceremonies with split knowledge and dual control, rotation, and PIN-block translation.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-15",
+  "dateModified": "2026-08-15",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Security, Engineering",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-hsm-key-management-ceremony.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-hsm-key-management-ceremony.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Key Ceremonies and HSM Key Hierarchies for Payments</h1>
+    <p class="post-subtitle">How split knowledge, dual control, and a layered key hierarchy keep a working key from ever appearing in the clear.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-15">August 15, 2026</time>
+      <span>·</span>
+      <span>7 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/security/" class="tag-link"><span class="tag">Security</span></a><a href="/blog/tags/engineering/" class="tag-link"><span class="tag">Engineering</span></a></div>
+  </header>
+
+
+
+
+
+  <p>In payments, a cryptographic key is not a config value you paste into an environment variable. A working key that encrypts PINs or authenticates card messages must never exist in plaintext anywhere a human or an application can read it — not in a file, not in memory outside the security module, not in a log. The discipline that guarantees this rests on two things: a hardware security module (HSM) holding a master key it will never export, and a protocol for loading keys into that HSM without any single person ever knowing a whole key. This post covers the key hierarchy, the ceremony that establishes its root, and how working keys are used and rotated without breaking the never-in-the-clear invariant.</p>
+<h2 id="the-key-hierarchy-lmk-zmk-zpk">The key hierarchy: LMK, ZMK, ZPK</h2>
+<p>Payment HSMs organize keys into a strict tiers, where each tier encrypts the one below it. Nothing below the top ever leaves the HSM as plaintext.</p>
+<ul>
+<li><strong>Local Master Key (LMK)</strong> — the root. It is generated inside the HSM and never leaves it. Every other key your system stores is stored <em>encrypted under the LMK</em>. The LMK itself lives only in tamper-protected hardware; extracting it triggers zeroization.</li>
+<li><strong>Zone Master Key (ZMK)</strong> — a key-encrypting key shared with an external party (a scheme, an acquirer, an issuer processor). It exists to move other keys securely across the &ldquo;zone&rdquo; between two organizations. You hold it encrypted under your LMK; your counterparty holds the same key value encrypted under <em>their</em> LMK.</li>
+<li><strong>Zone PIN Key (ZPK)</strong> and other working keys — the keys that actually do transactional work: encrypting PIN blocks, generating MACs, deriving card keys. A ZPK is exchanged under a ZMK, then translated to be stored under your LMK.</li>
+</ul>
+<p>The critical property: at rest your database only ever holds <em>key cryptograms</em> — key values encrypted under the LMK. An attacker who exfiltrates the entire key table gets nothing usable, because decrypting any of it requires the LMK, which never left the HSM.</p>
+<pre><code>  ceremony            HSM                 hierarchy             operation           rotation
+┌──────────┐  parts ┌──────────┐  root  ┌──────────┐  under  ┌──────────┐ expiry ┌──────────┐
+│ split    │ ─────▶ │ inject   │ ─────▶ │ LMK      │ ──────▶ │ PIN block│ ─────▶ │ generate │
+│ components│       │ into HSM │        │  ZMK     │  LMK    │ translate│        │ new key  │
+│ dual ctrl│        │ (no clear)│       │   ZPK    │         │ MAC/verify│       │ + retire │
+└──────────┘        └──────────┘        └──────────┘         └──────────┘        └────┬─────┘
+                                                                                      │
+                                                                              re-inject via
+                                                                              ceremony/ZMK
+</code></pre>
+<h2 id="the-key-ceremony-split-knowledge-and-dual-control">The key ceremony: split knowledge and dual control</h2>
+<p>The hardest problem is bootstrapping. How do you get a key value into an HSM — or establish a shared ZMK with a partner bank — without any one person, including your most trusted engineer, ever seeing the whole key? The answer is a <em>key ceremony</em> built on two principles enforced together:</p>
+<ul>
+<li><strong>Split knowledge</strong> — the key is delivered as two or three <em>components</em> that XOR together to form the real value. No single component reveals anything about the key. A custodian who holds component 1 cannot compute the key without components 2 and 3.</li>
+<li><strong>Dual control</strong> — no single person can complete a security-relevant action. Each component has a different custodian, and loading requires at least two of them present and acting in sequence.</li>
+</ul>
+<p>Operationally, each custodian enters their component at the HSM console (or via a smartcard sealed to them), the HSM XORs the components internally, and the resulting key is immediately encrypted under the LMK and returned as a cryptogram. The plaintext key exists only transiently inside the HSM and is never displayed. A ceremony is scripted, witnessed, and logged: who held which component, the key check value (KCV) the HSM reported, the date, and signatures.</p>
+<p>The <strong>key check value</strong> deserves attention. After loading, the HSM computes a KCV — typically the first few bytes of encrypting a block of zeros under the new key. Because the KCV is derived from the key but does not reveal it, you and your counterparty can compare KCVs over the phone to confirm you loaded <em>the same</em> ZMK, without ever transmitting the key or a component over an insecure channel. A KCV mismatch means someone mis-entered a component; you halt and re-run rather than discovering the error at the first live transaction.</p>
+<h2 id="operational-use-pin-block-translation">Operational use: PIN block translation</h2>
+<p>Once working keys are in place, the everyday job of a payment HSM is <em>translation</em>, not decryption-to-clear. Consider a PIN travelling from an ATM to an issuer. It is encrypted at the PIN pad under one key, but it must arrive at the issuer encrypted under a different key that the two parties share. At no point may the PIN appear in plaintext in your application.</p>
+<p>The HSM does this with a single atomic command: &ldquo;take this PIN block encrypted under ZPK-A, and re-encrypt it under ZPK-B.&rdquo; Internally the HSM decrypts under the first key and re-encrypts under the second, but the cleartext PIN exists only inside the module for microseconds and is never returned to the caller.</p>
+<pre><code>def translate_pin(hsm, pin_block, from_zpk_cryptogram, to_zpk_cryptogram, pan):
+    # Both ZPKs are supplied as cryptograms (encrypted under the LMK).
+    # The clear PIN never crosses this boundary — only ciphertext in, ciphertext out.
+    return hsm.command(
+        &quot;PIN_TRANSLATE&quot;,
+        source_key=from_zpk_cryptogram,
+        dest_key=to_zpk_cryptogram,
+        pin_block=pin_block,
+        pan=pan,           # PAN binds the PIN block format (ISO-0 XORs the PAN in)
+    )  # -&gt; returns pin_block re-enciphered under to_zpk, still ciphertext
+</code></pre>
+<p>The same pattern covers MAC verification and card key derivation — the key never leaves the HSM. Your application code holds <em>references</em> to keys — cryptograms and key labels — and asks the HSM to perform operations. It never holds key material, which is exactly what keeps the bulk of your codebase out of the tightest compliance scope.</p>
+<h2 id="rotation-without-an-outage">Rotation without an outage</h2>
+<p>Keys expire. Schemes mandate rotation intervals, and a suspected compromise forces an emergency rotation. The engineering challenge is rotating a live key while in-flight messages may still reference the old one. Three tactics make this safe:</p>
+<ul>
+<li><strong>Overlap windows.</strong> Load the new key alongside the old one and accept both for a defined period. Cryptograms are labelled with a key version, so a message encrypted under version <em>n</em> verifies against version <em>n</em> even after version <em>n+1</em> is live. Only after the overlap closes do you retire the old key.</li>
+<li><strong>Automated re-injection.</strong> Working keys like ZPKs can be rotated automatically: the counterparty generates a fresh ZPK, encrypts it under the standing ZMK, and sends the cryptogram. Your HSM translates it from ZMK-encryption to LMK-encryption and stores the new version — no human ceremony needed, because the ZMK established by an earlier ceremony is doing the trust work.</li>
+<li><strong>Ceremony only for the roots.</strong> The LMK and ZMK sit above the automation. Rotating those does require a fresh ceremony with custodians, which is why they are chosen with long lifetimes and rotated on a deliberate schedule rather than reactively.</li>
+</ul>
+<p>Retiring a key is not deletion-and-forget. You keep the old key cryptogram (still safely under the LMK) long enough to verify historical messages and settle disputes, then destroy it under the same dual control that created it, logging the destruction.</p>
+<h2 id="controls-that-make-it-auditable">Controls that make it auditable</h2>
+<p>None of this is trustworthy without evidence. Every ceremony produces a signed, witnessed record tying components to named custodians and a verified KCV. Every HSM key operation is logged with the key label and version but never the key material. Custodian duties are separated so the person holding a component is not the person who approves the key&rsquo;s use. And you rehearse the emergency-rotation runbook, because the first time you rotate an LMK should never be during an actual compromise.</p>
+<p>Build key management this way and the guarantee becomes structural rather than aspirational: working keys live only as cryptograms, plaintext keys exist only inside tamper-protected hardware, and no single person — however privileged — can reconstruct a key or use one alone. The ceremony is the human protocol that bootstraps that guarantee; the hierarchy is the machine protocol that preserves it on every transaction.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-interbank-mtls-message-signing.html">Interbank mTLS and Message Signing</a>
+      <span class="related-date">Aug 15</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-handbook-08-controls-access-testing.html">Controls, Access, and Testing a System That Moves Money</a>
+      <span class="related-date">Aug 01</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-handbook-01-representing-money.html">Representing Money</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
