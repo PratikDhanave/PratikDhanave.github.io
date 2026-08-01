@@ -19,6 +19,8 @@ ChatClient (separate, swappable)
   └─ RawChatClient                ← provider-specific LLM comms (Foundry here)
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-py-15-agent-pipeline.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 A request descends the Agent layers, crosses into the ChatClient pipeline, and the response flows back up.
 
 ## The code

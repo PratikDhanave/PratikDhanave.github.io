@@ -22,6 +22,8 @@ return workflow.NewBuilder(splitter).
 	Build()
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-go-75-map-reduce.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 A `FanOutEdge` broadcasts to every target; a `FanInBarrierEdge` holds a target back until *all* its sources have fired — so the shuffler runs exactly once after all three maps, and completion runs once after all four reduces.
 
 ## What to notice

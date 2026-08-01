@@ -31,6 +31,8 @@ The single decision that makes the whole system testable is this: every phase do
                        └───────────────────────────────────────────────┘
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/testing-agents-without-a-model.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Both implementations satisfy the same interface and return the same `Route` type. The pipeline downstream cannot tell them apart — and that is the entire point. When tests run, the `KeywordRouter` is the active implementation, so the pipeline executes its real routing, gating, and checkpoint logic against a classifier that behaves identically every single time.
 
 ## Selection is config-driven, not code-driven

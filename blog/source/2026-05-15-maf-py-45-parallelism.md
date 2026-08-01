@@ -23,6 +23,8 @@ result = await workflow.run("agent framework")
 print(result.get_outputs()[0])
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-py-45-parallelism.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 The fan-in target's handler is typed to receive the aggregate:
 
 ```python

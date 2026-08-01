@@ -28,6 +28,8 @@ agent = Agent(
 )
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-py-24-code-act.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 ## The gotcha
 
 Install with `pip install agent-framework-hyperlight --pre`; it ships separately from core and needs a supported Linux/Windows sandbox backend, so `execute_code` fails on unsupported platforms — the lesson wraps construction in a `try/except` and falls back to direct tool calling. To surface text, the generated code must end with `print(...)`; Hyperlight does not return the last expression. In-memory state does not persist across separate `execute_code` calls, and `call_tool(...)` runs the host callback in the host process (with host filesystem, network, and creds), not re-implemented in the sandbox.

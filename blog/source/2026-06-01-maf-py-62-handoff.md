@@ -28,6 +28,8 @@ workflow = (
 )
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-py-62-handoff.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 ## The gotcha
 
 Handoff is **inherently interactive**. A handoff is a special tool call; if an agent answers instead of handing off, the workflow can't know what's next, so it emits a `request_info` event (a `HandoffAgentUserRequest`) and waits for human input. To run unattended, call `.with_autonomous_mode()` — an experimental feature that auto-replies to those requests; `turn_limits` caps autonomous turns so it can't loop forever. Each specialist needs `require_per_service_call_history_persistence=True` so local context survives the handoff short-circuits. Only user/agent messages are broadcast for context — handoff tool calls and results are filtered out. Import `HandoffBuilder` from `agent_framework.orchestrations`, not the top-level package.

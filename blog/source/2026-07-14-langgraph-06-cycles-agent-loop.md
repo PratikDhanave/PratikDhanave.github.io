@@ -36,6 +36,8 @@ graph.add_edge("tools", "agent")         # the back-edge — this is the loop
 app = graph.compile()
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/langgraph-06-cycles-agent-loop.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Three structural lines carry the whole idea: `add_edge(START, "agent")` sets the entry, `add_conditional_edges("agent", should_continue, {...})` is the branch, and `add_edge("tools", "agent")` is the back-edge that closes the cycle. The shape looks like this:
 
 ```

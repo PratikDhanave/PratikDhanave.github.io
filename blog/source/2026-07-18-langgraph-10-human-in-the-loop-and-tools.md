@@ -39,6 +39,8 @@ resumed = app.invoke(Command(resume="yes"), cfg)   # picks up inside review()
 # resumed == {"draft": "ship it", "approved": True}
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/langgraph-10-human-in-the-loop-and-tools.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 The critical detail: `interrupt()` **requires a checkpointer**. Without one there is nowhere to durably park the state, so the resume half of the round-trip has nothing to restore. This is why the previous post on checkpointing was a prerequisite — HITL is checkpointing plus a "wait for the outside world" signal.
 
 In a minimal StateGraph the same effect is a request-info node that emits a human request and suspends the run; the reply is fed back at resume as a `{request_id: response}` mapping, and the node's downstream edge branches on it. `interrupt()` is the sugar; "save state, emit a request, resume with the reply" is the mechanism.

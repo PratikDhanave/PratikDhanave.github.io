@@ -42,6 +42,8 @@ builder.add_edge("chat", END)
 app = builder.compile(checkpointer=MemorySaver())   # <- persistence, one argument
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/langgraph-09-checkpointing-persistence.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 That single `checkpointer=` argument is the entire opt-in. With it, every superstep boundary now gets saved automatically.
 
 ## thread_id: separate conversations, one graph

@@ -13,6 +13,8 @@ start ──▶ Writer ──▶ Critic ─┬─ Approved  ──▶ Summary  (
                              └─ !Approved ──▶ Writer   (loop back to revise)
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-go-67-07-writer-critic-workflow.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 The Critic emits a structured `CriticDecision`, an `AddSwitch` routes on its `Approved` flag, and per-run state in the workflow `Context` caps the loop at `maxIterations` so it always terminates.
 
 ## The switch is the cycle

@@ -41,6 +41,8 @@ Here is the shape of it. Note where the trust boundary sits.
                                            │           └───────────┘
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/policy-is-code-not-a-prompt.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 The stages run in a deliberate order. Agent-governance (AGT) runs **first** and short-circuits on deny — if this workload isn't allowed to act at all, nothing downstream even executes. Then ContentSafety, CostCap, Policy, ComplianceTag, PII redaction, Audit, and CircuitBreaker. Policy is the stage that resolves the `(workload_id, tool_name)` decision, backed by code and OPA/Rego rules. Audit records the attempt — allowed or not — because a blocked malicious call is exactly the event you most want in your logs.
 
 The middleware pattern matters here beyond tidiness. Each stage is independent and composable, so you reason about, test, and evolve one concern at a time. A change to cost caps cannot accidentally weaken content safety. And because interception is universal, there is no code path that "forgets" to check — the gateway is the only door.

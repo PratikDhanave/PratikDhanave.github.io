@@ -36,6 +36,8 @@ async for event in runner.run_async(
         print("FINAL:", event.content.parts[0].text)
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/adk-10-runtime-and-events.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 `InMemoryRunner` bundles the in-memory services for you; you create the session first, then feed each new message in. There is a synchronous `runner.run(...)` too, but `run_async` is the primary path.
 
 Go models the exact same stream, but with an idiom that fits the language — a range-over-function iterator that yields `(event, error)` pairs, so you check `err` on every step instead of catching an exception:

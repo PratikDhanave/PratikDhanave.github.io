@@ -29,6 +29,8 @@ flowchart LR
     today ==>|"same interface,<br/>caller unchanged"| later
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/harness-engineering-go-01-the-seam.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 `workflow.Run` doesn't know whether its checkpoints land in a JSON file or in Cosmos DB. It knows the `durable.Store` interface. That's it. When I wire the real Azure path, the call site doesn't move.
 
 This is not a novel trick — it's dependency inversion, the thing Go interfaces are *for*. What's deliberate is applying it at **exactly** the managed-service boundaries, and naming each seam after the primitive it stands in for.

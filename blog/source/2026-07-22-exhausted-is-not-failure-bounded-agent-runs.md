@@ -46,6 +46,8 @@ The lifecycle of a bounded run is small enough to draw, and drawing it is worth 
                     [ exhausted ]
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/exhausted-is-not-failure-bounded-agent-runs.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 `started` fires once. `turn` is the loop, bounded above by `max_turns`. From the loop you can only leave through one of three doors: `completed`, `exhausted`, or `failed`. There is no fourth door, and critically there is no way to stay in the loop forever — the bound is structural, not a hopeful timeout bolted on the outside.
 
 ## A typed event stream, not log strings

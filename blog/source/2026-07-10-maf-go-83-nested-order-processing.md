@@ -17,6 +17,8 @@ OrderProcessing
       FraudCheck: AnalyzePatterns → CalculateRiskScore
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-go-83-nested-order-processing.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Each subworkflow is an ordinary `*workflow.Workflow` built with its own `NewBuilder`/`AddEdge`/`WithOutputFrom`; the parent simply treats it as an executor node.
 
 ## The real code

@@ -21,6 +21,8 @@ def deterministic_triage(event):
     return ESCALATE               # only the unknown long tail gets here
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/cheapest-reliable-executor-wins.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 The reason this rung matters more than any other is subtle: **it still fires when the model is down.** Azure OpenAI throttling you? Rate limit hit? Regional blip? The deterministic tier does not care, because it never depended on the model in the first place. That tier is your **reliability floor** — the set of behaviors the system guarantees under total AI failure. If disk-full, cert-expiry, and known-flapping-service incidents are covered by rules, then those incidents get triaged during the exact conditions (a broad outage) when your model provider is most likely to be degraded too. You do not want your incident system's availability correlated with the thing that's on fire.
 
 ## The escalation ladder

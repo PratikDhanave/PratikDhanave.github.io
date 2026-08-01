@@ -27,6 +27,8 @@ I learned this building a governed multi-agent operational incident-triage platf
      do · Layer 3 proves who actually did it.
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/per-agent-identity-three-layers.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 These are not redundant. They answer three different questions — *who claims to act*, *what can they actually do*, and *who provably did it* — and the mistake is thinking any one of them covers the others.
 
 ## Layer 1: the app-layer `agent_id`

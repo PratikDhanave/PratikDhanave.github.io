@@ -44,6 +44,8 @@ pipeline = SequentialAgent(
 )
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/adk-02-workflow-agents.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 The `{story}` placeholder in the critic's instruction is resolved from state at call time. Stage *N+1* sees everything stage *N* wrote — that is how the two stages communicate. There are **no return values** between sub-agents; the shared session state is the only channel.
 
 ## How state actually flows

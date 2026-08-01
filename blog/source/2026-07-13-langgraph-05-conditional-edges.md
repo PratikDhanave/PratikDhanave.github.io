@@ -14,6 +14,8 @@ This post covers branching *without* a back-edge — a fork where control flows 
 graph.add_conditional_edges(source, router, path_map)
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/langgraph-05-conditional-edges.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Three arguments:
 
 - **`source`** — the node whose output triggers the routing decision.

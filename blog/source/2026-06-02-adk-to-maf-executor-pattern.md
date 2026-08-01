@@ -16,6 +16,8 @@ orchestrator = SequentialAgent(
 result = await orchestrator.run(prompt)  # Returns final AgentResponse
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/adk-to-maf-executor-pattern.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 The orchestrator owns the loop. You don't see intermediate states. Callbacks let you hook into them, but you're an observer, not the driver.
 
 In Microsoft Agent Framework (MAF), builders are different:

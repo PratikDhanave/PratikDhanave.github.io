@@ -24,6 +24,8 @@ def triage_orchestration(context):          # a generator (def + yield), NOT asy
                                      options={"response_format": SpamDetectionResult})
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-py-67-durable-extension.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 ## The gotcha
 
 Inside an `@app.orchestration_trigger` you must NOT call the raw agent — fetch the durable wrapper with `app.get_agent(context, "Name")`, or the step won't be checkpointed. The trigger is a *generator* (`def` + `yield`), not `async def`, because Durable Functions replays it after a failure and every `yield`ed step must be a resumable point. Structured output goes through `options={"response_format": MyModel}` and comes back under `.get("structured_response")`. This can't run under plain `uv run`: durable hosting needs the Azure Functions host (`func start`), Azurite, the Durable Task Scheduler emulator, and `agent-framework-azurefunctions`.
