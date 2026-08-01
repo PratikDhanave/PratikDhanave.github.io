@@ -74,7 +74,7 @@ The idea is simple and surgical. Encrypt each subject's personal fields with a *
   └─────────────────────┘        └──────────────────┘
         erasure request for A ──▶ destroy subjectKey[A]
   ┌─────────────────────┐        ┌──────────────────┐
-  │ evt: {amount:20.00, │        │ subjectKey[A] �’╳ │  (gone)
+  │ evt: {amount:20.00, │        │ subjectKey[A] ✗  │  (gone)
   │   memo: <cipher>,   │──✗ can't decrypt          │
   │   subject: A}       │        │ subjectKey[B] ✔  │
   └─────────────────────┘        └──────────────────┘
