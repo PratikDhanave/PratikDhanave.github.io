@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Building Marketplace Split Payments and Connected Payouts</title>
+<meta name="description" content="Teaches how to architect marketplace money movement: platform vs connected-account balances, fee/commission splits, delayed payouts, negative-balance...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Building Marketplace Split Payments and Connected Payouts">
+<meta property="og:description" content="Teaches how to architect marketplace money movement: platform vs connected-account balances, fee/commission splits, delayed payouts, negative-balance handling, and merchant-of-record vs facilitator models.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-marketplace-split-payments.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-07T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="Reliability">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Building Marketplace Split Payments and Connected Payouts">
+<meta name="twitter:description" content="Teaches how to architect marketplace money movement: platform vs connected-account balances, fee/commission splits, delayed payouts, negative-balance handling, and merchant-of-record vs facilitator models.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-marketplace-split-payments.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Building Marketplace Split Payments and Connected Payouts",
+  "description": "Teaches how to architect marketplace money movement: platform vs connected-account balances, fee/commission splits, delayed payouts, negative-balance handling, and merchant-of-record vs facilitator models.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-07",
+  "dateModified": "2026-08-07",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Payments, Reliability",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-marketplace-split-payments.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-marketplace-split-payments.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Building Marketplace Split Payments and Connected Payouts</h1>
+    <p class="post-subtitle">Architecting platform balances, commission splits, delayed payouts, and negative-balance recovery without ever losing a cent.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-07">August 07, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">Payments</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">Reliability</span></a></div>
+  </header>
+
+
+
+
+
+  <p>A marketplace takes one card charge from a buyer and turns it into money owed to several parties: the seller, the platform&rsquo;s commission, a tax authority, sometimes a shipping partner. The buyer sees a single line on their statement. Internally, that one settlement has to fan out into balanced ledger entries, sit in the right accounts until a payout schedule releases it, and survive refunds that arrive after the seller has already been paid. Getting this wrong doesn&rsquo;t produce a visual glitch — it produces money that is either double-counted or stranded. This post is about how to build that money-movement layer so the arithmetic is always closed.</p>
+<h2 id="two-balance-planes-platform-vs-connected-accounts">Two balance planes: platform vs connected accounts</h2>
+<p>The first design decision is where money lives before it reaches a seller&rsquo;s bank. You keep two conceptual planes. The <strong>platform balance</strong> is your own settlement account — every buyer charge lands here first, because the acquirer settles to <em>you</em>, not to the seller. The <strong>connected-account balances</strong> are per-seller sub-ledgers you maintain yourself; they are claims against the platform balance, not separate bank accounts.</p>
+<p>This matters because the acquirer knows nothing about your sellers. You receive one net settlement per day (gross charges minus refunds minus scheme fees), and you are responsible for attributing slices of it. So a connected-account balance is a liability on your books: &ldquo;we hold $X that we owe seller S.&rdquo; The invariant you defend is that the sum of all connected-account balances plus your own retained revenue equals the funds actually sitting in the platform&rsquo;s real bank account, minus money already paid out and still in flight.</p>
+<p>Model each seller balance with at least three states, not one number:</p>
+<ul>
+<li><strong>Pending</strong> — funds captured but inside the settlement/refund risk window.</li>
+<li><strong>Available</strong> — cleared and eligible for the next payout run.</li>
+<li><strong>Reserved</strong> — held back deliberately (rolling reserve, dispute cover).</li>
+</ul>
+<p>Collapsing these into a single integer is the most common early mistake; you lose the ability to reason about <em>why</em> a balance can&rsquo;t be paid out yet.</p>
+<h2 id="splitting-one-charge-into-balanced-entries">Splitting one charge into balanced entries</h2>
+<p>When a $100 charge succeeds, the split happens as a set of journal entries posted atomically. Think in double-entry terms: the buyer&rsquo;s payment is a credit into the platform&rsquo;s clearing account, and the offsetting debits allocate it across the parties. Every split must sum exactly to the captured amount — you validate this before committing, and reject the transaction if the components don&rsquo;t reconcile to the cent.</p>
+<pre><code>Buyer charge: $100.00 captured
+        │
+        ▼
+┌───────────────────────────────────────────────┐
+│ SPLIT ALLOCATION (must sum to 100.00)          │
+│                                                │
+│   seller_net        →  $84.00  (connected S)   │
+│   platform_fee      →  $10.00  (revenue)       │
+│   tax_withheld      →   $6.00  (tax liability) │
+│                        ───────                 │
+│                        $100.00  ✓ closed       │
+└───────────────────────────────────────────────┘
+        │
+        ▼
+   seller S pending balance += 84.00
+   platform revenue         += 10.00
+   tax liability account    +=  6.00
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-marketplace-split-payments.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<p>Compute the split <em>before</em> you attempt the charge, store it alongside the payment intent, and treat it as the source of truth. Do not recompute percentages at capture time from a fee config that may have changed since the buyer checked out — a rate edit mid-flight will silently unbalance in-flight orders. Freeze the fee schedule version onto the order, the same way you&rsquo;d freeze a currency rate.</p>
+<p>Rounding is where cents leak. If your commission is a percentage, decide up front who absorbs the rounding remainder. A clean rule: compute the platform fee and tax with banker&rsquo;s rounding, then let the seller&rsquo;s net be the <em>residual</em> (<code>total − fee − tax</code>). That guarantees the sum closes exactly, because the residual is defined by subtraction rather than independently rounded.</p>
+<h2 id="delayed-payouts-and-the-schedule-engine">Delayed payouts and the schedule engine</h2>
+<p>Sellers are almost never paid instantly. You hold funds for a payout window — partly to cover refunds and disputes, partly because your own bank settlement clears on T+1 or T+2. A payout engine runs on a schedule (daily, weekly, or manual) and does three things per seller: sweep the <em>available</em> balance, subtract any <em>reserved</em> amount, and emit a single payout instruction to the seller&rsquo;s bank via ACH, SEPA, or a faster rail.</p>
+<p>The engine must be idempotent per (seller, schedule-period). If a payout run crashes halfway, re-running it must not double-pay. Key each payout on a deterministic identifier — <code>payout:{seller}:{period}</code> — and make the balance decrement and the payout-record insert one atomic transaction. A payout is not &ldquo;money sent,&rdquo; it&rsquo;s a state machine: <code>created → submitted → paid</code> or <code>→ failed → retryable</code>. Only move the balance out of the connected account when the payout reaches <code>paid</code>; before that it sits in an <em>in-transit</em> sub-state so a failed bank transfer flows the money back to <em>available</em> rather than vanishing.</p>
+<h2 id="negative-balances-when-refunds-outrun-payouts">Negative balances: when refunds outrun payouts</h2>
+<p>The hard case. A seller sells $500 on Monday, gets paid out Tuesday, and on Wednesday a buyer refunds a $400 order. The refund debits the buyer&rsquo;s card from <em>your</em> platform balance, but the seller&rsquo;s connected balance is now near zero — you already paid them. The seller balance goes negative, and you are out of pocket until you recover it.</p>
+<p>You cannot prevent this entirely, so you engineer for recovery:</p>
+<ul>
+<li><strong>Rolling reserve</strong> — hold back a percentage of every payout (say 10% for 90 days) so there&rsquo;s a buffer to absorb late refunds before the balance goes negative.</li>
+<li><strong>Debit-first ordering</strong> — always deduct refunds and chargebacks from <em>available</em> before touching <em>reserved</em>, and net new sales against a negative balance before any fresh payout.</li>
+<li><strong>Payout gating</strong> — a seller with a negative balance is ineligible for payout until the balance is cured by new sales or an external top-up.</li>
+<li><strong>Recovery workflow</strong> — if the balance stays negative past a threshold, trigger a collection process (debit a linked bank account, or write it off against reserves).</li>
+</ul>
+<p>The ledger stays honest throughout: a negative connected balance is a <em>receivable</em> the platform holds against the seller, and it must show up as such in reconciliation, not as a mysterious hole in the platform account.</p>
+<h2 id="merchant-of-record-vs-facilitator-who-owns-the-money">Merchant-of-record vs facilitator: who owns the money</h2>
+<p>The regulatory shape of all this depends on one architectural choice. As a <strong>payment facilitator</strong>, you are a conduit — the seller is the merchant of record, funds are legally theirs, and you&rsquo;re moving money on their behalf. As <strong>merchant of record (MoR)</strong>, the platform <em>is</em> the seller to the buyer: you own the transaction, remit tax, and handle disputes, then pay the underlying seller as a supplier.</p>
+<p>This is not cosmetic. MoR means tax liability, chargeback exposure, and refund obligation sit on the platform, so your ledger needs a full tax-liability account and dispute reserves. Facilitator means lighter tax handling but stricter KYC/onboarding duties on each connected account, because you&rsquo;re enabling <em>them</em> to accept money. Pick the model before you design the accounts — retrofitting tax remittance and dispute ownership onto a ledger that assumed pass-through is a painful migration. Encode the choice explicitly so every split, every payout, and every dispute entry knows which party owns the obligation.</p>
+<p>Build the money layer around one non-negotiable rule: every charge, split, payout, refund, and reserve is a balanced double-entry event, and at any instant the connected balances plus retained revenue plus in-transit payouts reconcile exactly to the real bank position. If that identity holds, the marketplace can scale sellers, rails, and regions without the arithmetic ever drifting.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-dunning-retry-engine.html">Building a Dunning and Retry Engine for Failed Payments</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-escrow-hold-release.html">Engineering Escrow: Conditional Hold and Release with Double-Entry Safety</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-handbook-06-apis-and-webhooks.html">Consuming APIs and Handling Webhooks</a>
+      <span class="related-date">Jul 30</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

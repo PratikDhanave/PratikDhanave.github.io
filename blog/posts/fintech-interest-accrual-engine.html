@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Building a Daily Interest Accrual Engine — Pratik Dhanave</title>
+<meta name="description" content="Teaches how to build a daily interest accrual engine: accrual basis and compounding, accrued-but-unbilled tracking, rate changes mid-period, and...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Building a Daily Interest Accrual Engine — Pratik Dhanave">
+<meta property="og:description" content="Teaches how to build a daily interest accrual engine: accrual basis and compounding, accrued-but-unbilled tracking, rate changes mid-period, and idempotent daily accrual jobs that post to the ledger.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-interest-accrual-engine.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-08T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Lending">
+<meta property="article:tag" content="Credit">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Building a Daily Interest Accrual Engine — Pratik Dhanave">
+<meta name="twitter:description" content="Teaches how to build a daily interest accrual engine: accrual basis and compounding, accrued-but-unbilled tracking, rate changes mid-period, and idempotent daily accrual jobs that post to the ledger.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-interest-accrual-engine.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Building a Daily Interest Accrual Engine",
+  "description": "Teaches how to build a daily interest accrual engine: accrual basis and compounding, accrued-but-unbilled tracking, rate changes mid-period, and idempotent daily accrual jobs that post to the ledger.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-08",
+  "dateModified": "2026-08-08",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Lending, Credit",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-interest-accrual-engine.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-interest-accrual-engine.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Building a Daily Interest Accrual Engine</h1>
+    <p class="post-subtitle">How to compute interest that earns every day, tracks the accrued-but-unbilled balance, survives mid-period rate changes, and posts to the ledger with idempotent replay-safe jobs.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-08">August 08, 2026</time>
+      <span>·</span>
+      <span>7 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/lending/" class="tag-link"><span class="tag">Lending</span></a><a href="/blog/tags/credit/" class="tag-link"><span class="tag">Credit</span></a></div>
+  </header>
+
+
+
+
+
+  <p>Interest is deceptively simple until you have to book it. The math on a whiteboard is one line — balance times rate times time — but a production accrual engine has to answer harder questions. What did this account earn <em>yesterday</em>, specifically, and not a cent more? If the nightly job crashed halfway and re-ran, did we double-count? When the rate changed on the fifteenth, did the first half of the month accrue at the old rate and the second half at the new one? And when the billing cycle closes, how much accrued interest do we capitalize versus carry forward?</p>
+<p>An accrual engine is the system that turns a balance and a rate into a stream of tiny, dated, ledger-posted amounts. The design goal is not clever math. It is determinism: the same inputs must always produce the same accrual, so a run can be replayed, audited, and reconciled. This post walks through how to build one.</p>
+<h2 id="accrual-is-a-daily-event-not-a-monthly-formula">Accrual is a daily event, not a monthly formula</h2>
+<p>The instinct is to compute interest once per billing cycle: take the balance, multiply by the monthly rate, post it. That falls apart the moment anything moves mid-cycle — a payment, a drawdown, a rate change. The balance is not constant across the month, so a single multiplication is wrong.</p>
+<p>The correct model is to accrue <strong>once per day</strong> against that day&rsquo;s balance. Each daily accrual is a small, independent, dated fact:</p>
+<pre><code>accrual(day) = principal_balance(day) * daily_rate(day)
+</code></pre>
+<p>where the daily rate comes from the annual rate and a <strong>day-count convention</strong> — the rule that decides how many days are in a year for interest purposes:</p>
+<ul>
+<li><strong>Actual/365 fixed</strong> — divide the annual rate by 365 every day.</li>
+<li><strong>Actual/360</strong> — divide by 360; each day is worth slightly more (common in money markets).</li>
+<li><strong>30/360</strong> — pretend every month has 30 days and every year 360, smoothing February and 31-day months.</li>
+</ul>
+<p>The convention is a business input, not a detail. A/360 on the same nominal rate yields about 1.4% more interest per year than A/365, so it must be explicit and stored per product, never hardcoded.</p>
+<pre><code> Balance      Day-count      Daily         Accrued-but-      Billing        Ledger
+ snapshot --&gt; convention --&gt; accrual   --&gt; unbilled      --&gt; cutoff     --&gt; journal
+ (per day)    (rate/N)       amount        sub-ledger        capitalize      (Dr/Cr)
+                                              ^                  |
+                                              +---- carried -----+
+                                                   forward
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-interest-accrual-engine.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<p>Reading left to right: a dated balance snapshot meets a day-count convention to produce one day&rsquo;s accrual; that amount lands in an accrued-but-unbilled sub-ledger, accumulating day after day until the billing cutoff sweeps it into a capitalization event and a ledger journal. The whole engine is that loop, run once per account per day.</p>
+<h2 id="simple-versus-compound-what-the-balance-includes">Simple versus compound: what the balance includes</h2>
+<p>The single decision that changes the shape of the engine is whether accrued interest itself earns interest.</p>
+<p>Under <strong>simple interest</strong>, the daily accrual is always computed on the <em>principal</em> balance. Accrued interest sits in its own bucket and does not feed back into the base.</p>
+<p>Under <strong>compound interest</strong>, at some frequency the accrued interest is <em>capitalized</em> — folded into the principal — so future accruals are computed on principal plus previously-accrued interest. Compounding frequency (daily, monthly, at billing) is the knob:</p>
+<pre><code class="language-python">from decimal import Decimal
+
+def daily_accrual(principal: int, annual_rate: Decimal, day_count: int) -&gt; int:
+    # principal in minor units (cents); returns accrual in minor units, rounded
+    daily_rate = annual_rate / day_count
+    return int((Decimal(principal) * daily_rate).quantize(Decimal(&quot;1&quot;)))
+</code></pre>
+<p>Two rules that are non-negotiable. First, <strong>work in integer minor units</strong>. Interest schedules and floating point do not mix; use integer cents or <code>Decimal</code>, never <code>float</code>. Second, <strong>round each daily accrual deterministically</strong> to the currency&rsquo;s smallest unit and carry the rounding decision consistently. Sub-cent fractions that you keep in memory but never post will silently diverge the engine from the ledger.</p>
+<h2 id="the-accrued-but-unbilled-sub-ledger">The accrued-but-unbilled sub-ledger</h2>
+<p>Between billing cycles, interest has been <em>earned</em> but not yet <em>billed</em> to the customer. That money is real — it is an asset you can report — but it is not yet part of the customer&rsquo;s statement balance. It lives in a dedicated <strong>accrued interest receivable</strong> sub-ledger.</p>
+<p>This separation is the accrual analogue of keeping cash and revenue apart. Two balances move on different clocks:</p>
+<ul>
+<li><strong>Accrued-but-unbilled</strong> grows a little every day as the daily job runs.</li>
+<li><strong>Billed balance</strong> jumps once per cycle when the cutoff capitalizes the accrued amount onto the statement.</li>
+</ul>
+<p>At the billing cutoff, the engine sweeps the accrued sub-ledger: the accumulated interest is capitalized (added to the customer&rsquo;s principal or moved to a billed-interest line), the sub-ledger resets to zero, and a fresh cycle begins. Between cutoffs, the invariant a controller checks is that <strong>the accrued-interest sub-ledger balance equals the sum of all daily accruals posted since the last capitalization</strong>. If those two numbers disagree, a day was double-posted or dropped.</p>
+<h2 id="idempotent-daily-jobs-and-replay-safety">Idempotent daily jobs and replay safety</h2>
+<p>The accrual job runs nightly across millions of accounts. It <em>will</em> crash, retry, and occasionally run twice for the same date. The engine has to make that a non-event.</p>
+<p>The technique is the same discipline that makes any financial job safe: derive a natural idempotency key from the business fact, and let the ledger reject duplicates.</p>
+<pre><code class="language-python">def run_accrual(as_of: date, ledger):
+    for account in accounts_active_on(as_of):
+        balance = balance_snapshot(account, as_of)      # deterministic for a past date
+        rate    = effective_rate(account, as_of)        # from the rate timeline
+        amount  = daily_accrual(balance, rate, account.day_count)
+        ledger.post(
+            accrual_journal(account, as_of, amount),
+            idempotency_key=f&quot;accrual:{account.id}:{as_of.isoformat()}&quot;,
+        )
+</code></pre>
+<p>Three properties make this production-grade. It is <strong>idempotent per account per day</strong> — the key is the account plus the date, so a re-run cannot double-book; the ledger silently discards the repeat. It is <strong>as-of aware</strong> — the job reads <code>as_of</code> explicitly, not the wall clock, so a missed night is backfilled by re-running that date, and any past day reproduces exactly. And it is <strong>replayable</strong> — because the accrual is a pure function of a dated balance and a dated rate, you can rebuild an account&rsquo;s whole accrual history to verify the books. That is why balance snapshots and the rate timeline must both be queryable <em>as of a date</em>, never just &ldquo;current.&rdquo;</p>
+<h2 id="rate-changes-mid-period">Rate changes mid-period</h2>
+<p>Rates move: a promotional rate expires, a variable rate tracks a benchmark, a repricing event lands on the tenth. Because the engine already accrues per day and reads an <em>effective rate as of that day</em>, a mid-period change needs no special case — it is just two different <code>daily_rate</code> values on two different days.</p>
+<p>The requirement this pushes onto the data model is a <strong>rate timeline</strong>: a set of <code>(effective_from, rate)</code> intervals per account, not a single mutable <code>current_rate</code> field. The engine resolves the rate for a given day by finding the interval covering it.</p>
+<pre><code>Rate timeline:   3.5% ────────┐
+                              1.5% (promo ends)
+                 |────────────|───────────────────|
+ Day:            1 ....... 14  15 ............... 30
+
+ Accrual:  days 1–14 at 3.5%/N,  days 15–30 at 1.5%/N,  summed = month's interest
+</code></pre>
+<p>Modeling rate history as an append-only timeline (rather than overwriting a field) is what lets recomputation stay correct. If a rate is later found to have been entered wrong, you correct the timeline and <em>replay</em> the affected date range; every daily accrual in that window recomputes deterministically and posts a true-up for the delta. You never edit a posted accrual — you append a correcting one, exactly as you would in the ledger itself.</p>
+<h2 id="the-discipline-that-ties-it-together">The discipline that ties it together</h2>
+<p>Every hard part of an accrual engine dissolves into the same rule: <strong>make each day&rsquo;s interest an immutable, dated, deterministically-derived fact, and express every change as a new fact rather than a mutation of an old one.</strong></p>
+<p>Daily granularity handles mid-cycle balance and rate moves for free. Integer minor units and fixed rounding keep the engine and ledger bit-for-bit reconcilable. A per-account-per-day idempotency key makes the nightly job safe to crash and retry. An as-of-queryable balance and rate timeline make the whole history replayable. Get those four disciplines right and interest — the thing that quietly compounds every wrong assumption — becomes the most boringly auditable number in the system. That is exactly what you want it to be.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-delinquency-npa-state-machine.html">Delinquency as a State Machine: DPD Buckets, SMA, and NPA Classification</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-credit-decisioning-engine.html">Building a Credit Decisioning Engine</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-amortization-schedule-engine.html">Building a Deterministic Amortization Schedule Engine</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Delinquency as a State Machine: DPD Buckets, SMA, and...</title>
+<meta name="description" content="Teaches how to model delinquency as a state machine: days-past-due bucket transitions, SMA/NPA classification rules, provisioning triggers, and...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Delinquency as a State Machine: DPD Buckets, SMA, and...">
+<meta property="og:description" content="Teaches how to model delinquency as a state machine: days-past-due bucket transitions, SMA/NPA classification rules, provisioning triggers, and cure/roll-forward/roll-back logic driven by repayment events.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-delinquency-npa-state-machine.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-09T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Lending">
+<meta property="article:tag" content="Credit">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Delinquency as a State Machine: DPD Buckets, SMA, and...">
+<meta name="twitter:description" content="Teaches how to model delinquency as a state machine: days-past-due bucket transitions, SMA/NPA classification rules, provisioning triggers, and cure/roll-forward/roll-back logic driven by repayment events.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-delinquency-npa-state-machine.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Delinquency as a State Machine: DPD Buckets, SMA, and NPA Classification",
+  "description": "Teaches how to model delinquency as a state machine: days-past-due bucket transitions, SMA/NPA classification rules, provisioning triggers, and cure/roll-forward/roll-back logic driven by repayment events.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-09",
+  "dateModified": "2026-08-09",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Lending, Credit",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-delinquency-npa-state-machine.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-delinquency-npa-state-machine.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Delinquency as a State Machine: DPD Buckets, SMA, and NPA Classification</h1>
+    <p class="post-subtitle">Model days-past-due transitions, SMA/NPA classification, provisioning triggers, and cure logic as one deterministic engine driven by time and repayment events.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-09">August 09, 2026</time>
+      <span>·</span>
+      <span>5 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/lending/" class="tag-link"><span class="tag">Lending</span></a><a href="/blog/tags/credit/" class="tag-link"><span class="tag">Credit</span></a></div>
+  </header>
+
+
+
+
+
+  <p>A loan does not turn &ldquo;bad&rdquo; the instant a borrower misses a payment. It ages. Teams that treat delinquency as a nightly report — a query that scans balances and prints a number — end up with classification that drifts, provisions that are wrong at month-end close, and a collections queue nobody trusts. The durable design is a state machine: every account carries an explicit delinquency state, transitions are driven by exactly two inputs (the passage of time and repayment events), and every transition has deterministic, auditable side effects on the ledger.</p>
+<p>This post models that machine end to end: the days-past-due clock that advances it, the bucket boundaries that name each state, the classification rules that tag an account as standard, special-mention, or non-performing, and the cure logic that walks it back.</p>
+<h2 id="the-dpd-clock-is-the-spine">The DPD clock is the spine</h2>
+<p>Days-past-due (DPD) is the number of calendar days since the <em>oldest unpaid</em> installment&rsquo;s due date. Not the days since the last payment — the days since the oldest dollar still owed. That distinction is the single most common source of misclassification. A borrower who pays this month&rsquo;s installment while last month&rsquo;s is still outstanding has <em>not</em> reset the clock; the oldest arrears keep ageing.</p>
+<pre><code>Due dates:   D1 ──── D2 ──── D3 ──── D4 ──────► today
+             │       │       │
+paid:        paid    unpaid  unpaid
+                     ▲
+                     └─ oldest unpaid → DPD counts from HERE (D2),
+                        even though a later installment (D4) was paid
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-delinquency-npa-state-machine.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<p>Compute DPD from the amortization schedule, never from a counter you increment nightly. An incrementing counter cannot be replayed, and it drifts permanently the first time a batch job is skipped, double-runs, or lands out of order. Deriving DPD from the schedule and a snapshot of what has been paid makes the whole engine a pure function of <code>(schedule, payments, as_of_date)</code>:</p>
+<pre><code class="language-python">def days_past_due(schedule, payments, as_of):
+    paid = allocate_payments(schedule, payments)  # oldest-first waterfall
+    oldest_unpaid = next(
+        (inst for inst in schedule
+         if inst.due_date &lt;= as_of and paid[inst.id] &lt; inst.amount),
+        None,
+    )
+    if oldest_unpaid is None:
+        return 0                       # nothing overdue → Current
+    return (as_of - oldest_unpaid.due_date).days
+</code></pre>
+<p>The payment waterfall matters: allocate receipts oldest-installment-first (and, within an installment, in your fees/interest/principal order) so that a partial payment can retire the oldest bucket and genuinely reduce DPD rather than paying down a future installment.</p>
+<h2 id="buckets-name-the-states">Buckets name the states</h2>
+<p>DPD is continuous; the state machine is discrete. You collapse the DPD integer into named buckets, and those buckets are your states. A common structure separates <em>special mention</em> (early warning, still standard) from <em>non-performing</em>:</p>
+<table><caption class="sr-only">Buckets name the states</caption>
+<thead>
+<tr>
+<th>State</th>
+<th>DPD range</th>
+<th>Classification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Current</td>
+<td>0</td>
+<td>Standard</td>
+</tr>
+<tr>
+<td>SMA-0</td>
+<td>1–30</td>
+<td>Standard, watch</td>
+</tr>
+<tr>
+<td>SMA-1</td>
+<td>31–60</td>
+<td>Standard, special mention</td>
+</tr>
+<tr>
+<td>SMA-2</td>
+<td>61–90</td>
+<td>Standard, special mention</td>
+</tr>
+<tr>
+<td>NPA (sub-standard)</td>
+<td>90+</td>
+<td>Non-performing</td>
+</tr>
+</tbody>
+</table>
+<p>The 90-day boundary is the one that carries weight: crossing it flips the asset from performing to non-performing, which changes provisioning, interest recognition (you typically stop accruing interest to income and move to a suspense treatment), and regulatory reporting. Encode the boundaries as data, not as branching code — a single ordered table of <code>(lower, upper, state, classification, provision_rate)</code> rows — so that when policy changes a threshold you edit a row, not a function.</p>
+<h2 id="roll-forward-roll-back-and-the-cure-edge">Roll-forward, roll-back, and the cure edge</h2>
+<p>Two forces move an account. Time rolls it <em>forward</em>: with no qualifying payment, DPD grows and the account steps Current → SMA-0 → SMA-1 → SMA-2 → NPA. Repayment rolls it <em>back</em>, and the roll-back rules are where correctness is won or lost.</p>
+<p>The key rule: a payment reduces DPD only by how much of the <em>oldest</em> arrears it clears. Paying one installment&rsquo;s worth when three are overdue moves DPD from, say, 75 to 45 — SMA-2 down to SMA-1 — but does not cure the account. Full <strong>cure</strong> (return to Current) requires clearing <em>all</em> overdue principal and interest so that no unpaid installment predates today.</p>
+<pre><code>                 time, no payment
+   Current ─────────────────────────────► NPA (90+ DPD)
+      ▲                                      │
+      │  cure: ALL arrears cleared           │ workout / restructure
+      └──────────────────────────────────────┘
+</code></pre>
+<p>Two subtleties bite teams here. First, many policies impose a <strong>cure period</strong> on non-performing accounts: an NPA does not upgrade to standard on a single payment: it must stay current for a defined window before the classification is restored, to prevent &ldquo;evergreening&rdquo; through a token payment. Model that as an intermediate <code>Cured (probation)</code> state, not a direct NPA → Current edge. Second, a <strong>restructure</strong> (a renegotiated schedule) is its own transition with its own classification treatment — it is not a cure, and conflating the two understates risk.</p>
+<h2 id="provisioning-is-a-side-effect-of-transitions">Provisioning is a side effect of transitions</h2>
+<p>The state is not just a label; each state carries a provision rate, and <em>every transition emits a balanced ledger entry</em> that trues up the loan-loss provision to the new state&rsquo;s requirement. Standard assets provision a small general reserve; special-mention more; non-performing a materially higher rate that escalates the longer the asset stays impaired.</p>
+<p>Make the provision movement a function of the transition, not an absolute recomputed blindly:</p>
+<pre><code>on transition(from_state, to_state, exposure):
+    target   = provision_rate[to_state] * exposure
+    current  = provision_balance(loan)
+    delta    = target - current
+    post_journal(
+        debit  = &quot;P&amp;L: provision expense&quot; if delta &gt; 0 else &quot;P&amp;L: provision writeback&quot;,
+        credit = &quot;Balance sheet: loan-loss provision&quot;,
+        amount = abs(delta),
+        memo   = f&quot;{from_state}-&gt;{to_state} @ DPD={dpd}&quot;,
+    )
+</code></pre>
+<p>Because the journal is derived from the delta between the old and new provision balance, a roll-back (cure) naturally produces a <em>write-back</em> entry, and the ledger always reflects the current classification without double-counting. Every posting carries the transition and DPD in its memo, which is what makes the month-end provision number defensible in an audit.</p>
+<h2 id="idempotency-and-replay-safety">Idempotency and replay-safety</h2>
+<p>The classification job runs daily and must be safe to re-run. Key each run by <code>(loan_id, as_of_date)</code> and make the job recompute state from the schedule and payment history rather than mutating a prior state in place. Reprocessing the same <code>as_of_date</code> twice must produce the same state and must not post the provision journal twice — guard the ledger posting with the same <code>(loan_id, as_of_date, transition)</code> idempotency key.</p>
+<p>This design gives you three properties that a nightly-counter approach cannot: you can <strong>backfill</strong> a corrected payment and have every downstream state and provision recompute deterministically; you can <strong>replay</strong> an entire portfolio as-of any historical date for reporting or dispute resolution; and you can <strong>prove</strong> any single account&rsquo;s classification is a pure function of inputs a reviewer can inspect. Delinquency stops being an opaque number on a dashboard and becomes a transparent, reproducible state — which is exactly what a regulator, an auditor, and your own on-call engineer each need it to be.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-credit-decisioning-engine.html">Building a Credit Decisioning Engine</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-amortization-schedule-engine.html">Building a Deterministic Amortization Schedule Engine</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-interest-accrual-engine.html">Building a Daily Interest Accrual Engine</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
