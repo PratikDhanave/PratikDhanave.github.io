@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>On-Chain Event Indexing and Chain-Data Pipelines</title>
+<meta name="description" content="Building an indexer: block ingestion, log decoding, reorg-safe writes, backfills, and serving queryable balances/history to the app.">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="On-Chain Event Indexing and Chain-Data Pipelines">
+<meta property="og:description" content="Building an indexer: block ingestion, log decoding, reorg-safe writes, backfills, and serving queryable balances/history to the app.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-onchain-event-indexing.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-20T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Crypto">
+<meta property="article:tag" content="Data">
+<meta property="article:tag" content="Architecture">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="On-Chain Event Indexing and Chain-Data Pipelines">
+<meta name="twitter:description" content="Building an indexer: block ingestion, log decoding, reorg-safe writes, backfills, and serving queryable balances/history to the app.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-onchain-event-indexing.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "On-Chain Event Indexing and Chain-Data Pipelines",
+  "description": "Building an indexer: block ingestion, log decoding, reorg-safe writes, backfills, and serving queryable balances/history to the app.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-20",
+  "dateModified": "2026-08-20",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Crypto, Data, Architecture",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-onchain-event-indexing.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-onchain-event-indexing.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>On-Chain Event Indexing and Chain-Data Pipelines</h1>
+    <p class="post-subtitle">Turning raw blocks and logs into queryable app state that survives reorgs, backfills, and finality.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-20">August 20, 2026</time>
+      <span>·</span>
+      <span>7 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/crypto/" class="tag-link"><span class="tag">#Crypto</span></a><a href="/blog/tags/data/" class="tag-link"><span class="tag">#Data</span></a><a href="/blog/tags/architecture/" class="tag-link"><span class="tag">#Architecture</span></a></div>
+  </header>
+
+
+
+
+
+  <p>A blockchain node is an excellent source of truth and a terrible application database. It answers &ldquo;what is the log at block N, index K?&rdquo; cheaply, but &ldquo;what is this account&rsquo;s token balance right now, and how did it change over the last month?&rdquo; is a full-table scan across millions of blocks. An <strong>indexer</strong> closes that gap: it reads blocks and event logs, decodes them against contract ABIs, and materializes the result into tables an application can query in milliseconds. The hard part is not the reading. It is keeping the materialized state <em>correct</em> while the chain underneath it rewrites recent history.</p>
+<p>This post walks the pipeline end to end, then focuses on the three engineering problems that separate a demo indexer from one you can bill customers against: idempotent writes, reorg rollback, and consistency with finality.</p>
+<h2 id="the-shape-of-the-pipeline">The shape of the pipeline</h2>
+<p>At a high level the data moves through five stages: sources, ingest, decode plus write, store, and serve.</p>
+<pre><code> SOURCES        INGEST         DECODE + WRITE        STORE          SERVE
+ ┌────────┐                    ┌──────────┐
+ │ ABI    │───contract ABIs──▶ │ Log      │
+ │Registry│                    │ Decoder  │──┐
+ └────────┘                    └──────────┘  │ typed events
+ ┌────────┐   ┌──────────┐                   ▼
+ │ Chain  │──▶│  Block   │──raw logs──▶ ┌──────────┐   upsert   ┌────────┐   ┌───────┐
+ │ Node   │   │ Ingestor │             │ Reorg-Safe │─────────▶ │ Index  │──▶│ Query │──▶ App
+ └────────┘   └────┬─────┘             │  Writer    │           │ Store  │   │  API  │
+ (blocks+logs)     │ parent hash       └────▲───────┘           └────────┘   └───────┘
+                   ▼                        │ rollback range      (finalized)   (balances
+              ┌──────────┐                  │                                    + history)
+              │  Reorg   │──────────────────┘        ┌───────────┐
+              │ Detector │       checkpoint (safe head)│Checkpoint │
+              └──────────┘◀───────────────────────────└───────────┘
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-onchain-event-indexing.html">Open the interactive diagram</a></strong> — Block ingestion, ABI decoding, reorg-safe writes, and serving balances and history.</p>
+</blockquote>
+<p>The consumer at the far right never talks to the chain node directly. It reads a curated store that the indexer keeps consistent. Everything interesting happens in the middle three stages.</p>
+<h2 id="ingesting-blocks-in-order">Ingesting blocks in order</h2>
+<p>The ingestor pulls two things per block: the header (number, hash, parent hash, timestamp) and the receipts, which carry the event logs. Two delivery modes coexist. A WebSocket subscription pushes new heads with low latency but drops messages on reconnect; a polling loop over <code>getBlockByNumber</code> is slower but gives you replay control. Production ingestors run both — subscribe for freshness, poll to close gaps — and treat the poll loop as the source of truth.</p>
+<p>The non-negotiable invariant is <strong>ordered, gapless processing</strong>. The indexer keeps a cursor: the highest block number it has fully processed. It only ever advances the cursor by one, and only after that block&rsquo;s writes have committed. If block 1,000,041 arrives while the cursor sits at 1,000,038, the ingestor fetches 39 and 40 first. Skipping a block silently corrupts every downstream aggregate, and the corruption is invisible until someone reconciles a balance by hand.</p>
+<h2 id="decoding-logs-against-abis">Decoding logs against ABIs</h2>
+<p>A raw log is opaque bytes: an ordered list of <code>topics</code> (indexed parameters, the first of which is the event signature hash) and a <code>data</code> blob (non-indexed parameters, ABI-encoded). To make it meaningful you need the contract&rsquo;s ABI. The decoder maintains an <strong>ABI registry</strong> keyed by contract address, matches <code>topics[0]</code> against known event signatures, and unpacks the remaining topics and data into typed fields.</p>
+<p>Two realities make this messier than it sounds. Contracts get upgraded behind proxies, so the same address can emit differently shaped events over its lifetime — the registry has to be versioned by block range, not just by address. And you will encounter logs you cannot decode, either because the ABI is missing or because a signature collides. The decoder should record the raw log with a &ldquo;undecoded&rdquo; marker rather than dropping it. A gap you can see and backfill later is recoverable; a log you silently discarded is gone.</p>
+<h2 id="writing-idempotently-the-block-log-index-key">Writing idempotently: the (block, log index) key</h2>
+<p>Every event in a block has a stable, unique coordinate: its block number and its <strong>log index</strong> within that block. That pair is the natural primary key for the events table, and it is the single most important design decision in the whole pipeline.</p>
+<p>Keying writes by <code>(block_number, log_index)</code> turns every insert into an <strong>idempotent upsert</strong>. Reprocess the same block ten times — because a subscription hiccuped, because a backfill overlapped the live tip, because a deploy replayed a range — and you get exactly one row per event. This is what lets the rest of the system be sloppy in safe ways. The ingestor can re-fetch a block it is unsure about. A backfill worker can march through history while the live indexer runs, and the overlap in the middle simply overwrites identical data. Without this key, &ldquo;at-least-once&rdquo; delivery becomes &ldquo;double-counted balances,&rdquo; and you are back to hand reconciliation.</p>
+<p>Derived state — token balances, position sizes, running totals — is computed from the event rows, not written independently. Recomputing a balance from its event history must always yield the same number. If it does not, the derivation, not the events, is where your bug lives.</p>
+<h2 id="surviving-reorganizations">Surviving reorganizations</h2>
+<p>Here is the fact that breaks naive indexers: <strong>recent blocks are not final.</strong> A chain can discard the last few blocks and replace them with a different history — a reorganization, or reorg. If your indexer wrote events from the discarded blocks, your database now contains transactions that, as far as the canonical chain is concerned, never happened.</p>
+<p>Detection is a parent-hash check. When the indexer processes block N, it verifies that block N&rsquo;s <code>parentHash</code> equals the hash it stored for block N-1. If they match, the chain is intact. If they diverge, a reorg has occurred, and the indexer walks backward until it finds the last block whose stored hash still matches the chain — the fork point.</p>
+<p>Recovery is a <strong>rollback range</strong>. Every write carries its block number, so reverting is a delete of all rows with <code>block_number &gt; fork_point</code>, followed by reprocessing the new canonical blocks from the fork point forward. Because writes are keyed by <code>(block, log index)</code>, the reprocess is just more idempotent upserts. Derived balances are recomputed for the affected accounts. The rollback is bounded: reorgs deeper than a handful of blocks are extraordinarily rare, so you only ever revert a small tail.</p>
+<h2 id="consistency-with-finality">Consistency with finality</h2>
+<p>Reorgs motivate the last piece: the indexer distinguishes the <strong>live head</strong> from the <strong>finalized head</strong>. Most chains expose a finality signal — a block depth or a checkpoint beyond which reorgs cannot occur. The indexer advances a <strong>safe-head checkpoint</strong> only past finalized blocks.</p>
+<p>This gives you two serving modes. Queries that demand correctness — settlement, accounting, anything that moves money — read only up to the finalized checkpoint, where data can never be rolled back. Queries that want freshness — a pending-activity feed — can read to the live head with an explicit &ldquo;unconfirmed&rdquo; flag. The checkpoint is also your restart anchor: on crash, the indexer resumes from the last finalized cursor and re-derives the unfinalized tail, because that tail is cheap to rebuild and unsafe to trust.</p>
+<h2 id="backfills-without-downtime">Backfills without downtime</h2>
+<p>Launching against a chain with years of history means backfilling. Run backfill as a separate worker that processes historical ranges in parallel, writing through the same idempotent path as the live indexer. Because the key is <code>(block, log index)</code>, the backfill and the live tip can overlap with zero coordination — whichever writes a given event last writes identical bytes. Track per-range completion so a crashed backfill resumes mid-history instead of restarting, and only expose a contract&rsquo;s data to the API once its backfill has reached the range users will query.</p>
+<h2 id="what-holds-it-together">What holds it together</h2>
+<p>Strip away the vocabulary and an on-chain indexer is a stream processor with three unusual constraints: its input can rewrite its own recent past, its output must be queryable like a warehouse, and &ldquo;correct&rdquo; is defined by a finality rule rather than a wall clock. The <code>(block, log index)</code> key makes writes idempotent, parent-hash detection plus a bounded rollback range makes them reorg-safe, and a finalized checkpoint makes the whole thing consistent with what the chain will actually keep. Get those three right and everything else — backfills, retries, multiple contracts — reduces to replaying the same safe write.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-cbdc-two-tier-architecture.html">Engineering a Two-Tier Retail CBDC: Ledger, Intermediaries, and Offline Payments</a>
+      <span class="related-date">Aug 24</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-mpc-threshold-wallets.html">MPC Custody: Signing Without Ever Holding a Whole Key</a>
+      <span class="related-date">Aug 23</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-nonce-gas-management.html">Nonce and Gas: The Sending Side Nobody Budgets For</a>
+      <span class="related-date">Aug 23</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
