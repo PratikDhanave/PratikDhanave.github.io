@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Push-to-Card and Instant Disbursements — Pratik Dhanave</title>
+<meta name="description" content="How OCT/push-to-card (Visa Direct, Mastercard Send) moves money to a card in near real time, eligibility/limits, and reversal handling.">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Push-to-Card and Instant Disbursements — Pratik Dhanave">
+<meta property="og:description" content="How OCT/push-to-card (Visa Direct, Mastercard Send) moves money to a card in near real time, eligibility/limits, and reversal handling.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-push-to-card-disbursements.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-12T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="Rails">
+<meta property="article:tag" content="Disbursements">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Push-to-Card and Instant Disbursements — Pratik Dhanave">
+<meta name="twitter:description" content="How OCT/push-to-card (Visa Direct, Mastercard Send) moves money to a card in near real time, eligibility/limits, and reversal handling.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-push-to-card-disbursements.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Push-to-Card and Instant Disbursements",
+  "description": "How OCT/push-to-card (Visa Direct, Mastercard Send) moves money to a card in near real time, eligibility/limits, and reversal handling.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-12",
+  "dateModified": "2026-08-12",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Payments, Rails, Disbursements",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-push-to-card-disbursements.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-push-to-card-disbursements.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Push-to-Card and Instant Disbursements</h1>
+    <p class="post-subtitle">How Original Credit Transactions move money onto a card in near real time — and why pushing is a different animal from pulling.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-12">August 12, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/rails/" class="tag-link"><span class="tag">#Rails</span></a><a href="/blog/tags/disbursements/" class="tag-link"><span class="tag">#Disbursements</span></a></div>
+  </header>
+
+
+
+
+
+  <p>Most people meet card rails from one direction: they tap a card and a merchant <em>pulls</em> money out of their account. Push-to-card runs the same rails backwards. Instead of debiting a card, you send a credit <em>to</em> it. The recipient never shares a bank account number, an IBAN, or routing details — just a card number they already carry in their wallet. Behind that simplicity sits a specific message type, the <strong>Original Credit Transaction (OCT)</strong>, and two network products built around it: <strong>Visa Direct</strong> and <strong>Mastercard Send</strong>.</p>
+<p>This post walks the anatomy of a disbursement: the eligibility and limit checks, funding, the OCT authorization itself, and how reversals and returns unwind a push when something goes wrong. Along the way it contrasts a push with the pull transaction every engineer already half-understands.</p>
+<h2 id="why-push-instead-of-an-ach-transfer">Why push instead of an ACH transfer?</h2>
+<p>The obvious alternative is a bank transfer — ACH in the US, SEPA in Europe. Those are cheap and fine for payroll, but they are slow (ACH settles in one to three business days) and require the recipient to hand over bank credentials. Push-to-card wins on two axes that matter for consumer-facing payouts:</p>
+<ul>
+<li><strong>Speed.</strong> An OCT typically posts to the recipient&rsquo;s available balance in seconds to minutes, not days. The funds are usable almost immediately, even on weekends.</li>
+<li><strong>Reach and simplicity.</strong> Nearly everyone has a debit card. Collecting a 16-digit PAN is a far lower-friction onboarding step than a bank-account micro-deposit dance.</li>
+</ul>
+<p>That combination is why push-to-card shows up wherever money needs to reach an individual quickly:</p>
+<ul>
+<li><strong>Gig and marketplace payouts</strong> — a driver or seller cashes out same-day instead of waiting for a weekly batch.</li>
+<li><strong>Insurance claims</strong> — a claim is approved and the payout lands before the customer leaves the call.</li>
+<li><strong>P2P transfers</strong> — the &ldquo;send to a friend&rsquo;s debit card&rdquo; feature inside many wallet apps.</li>
+<li><strong>Lending and refunds</strong> — loan disbursement or an early refund pushed straight to a card.</li>
+</ul>
+<h2 id="push-vs-pull-the-same-rails-reversed">Push vs. pull: the same rails, reversed</h2>
+<p>A purchase (pull) is a <strong>financial authorization</strong>: the merchant asks the issuer &ldquo;may I take X?&rdquo;, the issuer holds the funds, and clearing/settlement moves the money later. The cardholder is the <em>source</em>.</p>
+<p>An OCT is a <strong>credit push</strong>: the sender is the source of funds, and the recipient&rsquo;s card is the <em>destination</em>. The issuer is not being asked to approve a debit against its cardholder — it is being told to credit them. That inversion changes several things:</p>
+<ul>
+<li><strong>Direction of funds.</strong> Money flows sender → network → issuer → cardholder, the opposite of a purchase.</li>
+<li><strong>Who is on the hook.</strong> In a pull, the acquirer funds the merchant. In a push, the <em>originator</em> must fund the OCT — the money has to exist before the credit is guaranteed.</li>
+<li><strong>Decline semantics.</strong> An issuer can decline an OCT (bad PAN, ineligible card, sanctions block), but it is not evaluating the cardholder&rsquo;s spending limit — there is no balance to check on the way in.</li>
+</ul>
+<p>Because it reuses existing card infrastructure, an OCT is not a magic new pipe; it is a well-defined transaction type carried over the same authorization network as purchases.</p>
+<h2 id="the-disbursement-flow-step-by-step">The disbursement flow, step by step</h2>
+<p>A production push runs through four stages: check, fund, push, confirm — with a fifth branch for reversals. Here is the happy path with the reversal branch attached.</p>
+<pre><code> Payer/Platform        Network            Recipient Issuer
+      |  check limits      |                     |
+      |-------------------&gt;|   verify PAN        |
+      |                    |--------------------&gt;|
+      |                    |&lt;-- eligible --------|
+      |&lt;-- OCT ready ------|                     |
+      |                    |                     |
+      |  fund OCT          |                     |
+      |==================&gt;&gt;|   OCT push          |
+      |                    |==================&gt;&gt;&gt;|--&gt; credit
+      |                    |&lt;-- approved --------|   cardholder
+      |&lt;-- confirmed ------|                     |
+      |                    |                     |
+   - - - reversal / return branch - - - - - - - - -
+      |  reversal          |                     |
+      |- - - - - - - - - -&gt;|   return OCT        |
+      |                    |- - - - - - - - - - &gt;|
+      |                    |&lt;-- returned --------|
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-push-to-card-disbursements.html">Open the interactive diagram</a></strong> — the push-to-card OCT flow: eligibility, funding, the OCT push, issuer credit, and the reversal branch.</p>
+</blockquote>
+<h3 id="1-eligibility-and-limit-checks">1. Eligibility and limit checks</h3>
+<p>Before any money moves, the platform asks two independent questions. First, <em>its own</em> limits: does this payout respect per-transfer ceilings, daily and monthly velocity caps, and the recipient&rsquo;s KYC tier? These are your risk controls, not the network&rsquo;s.</p>
+<p>Second, <em>card eligibility</em>: not every card can receive a push. The network exposes a lookup that returns whether a given PAN supports OCTs, whether it is a debit/prepaid/credit product (payout economics and rules differ), the issuing country, and any fast-funds capability flag. A card that only supports &ldquo;standard&rdquo; funding will still credit — just not in seconds. Running this check up front lets you fail fast and, importantly, quote the recipient an honest arrival time.</p>
+<h3 id="2-funding-the-oct">2. Funding the OCT</h3>
+<p>An OCT is a guaranteed credit, so the originator must have the money first. Depending on the program, funding is either <strong>prefunded</strong> (you maintain a settlement balance the network draws from) or <strong>debited</strong> from a linked source as part of the flow. This is the step with no analog in a pull transaction: in a purchase the issuer&rsquo;s cardholder is the funding source, but in a push <em>you</em> are. Get this wrong and you have credited a stranger&rsquo;s card with money you did not have — which is exactly why funding is authorized before the OCT is submitted downstream.</p>
+<h3 id="3-the-oct-authorization">3. The OCT authorization</h3>
+<p>Now the network submits the Original Credit Transaction to the recipient&rsquo;s issuer. The issuer validates the PAN, screens for sanctions and fraud, and either approves or declines. On approval it credits the cardholder&rsquo;s available balance — often instantly for fast-funds-eligible cards — and returns an approval code up the chain. Clearing and settlement between the network and the two banks happen afterward on the normal cycle; the <em>availability</em> to the cardholder is decoupled from settlement, which is what makes it feel instant.</p>
+<h3 id="4-confirmation">4. Confirmation</h3>
+<p>The approval propagates back to the platform, which marks the payout complete and notifies the recipient. Because the credit posts to available balance, &ldquo;complete&rdquo; here genuinely means spendable — a stronger guarantee than an ACH &ldquo;submitted.&rdquo;</p>
+<h2 id="reversals-and-returns-unwinding-a-push">Reversals and returns: unwinding a push</h2>
+<p>Two distinct mechanisms undo a push, and confusing them causes real bugs.</p>
+<p>A <strong>reversal</strong> cancels an OCT the network still owns — typically when the original authorization timed out, was duplicated, or errored before it was fully confirmed. It nets out the transaction as though it never posted.</p>
+<p>A <strong>return</strong> happens <em>after</em> the credit has posted: the issuer sends the funds back because the account is closed, the card is invalid, or the recipient disputes the credit. Returns arrive asynchronously, sometimes days later, so your ledger cannot assume &ldquo;confirmed&rdquo; is final forever. Both paths must restore the payer&rsquo;s funding source and reconcile against the original transaction ID.</p>
+<p>Idempotency is the engineering lesson here. Network timeouts are common, and a naive retry can push twice. Every OCT should carry a client-generated idempotency key so a retried request returns the original result instead of minting a second credit.</p>
+<h2 id="what-to-build-around-it">What to build around it</h2>
+<p>Treat push-to-card as a state machine, not a single API call: <code>checked → funded → pushed → confirmed</code>, with <code>reversed</code> and <code>returned</code> as branches off the later states. Persist the network transaction ID and your idempotency key on every row, expose limit checks before you take the recipient&rsquo;s card, and never mark a payout immutable — a return can arrive after the money looked settled. Do those four things and instant disbursement stops being a demo and becomes a rail you can trust with payroll.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-vrp-subscription-billing.html">Variable Recurring Payments and Metered Billing as a Mandate Lifecycle</a>
+      <span class="related-date">Aug 17</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-payments-actors-map.html">The Card Payment Actors Map: Who Actually Does What</a>
+      <span class="related-date">Aug 17</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-payment-orchestration-routing.html">Payment Orchestration: Routing One Charge Across Many PSPs</a>
+      <span class="related-date">Aug 16</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
