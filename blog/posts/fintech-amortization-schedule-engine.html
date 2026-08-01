@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Building a Deterministic Amortization Schedule Engine</title>
+<meta name="description" content="Teaches how to compute loan amortization deterministically: EMI/annuity vs reducing-balance formulas, day-count conventions, principal/interest split...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Building a Deterministic Amortization Schedule Engine">
+<meta property="og:description" content="Teaches how to compute loan amortization deterministically: EMI/annuity vs reducing-balance formulas, day-count conventions, principal/interest split per installment, and prepayment/rescheduling recalculation.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-amortization-schedule-engine.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-08T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Lending">
+<meta property="article:tag" content="Credit">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Building a Deterministic Amortization Schedule Engine">
+<meta name="twitter:description" content="Teaches how to compute loan amortization deterministically: EMI/annuity vs reducing-balance formulas, day-count conventions, principal/interest split per installment, and prepayment/rescheduling recalculation.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-amortization-schedule-engine.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Building a Deterministic Amortization Schedule Engine",
+  "description": "Teaches how to compute loan amortization deterministically: EMI/annuity vs reducing-balance formulas, day-count conventions, principal/interest split per installment, and prepayment/rescheduling recalculation.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-08",
+  "dateModified": "2026-08-08",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Lending, Credit",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-amortization-schedule-engine.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-amortization-schedule-engine.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Building a Deterministic Amortization Schedule Engine</h1>
+    <p class="post-subtitle">Computing loan amortization you can reproduce to the cent — annuity math, day-count conventions, the per-installment principal/interest split, and prepayment recomputation.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-08">August 08, 2026</time>
+      <span>·</span>
+      <span>7 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/lending/" class="tag-link"><span class="tag">Lending</span></a><a href="/blog/tags/credit/" class="tag-link"><span class="tag">Credit</span></a></div>
+  </header>
+
+
+
+
+
+  <p>An amortization schedule looks like a solved problem. You learned the EMI formula in school, a spreadsheet can render one in thirty seconds, and every lending product ships one. Then you put it behind an API that a borrower, a collections team, a regulator, and an accounting system all read from — and the schedule becomes one of the least forgiving pieces of code in the stack. Two runs of the same loan must produce byte-identical rows. A prepayment in month 14 must not silently move a cent in month 3. And the final installment must close the balance to exactly zero.</p>
+<p>This post treats the schedule engine as what it actually is: a deterministic function from loan terms to a table of installments, with a small set of invariants that must hold on every path.</p>
+<h2 id="the-engine-is-a-pure-function">The engine is a pure function</h2>
+<p>Start by drawing a hard boundary. The core computation takes terms in, produces a schedule out, and touches nothing else — no clock, no database, no random rounding mode inherited from the runtime. Everything that varies (today&rsquo;s date, the interest rate feed, prepayment events) is passed in as an explicit argument so the same inputs always yield the same rows.</p>
+<pre><code> Loan Terms ─┐
+             ├─►  Installment  ─►  P/I Split  ─►  Schedule ─►  Prepayment
+ Day-Count ──┘        calc                          table          event
+                                                      ▲              │
+                                                      └── Recompute ──┘
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-amortization-schedule-engine.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<p>Everything downstream of that boundary — statements, ledger accruals, delinquency buckets — consumes the schedule as data. If the engine is a pure function, you can snapshot a schedule, replay it in a test, and diff two versions of the code against a golden fixture. If it quietly reads <code>now()</code> or a live rate somewhere in the middle, you lose all of that, and you will spend a quarter chasing &ldquo;the numbers don&rsquo;t match&rdquo; tickets.</p>
+<h2 id="two-formulas-and-knowing-which-you-sold">Two formulas, and knowing which you sold</h2>
+<p>There are two amortization styles, and mixing them up is a compliance incident, not a rounding quirk.</p>
+<p><strong>Equated installments (annuity / EMI).</strong> Every period the borrower pays the same total. The classic closed form for the level payment is:</p>
+<pre><code class="language-python">def emi(principal_minor: int, rate_per_period: Decimal, n: int) -&gt; int:
+    if rate_per_period == 0:
+        return round_half_even(Decimal(principal_minor) / n)
+    r = rate_per_period
+    factor = (1 + r) ** n
+    payment = Decimal(principal_minor) * r * factor / (factor - 1)
+    return round_half_even(payment)
+</code></pre>
+<p><strong>Reducing-balance with fixed principal.</strong> The principal component is constant (<code>principal / n</code>), interest is charged on the outstanding balance, so the <em>total</em> installment falls over the life of the loan. Common in some commercial and auto products.</p>
+<p>The formula you pick changes every downstream number — total interest, the APR you must disclose, the payoff amount on any given day. Store the amortization method as a first-class field on the loan, never as an implicit consequence of which code branch ran.</p>
+<p>Note that <code>principal_minor</code> is an integer count of minor units (paise, cents). Amortization multiplies and divides balances thousands of times; doing that in binary floating point accumulates error that eventually shows up as a non-zero final balance. Work in integer minor units and a <code>Decimal</code> for the periodic rate, and choose one rounding mode — half-even is the usual pick to avoid a systematic bias toward the lender.</p>
+<h2 id="day-count-decides-the-interest-not-the-formula">Day-count decides the interest, not the formula</h2>
+<p>The period rate above hides the second landmine. Interest for a period is <code>outstanding × annual_rate × (days_in_period / days_in_year)</code>, and both the numerator and denominator depend on a <strong>day-count convention</strong> that is part of the contract:</p>
+<ul>
+<li><strong>30/360</strong> — every month is 30 days, every year 360. Clean, common in mortgages, and the reason a &ldquo;monthly&rdquo; schedule can ignore actual calendar lengths.</li>
+<li><strong>ACT/365F</strong> — actual elapsed days over a fixed 365. February is genuinely shorter than March.</li>
+<li><strong>ACT/360</strong> — actual days over 360, which quietly inflates the effective annual rate; standard in some money-market and commercial lending.</li>
+<li><strong>ACT/ACT</strong> — actual over the actual length of the year, leap years included.</li>
+</ul>
+<p>A loan booked at &ldquo;12% per annum, monthly&rdquo; pays a different amount under 30/360 than under ACT/365F, and the gap widens across February and December. Make the convention an input to the day-count function and unit-test each one against hand-computed values. Do not let &ldquo;12% / 12&rdquo; be hardcoded as the monthly rate; that <em>is</em> a convention (30/360-flavoured), and pretending it isn&rsquo;t will bite you the first time a product uses actual days.</p>
+<h2 id="splitting-each-installment">Splitting each installment</h2>
+<p>With the payment amount and the period interest in hand, the per-installment split is a short, strict loop. For each period: compute interest on the current balance, take the rest of the payment as principal, and decrement the balance.</p>
+<pre><code class="language-python">def schedule(principal_minor, payment, periods, day_count):
+    balance = principal_minor
+    rows = []
+    for i, period in enumerate(periods):
+        interest = round_half_even(
+            balance * annual_rate * day_count.fraction(period)
+        )
+        principal = payment - interest
+        if i == len(periods) - 1:          # final period closes the loan
+            principal = balance
+            payment_i = principal + interest
+        else:
+            payment_i = payment
+        balance -= principal
+        rows.append(Row(period, payment_i, principal, interest, balance))
+    return rows
+</code></pre>
+<p>The subtle line is the final period. Because every prior row was rounded, the sum of principal components will be off from the original principal by a few minor units. Rather than let that error leak into a residual balance, the last installment is forced to repay exactly the remaining balance and its payment is derived from that. This is the standard &ldquo;true-up on the last row&rdquo; technique, and it is what guarantees the closing invariant: <strong>sum of principal components equals the original principal, and the final balance is exactly zero.</strong></p>
+<p>Two more invariants belong in the same test: interest is never negative, and principal never exceeds the outstanding balance. If your period rate is high relative to the payment (a very short-tenor, high-rate loan), the naive formula can produce a negative-amortizing row where interest exceeds the payment. The engine should reject that at construction time, not emit a schedule where the balance grows.</p>
+<h2 id="prepayment-recompute-never-patch">Prepayment: recompute, never patch</h2>
+<p>The moment a borrower pays extra principal, the temptation is to reach into the stored schedule and edit a few rows. Resist it. A prepayment is a new input; the correct response is to re-run the pure function from the event date forward.</p>
+<p>There are two contractual outcomes, and the borrower&rsquo;s agreement dictates which:</p>
+<ul>
+<li><strong>Reduce tenor</strong> — keep the installment the same, apply the extra principal to the balance, and the loan simply ends earlier. You recompute how many periods remain.</li>
+<li><strong>Reduce installment</strong> — keep the number of periods, recompute a new (lower) level payment on the reduced balance for the remaining term.</li>
+</ul>
+<pre><code>outstanding after month 14
+        │
+   extra principal ── applied ──► new balance
+        │
+        ├─ reduce tenor  → same EMI, fewer rows
+        └─ reduce EMI    → new EMI, same end date
+</code></pre>
+<p>Structurally, you split the schedule at the event&rsquo;s effective date: rows before it are frozen (they already happened and were posted to the ledger), and everything from the event forward is regenerated by calling the same <code>schedule()</code> function with the reduced balance and the chosen strategy. Rate changes mid-loan are handled identically — a rate change is just another event that recomputes the tail. Because the tail is recomputed rather than hand-edited, the closing invariants hold automatically on the new schedule, and you keep a clean audit trail: version N of the schedule, the event, version N+1.</p>
+<h2 id="what-to-actually-test">What to actually test</h2>
+<p>The determinism promise is only real if you enforce it. Three test families cover most of the risk. First, <strong>golden fixtures</strong>: a handful of loans (annuity and reducing-balance, each day-count convention) with schedules computed by hand or a trusted reference, diffed row-for-row. Second, <strong>invariant property tests</strong>: for randomly generated terms, assert the principal sums back to the original, the final balance is zero, and no row negatively amortizes. Third, <strong>event replay</strong>: apply a prepayment or rate change, then confirm the frozen prefix is unchanged and the recomputed tail still closes to zero.</p>
+<p>An amortization engine is not hard because the math is deep. It is hard because dozens of small decisions — minor units, rounding mode, day-count, the final-row true-up, recompute-versus-patch — each have a correct answer, and every one of them is visible to someone who will notice a one-cent discrepancy. Pin them down as explicit inputs and invariants, and the schedule becomes what it should be: boring, reproducible, and correct on every path.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-delinquency-npa-state-machine.html">Delinquency as a State Machine: DPD Buckets, SMA, and NPA Classification</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-credit-decisioning-engine.html">Building a Credit Decisioning Engine</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-interest-accrual-engine.html">Building a Daily Interest Accrual Engine</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
