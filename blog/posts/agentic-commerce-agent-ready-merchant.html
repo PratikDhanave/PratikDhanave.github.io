@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Building an Agent-Ready Merchant — Pratik Dhanave</title>
+<meta name="description" content="What a store must expose to sell to agents: a machine-readable product feed/catalog, agentic checkout endpoints, acceptance of delegated payment...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Building an Agent-Ready Merchant — Pratik Dhanave">
+<meta property="og:description" content="What a store must expose to sell to agents: a machine-readable product feed/catalog, agentic checkout endpoints, acceptance of delegated payment tokens, idempotency keys for retried agent calls, webhooks for async status…">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/agentic-commerce-agent-ready-merchant.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-10T00:00:00Z">
+<meta property="article:tag" content="Agentic Commerce">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="Architecture">
+<meta property="article:tag" content="Fintech">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Building an Agent-Ready Merchant — Pratik Dhanave">
+<meta name="twitter:description" content="What a store must expose to sell to agents: a machine-readable product feed/catalog, agentic checkout endpoints, acceptance of delegated payment tokens, idempotency keys for retried agent calls, webhooks for async status…">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/agentic-commerce-agent-ready-merchant.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Building an Agent-Ready Merchant",
+  "description": "What a store must expose to sell to agents: a machine-readable product feed/catalog, agentic checkout endpoints, acceptance of delegated payment tokens, idempotency keys for retried agent calls, webhooks for async status\u2026",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-10",
+  "dateModified": "2026-08-10",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Agentic Commerce, Payments, Architecture, Fintech",
+  "url": "https://pratikdhanave.com/blog/posts/agentic-commerce-agent-ready-merchant.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/agentic-commerce-agent-ready-merchant.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Building an Agent-Ready Merchant</h1>
+    <p class="post-subtitle">The surface a store must expose when the buyer is an AI agent, not a browser — and why it is the fintech reliability playbook wearing a new hat.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-10">August 10, 2026</time>
+      <span>·</span>
+      <span>8 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/agentic-commerce/" class="tag-link"><span class="tag">#Agentic Commerce</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/architecture/" class="tag-link"><span class="tag">#Architecture</span></a><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a></div>
+  </header>
+
+
+
+
+
+  <p>For twenty years the checkout flow assumed a human on the other side of the glass: a person who reads a product page, types a card number, clicks &ldquo;Pay&rdquo;, and waits for a spinner. That assumption is dissolving. The buyer is increasingly an autonomous agent shopping on someone&rsquo;s behalf — comparing SKUs, filling a cart, and settling payment through a delegated token. If your store cannot be read, transacted against, and reconciled by software, the agent routes around you to a merchant that can.</p>
+<p>&ldquo;Agent-ready&rdquo; is not a rebrand of &ldquo;has an API&rdquo;. It is a specific contract: a machine-readable catalog, checkout endpoints an agent can call without a screen, payment that never touches a raw card number, and the reliability primitives — idempotency, webhooks, audit — that keep automated traffic from corrupting your order book. The good news for anyone who has read the fintech handbook: you already own most of these patterns.</p>
+<h2 id="what-agent-ready-actually-means">What &ldquo;agent-ready&rdquo; actually means</h2>
+<p>Break it into six exposed capabilities. A store is agent-ready when it publishes:</p>
+<ol>
+<li>A <strong>product feed</strong> that is structured, current, and priced — not an HTML page an agent has to scrape.</li>
+<li><strong>Agentic checkout endpoints</strong> — create a checkout, apply payment, complete the order — callable headlessly.</li>
+<li><strong>Delegated payment token acceptance</strong> — the agent presents a scoped token, never a PAN you have to store.</li>
+<li><strong>Idempotency</strong> on every mutating call, because agents retry far more aggressively than humans.</li>
+<li><strong>Webhooks</strong> for asynchronous order status, so the agent learns of state changes without polling.</li>
+<li><strong>Observability and audit</strong> for agent traffic, so you can attribute, rate-limit, and dispute automated orders.</li>
+</ol>
+<p>Emerging standards package this so you build it once. The Agentic Commerce Protocol (ACP) frames the goal as &ldquo;build once, distribute to any ACP-compatible AI agent&rdquo; — a Stripe merchant can enable agentic payments with as little as one line of code. Google&rsquo;s AP2 leans on signed <strong>Payment Mandates</strong> so the buyer&rsquo;s authorization travels with the request as verifiable intent. Different wire formats, same shape.</p>
+<h2 id="the-product-feed-structured-fresh-priced">The product feed: structured, fresh, priced</h2>
+<p>The feed is the front door. An agent cannot buy what it cannot parse. That means a structured document — JSON or a well-formed feed format — with a stable product identifier, title, description, price with currency, availability, and variant attributes. Two properties matter more than completeness:</p>
+<ul>
+<li><strong>Freshness.</strong> A price or stock field that lags reality turns into a failed checkout or a chargeback. Serve the feed from the same source of truth your checkout reads, or reconcile them on a tight cadence. A stale feed is worse than no feed — it invites the agent to commit to a purchase you cannot honor.</li>
+<li><strong>Machine-first shape.</strong> Availability should be an enum the agent can branch on, not the words &ldquo;only a few left&rdquo; in marketing copy. Prices are integers in minor units with an explicit currency, not <code>"$19.99"</code>.</li>
+</ul>
+<p>Treat the feed as a read API with a cache contract: an <code>ETag</code> so agents fetch deltas cheaply, and a documented refresh interval so they know how much to trust a cached copy.</p>
+<h2 id="agentic-checkout-endpoints">Agentic checkout endpoints</h2>
+<p>Checkout for an agent is a small state machine exposed over three calls:</p>
+<ul>
+<li><strong>Create checkout</strong> — the agent sends line items and quantities; you return a checkout object with a computed total, tax, shipping options, and a server-generated <code>checkout_id</code>.</li>
+<li><strong>Apply payment</strong> — the agent attaches a delegated token (below) to the checkout.</li>
+<li><strong>Complete order</strong> — you capture, transition the checkout to <code>confirmed</code>, and return an order reference.</li>
+</ul>
+<p>Keep the transitions one-directional, and have every response echo the current state and total so the agent never infers what happened from an HTTP code alone. Reject ambiguous transitions loudly — a <code>complete</code> on an unpaid checkout is a <code>409</code>, not a silent no-op.</p>
+<h2 id="accepting-delegated-tokens-never-a-raw-pan">Accepting delegated tokens, never a raw PAN</h2>
+<p>This is the line that separates agentic commerce from screen-scraping a card form. The agent does not hand you a card number. It presents a <strong>delegated, scoped payment credential</strong>: an ACP shared payment token, an AP2 Payment Mandate, or a network-issued agentic token. The credential is scoped — to an amount, a merchant, a window — and carries the buyer&rsquo;s authorization as a signed artifact.</p>
+<p>Your job shrinks to verification and capture. You confirm the token is valid, that its scope covers this order&rsquo;s amount and currency, and that it has not expired, then pass it to your payment provider exactly as you would a normal payment method. You never see, store, or log the underlying account number, which keeps the agentic path outside the worst of your PCI scope. If a token&rsquo;s scope does not cover the total, fail closed — declining is safer than capturing against an authorization you cannot prove.</p>
+<h2 id="idempotency-because-agents-retry">Idempotency, because agents retry</h2>
+<p>A human who sees a spinner waits. An agent that sees a timeout retries — often immediately, often several times, sometimes from a fresh worker that has no memory of the first attempt. Without protection, three retries of &ldquo;complete order&rdquo; become three charges and three shipments.</p>
+<p>The fix is the same idempotency key pattern the fintech handbook prescribes for any payment mutation. The agent generates a unique key per logical operation and sends it as a header. You persist the key with the first request&rsquo;s outcome; a replay with the same key returns the stored result instead of re-executing. Scope keys to the operation and checkout, give them a sane TTL, and store enough of the original response to replay it faithfully. This single mechanism absorbs the retry behavior that would otherwise make agent traffic unsafe.</p>
+<pre><code>                          AGENT-READY MERCHANT
+                          ====================
+
+   ┌─────────┐                 MERCHANT EDGE
+   │   AI    │        ┌────────────────────────────────┐
+   │  AGENT  │──(1)──▶│  Product Feed API   (read)     │
+   │ (buyer) │        │  Checkout API       (mutate)   │
+   └────┬────┘        │  Token Acceptance   (verify)   │
+        │             └───────┬──────────────┬─────────┘
+        │                     │              │
+        │  (2) delegated      │ (3) persist  │ (4) capture
+        │      token          ▼              ▼
+        │             ┌──────────────┐  ┌──────────────┐
+        │             │  Order Store │  │   Payment    │
+        │             │ + idempotency│  │   Provider   │
+        │             └──────┬───────┘  └──────┬───────┘
+        │                    │                 │
+        │◀───(6) webhook ────┤◀──(5) settled ──┘
+        │    order.status    │
+        │                    ▼
+        │             ┌──────────────┐
+        └─ audit ────▶│ Observability│
+           trace      │  + rate limit│
+                      └──────────────┘
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/agentic-commerce-agent-ready-merchant.html">Open the interactive diagram</a></strong> — the agent-ready merchant surface: catalog read, headless checkout, delegated-token verification, capture, and signed webhook status flowing back to the agent.</p>
+</blockquote>
+<h2 id="webhooks-and-asynchronous-status">Webhooks and asynchronous status</h2>
+<p>Capture is rarely instantaneous, and fulfillment never is. The agent needs to know when a payment settles, when an order ships, when a refund clears — without hammering your API in a polling loop. Webhooks carry those transitions: <code>order.confirmed</code>, <code>payment.settled</code>, <code>order.shipped</code>, <code>refund.completed</code>.</p>
+<p>The webhook contract is the handbook&rsquo;s contract, unchanged. Sign every payload so the receiver can verify origin. Make delivery at-least-once and tell consumers so — the agent must then dedupe on your event ID, the mirror image of the idempotency you enforce inbound. Emit events from an <strong>outbox</strong> written in the same transaction as the state change, so a crash between &ldquo;commit order&rdquo; and &ldquo;send webhook&rdquo; cannot drop the notification. Retry with backoff and expose a replay endpoint for gaps.</p>
+<h2 id="observability-audit-and-rate-limits">Observability, audit, and rate limits</h2>
+<p>Agent traffic is different traffic, and you must be able to see it as such. Tag requests with the calling agent&rsquo;s identity so you can attribute orders, reconstruct a disputed purchase, and separate agent conversion from human conversion. An audit trail that ties a completed order back to a specific token and mandate is what lets you win a chargeback when the buyer&rsquo;s own agent placed the order.</p>
+<p>Rate limits are non-negotiable. Agents fan out faster than any human, and a misbehaving one can exhaust inventory or hammer checkout creation. Apply per-agent quotas and return <code>429</code> with a <code>Retry-After</code> an agent will respect — generous enough for legitimate bursty shopping, tight enough to contain a runaway loop.</p>
+<h2 id="you-have-already-built-most-of-this">You have already built most of this</h2>
+<p>Step back and the agentic surface is not new engineering — it is your existing reliability toolkit pointed at a new client:</p>
+<ul>
+<li><strong>Idempotency and resumability</strong> — the retry-safety you built for human double-clicks now absorbs agent retries.</li>
+<li><strong>APIs and webhooks</strong> — the async notification contract you built for order status now serves agent buyers.</li>
+<li><strong>Outbox and reconciliation</strong> — the guarantees that keep your ledger and your events in step now keep an agent&rsquo;s view of an order consistent with yours.</li>
+</ul>
+<p>The delegated-token layer is the genuinely new piece, and even that slots in as just another payment method behind your existing capture flow. Everything else is the fintech handbook applied to a client that never sleeps, never reads a screen, and always retries.</p>
+<h2 id="what-to-remember">What to remember</h2>
+<ul>
+<li>Agent-ready means six exposed capabilities: a structured feed, headless checkout endpoints, delegated-token acceptance, idempotency, webhooks, and observability.</li>
+<li>Serve a machine-first feed from your real source of truth; a stale feed is worse than none.</li>
+<li>Accept scoped, signed tokens and fail closed when scope does not cover the order — never store a raw PAN.</li>
+<li>Idempotency keys are what make aggressive agent retries safe; webhooks plus an outbox are what make async status reliable.</li>
+<li>Almost none of this is new: it is idempotency, webhooks, and reconciliation — the reliability primitives you already own — applied to a software buyer.</li>
+</ul>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>https://docs.stripe.com/agentic-commerce/acp</li>
+<li>https://stripe.com/blog/developing-an-open-standard-for-agentic-commerce</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/agentic-commerce-protocols-compared.html">AP2 vs ACP vs x402 vs Network Tokens: How the Approaches Compare</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    <li>
+      <a href="/blog/posts/agentic-commerce-checkout-flow.html">The Agentic Checkout Flow, End to End</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/agentic-commerce-acp-stripe-openai.html">ACP: The Agentic Commerce Protocol Behind ChatGPT Instant Checkout</a>
+      <span class="related-date">Aug 04</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
