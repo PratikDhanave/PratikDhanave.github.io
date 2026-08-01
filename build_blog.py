@@ -2952,6 +2952,7 @@ def _minify_css(css):
 # ---------------------------------------------------------------------------
 
 POST_CSS = """
+.tag::before { content: "#"; opacity: 0.6; }
 :root {
   --bg: #ffffff;
   --bg-elev: #f7f8fa;
@@ -3453,6 +3454,7 @@ CARD_CSS = """
 CARD_CSS = _minify_css(CARD_CSS)
 
 TAG_CLOUD_CSS = """
+.tag-cloud-item::before { content: "#"; opacity: 0.6; }
 .tag-cloud {
   display: flex;
   flex-wrap: wrap;
