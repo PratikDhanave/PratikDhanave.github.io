@@ -26,6 +26,8 @@ The critical property: at rest your database only ever holds *key cryptograms* �
                                                                               ceremony/ZMK
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/fintech-hsm-key-management-ceremony.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 
 ## The key ceremony: split knowledge and dual control
 

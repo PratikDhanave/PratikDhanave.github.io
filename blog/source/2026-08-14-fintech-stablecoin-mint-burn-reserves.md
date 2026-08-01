@@ -11,8 +11,8 @@ This post walks through the moving parts: the mint and burn flows, the reserve l
 The core invariant is simple to state and worth writing down as a first-class check rather than an aspiration:
 
 ```
-circulating_supply(token_contract) == backed_reserve(reserve_ledger)
-```
+
+> **▸ [Open the interactive diagram](/blog/diagrams/fintech-stablecoin-mint-burn-reserves.html)** — pan, zoom, and trace every step (light/dark, self-contained).
 
 Here `backed_reserve` is not the raw cash balance. It is the portion of custody funds explicitly earmarked against issued tokens, net of pending mints and pending burns. Fees, interest earned on reserves, and operating float sit in separate ledger accounts so they never inflate the backing figure. The mistake teams make early is treating the bank balance as the backing number; the moment you earn yield or collect a redemption fee, the raw balance and the token supply diverge for legitimate reasons, and your invariant check starts screaming.
 

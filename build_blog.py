@@ -159,6 +159,7 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+    "2026-08-14-fintech-saga-compensation-payments.md": {"slug": "fintech-saga-compensation-payments", "date": "2026-08-14", "tags": ["Fintech", "Reliability", "Reconciliation"], "audience": "Engineers building data & reliability systems", "excerpt": "Teaches how to coordinate a multi-step payment across services without distributed transactions: orchestrated saga steps, compensating actions for partial failures, and guaranteeing money is never stranded."},
     # -- Fintech Concepts (wave 4) --
     "2026-08-11-fintech-psd2-open-banking-consent.md": {"slug": "fintech-psd2-open-banking-consent", "date": "2026-08-11", "tags": ["Fintech", "Compliance", "Regulation"], "audience": "Engineers building regulation & standards systems", "excerpt": "Teaches how to build open-banking APIs: strong customer authentication and exemptions, consent grant/lifecycle, account-information vs payment-initiation scopes, and TPP authorization with token/consent revocation."},
     "2026-08-11-fintech-basel-rwa-engine.md": {"slug": "fintech-basel-rwa-engine", "date": "2026-08-11", "tags": ["Fintech", "Compliance", "Regulation"], "audience": "Engineers building regulation & standards systems", "excerpt": "Teaches the engineering of a risk-weighted-asset calculator: exposure classification, risk-weight lookup (standardized approach), credit-conversion factors for off-balance items, and capital-ratio aggregation for regulatory reporting."},
