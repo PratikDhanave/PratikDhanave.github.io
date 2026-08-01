@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Engineering EMVCo QR Payments — Pratik Dhanave</title>
+<meta name="description" content="Encode and decode EMVCo QR payloads (static vs dynamic), handle expiry, and reconcile QR-initiated payments.">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Engineering EMVCo QR Payments — Pratik Dhanave">
+<meta property="og:description" content="Encode and decode EMVCo QR payloads (static vs dynamic), handle expiry, and reconcile QR-initiated payments.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-qr-payments-emvco.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-16T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="Rails">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Engineering EMVCo QR Payments — Pratik Dhanave">
+<meta name="twitter:description" content="Encode and decode EMVCo QR payloads (static vs dynamic), handle expiry, and reconcile QR-initiated payments.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-qr-payments-emvco.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Engineering EMVCo QR Payments",
+  "description": "Encode and decode EMVCo QR payloads (static vs dynamic), handle expiry, and reconcile QR-initiated payments.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-16",
+  "dateModified": "2026-08-16",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Payments, Rails",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-qr-payments-emvco.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-qr-payments-emvco.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Engineering EMVCo QR Payments</h1>
+    <p class="post-subtitle">Encode and decode EMVCo QR payloads (static vs dynamic), handle expiry, and reconcile QR-initiated payments.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-16">August 16, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">Payments</span></a><a href="/blog/tags/rails/" class="tag-link"><span class="tag">Rails</span></a></div>
+  </header>
+
+
+
+
+
+  <p>A QR-code payment looks trivial from the outside: point a camera at a square, confirm an amount, done. Underneath, the square is a strict little serialization format with a checksum, a currency, a merchant identity, and — if you designed it well — a handle you can reconcile against three days later when the money actually moves. Most of the pain in a QR payment system is not scanning; it is deciding what goes into the payload, whether the code is single-use, and how you tie a settlement record back to the intent that created it.</p>
+<p>This post walks the encode/decode path for the EMVCo Merchant-Presented Mode (MPM) payload, contrasts static and dynamic codes, and works through the two problems that bite teams in production: expiry and reconciliation.</p>
+<h2 id="the-shape-of-the-flow">The shape of the flow</h2>
+<pre><code> Merchant                Payer app             Acquirer / PSP          Ledger
+ --------                ---------             --------------          ------
+ build TLV   --QR--&gt;   scan + decode   --init--&gt;  authorize   --post--&gt;  settle
+ tags 00..63           verify CRC-16             match ref id           reconcile
+ (static|dynamic)      confirm amount           debit payer            by QR id
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-qr-payments-emvco.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<p>The merchant side owns encoding. The payer app owns decoding and validation. Everything to the right of the initiation is ordinary payment plumbing — the only thing that makes it <em>QR</em> plumbing is the reference you planted in the payload.</p>
+<h2 id="the-payload-is-a-flat-tlv-string">The payload is a flat TLV string</h2>
+<p>An EMVCo QR is not JSON. It is a flat sequence of <strong>tag-length-value</strong> triples, each rendered as ASCII digits: a two-digit tag, a two-digit length, then exactly that many characters of value. Fields concatenate with no delimiter, because the length tells you where the next field begins.</p>
+<p>A handful of tags carry most of the meaning:</p>
+<ul>
+<li><code>00</code> Payload Format Indicator — always <code>01</code></li>
+<li><code>01</code> Point of Initiation Method — <code>11</code> static, <code>12</code> dynamic</li>
+<li><code>26</code>–<code>51</code> Merchant Account Information — network-specific templates, themselves nested TLV</li>
+<li><code>52</code> Merchant Category Code</li>
+<li><code>53</code> Transaction Currency — ISO 4217 numeric (e.g. <code>356</code>, <code>840</code>)</li>
+<li><code>54</code> Transaction Amount — omitted on static codes, present on dynamic</li>
+<li><code>58</code> Country Code, <code>59</code> Merchant Name, <code>60</code> Merchant City</li>
+<li><code>62</code> Additional Data — nested, holds the reference label / bill number</li>
+<li><code>63</code> CRC — a checksum over everything before it</li>
+</ul>
+<p>Encoding is a fold over ordered fields:</p>
+<pre><code class="language-python">def tlv(tag: str, value: str) -&gt; str:
+    return f&quot;{tag}{len(value):02d}{value}&quot;
+
+def build_payload(fields: list[tuple[str, str]]) -&gt; str:
+    body = &quot;&quot;.join(tlv(tag, val) for tag, val in fields)
+    # CRC is computed over the body PLUS the CRC tag+length header
+    body += &quot;6304&quot;
+    return body + f&quot;{crc16_ccitt(body):04X}&quot;
+</code></pre>
+<p>The subtlety is tag <code>63</code>: the checksum is calculated over the payload <em>including</em> the literal <code>6304</code> prefix but <em>excluding</em> the four hex characters it protects. Forget to append <code>6304</code> before running the CRC and every payer app will reject the code — a mistake that survives your unit tests if they also compute the CRC the wrong way.</p>
+<h2 id="static-versus-dynamic">Static versus dynamic</h2>
+<p>The <code>01</code> tag draws the most important line in the format.</p>
+<p>A <strong>static</strong> code omits the amount (<code>54</code>). The same square sits on a countertop for months; the payer types the amount into their own app. It is cheap to produce and impossible to make single-use, which has a direct consequence: the QR itself carries no per-transaction identity, so two customers paying the same merchant produce indistinguishable initiations. You reconcile on whatever the acquirer echoes back, not on anything you controlled.</p>
+<p>A <strong>dynamic</strong> code is minted per transaction. It carries the amount, and — this is the part teams skip — a reference you generate and persist <em>before</em> rendering the image. That reference goes in the tag <code>62</code> additional-data template (commonly the reference label, <code>62-05</code>). It is your join key for the rest of the payment&rsquo;s life.</p>
+<pre><code class="language-python">ref = new_reference()                 # e.g. &quot;INV-2026-8841-a1&quot;
+store_intent(ref, amount, currency, expires_at)
+fields = [
+    (&quot;00&quot;, &quot;01&quot;), (&quot;01&quot;, &quot;12&quot;),       # dynamic
+    (&quot;53&quot;, &quot;356&quot;), (&quot;54&quot;, f&quot;{amount:.2f}&quot;),
+    (&quot;58&quot;, &quot;IN&quot;), (&quot;59&quot;, &quot;ACME STORE&quot;), (&quot;60&quot;, &quot;PUNE&quot;),
+    (&quot;62&quot;, tlv(&quot;05&quot;, ref)),           # reference label -&gt; your join key
+]
+qr_string = build_payload(fields)
+</code></pre>
+<p>Rule of thumb: if you ever need to answer &ldquo;did <em>this</em> customer pay <em>this</em> bill,&rdquo; you need a dynamic code with a reference you own. Static codes are fine for tip jars and donation boxes, not for invoices.</p>
+<h2 id="decode-then-validate-before-you-trust-anything">Decode, then validate before you trust anything</h2>
+<p>Decoding is the inverse fold, but the order of checks matters. Verify the CRC <em>first</em> — a corrupted scan or a doctored code fails here, and you want to reject before parsing user-facing fields.</p>
+<pre><code class="language-python">def parse(s: str) -&gt; dict:
+    got = s[-4:]
+    if f&quot;{crc16_ccitt(s[:-4]):04X}&quot; != got.upper():
+        raise ValueError(&quot;CRC mismatch&quot;)
+    out, i = {}, 0
+    while i &lt; len(s) - 4:            # stop before the CRC field
+        tag, length = s[i:i+2], int(s[i+2:i+4])
+        out[tag] = s[i+4 : i+4+length]
+        i += 4 + length
+    return out
+</code></pre>
+<p>After the CRC passes, the app still has to make a judgment call: does tag <code>01</code> say dynamic? Then honor the amount in <code>54</code> and do not let the user edit it. Static? Prompt for an amount. Reading the initiation method wrong is how you end up letting a customer overwrite a fixed invoice total.</p>
+<h2 id="expiry-and-idempotency">Expiry and idempotency</h2>
+<p>A dynamic code represents an <em>intent</em>, and intents go stale. EMVCo has no universal expiry tag, so expiry lives on your side: store <code>expires_at</code> with the reference, and reject an initiation whose reference has aged out or has already been consumed. Treat the reference as an idempotency key — the first successful authorization consumes it, and a replayed scan of the same image maps to the same intent rather than charging twice.</p>
+<p>Static codes have no reference, so they cannot expire and cannot be made idempotent from the payload alone. That is not a bug to fix; it is the trade-off you accept when you print one square and walk away.</p>
+<h2 id="reconciliation-keyed-by-qr-id">Reconciliation keyed by QR id</h2>
+<p>Settlement arrives asynchronously, often batched hours later, and it is only useful if you can match each settled line back to an intent. For dynamic codes this is clean: the acquirer returns your tag <code>62</code> reference on the clearing record, you look up the stored intent, confirm the amount and currency agree, and mark it settled. Mismatches — a settled amount that differs from the intent, or a reference with no stored intent — go to an exceptions queue rather than silently closing the ledger entry.</p>
+<p>For static codes you have no such key, so reconciliation degrades to matching on merchant id, amount, and timestamp windows, which is inherently fuzzy. The engineering lesson generalizes past QR entirely: the cheapest reconciliation is the identifier you chose to embed at initiation time. Plant a unique, persisted reference in the payload up front, and the settlement side becomes a lookup instead of a heuristic.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-vrp-subscription-billing.html">Variable Recurring Payments and Metered Billing as a Mandate Lifecycle</a>
+      <span class="related-date">Aug 17</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-payments-actors-map.html">The Card Payment Actors Map: Who Actually Does What</a>
+      <span class="related-date">Aug 17</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-payment-orchestration-routing.html">Payment Orchestration: Routing One Charge Across Many PSPs</a>
+      <span class="related-date">Aug 16</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
