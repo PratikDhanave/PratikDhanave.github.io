@@ -119,11 +119,15 @@
 <p>This post walks through the moving parts: the mint and burn flows, the reserve ledger they hinge on, and the reconciliation loop that keeps the two sides honest.</p>
 <h2 id="the-reserve-invariant">The reserve invariant</h2>
 <p>The core invariant is simple to state and worth writing down as a first-class check rather than an aspiration:</p>
-<pre><code>circulating_supply(token_contract) == backed_reserve(reserve_ledger)
+<pre><code>
+&gt; **▸ [Open the interactive diagram](/blog/diagrams/fintech-stablecoin-mint-burn-reserves.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
+Here `backed_reserve` is not the raw cash balance. It is the portion of custody funds explicitly earmarked against issued tokens, net of pending mints and pending burns. Fees, interest earned on reserves, and operating float sit in separate ledger accounts so they never inflate the backing figure. The mistake teams make early is treating the bank balance as the backing number; the moment you earn yield or collect a redemption fee, the raw balance and the token supply diverge for legitimate reasons, and your invariant check starts screaming.
+
+The flow that maintains this equality looks like this end to end:
+
 </code></pre>
-<p>Here <code>backed_reserve</code> is not the raw cash balance. It is the portion of custody funds explicitly earmarked against issued tokens, net of pending mints and pending burns. Fees, interest earned on reserves, and operating float sit in separate ledger accounts so they never inflate the backing figure. The mistake teams make early is treating the bank balance as the backing number; the moment you earn yield or collect a redemption fee, the raw balance and the token supply diverge for legitimate reasons, and your invariant check starts screaming.</p>
-<p>The flow that maintains this equality looks like this end to end:</p>
-<pre><code> FIAT IN                       ON-CHAIN
+<p>FIAT IN                       ON-CHAIN
  deposit ─▶ reserve ledger ─▶ mint svc ─▶ token contract
                  ▲                              │
  redeem ─▶ burn svc ◀──────── burn tx ──────────┘
@@ -132,13 +136,19 @@
                  │                              │
                  └────────▶ reconciliation ◀────┘
                                   │
-                             attestation
-</code></pre>
-<p>The left edge is fiat entering and leaving custody. The right edge is the public token supply. Reconciliation sits at the seam, and attestation is what you publish so holders can trust the seam without seeing your books.</p>
-<h2 id="mint-on-deposit">Mint on deposit</h2>
-<p>Minting is the sequence that turns received fiat into tokens. The ordering is the whole game: you credit the reserve ledger <em>before</em> you mint on chain, never after. If the chain call succeeds but the ledger write is lost, you have issued unbacked tokens. If the ledger write commits but the mint fails, you are merely holding fiat you have not tokenized yet, which is recoverable.</p>
-<p>A safe mint is a small state machine keyed on the deposit reference:</p>
-<pre><code class="language-python">def process_deposit(deposit):
+                             attestation</p>
+<pre><code>
+
+The left edge is fiat entering and leaving custody. The right edge is the public token supply. Reconciliation sits at the seam, and attestation is what you publish so holders can trust the seam without seeing your books.
+
+## Mint on deposit
+
+Minting is the sequence that turns received fiat into tokens. The ordering is the whole game: you credit the reserve ledger *before* you mint on chain, never after. If the chain call succeeds but the ledger write is lost, you have issued unbacked tokens. If the ledger write commits but the mint fails, you are merely holding fiat you have not tokenized yet, which is recoverable.
+
+A safe mint is a small state machine keyed on the deposit reference:
+
+```python
+def process_deposit(deposit):
     # 1. Confirm funds actually settled in custody (not just initiated)
     if not custody.is_settled(deposit.reference):
         return  # wait; re-driven by the settlement webhook

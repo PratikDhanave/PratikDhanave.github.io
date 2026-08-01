@@ -27,6 +27,8 @@ The core is a funnel. Every source record is normalized into a common shape, gro
                                                        auto-resolve rules ──┴──▶ exception queue
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/fintech-reconciliation-break-detection.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 
 The unglamorous work lives in **normalize**. The three sources rarely share an identifier. Your ledger keys on an internal transaction UUID; the processor keys on its own transaction reference plus a batch ID; the bank statement gives you an end-to-end reference if you are lucky and a free-text remittance line if you are not. Before anything can be compared, each record has to be projected onto a canonical tuple — normalized amount in minor units, a settlement date, a currency, and one or more candidate join keys extracted from whatever reference fields exist.
 

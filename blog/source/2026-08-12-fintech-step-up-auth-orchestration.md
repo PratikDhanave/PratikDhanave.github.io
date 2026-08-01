@@ -23,6 +23,8 @@ The orchestrator sits between your risk engine and your challenge providers. It 
            resume txn    abandon txn
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/fintech-step-up-auth-orchestration.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 
 ## Separate the decision from the challenge
 

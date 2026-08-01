@@ -24,6 +24,8 @@ The core loop is small and runs continuously through the business day:
                                                     └──────────┘
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/fintech-liquidity-cash-sweeps.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 
 Each stage is a pure function of the previous stage plus a snapshot timestamp. That property is what lets you re-run a cycle safely after a crash: the same balance snapshot produces the same instruction set, and instructions carry idempotency keys so a replay never double-transfers.
 

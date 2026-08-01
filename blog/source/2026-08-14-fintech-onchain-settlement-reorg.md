@@ -21,6 +21,8 @@ depth:   0            1..N-1              >= N
           no credit    up to N             posted
 ```
 
+> **▸ [Open the interactive diagram](/blog/diagrams/fintech-onchain-settlement-reorg.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 
 The critical rule: **no ledger credit before depth `N`**. Showing a "pending" balance in the UI is fine, but the double-entry journal that lets the customer spend or withdraw must not post until the threshold is met. Everything before that is display state, not money.
 
