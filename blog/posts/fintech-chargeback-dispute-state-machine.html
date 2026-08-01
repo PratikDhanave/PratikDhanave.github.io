@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Modeling Card Chargebacks as a State Machine</title>
+<meta name="description" content="Teaches how to model the full card dispute lifecycle as a state machine with reason codes, evidence deadlines, representment, pre-arbitration and...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Modeling Card Chargebacks as a State Machine">
+<meta property="og:description" content="Teaches how to model the full card dispute lifecycle as a state machine with reason codes, evidence deadlines, representment, pre-arbitration and arbitration, and provisional-credit ledger entries at each transition.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-chargeback-dispute-state-machine.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-04T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="Cards">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Modeling Card Chargebacks as a State Machine">
+<meta name="twitter:description" content="Teaches how to model the full card dispute lifecycle as a state machine with reason codes, evidence deadlines, representment, pre-arbitration and arbitration, and provisional-credit ledger entries at each transition.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-chargeback-dispute-state-machine.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Modeling Card Chargebacks as a State Machine",
+  "description": "Teaches how to model the full card dispute lifecycle as a state machine with reason codes, evidence deadlines, representment, pre-arbitration and arbitration, and provisional-credit ledger entries at each transition.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-04",
+  "dateModified": "2026-08-04",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Payments, Cards",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-chargeback-dispute-state-machine.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-chargeback-dispute-state-machine.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Modeling Card Chargebacks as a State Machine</h1>
+    <p class="post-subtitle">Modeling the full card dispute lifecycle with reason codes, evidence deadlines, representment, arbitration, and provisional-credit ledger entries at every transition.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-04">August 04, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">Payments</span></a><a href="/blog/tags/cards/" class="tag-link"><span class="tag">Cards</span></a></div>
+  </header>
+
+
+
+
+
+  <p>Most teams first meet chargebacks as a support ticket: money left the merchant account, a cardholder complained, and someone has to gather receipts. That framing is where dispute systems go wrong. A dispute is not a ticket. It is a regulated, deadline-driven negotiation between an issuer and an acquirer, with a scheme sitting in the middle enforcing timers. If you model it as anything other than a state machine, you will miss deadlines, double-post ledger entries, and lose funds you could have kept.</p>
+<p>This post walks through how to model the card dispute lifecycle explicitly: the states, the transitions that reason codes and deadlines trigger, and the ledger movements that must accompany each transition so your books never lie about who is holding the money.</p>
+<h2 id="why-a-state-machine-not-a-workflow">Why a state machine, not a workflow</h2>
+<p>A workflow describes what a person does next. A state machine describes what the system <em>is</em>, and constrains what can happen from here. Disputes need the second model because the scheme, not your code, owns the clock. When an issuer files a chargeback, a representment window opens — commonly 30 to 45 days depending on network and reason code. Miss it and you forfeit by default, regardless of how strong your evidence was. The scheme does not care that your ops queue was backed up.</p>
+<p>Encoding this as explicit states buys three things. First, every state carries exactly one active deadline timer, so &ldquo;what is about to expire&rdquo; is a query, not a spreadsheet. Second, transitions are the only place money moves, which gives you a single choke point to enforce double-entry correctness. Third, illegal moves become impossible by construction: you cannot represent a case that is already in arbitration, and the type system says so.</p>
+<p>The core lifecycle looks like this. Each box is a state; each arrow is a transition guarded by an event and a deadline.</p>
+<pre><code>  first_chargeback ──accept──▶ accepted (loss)
+        │
+        │ submit evidence (T+30d)
+        ▼
+   representment ──issuer accepts──▶ won
+        │
+        │ issuer re-files (pre-arb)
+        ▼
+   pre_arbitration ──merchant accepts──▶ lost
+        │
+        │ escalate (T+30d)
+        ▼
+    arbitration ──scheme ruling──▶ won │ lost
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-chargeback-dispute-state-machine.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<p>Notice that <code>won</code> and <code>lost</code> are terminal and can be reached from several stages. That is deliberate: a dispute can end early at any negotiation round. The machine&rsquo;s job is to make every exit explicit and every exit&rsquo;s ledger effect correct.</p>
+<h2 id="states-and-their-invariants">States and their invariants</h2>
+<p>Model states, not statuses. A status is a label; a state has invariants the system enforces.</p>
+<ul>
+<li><strong><code>retrieval</code> / <code>first_chargeback</code></strong> — the entry state. A retrieval request is informational (the issuer wants the transaction record); a first chargeback is a real debit. On entry to <code>first_chargeback</code>, funds are pulled from the merchant. The invariant: a provisional reservation exists against the merchant balance.</li>
+<li><strong><code>representment</code></strong> — the merchant has contested and submitted evidence. Invariant: evidence artifacts are attached and a submission deadline was met. The disputed amount is still reserved.</li>
+<li><strong><code>pre_arbitration</code></strong> — the issuer rejected the representment and re-filed, usually with new information. Invariant: this is a second issuer challenge, distinct from the first, with its own deadline.</li>
+<li><strong><code>arbitration</code></strong> — one side escalated to the scheme for a binding ruling. Invariant: a filing fee is committed, and the loser typically pays it.</li>
+<li><strong><code>won</code> / <code>lost</code> / <code>accepted</code></strong> — terminal. Invariant: no reservation remains; the disputed amount has been definitively released back to the merchant or paid to the cardholder.</li>
+</ul>
+<p>The state should carry the reason code, the network, the disputed amount, the current deadline, and a monotonic revision counter. The reason code matters because it changes both the evidence you need and the deadline you get; a fraud reason code (cardholder says &ldquo;I never authorized this&rdquo;) demands different proof than a &ldquo;goods not received&rdquo; code, and the networks assign different representment windows to each.</p>
+<h2 id="deadlines-as-first-class-timer-state">Deadlines as first-class timer state</h2>
+<p>Every non-terminal state has exactly one governing deadline. The cleanest implementation is to store <code>deadline_at</code> on the state itself and drive transitions from a single timer sweep rather than scattering <code>setTimeout</code> logic across services.</p>
+<pre><code>on enter(state):
+    deadline_at = now + window_for(network, reason_code, state)
+    schedule_check(case_id, deadline_at)
+
+on timer_fire(case_id):
+    case = load(case_id)
+    if case.state == representment and no_evidence_submitted:
+        transition(case, to=lost, cause=&quot;representment_deadline_missed&quot;)
+</code></pre>
+<p>The subtlety: the timer must be idempotent and race-safe against a human action landing at the same moment. Load the case, check the state and revision inside a transaction, and only transition if nothing changed underneath you. If an analyst submitted evidence one second before the sweep, the revision counter moved and the auto-loss is a no-op. This is the same optimistic-concurrency discipline you would use anywhere money is at stake, applied to the deadline itself.</p>
+<h2 id="ledger-entries-at-every-transition">Ledger entries at every transition</h2>
+<p>Here is the part teams underestimate: the dispute state machine is also a ledger driver, and the two must move together atomically. If the state changes but the ledger does not — or vice versa — you have money that exists in one system and not the other.</p>
+<p>Use a reservation model rather than moving cash directly. When a chargeback lands, you do not debit the merchant&rsquo;s settlement account outright; you post a <strong>provisional debit</strong> against a dispute-holding account. That keeps the disputed amount visible and reversible.</p>
+<table><caption class="sr-only">Ledger entries at every transition</caption>
+<thead>
+<tr>
+<th>Transition</th>
+<th>Ledger effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>enter <code>first_chargeback</code></td>
+<td>provisional debit: merchant → dispute-hold</td>
+</tr>
+<tr>
+<td>enter <code>won</code></td>
+<td>reverse reservation: dispute-hold → merchant</td>
+</tr>
+<tr>
+<td>enter <code>lost</code> / <code>accepted</code></td>
+<td>finalize: dispute-hold → issuer settlement</td>
+</tr>
+<tr>
+<td>enter <code>arbitration</code></td>
+<td>commit filing-fee reservation</td>
+</tr>
+<tr>
+<td>arbitration ruling</td>
+<td>release fee to winner, charge loser</td>
+</tr>
+</tbody>
+</table>
+<p>Every one of these postings must be part of the same atomic unit as the state transition, keyed by an idempotency token derived from <code>(case_id, revision, transition)</code>. Replay the same scheme notification twice — which networks <em>will</em> do — and the second attempt hits the same idempotency key and is a no-op. Without that key, a duplicate <code>first_chargeback</code> notification debits the merchant twice, and you will find it only during month-end reconciliation, long after the money moved.</p>
+<h2 id="reconciliation-and-the-invariant-that-saves-you">Reconciliation and the invariant that saves you</h2>
+<p>The single invariant worth asserting continuously: the balance of every dispute-hold account equals the sum of disputed amounts across all non-terminal cases. If a case is <code>representment</code> for 120 units, the hold account must carry exactly that reservation. Run this check on a schedule; any drift means a transition posted a ledger entry it should not have, or skipped one it should have.</p>
+<p>This invariant is what turns a pile of edge cases — duplicate notifications, deadline races, partial-amount disputes — into something you can trust. The state machine makes transitions explicit, the reservation model makes money movements reversible, and the reconciliation check makes both auditable. Build the dispute engine in that order and the &ldquo;chargeback support ticket&rdquo; becomes a system you can reason about instead of a source of quiet losses.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-card-auth-capture-clearing.html">Card Authorization, Capture, and Clearing: One Transaction, Three Money States</a>
+      <span class="related-date">Aug 03</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-3ds2-authentication-flow.html">Integrating 3-D Secure 2 Without Breaking Your Checkout</a>
+      <span class="related-date">Aug 03</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-network-tokenization-pci-scope.html">Network Tokenization and How a Token Vault Shrinks Your PCI-DSS Scope</a>
+      <span class="related-date">Aug 03</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
