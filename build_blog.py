@@ -2952,7 +2952,6 @@ def _minify_css(css):
 # ---------------------------------------------------------------------------
 
 POST_CSS = """
-.tag::before { content: "#"; opacity: 0.6; }
 :root {
   --bg: #ffffff;
   --bg-elev: #f7f8fa;
@@ -3454,7 +3453,6 @@ CARD_CSS = """
 CARD_CSS = _minify_css(CARD_CSS)
 
 TAG_CLOUD_CSS = """
-.tag-cloud-item::before { content: "#"; opacity: 0.6; }
 .tag-cloud {
   display: flex;
   flex-wrap: wrap;
@@ -3545,7 +3543,7 @@ SITE_FOOTER = """<footer class="site-footer">
 
 def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index=None):
     """Wrap rendered markdown body in the post template."""
-    tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">{tag_display(t)}</span></a>' for t in meta["tags"])
+    tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">#{tag_display(t)}</span></a>' for t in meta["tags"])
     date_iso = meta["date"]
     date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%B %d, %Y")
     description = meta["excerpt"]
@@ -3776,7 +3774,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 
 def _render_post_card(p, link_prefix="/blog/posts/"):
     """Render a single post card HTML block."""
-    tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">{tag_display(t)}</span></a>' for t in p["meta"]["tags"])
+    tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">#{tag_display(t)}</span></a>' for t in p["meta"]["tags"])
     date_iso = p["meta"]["date"]
     date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
     read_time = p.get("read_time", 0)
@@ -3847,7 +3845,7 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
         qualified.sort(key=lambda x: (-x[1], x[0]))
         if qualified:
             tag_items = "".join(
-                f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">{tag_display(t)} <span class="tag-count">({c})</span></span></a>'
+                f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">#{tag_display(t)} <span class="tag-count">({c})</span></span></a>'
                 for t, c in qualified
             )
             tag_cloud_html = f"""
@@ -4184,7 +4182,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 
     posts_html = []
     for p in posts_with_tag:
-        tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">{tag_display(t)}</span></a>' for t in p["meta"]["tags"])
+        tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">#{tag_display(t)}</span></a>' for t in p["meta"]["tags"])
         date_iso = p["meta"]["date"]
         date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
         read_time = p.get("read_time", 0)
@@ -4212,7 +4210,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
         cloud_tags = sorted(top_tags_set)
     else:
         cloud_tags = sorted(all_tags)
-    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" aria-label="{tag_display(t)} ({tag_counts.get(t, 0)}) posts"><span class="tag-cloud-item">{tag_display(t)} ({tag_counts.get(t, 0)})</span></a>' for t in cloud_tags)
+    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" aria-label="{tag_display(t)} ({tag_counts.get(t, 0)}) posts"><span class="tag-cloud-item">#{tag_display(t)} ({tag_counts.get(t, 0)})</span></a>' for t in cloud_tags)
 
     tag_page_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS
 
@@ -4304,7 +4302,7 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
     if posts_with_date:
         current_month_label = None
         for p in posts_with_date:
-            tags_html = "".join(f'<span class="tag">{tag_display(t)}</span>' for t in p["meta"]["tags"])
+            tags_html = "".join(f'<span class="tag">#{tag_display(t)}</span>' for t in p["meta"]["tags"])
             date_iso = p["meta"]["date"]
             date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
             read_time = p.get("read_time", 0)
