@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Engineering a Pay-in-4 BNPL Flow — Pratik Dhanave</title>
+<meta name="description" content="Engineer a 4-installment BNPL flow: checkout-time soft credit check, upfront merchant settlement, and installment collection.">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Engineering a Pay-in-4 BNPL Flow — Pratik Dhanave">
+<meta property="og:description" content="Engineer a 4-installment BNPL flow: checkout-time soft credit check, upfront merchant settlement, and installment collection.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-bnpl-architecture.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-18T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Lending">
+<meta property="article:tag" content="Credit">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Engineering a Pay-in-4 BNPL Flow — Pratik Dhanave">
+<meta name="twitter:description" content="Engineer a 4-installment BNPL flow: checkout-time soft credit check, upfront merchant settlement, and installment collection.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-bnpl-architecture.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Engineering a Pay-in-4 BNPL Flow",
+  "description": "Engineer a 4-installment BNPL flow: checkout-time soft credit check, upfront merchant settlement, and installment collection.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-18",
+  "dateModified": "2026-08-18",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Lending, Credit",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-bnpl-architecture.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-bnpl-architecture.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Engineering a Pay-in-4 BNPL Flow</h1>
+    <p class="post-subtitle">Checkout-time soft credit checks, upfront merchant settlement, and the installment collection loop that carries the real risk.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-18">August 18, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/lending/" class="tag-link"><span class="tag">Lending</span></a><a href="/blog/tags/credit/" class="tag-link"><span class="tag">Credit</span></a></div>
+  </header>
+
+
+
+
+
+  <p>Buy-now-pay-later looks, from the shopper&rsquo;s seat, like a single button that splits a purchase into four equal payments. Behind that button is a short-tenor unsecured loan that the provider underwrites in a few hundred milliseconds, funds in full to the merchant the same day, and then spends the next six weeks collecting. The engineering interesting part is not the checkout widget. It is the fact that approval and loss happen at opposite ends of the timeline, and the system has to be designed around that gap.</p>
+<p>This post walks the pay-in-4 flow the way I&rsquo;d draw it on a whiteboard for a new engineer joining the team: what each stage owns, where the money and the risk sit, and which parts you will be paged about at 2 a.m.</p>
+<h2 id="where-the-money-actually-moves">Where the money actually moves</h2>
+<p>The flow has four distinct actors, and it helps to keep their concerns separate from the first line of code. The shopper initiates at checkout. The provider underwrites and carries the credit risk. Settlement pushes cash to the merchant. Servicing runs the collection loop until the plan closes or defaults.</p>
+<pre><code> shopper        provider            settlement        servicing
+   |               |                    |                 |
+[checkout] --&gt; [soft check] --&gt; [approve] --&gt; [payout] --&gt; [schedule]
+                                   |                          |
+                              [declined]                  [collect] --&gt; [closed]
+                                                              |
+                                                          [default]
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-bnpl-architecture.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<p>The key asymmetry: the merchant is paid in full, upfront, the moment the plan is approved. The provider fronts that cash and then owns every installment that follows. Everything downstream of <code>payout</code> is the provider&rsquo;s balance sheet at risk. That single fact drives most of the design decisions below.</p>
+<h2 id="the-checkout-decision-has-to-be-fast-and-soft">The checkout decision has to be fast and soft</h2>
+<p>At checkout the provider runs a decision that must satisfy two constraints that pull against each other: it has to be near-instant so it doesn&rsquo;t wreck conversion, and it has to be a <em>soft</em> credit check so it doesn&rsquo;t ding the shopper&rsquo;s credit file for a $60 purchase.</p>
+<p>&ldquo;Soft&rdquo; is a hard architectural requirement, not a nicety. A soft inquiry means you query bureau data without recording a hard pull, which in turn means the decision leans heavily on signals you already hold or can pull cheaply: repayment history on prior plans, device and account age, cart value, velocity across recent orders, and thin-file bureau attributes. The model runs synchronously inside the checkout call because the shopper is staring at a spinner.</p>
+<p>Because the underwrite is thin and fast, keep the decision idempotent and cheap to replay. A useful shape is a pure scoring function over a snapshot of features, so the same inputs always yield the same decision and you can re-score offline for audit:</p>
+<pre><code class="language-python">def decide(features) -&gt; Decision:
+    score = model.score(features)          # soft signals only
+    if score &lt; DECLINE_THRESHOLD:
+        return Decision.DECLINE
+    limit = assign_limit(score, features.cart_value)
+    if features.cart_value &gt; limit:
+        return Decision.DECLINE
+    return Decision.approve(limit=limit, plan=&quot;pay_in_4&quot;)
+</code></pre>
+<p>Two outcomes leave this stage: approve, which continues the main path, and decline, which is a branch you should not treat as a dead end. A decline at checkout is still a conversion opportunity — offer a smaller limit, a different plan, or a pay-in-full fallback rather than dumping the shopper back to the cart with nothing.</p>
+<h2 id="settle-the-merchant-upfront-then-reconcile">Settle the merchant upfront, then reconcile</h2>
+<p>Once approved, settlement pays the merchant the full order amount minus the provider&rsquo;s fee. This is the moment the loan is &ldquo;booked,&rdquo; and it should be modeled as its own step with its own ledger entry rather than folded into approval.</p>
+<p>Treat the payout as a durable event. The provider now holds a receivable equal to the settled amount; the shopper holds a payable split into four installments. Those two sides must always reconcile. In practice that means an append-only ledger where the booking, each scheduled installment, each collection, and the fee are separate entries keyed to the same plan id. When a dispute or refund arrives weeks later, you unwind against those entries — you never mutate a balance in place.</p>
+<p>Settlement also introduces the first real money-movement failure mode: the payout to the merchant can fail or be delayed on the banking rail even though the shopper&rsquo;s plan is already active. Keep approval and payout as separate states so a stuck payout doesn&rsquo;t leave you unsure whether the loan exists. The loan exists the instant you approve; the payout is a separate promise you retry until it clears.</p>
+<h2 id="the-schedule-and-the-collection-loop">The schedule and the collection loop</h2>
+<p>With the merchant paid, servicing generates the installment schedule — for pay-in-4, typically the first payment at purchase and three more at two-week intervals — and then runs a collection loop against it.</p>
+<p>The schedule is data, not behavior. Generate it once, store the due dates and amounts, and let the collection loop walk it:</p>
+<pre><code class="language-python">def build_schedule(principal, start, count=4, step_days=14):
+    per = split_evenly(principal, count)   # handle rounding on the first
+    return [
+        Installment(seq=i, due=start + i * step_days, amount=per[i])
+        for i in range(count)
+    ]
+</code></pre>
+<p>Each due date triggers an auto-debit against the shopper&rsquo;s stored payment method. A successful debit advances the plan; when the final installment clears, the plan reaches <code>closed</code> and the receivable is fully recovered. This is the happy path, and for most plans it is uneventful.</p>
+<p>The interesting engineering is in the retries. A failed debit is not a default — cards decline for soft reasons all the time: insufficient funds today, an expired card, a temporary issuer block. The collection loop should carry a dunning sub-state: retry on a schedule, notify the shopper through a channel they&rsquo;ll actually see, and offer to update the payment method or shift the due date. Only after that treatment window is exhausted does the plan move to <code>default</code>.</p>
+<p>A worked rule of thumb: separate the <em>technical</em> retry (same card, transient failure, retry in hours) from the <em>treatment</em> retry (shopper outreach over days). Collapsing them into one counter is a common mistake that either hammers a dead card or gives up on a recoverable one.</p>
+<h2 id="failure-paths-carry-the-real-cost">Failure paths carry the real cost</h2>
+<p>The two branches — decline and default — are where a BNPL book lives or dies, so they deserve first-class modeling rather than being buried in exception handlers.</p>
+<p>Decline is cheap: no money has moved, and the cost is a lost sale. Default is expensive: the provider has already paid the merchant, so an uncollected plan is a direct loss against the balance sheet. That is why every design decision upstream — the soft-check thresholds, the assigned limits, the collection cadence — is ultimately tuned against the default rate, not the approval rate. It is easy to approve everyone; the discipline is approving the plans you can collect.</p>
+<p>Model both as explicit terminal-ish states with owners and observable exits. A default should hand off to a recovery process (in-house dunning, then agency) with a clear ledger position, not silently disappear.</p>
+<h2 id="what-to-instrument">What to instrument</h2>
+<p>Because approval and loss are separated by weeks, dashboards that only show approval rate will look great right up until the vintage sours. Instrument the timeline end to end:</p>
+<ul>
+<li><strong>Approval rate and mix</strong> at checkout, sliced by limit and cart value.</li>
+<li><strong>Settlement success and lag</strong> — how often and how fast merchants actually get paid.</li>
+<li><strong>First-payment default</strong> — plans that miss the very first installment, the earliest and loudest fraud/underwriting signal.</li>
+<li><strong>Roll rates</strong> — how plans move from current to late to default across each installment.</li>
+<li><strong>Recovery rate</strong> on the dunning loop, so you know how much of a missed payment you actually get back.</li>
+</ul>
+<p>Watch these as <em>vintages</em> — cohorts grouped by origination week — because a change you ship to the underwriting model today only shows up in the loss numbers a month later. The system&rsquo;s job is to make that lag visible instead of hiding it behind a healthy-looking approval chart.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-loan-origination-system.html">Engineering a Loan Origination Pipeline</a>
+      <span class="related-date">Aug 18</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-collateral-ltv-management.html">Collateral and LTV Management: Engineering the Loop That Watches Value Slip</a>
+      <span class="related-date">Aug 18</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-delinquency-npa-state-machine.html">Delinquency as a State Machine: DPD Buckets, SMA, and NPA Classification</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
