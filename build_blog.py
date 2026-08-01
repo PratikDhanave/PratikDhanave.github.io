@@ -3784,7 +3784,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     <h1>{_html_escape(title)}</h1>
     <p class="post-subtitle">{_html_escape(subtitle)}</p>
     <div class="post-meta">
-      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
       <span>·</span>
       <time datetime="{date_iso}">{date_human}</time>
       <span>·</span>
@@ -3803,7 +3803,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 
   <div class="post-footer">
     <div class="footer-row">
-      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
       <a href="/blog/">← All posts</a>
     </div>
     <p style="margin-top: 10px; font-size: 13px;">Find me on
@@ -3831,7 +3831,7 @@ def _render_post_card(p, link_prefix="/blog/posts/"):
     read_time_html = f'<span>·</span><span>{read_time} min read</span>' if read_time > 0 else ''
     return f"""    <article class="post-card">
       <div class="post-card-meta">
-        <span><a href="/about/" class="author-link">Pratik Dhanave</a></span>
+        <span><a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author">Pratik Dhanave</a></span>
         <span>·</span>
         <time datetime="{date_iso}">{date_human}</time>
         {read_time_html}
@@ -4239,7 +4239,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
         read_time_html = f'<span>·</span><span>{read_time} min read</span>' if read_time > 0 else ''
         posts_html.append(f"""    <article class="post-card">
       <div class="post-card-meta">
-        <span><a href="/about/" class="author-link">Pratik Dhanave</a></span>
+        <span><a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author">Pratik Dhanave</a></span>
         <span>·</span>
         <time datetime="{date_iso}">{date_human}</time>
         {read_time_html}
