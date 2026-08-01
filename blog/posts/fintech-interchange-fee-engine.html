@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Building a Deterministic Interchange Fee Engine</title>
+<meta name="description" content="Teaches how to build a deterministic fee engine that classifies each transaction into an interchange category (regulated debit, rewards, CPS...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Building a Deterministic Interchange Fee Engine">
+<meta property="og:description" content="Teaches how to build a deterministic fee engine that classifies each transaction into an interchange category (regulated debit, rewards, CPS qualification) and computes interchange + scheme + acquirer markup for merchant statements.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-interchange-fee-engine.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-04T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="Cards">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Building a Deterministic Interchange Fee Engine">
+<meta name="twitter:description" content="Teaches how to build a deterministic fee engine that classifies each transaction into an interchange category (regulated debit, rewards, CPS qualification) and computes interchange + scheme + acquirer markup for merchant statements.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-interchange-fee-engine.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Building a Deterministic Interchange Fee Engine",
+  "description": "Teaches how to build a deterministic fee engine that classifies each transaction into an interchange category (regulated debit, rewards, CPS qualification) and computes interchange + scheme + acquirer markup for merchant statements.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-04",
+  "dateModified": "2026-08-04",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Payments, Cards",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-interchange-fee-engine.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-interchange-fee-engine.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Building a Deterministic Interchange Fee Engine</h1>
+    <p class="post-subtitle">Turn card transaction attributes into interchange, scheme, and markup lines that reconcile to the cent.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-04">August 04, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">Payments</span></a><a href="/blog/tags/cards/" class="tag-link"><span class="tag">Cards</span></a></div>
+  </header>
+
+
+
+
+
+  <p>Every card transaction a merchant runs carries a cost of acceptance, and most of that cost is interchange: the fee the acquirer pays the issuer, set by the card network in a published rate table. On top of interchange sit scheme assessments (the network&rsquo;s own cut) and the acquirer&rsquo;s markup. If you operate an acquiring or payment-facilitator platform, you have to reproduce these numbers exactly, per transaction, for thousands of merchants, and then defend them when a merchant&rsquo;s finance team asks why a coffee sale cost 12 cents more than they expected.</p>
+<p>The naive version — a percentage times the amount — is wrong on day one. Real interchange depends on the merchant category, the card product, the region, whether the transaction qualified for a lower rate, and which version of the network&rsquo;s rate schedule was in effect on the transaction date. This post is about building a fee engine that treats all of that as data, computes deterministically, and stores enough detail that any line item can be explained months later.</p>
+<h2 id="what-actually-drives-a-fee">What actually drives a fee</h2>
+<p>Before writing any code, get precise about the inputs. An interchange rate is selected by a tuple of attributes, not a single field:</p>
+<ul>
+<li><strong>Merchant category code (MCC)</strong> — a supermarket, a utility, and a jeweller sit in different interchange programs.</li>
+<li><strong>Card product</strong> — regulated debit, unregulated debit, standard credit, and rewards/commercial credit each price differently.</li>
+<li><strong>Region pair</strong> — domestic, intra-region, and inter-region rates diverge sharply.</li>
+<li><strong>Authorization characteristics</strong> — was the card present, was the full magnetic-equivalent data captured, was the transaction cleared within the network&rsquo;s timing window? These decide whether the transaction <em>qualifies</em> for the best rate or <em>downgrades</em> to a more expensive one.</li>
+</ul>
+<p>Qualification is the part teams underestimate. Networks define a preferred rate and a set of conditions to earn it; miss a condition and the transaction falls to a downgrade tier. Modeling that as an explicit rule set — rather than burying it in an <code>if</code> chain — is what makes the engine auditable.</p>
+<pre><code> attributes           classify            price              record            bill
+┌──────────┐  MCC   ┌──────────┐  tier  ┌──────────┐ lines ┌──────────┐ roll ┌──────────┐
+│ txn:     │  BIN   │ qualify  │ ─────▶ │  price   │ ────▶ │ fee      │ ───▶ │ merchant │
+│ MCC/BIN  │ ─────▶ │ downgrade│        │ IC+scheme│       │ record   │      │ statement│
+│ region   │        │  rules   │        │ +markup  │       │ (per txn)│      │  rollup  │
+│ auth data│        └──────────┘        └────┬─────┘       └──────────┘      └──────────┘
+└──────────┘                                 ▲
+                                        ┌────┴─────┐
+                                        │ rate     │  effective-dated
+                                        │ tables   │  by txn date
+                                        └──────────┘
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-interchange-fee-engine.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<h2 id="rate-tables-are-versioned-data-not-constants">Rate tables are versioned data, not constants</h2>
+<p>The single most important design decision is that rates live in effective-dated tables, keyed by network, program, card product, region, and a validity window. Networks publish rate changes several times a year; a transaction from March must price against March&rsquo;s schedule even if you compute the fee in June after a mandate update.</p>
+<p>That means every lookup takes the <strong>transaction date</strong>, never &ldquo;today&rdquo;:</p>
+<pre><code class="language-python">def lookup_rate(rate_store, network, program, product, region, txn_date):
+    row = rate_store.find(
+        network=network, program=program, product=product, region=region,
+        valid_from__lte=txn_date, valid_to__gte=txn_date,
+    )
+    if row is None:
+        raise UnpricedTransaction(network, program, product, region, txn_date)
+    return row  # e.g. Rate(pct=Decimal(&quot;0.0080&quot;), fixed=Cents(10))
+</code></pre>
+<p>Two rules keep this honest. First, never delete a rate row — supersede it with a new version and a fresh validity window, so historical statements stay reproducible. Second, treat a missing rate as a hard error, not a fallback to zero. An unpriced transaction is an operational alert, because silently charging nothing erodes margin invisibly.</p>
+<h2 id="the-compute-step-money-math-you-can-defend">The compute step: money math you can defend</h2>
+<p>The pricing function takes the qualified category plus the resolved rates and produces separate components. Keep them separate all the way through — merchants dispute the <em>breakdown</em>, so a single blended number is useless.</p>
+<pre><code class="language-python">def price(txn, category, ic_rate, scheme_rate, markup):
+    ic     = ic_rate.pct * txn.amount + ic_rate.fixed
+    scheme = scheme_rate.pct * txn.amount + scheme_rate.fixed
+    mkup   = markup.pct * txn.amount + markup.fixed
+    return FeeBreakdown(
+        interchange=round_half_up(ic),
+        scheme=round_half_up(scheme),
+        markup=round_half_up(mkup),
+        category=category,
+        rate_version=ic_rate.version,
+    )
+</code></pre>
+<p>Three engineering disciplines matter here. Use fixed-point decimals in the transaction currency&rsquo;s minor unit, never floats — a rounding drift of a hundredth of a cent, multiplied across millions of transactions, becomes a reconciliation break. Define one rounding convention (typically half-up on each component independently) and apply it identically everywhere. And stamp the <code>rate_version</code> onto the output, so when someone asks &ldquo;why this number,&rdquo; the exact rate row that produced it is one join away.</p>
+<h2 id="make-it-a-pure-function-then-wrap-it">Make it a pure function, then wrap it</h2>
+<p>The core engine should be a pure function: given transaction attributes and a snapshot of rate tables, it returns a fee breakdown with no I/O, no clock, no randomness. Purity buys you two things — trivial unit testing against known network examples, and safe re-execution. Re-running the engine over last month&rsquo;s transactions with the same rate version must produce byte-identical results.</p>
+<p>Wrap that pure core in a thin service layer that handles the messy parts:</p>
+<ul>
+<li><strong>Idempotency</strong> — key each computed fee by transaction ID plus rate version, so replays and retries never double-post. If the same transaction arrives twice, you overwrite the same record rather than appending a second fee.</li>
+<li><strong>Late adjustments</strong> — a chargeback reversal or a clearing correction produces a new fee event that references the original, rather than mutating the stored breakdown. The record is append-only; corrections are deltas.</li>
+<li><strong>Backfills</strong> — when a network issues a retroactive rate correction, you re-run affected transactions against the new version and emit adjustment records for the difference, keeping the original intact for audit.</li>
+</ul>
+<h2 id="from-per-transaction-records-to-a-statement">From per-transaction records to a statement</h2>
+<p>The record stage writes one immutable fee document per transaction: the component amounts, the category, the rate version, and the input attributes that drove classification. That immutability is what lets you regenerate a statement identically a year later.</p>
+<p>The billing rollup then aggregates these records over the merchant&rsquo;s statement period. Because every fee is already decomposed, the rollup is straightforward summation grouped by component and by interchange category — which is exactly the breakdown a merchant wants to see:</p>
+<pre><code>Statement — Merchant #4471 — August
+  Interchange                     $ 3,812.40
+  Scheme assessments              $   214.06
+  Acquirer markup                 $   906.55
+  ─────────────────────────────────────────
+  by category
+    Regulated debit  (1,204 txns) $   241.80
+    Rewards credit   (  318 txns) $ 1,988.10
+    Standard credit  (  902 txns) $ 1,582.50
+</code></pre>
+<p>Two properties make this trustworthy. The statement total must equal the sum of stored per-transaction fees to the cent — reconcile it as a build-time invariant, not a hope. And every displayed category rolls up from records that each name their rate version, so a merchant challenge resolves to a specific transaction, a specific rule, and a specific published rate.</p>
+<h2 id="testing-and-reconciliation">Testing and reconciliation</h2>
+<p>Interchange is one of the rare domains where authoritative test vectors exist: networks publish worked examples. Encode those as golden tests so a rate-table edit that breaks a known case fails immediately. Beyond that, run a daily reconciliation that re-prices a sample of settled transactions and compares against what the network actually billed the acquirer; a systematic gap points to a stale rate version or a qualification rule that drifted from the current mandate.</p>
+<p>Build it this way and the fee engine stops being a black box. It becomes a deterministic function over versioned data, every output traceable to the inputs and the rule that produced it — which is exactly what you need the first time a merchant, an auditor, or a network dispute asks you to prove a number.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-chargeback-dispute-state-machine.html">Modeling Card Chargebacks as a State Machine</a>
+      <span class="related-date">Aug 04</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-card-auth-capture-clearing.html">Card Authorization, Capture, and Clearing: One Transaction, Three Money States</a>
+      <span class="related-date">Aug 03</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-3ds2-authentication-flow.html">Integrating 3-D Secure 2 Without Breaking Your Checkout</a>
+      <span class="related-date">Aug 03</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

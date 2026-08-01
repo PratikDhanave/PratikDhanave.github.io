@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>RTGS vs Deferred Net Settlement — Pratik Dhanave</title>
+<meta name="description" content="Teaches the engineering tradeoffs between gross real-time settlement and deferred net settlement: liquidity vs finality, queue/gridlock resolution in...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="RTGS vs Deferred Net Settlement — Pratik Dhanave">
+<meta property="og:description" content="Teaches the engineering tradeoffs between gross real-time settlement and deferred net settlement: liquidity vs finality, queue/gridlock resolution in RTGS, and settlement-risk windows in DNS.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-rtgs-vs-dns-architecture.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-05T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Payments">
+<meta property="article:tag" content="Settlement">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="RTGS vs Deferred Net Settlement — Pratik Dhanave">
+<meta name="twitter:description" content="Teaches the engineering tradeoffs between gross real-time settlement and deferred net settlement: liquidity vs finality, queue/gridlock resolution in RTGS, and settlement-risk windows in DNS.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-rtgs-vs-dns-architecture.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "RTGS vs Deferred Net Settlement",
+  "description": "Teaches the engineering tradeoffs between gross real-time settlement and deferred net settlement: liquidity vs finality, queue/gridlock resolution in RTGS, and settlement-risk windows in DNS.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-05",
+  "dateModified": "2026-08-05",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Payments, Settlement",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-rtgs-vs-dns-architecture.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-rtgs-vs-dns-architecture.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>RTGS vs Deferred Net Settlement</h1>
+    <p class="post-subtitle">Two ways to move interbank money, and the engineering tradeoff that decides which one you build: settle every payment gross and pay in liquidity, or net at a window and carry settlement risk.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-05">August 05, 2026</time>
+      <span>·</span>
+      <span>7 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">Payments</span></a><a href="/blog/tags/settlement/" class="tag-link"><span class="tag">Settlement</span></a></div>
+  </header>
+
+
+
+
+
+  <p>Every interbank settlement system answers one question: when does a payment become final, and what does that finality cost in liquidity? There are only two honest answers. You either settle each payment individually, in full, the moment it clears — a real-time gross settlement (RTGS) system — or you accumulate obligations over a window and settle a single netted position per participant — a deferred net settlement (DNS) system. Almost every scheme you will integrate with is one of these two shapes, or a hybrid that borrows from both.</p>
+<p>The choice is not academic. It changes the data model, the failure modes, the liquidity a bank must pre-fund, and the algorithms you need to keep the system from seizing up. This post walks the two architectures from an engineering seat: what each one guarantees, where each one hurts, and how the hard parts — gridlock in RTGS, the exposure window in DNS — are solved.</p>
+<h2 id="the-gross-lane-settle-one-payment-right-now">The gross lane: settle one payment, right now</h2>
+<p>In RTGS, a payment instruction is settled against the sending bank&rsquo;s balance at the central settlement account the instant it is processed. There is no batch, no offsetting, no netting. Each instruction debits the payer bank and credits the payee bank as an atomic, irrevocable ledger move. Once posted, it is final — no clawback, no unwind.</p>
+<p>The upside is that settlement risk is essentially zero. The moment the receiving bank sees the credit, the money is theirs. This is why high-value and time-critical payments run over RTGS rails: nobody wants a billion-dollar transfer to be provisional until 5pm.</p>
+<p>The cost is liquidity. To settle gross, the sending bank must have the full amount in its settlement account <em>at the moment of processing</em>. A bank sending a large payment before its own incoming payments arrive will fail the balance check and the payment queues. Multiply that across thousands of participants trying to pay each other, and you get the RTGS engineer&rsquo;s central problem: gridlock.</p>
+<pre><code>RTGS: per-payment finality, at the price of liquidity
+
+  Bank A instruction ──► [ liquidity check ]
+                              │
+                     balance &gt;= amount ?
+                        │            │
+                       yes           no
+                        │            │
+                        ▼            ▼
+                  post &amp; settle   enter QUEUE
+                  (final, irrev.)   (waiting for
+                        │            incoming funds)
+                        ▼            │
+                  credit Bank B     └──► gridlock resolver
+                                          scans queue for
+                                          a settle-able cycle
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-rtgs-vs-dns-architecture.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<h2 id="gridlock-and-the-offsetting-algorithm-that-breaks-it">Gridlock, and the offsetting algorithm that breaks it</h2>
+<p>Gridlock is a liquidity deadlock. Bank A cannot pay Bank B until B pays A, and B cannot pay A until A pays B. Each payment sits at the head of a queue waiting for liquidity that will only arrive when the other payment settles. Nothing is technically wrong — every instruction is valid — but the system stops moving.</p>
+<p>The naive fix is more liquidity: make every bank pre-fund enough to never queue. That is enormously expensive; that cash sits idle. So real RTGS systems run a periodic <em>gridlock resolution</em> pass — an offsetting algorithm that looks for a set of queued payments which, if settled together, leave every participant&rsquo;s balance non-negative even though no single payment could settle alone.</p>
+<p>Concretely, the resolver treats queued instructions as a graph, searches for a cycle (or a larger simultaneous subset) whose net effect is fundable for all parties, and settles that subset in one atomic step. It is a small optimization problem run on a timer:</p>
+<pre><code>queued: A→B 100, B→C 80, C→A 90   (balances: A=20, B=10, C=0)
+
+  settle any one alone?  no — each sender is short.
+  settle all three simultaneously?
+     A: -100 +90 = -10  ... still short by 10
+  drop A→B, settle B→C + C→A?
+     B: -80      = short
+  inject A's queued incoming first, re-check net positions...
+     resolver finds fundable subset → atomic multilateral offset
+</code></pre>
+<p>The engineering point: an RTGS core is not just a ledger with a balance check. It is a ledger, a priority queue, and a periodically-invoked constrained solver that recovers throughput without abandoning gross finality. Payments also carry priority classes so that a stuck high-priority instruction can bypass or reorder the queue.</p>
+<h2 id="the-net-lane-accumulate-then-settle-once">The net lane: accumulate, then settle once</h2>
+<p>DNS inverts the tradeoff. Instead of settling each payment, the system records obligations throughout a cycle and computes, at a defined window, a single net position per participant: the sum of everything you owe minus everything owed to you. Only those net figures move across the settlement account, usually once or a few times per day.</p>
+<p>The win is liquidity efficiency. If a bank sends 10,000 payments totalling a billion and receives roughly the same, its net position might be a few million. It only needs to fund that few million, not the gross billion. Netting collapses a dense mesh of obligations into one number per bank, and that number is small.</p>
+<pre><code>DNS: accumulate obligations, settle the net at the window
+
+  during the cycle          at the cutoff snapshot
+  ┌───────────────────┐     ┌────────────────────────┐
+  │ A→B 100  A→C  40  │     │  net(A) = -140 + 60 = -80│
+  │ B→A  60  B→C 200  │ ──► │  net(B) = +100+... = ... │
+  │ C→A ... many ...  │     │  net(C) = ...            │
+  └───────────────────┘     └────────────────────────┘
+        gross mesh              one settle-able figure
+                                per participant
+                                       │
+                                       ▼
+                          single settlement transfer
+                          (net debtors → net creditors)
+</code></pre>
+<p>The cost is settlement risk, and it lives in the exposure window. Between the moment a payment is accepted and the moment the net position settles, the receiving bank may have already given value to its customer on the strength of a payment that is not yet final. If a participant fails before the window settles, its obligations may need to be unwound — and unwinding one bank&rsquo;s payments changes everyone else&rsquo;s net positions, potentially cascading. This is the systemic risk DNS designers spend all their effort containing.</p>
+<h2 id="containing-dns-risk-caps-collateral-and-unwind-rules">Containing DNS risk: caps, collateral, and unwind rules</h2>
+<p>Three mechanisms do the work. First, <strong>net debit caps</strong>: a hard limit on how negative any participant&rsquo;s running net position may go during the cycle. When a payment would breach the cap, it is rejected or held, exactly like the RTGS liquidity check but applied to the accumulated position rather than the live balance. Second, <strong>collateral and loss-sharing pools</strong>: participants post collateral sized so that if the largest (or largest few) net debtors default, the pool covers the settlement without unwinding anyone. Third, explicit <strong>unwind procedures</strong>: a deterministic rule for which payments get removed and how remaining positions are recomputed if settlement still cannot complete.</p>
+<p>Engineered together, these turn &ldquo;settle risk&rdquo; from an open-ended exposure into a bounded, pre-funded one. The cap enforcement is the interesting piece structurally: it means a DNS system, despite settling late, still runs a real-time check on every incoming instruction. You cannot defer the risk control just because you defer the settlement.</p>
+<h2 id="which-one-you-build-and-the-hybrids">Which one you build, and the hybrids</h2>
+<p>The rule of thumb: RTGS for high-value, time-critical, must-be-final-now flows; DNS for high-volume, low-value retail flows where liquidity efficiency matters more than instant finality. A large-value transfer between banks goes gross. A day&rsquo;s worth of card or ACH transactions nets.</p>
+<p>Modern designs increasingly refuse to choose. Hybrid systems accept payments continuously like RTGS but run frequent offsetting cycles — every few minutes rather than once a day — so a payment is either settled gross immediately or settled net moments later, shrinking the exposure window toward zero while keeping liquidity demand low. From an implementation view a hybrid is an RTGS core whose gridlock resolver runs aggressively and continuously, blurring into a DNS engine.</p>
+<p>If you take one thing from this: settlement finality and liquidity are a conserved tradeoff, not a feature you can maximize on both axes. Every mechanism in this post — queues, offsetting solvers, net debit caps, collateral pools — is an attempt to buy back a little of whichever side your chosen architecture gave away.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-nostro-vostro-reconciliation.html">Nostro/Vostro Reconciliation, From the Ledger Up</a>
+      <span class="related-date">Aug 05</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-cls-pvp-fx-settlement.html">Payment-versus-Payment: Settling FX Without Principal Risk</a>
+      <span class="related-date">Aug 05</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-netting-engine-design.html">Designing a Netting Engine That Collapses Gross Obligations Into Minimal Settlement</a>
+      <span class="related-date">Aug 04</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
