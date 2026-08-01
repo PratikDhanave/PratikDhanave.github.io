@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Reconstructing an Order Book from a Market-Data Feed</title>
+<meta name="description" content="Handle a market-data feed: sequence checking, gap recovery, and snapshot-plus-delta order-book reconstruction.">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Reconstructing an Order Book from a Market-Data Feed">
+<meta property="og:description" content="Handle a market-data feed: sequence checking, gap recovery, and snapshot-plus-delta order-book reconstruction.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-market-data-orderbook-reconstruction.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-21T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Trading">
+<meta property="article:tag" content="Markets">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Reconstructing an Order Book from a Market-Data Feed">
+<meta name="twitter:description" content="Handle a market-data feed: sequence checking, gap recovery, and snapshot-plus-delta order-book reconstruction.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-market-data-orderbook-reconstruction.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Reconstructing an Order Book from a Market-Data Feed",
+  "description": "Handle a market-data feed: sequence checking, gap recovery, and snapshot-plus-delta order-book reconstruction.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-21",
+  "dateModified": "2026-08-21",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Trading, Markets",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-market-data-orderbook-reconstruction.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-market-data-orderbook-reconstruction.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Reconstructing an Order Book from a Market-Data Feed</h1>
+    <p class="post-subtitle">Handle a live market-data feed the way an engineer must: sequence checking, gap recovery, and snapshot-plus-delta order-book reconstruction.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-21">August 21, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/trading/" class="tag-link"><span class="tag">Trading</span></a><a href="/blog/tags/markets/" class="tag-link"><span class="tag">Markets</span></a></div>
+  </header>
+
+
+
+
+
+  <p>A market-data feed does not hand you a picture of the market. It hands you a stream of edits. Each message says &ldquo;add 500 lots at 101.25,&rdquo; &ldquo;the level at 100.90 now has 300,&rdquo; or &ldquo;100.75 is gone.&rdquo; The order book you trade against is a <em>reconstruction</em> — a data structure you maintain locally by applying those edits in exact order. Get the order wrong, drop one message, or apply an edit twice, and your book silently diverges from the exchange&rsquo;s. Nothing crashes. You just start quoting against a book that no longer exists.</p>
+<p>This post walks through the engineering that keeps a local book faithful: how sequence numbers form the correctness contract, how you detect and recover from gaps, and how snapshot-plus-delta reconstruction stays deterministic under packet loss.</p>
+<h2 id="the-feed-is-a-stream-of-edits">The feed is a stream of edits</h2>
+<p>Most venues publish incremental (L2/L3) updates: per-price-level or per-order deltas rather than a full book on every tick. This is a bandwidth decision. A liquid instrument might see tens of thousands of book changes per second; shipping the entire depth each time would be wasteful and slow. So the venue ships the diff and trusts every consumer to hold identical state and apply identical edits.</p>
+<p>That trust is the hard part. The venue has no idea whether your copy of the book matches its own. There is no per-message acknowledgment, no server-side reconciliation. The only thing the venue gives you to prove you are in sync is a monotonically increasing <strong>sequence number</strong> stamped on every message. Sequence numbers are the entire correctness contract. Everything else in this post is machinery built around them.</p>
+<h2 id="sequence-numbers-are-the-contract">Sequence numbers are the contract</h2>
+<p>Each update on a channel carries a sequence number that increases by exactly one. Your ingest path does one thing before anything else: it checks that the number it just received is the number it expected. If <code>seq == expected</code>, apply the delta and bump the expected counter. If <code>seq &lt; expected</code>, it is a duplicate or a reorder from a redundant line — discard it. If <code>seq &gt; expected</code>, you have missed one or more messages, and the local book is now untrustworthy.</p>
+<pre><code>   Market Feed              Sequence Check                Order Book
+  (seq-numbered)          expected = last + 1           (bids / asks)
+        │                        │                            │
+        │  delta[seq=n]          │                            │
+        ├───────────────────────►│  seq == expected?          │
+        │                        │        yes ── apply ──────►│  updated
+        │  delta[seq=n+2]        │                            │
+        ├───────────────────────►│  seq  &gt;  expected?         │
+        │                        │        GAP  ──► recover    │
+        │                        │        (snapshot resync)   │
+        │                        ▼                            │
+        │                 buffer newer deltas, refetch base   │
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-market-data-orderbook-reconstruction.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<p>Notice what the gap check protects. The dangerous case is not the message you lost — it is every message <em>after</em> it. Once <code>seq</code> jumps ahead, you cannot apply the new delta, because it assumes edits you never saw. Blindly applying it corrupts the book in a way that is invisible until a price crosses or a level goes negative. The only safe response to a gap is to stop applying deltas to the current book and begin recovery.</p>
+<p>Many venues run two identical multicast lines (an A feed and a B feed) precisely so a drop on one can be filled from the other. Arbitrating between them is just sequence-number deduplication: take whichever line delivers <code>expected</code> first, drop the copy from the other. Line arbitration handles isolated single-packet loss cheaply; the snapshot path below is the fallback when both lines miss the same message.</p>
+<h2 id="recovering-from-a-gap-without-losing-determinism">Recovering from a gap without losing determinism</h2>
+<p>Recovery is snapshot-plus-delta. The venue publishes a full book <strong>snapshot</strong> — either on a separate refresh channel or via a request/response endpoint — and each snapshot is itself stamped with the sequence number it is current as of. Call it <code>snap_seq</code>. The snapshot is your new known-good base.</p>
+<p>The subtle part is the join. Deltas keep flowing while you fetch the snapshot, and the snapshot reflects some point in that stream, not the moment you asked. So the algorithm is:</p>
+<ol>
+<li>On gap detection, keep receiving deltas but stop applying them to the live book. Buffer them.</li>
+<li>Request (or wait for) a snapshot; read its <code>snap_seq</code>.</li>
+<li>Discard every buffered delta with <code>seq &lt;= snap_seq</code> — the snapshot already includes those edits.</li>
+<li>Verify the first surviving buffered delta is exactly <code>snap_seq + 1</code>. If it is not, the buffer itself has a hole; throw the snapshot away and refetch.</li>
+<li>Replay the surviving buffer in order onto the snapshot, then resume live application with <code>expected = last_applied + 1</code>.</li>
+</ol>
+<p>Step 4 is what makes the whole thing deterministic. You never guess and you never interpolate. Either the buffered deltas chain cleanly onto the snapshot&rsquo;s sequence number or you refuse the reconstruction and try again. A book that is briefly stale is a recoverable condition; a book that is silently wrong is not.</p>
+<h2 id="applying-deltas-to-the-book">Applying deltas to the book</h2>
+<p>The book itself is two sorted maps — one for bids, one for asks — keyed by price, valued by resting size (or a queue of orders for L3). Applying a delta is a point edit:</p>
+<pre><code class="language-python">def apply_delta(book_side, price, size):
+    if size == 0:
+        book_side.pop(price, None)   # level removed
+    else:
+        book_side[price] = size      # level set to absolute size
+</code></pre>
+<p>Two details matter for correctness. First, know whether your venue sends <em>absolute</em> level sizes (&ldquo;100.90 is now 300&rdquo;) or <em>relative</em> changes (&ldquo;100.90 gained 50&rdquo;). Mixing the two up is a classic reconstruction bug — the book looks plausible for a while, then drifts. Second, treat a size of zero as a delete, not a level with zero quantity, or your best-bid/best-ask scan will trip over phantom levels.</p>
+<p>For latency, the hot path avoids allocation: pre-sized arrays or an intrusive tree keyed by integer price ticks, not floating-point prices in a general-purpose hash map. Best bid and best ask are cached and updated on each edit so top-of-book reads are O(1). The reconstruction logic is boring on purpose — the interesting engineering is making the boring path never wrong.</p>
+<h2 id="what-consumers-need-and-what-to-instrument">What consumers need, and what to instrument</h2>
+<p>Downstream consumers want different projections of the same book. A strategy engine typically needs only top-of-book or a few levels of depth, delivered with minimal latency. A market-data service re-publishing L2 depth needs the fuller structure and cares more about consistency than microseconds. Both read from the single reconstructed book, which is why keeping that one structure correct is worth so much effort.</p>
+<p>Instrument the reconstruction, not just the transport. The metrics that actually tell you the book is healthy:</p>
+<ul>
+<li><strong>Gap rate</strong> and <strong>gaps-per-instrument</strong> — a rising gap rate on one channel points at a lossy network path, not a market event.</li>
+<li><strong>Recovery latency</strong> — time from gap detected to book resynced. This is how long you were quoting on stale data.</li>
+<li><strong>Snapshot refetch count</strong> — repeated refetches mean the buffer join keeps failing, usually a symptom of buffer overflow or a <code>snap_seq</code> mismatch.</li>
+<li><strong>Crossed-book counter</strong> — best bid at or above best ask should be impossible on a correct book; every occurrence is a reconstruction defect, and it must alert, not just log.</li>
+</ul>
+<p>The mental model to hold onto: you are not receiving a market, you are receiving a recipe for one. Sequence numbers tell you the steps are in order; snapshots give you a clean pot to start from when a step goes missing. Everything faithful about your book falls out of respecting those two invariants and refusing to proceed when either one breaks.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-order-types-time-in-force.html">Order Types and Time-in-Force as a Lifecycle</a>
+      <span class="related-date">Aug 21</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-pretrade-risk-position-pnl.html">Pre-Trade Risk, Positions, and Real-Time P&amp;L</a>
+      <span class="related-date">Aug 21</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-matching-engine-design.html">Designing a Deterministic Order-Book Matching Engine</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
