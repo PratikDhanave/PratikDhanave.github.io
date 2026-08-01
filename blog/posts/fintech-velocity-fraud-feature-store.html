@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Real-Time Velocity Checks and the Fraud Feature Store</title>
+<meta name="description" content="Teaches how to build low-latency velocity checks: sliding-window counters and aggregates in an online feature store, entity keys (card/device/IP), and...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Real-Time Velocity Checks and the Fraud Feature Store">
+<meta property="og:description" content="Teaches how to build low-latency velocity checks: sliding-window counters and aggregates in an online feature store, entity keys (card/device/IP), and consistency between real-time and batch-computed features.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-velocity-fraud-feature-store.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-11T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Fraud">
+<meta property="article:tag" content="Risk">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Real-Time Velocity Checks and the Fraud Feature Store">
+<meta name="twitter:description" content="Teaches how to build low-latency velocity checks: sliding-window counters and aggregates in an online feature store, entity keys (card/device/IP), and consistency between real-time and batch-computed features.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-velocity-fraud-feature-store.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Real-Time Velocity Checks and the Fraud Feature Store",
+  "description": "Teaches how to build low-latency velocity checks: sliding-window counters and aggregates in an online feature store, entity keys (card/device/IP), and consistency between real-time and batch-computed features.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-11",
+  "dateModified": "2026-08-11",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Fraud, Risk",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-velocity-fraud-feature-store.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-velocity-fraud-feature-store.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Real-Time Velocity Checks and the Fraud Feature Store</h1>
+    <p class="post-subtitle">Building low-latency sliding-window counters, entity-keyed aggregates, and an online feature store that stays consistent with its batch-computed twin.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-11">August 11, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/fraud/" class="tag-link"><span class="tag">Fraud</span></a><a href="/blog/tags/risk/" class="tag-link"><span class="tag">Risk</span></a></div>
+  </header>
+
+
+
+
+
+  <p>A velocity check answers a deceptively simple question at authorization time: <em>how many times has this thing happened recently?</em> Five card-not-present attempts on one PAN in ninety seconds, forty distinct cards from one device in an hour, a burst of small-dollar authorizations across one IP range — each is a count over a window, evaluated inline while a cardholder waits for approval. The hard part is not the arithmetic. It is producing that count in single-digit milliseconds, for millions of entities, without letting the numbers quietly drift away from reality.</p>
+<p>This post walks through the engineering of that path: the counter primitive, the entity keys that drive fan-out, the online store that serves reads, and the batch pipeline that has to agree with it.</p>
+<h2 id="the-latency-budget-shapes-every-other-decision">The latency budget shapes every other decision</h2>
+<p>Velocity checks live on the authorization critical path. The whole auth round trip typically has a budget in the tens of milliseconds, and fraud scoring is one stage among several — tokenization, balance checks, network round trips. Realistically the feature layer gets a few milliseconds of that budget to return a vector of counts. That single constraint forces most of the architecture.</p>
+<p>You cannot compute <code>COUNT(*) WHERE entity = ? AND ts &gt; now - window</code> against a transactional database inline. Even with a good index, the tail latency under load is unacceptable, and you would be putting fraud reads in contention with the writes that book money. So the counts are <strong>pre-aggregated and pushed</strong> to a store optimized for point reads, and the auth path only ever does a keyed lookup — never a scan, never a join.</p>
+<pre><code>                 write path (async)                 read path (inline, few ms)
+  auth event ─▶ stream ─▶ window aggregator ─▶ online feature store ◀── decisioning
+  (card/device/IP)          (sliding counters)     (keyed point reads)     (rules + model)
+                                   │
+                                   └────▶ batch backfill ◀── event lake (source of truth)
+                                          (recompute + reconcile)
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-velocity-fraud-feature-store.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<p>The read side is dumb and fast on purpose. All the interesting work is on the write side, where a stream processor maintains the windowed aggregates, and in the reconciliation loop that keeps the fast store honest.</p>
+<h2 id="sliding-window-counters-as-the-core-primitive">Sliding-window counters as the core primitive</h2>
+<p>The naive &ldquo;store every event timestamp and count on read&rdquo; approach is correct but too slow and too heavy — an entity with a burst holds thousands of timestamps and every read re-scans them. The standard trick is a <strong>bucketed sliding window</strong>: divide the window into fixed sub-intervals, keep one counter per bucket, and sum the buckets that overlap the window. A one-hour window with one-minute buckets is sixty small integers per entity; incrementing is O(1) and reading is a fixed 60-add.</p>
+<pre><code class="language-python"># Fixed-granularity bucketed window. Increment is O(1); read sums a fixed
+# number of buckets. Buckets are addressed by (entity_key, bucket_index)
+# so old buckets expire naturally instead of being deleted.
+
+def bucket_index(ts_ms: int, bucket_ms: int) -&gt; int:
+    return ts_ms // bucket_ms
+
+def on_event(store, entity_key: str, ts_ms: int, bucket_ms: int, ttl_s: int):
+    idx = bucket_index(ts_ms, bucket_ms)
+    field = f&quot;{entity_key}:{idx}&quot;
+    store.incr(field)                 # atomic add
+    store.expire(field, ttl_s)        # bucket self-expires past the window
+
+def velocity(store, entity_key: str, now_ms: int,
+             bucket_ms: int, num_buckets: int) -&gt; int:
+    end = bucket_index(now_ms, bucket_ms)
+    fields = [f&quot;{entity_key}:{i}&quot; for i in range(end - num_buckets + 1, end + 1)]
+    return sum(int(v or 0) for v in store.mget(fields))
+</code></pre>
+<p>Two properties make this production-safe. First, buckets <strong>expire on their own</strong> via TTL, so there is no delete job and no unbounded growth — an entity that goes quiet simply ages out. Second, the counts are approximate at the edges (you get bucket-granular boundaries, not exact per-second precision), which is fine: a fraud rule that fires at &ldquo;≥ 20 in 10 minutes&rdquo; does not care whether the true figure is 20 or 21. Choose bucket size by how much boundary error a rule tolerates. When exactness genuinely matters — distinct-count features like &ldquo;unique cards per device&rdquo; — reach for a probabilistic structure such as HyperLogLog rather than a growing set.</p>
+<h2 id="entity-keys-and-the-fan-out-problem">Entity keys and the fan-out problem</h2>
+<p>A single authorization is not one velocity feature; it is many. The same event updates counters keyed by PAN, by device fingerprint, by IP, by email, by merchant, and by composite keys like <code>device × merchant</code>. Each key answers a different fraud question — a compromised card, a bot farm, a proxy pool, a testing spree against one merchant. So one inbound event fans out into a dozen or more counter increments.</p>
+<p>This fan-out is the real throughput driver. Model it explicitly: a declarative table of <code>(feature_name, entity_key_expr, window, bucket_size)</code> that the aggregator reads, rather than hand-written increments scattered through code. That table becomes the contract between the real-time job and the batch job — both must derive features from the <em>same</em> definitions, or they will disagree. Keep the key extraction pure and side-effect free so it can run identically in a stream operator and a batch mapper.</p>
+<p>Guard the key space, too. Fraudsters deliberately generate high-cardinality garbage — fresh device IDs, rotating IPs — to blow up your key count and evict useful hot keys. Cap per-entity memory, prefer bounded structures, and treat &ldquo;never seen before&rdquo; as its own signal rather than something to store forever.</p>
+<h2 id="keeping-online-and-offline-features-consistent">Keeping online and offline features consistent</h2>
+<p>Here is the failure that quietly poisons fraud models. Your model is trained offline on historical features computed by a batch job over the event lake. It is served online with features from the streaming store. If the two compute even slightly differently — a different window boundary, a timezone, an event the stream dropped — the model sees inputs at inference that never appeared in training. This <strong>train/serve skew</strong> degrades the model with no error, no alert, just a slow rise in missed fraud.</p>
+<p>The defenses are structural:</p>
+<ul>
+<li><strong>One definition, two runtimes.</strong> Both paths read the same feature registry. If a window is &ldquo;10 minutes, 30-second buckets,&rdquo; neither job gets to reinterpret it.</li>
+<li><strong>Batch is the source of truth; stream is the fast approximation.</strong> A periodic backfill recomputes windowed aggregates from the immutable event lake and overwrites the online store&rsquo;s older, already-closed buckets. The stream owns only the <em>live</em> edge of the window; everything behind the current bucket boundary is reconciled to the batch figure.</li>
+<li><strong>Log served features, not just recompute them.</strong> Persist the exact feature vector used for each decision. Training on <em>logged</em> values — what the model actually saw — sidesteps skew entirely and gives you ground truth for debugging.</li>
+</ul>
+<p>The batch/stream split also handles late and out-of-order events. The stream, optimized for latency, may miss a straggler that arrives after its bucket closed; the backfill, optimized for completeness, folds it back in. Real-time is allowed to be slightly wrong on old buckets precisely because a slower, correct process is coming behind it.</p>
+<h2 id="failure-modes-and-safe-defaults">Failure modes and safe defaults</h2>
+<p>Decide up front what a velocity check returns when the store is unreachable or slow. The two options — fail-open (approve, assume zero velocity) and fail-closed (decline or step up) — are a fraud-loss-versus-false-decline tradeoff, and the right answer is segment-specific: fail-closed on a high-risk corridor, fail-open on a trusted low-value flow. Bound every lookup with a hard timeout well inside the auth budget, and treat a timeout as a first-class outcome the rules can branch on, not an exception that bubbles up.</p>
+<p>Finally, remember counts are a <strong>feature, not a verdict</strong>. Velocity feeds the rules and the model; it does not decide alone. Emit the raw counts and let the decisioning layer combine them with everything else — which is exactly where the next boundary in the fraud stack begins.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-rules-vs-ml-fraud-scoring.html">Rules and ML in One Fraud Decision Path</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-step-up-auth-orchestration.html">Building a Step-Up Authentication Orchestrator</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-reconciliation-break-detection.html">Three-Way Reconciliation That Closes the Long Tail</a>
+      <span class="related-date">Aug 15</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

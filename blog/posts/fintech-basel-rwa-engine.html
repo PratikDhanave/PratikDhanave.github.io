@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Engineering a Basel RWA Calculation Engine — Pratik Dhanave</title>
+<meta name="description" content="Teaches the engineering of a risk-weighted-asset calculator: exposure classification, risk-weight lookup (standardized approach), credit-conversion...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Engineering a Basel RWA Calculation Engine — Pratik Dhanave">
+<meta property="og:description" content="Teaches the engineering of a risk-weighted-asset calculator: exposure classification, risk-weight lookup (standardized approach), credit-conversion factors for off-balance items, and capital-ratio aggregation for regulatory reporting.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-basel-rwa-engine.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-11T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Compliance">
+<meta property="article:tag" content="Regulation">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Engineering a Basel RWA Calculation Engine — Pratik Dhanave">
+<meta name="twitter:description" content="Teaches the engineering of a risk-weighted-asset calculator: exposure classification, risk-weight lookup (standardized approach), credit-conversion factors for off-balance items, and capital-ratio aggregation for regulatory reporting.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-basel-rwa-engine.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Engineering a Basel RWA Calculation Engine",
+  "description": "Teaches the engineering of a risk-weighted-asset calculator: exposure classification, risk-weight lookup (standardized approach), credit-conversion factors for off-balance items, and capital-ratio aggregation for regulatory reporting.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-11",
+  "dateModified": "2026-08-11",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Compliance, Regulation",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-basel-rwa-engine.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-basel-rwa-engine.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Engineering a Basel RWA Calculation Engine</h1>
+    <p class="post-subtitle">How to turn a book of exposures into risk-weighted assets and a capital ratio with a deterministic, auditable pipeline</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-11">August 11, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/compliance/" class="tag-link"><span class="tag">Compliance</span></a><a href="/blog/tags/regulation/" class="tag-link"><span class="tag">Regulation</span></a></div>
+  </header>
+
+
+
+
+
+  <p>A bank&rsquo;s regulatory capital requirement is not a single number someone types into a spreadsheet. It is the output of a computation that starts from every loan, guarantee, and undrawn commitment on the books and ends with a ratio that a supervisor will inspect line by line. That computation is the risk-weighted asset (RWA) engine, and under the Basel standardized approach it is far more of a data-engineering problem than a quantitative-finance one. The pipeline below is the shape most implementations converge on.</p>
+<pre><code>  Exposures ──▶ Classify ──▶ Weight ──▶ Aggregate ──▶ Capital Ratio
+     │                          ▲
+     └──▶ CCF Convert ──────────┘
+          (off-balance EAD)
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/fintech-basel-rwa-engine.html">Open the interactive diagram</a></strong> — pan, zoom, and trace every step (light/dark, self-contained).</p>
+</blockquote>
+<p>The core identity is simple:</p>
+<pre><code>capital ratio = eligible capital / total RWA
+
+total RWA = sum over exposures of ( EAD * risk_weight )
+
+where  EAD = on-balance amount
+            + off-balance amount * credit_conversion_factor
+</code></pre>
+<p>Everything hard about the engine lives in getting <code>EAD</code> and <code>risk_weight</code> right for millions of heterogeneous positions, and in being able to prove, months later, exactly how a given number was produced.</p>
+<h2 id="start-with-an-exposure-not-a-loan">Start with an exposure, not a loan</h2>
+<p>The first modeling mistake is to run the engine over your product tables directly. A term loan, a revolving credit line, a letter of guarantee, and a repo all live in different systems with different schemas, but the RWA engine only cares about a normalized <em>exposure</em> record. Introduce that boundary explicitly.</p>
+<p>An exposure needs, at minimum: a counterparty identifier and its type, the on-balance carrying amount, any off-balance (undrawn or contingent) amount, currency, residual maturity, collateral references, and an external rating where one applies. Producing this record from source systems is an ETL concern you want isolated, because it is where most reconciliation breaks originate. If your engine consumes a clean exposure feed, the calculation stages downstream become pure functions of that feed — which is exactly what makes the whole thing testable and replayable.</p>
+<p>Keep the exposure immutable for a given reporting date. The engine should never mutate an exposure in place; it snapshots the book as of the cutoff and treats that snapshot as the sole input. This is what lets you re-run last quarter&rsquo;s numbers bit-for-bit when an auditor asks.</p>
+<h2 id="classification-decides-everything-downstream">Classification decides everything downstream</h2>
+<p>Classification maps each exposure into a regulatory asset class — sovereign, bank, corporate, retail, residential mortgage, commercial real estate, past-due, and so on. The asset class, combined with attributes like rating and loan-to-value, is what selects the risk weight. Get classification wrong and every downstream number is wrong in a way that is expensive to unwind.</p>
+<p>Model classification as an ordered ruleset, not a giant switch statement. Rules are evaluated in priority order, and the first match wins. This mirrors how the regulation itself reads (specific carve-outs override general categories) and it gives you a natural place to attach an audit trail: record <em>which</em> rule fired for each exposure.</p>
+<pre><code class="language-python">def classify(exposure, rules):
+    for rule in rules:  # ordered, most-specific first
+        if rule.matches(exposure):
+            return Classification(
+                asset_class=rule.asset_class,
+                rule_id=rule.id,          # audit hook
+                bucket=rule.bucket,       # e.g. LTV band
+            )
+    raise Unclassified(exposure.id)       # never silently default
+</code></pre>
+<p>The <code>raise</code> on the last line matters. An unclassifiable exposure is a data-quality incident, not a zero-weight freebie. Silent defaulting to a low weight is the kind of bug that understates capital and ends careers.</p>
+<h2 id="off-balance-items-and-the-credit-conversion-factor">Off-balance items and the credit conversion factor</h2>
+<p>On-balance exposures already sit at their exposure-at-default: the money is out the door. Off-balance items — undrawn commitments, guarantees, trade finance — represent potential future exposure, so you cannot weight the notional directly. The credit conversion factor (CCF) scales the off-balance amount into an EAD-equivalent before weighting.</p>
+<p>A revocable commitment might carry a 10% CCF, an unconditionally cancellable line a 0% CCF, a direct credit substitute 100%. The CCF depends on the instrument type and its terms, so this is its own classification-and-lookup step running in parallel to the on-balance path. The two paths converge at the weighting stage, both delivering a clean EAD number.</p>
+<p>Separating the CCF path in the pipeline is not just diagram tidiness. It means the off-balance logic — which has its own regulatory nuances and its own reconciliation against commitment systems — can be tested and versioned independently from the on-balance flow.</p>
+<h2 id="risk-weight-lookup-must-be-a-versioned-table">Risk-weight lookup must be a versioned table</h2>
+<p>Under the standardized approach, the risk weight is a lookup: given asset class, rating band, and any modifiers, return a percentage. Do not bury these percentages in code. They change with regulation, they differ by jurisdiction, and you must be able to state which version of the table produced a historical number.</p>
+<p>Model the table as data with an effective-date and a version identifier:</p>
+<pre><code>asset_class   rating_band   modifier      risk_weight   version
+corporate     AAA..AA-      —             20%           2026Q1
+corporate     A+..A-        —             50%           2026Q1
+corporate     unrated       —             100%          2026Q1
+mortgage      —             LTV&lt;=60%      35%           2026Q1
+past_due      —             —             150%          2026Q1
+</code></pre>
+<p>Every RWA figure the engine emits should carry the table version it used. When a supervisor asks why the corporate weight was 50% and not 100% for a given date, the answer is a row lookup, not an archaeology project.</p>
+<p>The weighting stage then becomes trivial and side-effect-free: <code>rwa_contribution = ead * weight_lookup(classification, version)</code>. Purity here is the whole point — it is what makes per-exposure results reproducible and unit-testable against known regulatory examples.</p>
+<h2 id="aggregation-capital-and-reproducibility">Aggregation, capital, and reproducibility</h2>
+<p>Aggregation sums the per-exposure contributions into total RWA, usually with intermediate rollups by asset class and business line because supervisors want the breakdown, not just the grand total. Aggregation should be associative and order-independent so you can shard the calculation across workers and still get an identical answer — floating-point drift in a regulatory number is not acceptable, so many engines carry amounts as integer minor units and only present as decimals.</p>
+<p>Divide eligible capital by total RWA and you have the CET1 and Tier 1 ratios that headline the regulatory report. But the ratio is the easy part; the value of the engine is everything that lets you <em>defend</em> it:</p>
+<ul>
+<li><strong>Replayability.</strong> Same exposure snapshot plus same rule and table versions must yield byte-identical output. Pin all three and store them together.</li>
+<li><strong>Lineage.</strong> Each RWA contribution should trace back to its exposure, the classification rule that fired, the CCF applied, and the weight-table row used.</li>
+<li><strong>No silent defaults.</strong> Unclassified exposures, missing ratings, and stale data must surface as explicit exceptions that block sign-off, never as convenient low weights.</li>
+<li><strong>Attribution deltas.</strong> When the ratio moves quarter over quarter, you need to decompose the change into new exposures, reclassifications, and rule or table updates.</li>
+</ul>
+<p>Build the RWA engine as a chain of pure stages over an immutable exposure snapshot, keep the regulatory parameters in versioned tables rather than code, and make every number trace back to the rule and row that produced it. Do that and the quarterly capital calculation stops being a fire drill and becomes what it should be: a deterministic function you can run, audit, and trust.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-psd2-open-banking-consent.html">Engineering the Open Banking Consent Layer: SCA, Scopes, and Token Lifecycles</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-transaction-monitoring-rules.html">Building an AML Transaction Monitoring Rules Engine</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-travel-rule-vasp.html">Implementing the FATF Travel Rule Between VASPs</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

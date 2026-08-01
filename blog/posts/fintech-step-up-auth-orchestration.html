@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Building a Step-Up Authentication Orchestrator</title>
+<meta name="description" content="Teaches how to build risk-based step-up auth: an orchestration layer that escalates from silent to OTP/biometric/3DS challenge based on risk signals,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Building a Step-Up Authentication Orchestrator">
+<meta property="og:description" content="Teaches how to build risk-based step-up auth: an orchestration layer that escalates from silent to OTP/biometric/3DS challenge based on risk signals, with pending-challenge state and resumable transaction context.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/fintech-step-up-auth-orchestration.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-12T00:00:00Z">
+<meta property="article:tag" content="Fintech">
+<meta property="article:tag" content="Fraud">
+<meta property="article:tag" content="Risk">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Building a Step-Up Authentication Orchestrator">
+<meta name="twitter:description" content="Teaches how to build risk-based step-up auth: an orchestration layer that escalates from silent to OTP/biometric/3DS challenge based on risk signals, with pending-challenge state and resumable transaction context.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/fintech-step-up-auth-orchestration.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim)}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:block;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Building a Step-Up Authentication Orchestrator",
+  "description": "Teaches how to build risk-based step-up auth: an orchestration layer that escalates from silent to OTP/biometric/3DS challenge based on risk signals, with pending-challenge state and resumable transaction context.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-12",
+  "dateModified": "2026-08-12",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Fintech, Fraud, Risk",
+  "url": "https://pratikdhanave.com/blog/posts/fintech-step-up-auth-orchestration.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/fintech-step-up-auth-orchestration.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Building a Step-Up Authentication Orchestrator</h1>
+    <p class="post-subtitle">How a risk-driven layer escalates from silent approval to OTP, biometric, or 3DS challenge — holding a pending-challenge state and resuming the original transaction once the customer clears it.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-12">August 12, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">Fintech</span></a><a href="/blog/tags/fraud/" class="tag-link"><span class="tag">Fraud</span></a><a href="/blog/tags/risk/" class="tag-link"><span class="tag">Risk</span></a></div>
+  </header>
+
+
+
+
+
+  <p>Most transactions should sail through untouched. A small, risky minority should be interrupted and asked for more proof. The hard part is not the individual challenge methods — OTP, biometric, and 3-D Secure are all well-trodden — it is the coordination layer that decides <em>which</em> challenge to raise, <em>parks the in-flight transaction</em> while the customer completes it, and then <em>resumes exactly where it left off</em>. That layer is a step-up authentication orchestrator, and getting its state model right is what separates a smooth escalation from a stuck checkout and a double charge.</p>
+<p>The orchestrator sits between your risk engine and your challenge providers. It consumes a risk decision, selects a challenge tier, issues it, and blocks the transaction on a durable pending state until a verdict arrives.</p>
+<pre><code> transaction intent
+        |
+   evaluate risk signals
+        |
+   +----+------+---------+---------+
+   |          |         |         |
+ no        OTP     biometric    3DS
+ challenge    \       |        /
+   |           challenge issued
+ proceed             |
+                pending state
+                /           \
+           verified      failed / expired
+           resume txn    abandon txn
+</code></pre>
+<h2 id="separate-the-decision-from-the-challenge">Separate the decision from the challenge</h2>
+<p>The first design mistake is welding risk scoring to a specific challenge. When the payment path calls <code>send_otp()</code> directly, you cannot later slot in a biometric prompt without touching the payment code, and you cannot A/B two escalation policies. Keep two boundaries clean: a <strong>risk engine</strong> that emits a decision, and an <strong>orchestrator</strong> that turns that decision into an authentication ceremony.</p>
+<p>The risk engine&rsquo;s output should be a small, typed verdict — not a raw score the orchestrator has to interpret. Bake the score-to-action mapping into the risk layer so the orchestrator only ever sees an action and the signals behind it:</p>
+<pre><code class="language-python">@dataclass
+class RiskDecision:
+    action: str          # &quot;allow&quot; | &quot;challenge&quot; | &quot;deny&quot;
+    tier: str | None     # &quot;otp&quot; | &quot;biometric&quot; | &quot;3ds&quot; when action == &quot;challenge&quot;
+    reasons: list[str]   # signals that drove it, for audit + adverse-action
+    ttl_seconds: int     # how long a passed challenge stays valid
+</code></pre>
+<p><code>allow</code> proceeds silently. <code>deny</code> stops the transaction outright — a step-up cannot rescue a transaction the risk engine has already decided to reject. Only <code>challenge</code> enters the orchestrator, and it arrives with the tier already chosen, so escalation policy lives in one place instead of being scattered across payment call sites.</p>
+<h2 id="a-ladder-of-challenge-methods">A ladder of challenge methods</h2>
+<p>Challenge tiers form a ladder of increasing friction and increasing assurance. A silent device-binding check costs the customer nothing; a full 3DS challenge with an issuer redirect costs conversion. The orchestrator&rsquo;s job is to raise the <em>lowest</em> tier that satisfies the risk the engine flagged.</p>
+<ul>
+<li><strong>Silent / device signals.</strong> No user interaction — a trusted device cookie, a passkey assertion the platform can gather without a prompt, or a recent successful step-up still inside its TTL. Prefer this whenever the elevated risk is marginal.</li>
+<li><strong>OTP.</strong> A one-time code over SMS, email, or an authenticator. Cheap to integrate, but phishable and dependent on deliverability, so treat a stalled OTP as a first-class failure mode, not an edge case.</li>
+<li><strong>Biometric.</strong> A platform authenticator (fingerprint, face) via WebAuthn. High assurance, low friction <em>when the device supports it</em> — which is why the orchestrator must gracefully fall back to OTP when it does not.</li>
+<li><strong>3-D Secure.</strong> Shifts liability to the issuer and runs the issuer&rsquo;s own challenge. The heaviest tier, reserved for high-value or clearly suspicious card transactions.</li>
+</ul>
+<p>Each provider is wrapped behind one interface — <code>issue(context) -&gt; challenge_id</code> and <code>verify(challenge_id, proof) -&gt; result</code> — so the orchestrator treats them uniformly and a new method is a new adapter, not a new branch in the state machine.</p>
+<h2 id="the-pending-state-is-the-whole-design">The pending state is the whole design</h2>
+<p>The moment you issue a challenge, the original transaction is in limbo. It has not succeeded and must not fail; it is <em>waiting</em>. That waiting has to be durable, because the customer might complete the challenge on another device, or thirty seconds later after fetching a code, or never. If the pending state lives only in the request thread, a load-balancer timeout or a pod restart strands the transaction.</p>
+<p>Persist a challenge session that carries everything needed to resume the frozen transaction:</p>
+<pre><code class="language-python">@dataclass
+class ChallengeSession:
+    challenge_id: str
+    txn_ref: str            # the parked transaction to resume
+    tier: str
+    status: str             # &quot;pending&quot; | &quot;verified&quot; | &quot;failed&quot; | &quot;expired&quot;
+    attempts: int
+    max_attempts: int
+    expires_at: datetime    # hard wall-clock deadline
+    resume_token: str       # opaque handle returned to the client
+</code></pre>
+<p>The <code>resume_token</code> is what the client polls or redeems on the callback; it never exposes the internal <code>txn_ref</code>. The <code>expires_at</code> deadline is non-negotiable — a pending challenge is a held resource (an authorization hold, an inventory reservation, a rate-limit slot), and an unbounded pending state leaks all of them. When the deadline passes, a sweeper transitions the session to <code>expired</code> and runs the same abandonment path a hard failure would.</p>
+<p>Critically, issuing the challenge and writing the pending session must be atomic. Send the OTP <em>after</em> the session row commits, or a crash between the two leaves a code in the customer&rsquo;s pocket with no session to verify it against.</p>
+<h2 id="resume-retry-and-abandon">Resume, retry, and abandon</h2>
+<p>When a verdict returns, the orchestrator resolves the pending session into exactly one terminal outcome and hands the parked transaction back to the payment flow.</p>
+<p><strong>Verified.</strong> The proof checks out, the session flips to <code>verified</code>, and the transaction resumes from the exact step where it paused. Resumption must be idempotent: the client may redeem the resume token twice (a retry, a double-tap), and the payment must complete once. Key the resumption on <code>txn_ref</code> so a second redemption returns the first result instead of charging again. On success, stamp the passed step-up with its TTL so an immediate follow-up transaction from the same context can skip re-challenging.</p>
+<p><strong>Failed with budget left.</strong> A wrong OTP is not fatal. Increment <code>attempts</code>; while it stays under <code>max_attempts</code>, re-prompt within the <em>same</em> session and the <em>same</em> expiry window — a retry must not reset the wall-clock deadline, or an attacker gets unlimited time by failing on purpose. Some designs escalate the tier on repeated failure (OTP → biometric) rather than merely repeating it.</p>
+<p><strong>Abandoned.</strong> Attempts exhausted, or the deadline hit. The session goes terminal, and — this is the step teams forget — the parked transaction must be <em>actively released</em>, not just left to rot. Void the authorization hold, free the reservation, and emit a clean decline the customer can retry from scratch. Silent abandonment is how holds pile up and inventory disappears.</p>
+<h2 id="operating-it">Operating it</h2>
+<p>Instrument the funnel, not just the endpoints. The numbers that matter are <strong>step-up rate</strong> (what fraction of transactions get challenged — too high and you are taxing good customers), <strong>challenge completion rate by tier</strong> (a low OTP completion often means a deliverability problem, not fraud), and <strong>pending-session leak count</strong> (sessions that should have terminated but did not). Alert on the leak metric specifically; it is the leading indicator that your sweeper or release path is broken.</p>
+<p>A step-up orchestrator earns its keep by being invisible on the 98% of traffic that should never see a prompt, and rock-solid on the 2% that must. Keep the risk decision separate from the challenge, make the pending state durable and time-bounded, and treat resumption and abandonment as first-class terminal paths — and the rest is adding adapters.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/fintech-rules-vs-ml-fraud-scoring.html">Rules and ML in One Fraud Decision Path</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-velocity-fraud-feature-store.html">Real-Time Velocity Checks and the Fraud Feature Store</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    <li>
+      <a href="/blog/posts/fintech-reconciliation-break-detection.html">Three-Way Reconciliation That Closes the Long Tail</a>
+      <span class="related-date">Aug 15</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
