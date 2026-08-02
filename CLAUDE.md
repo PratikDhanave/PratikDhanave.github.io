@@ -9,6 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **URL:** https://pratikdhanave.com
 - **Type:** Custom Python-based static site generator (not Jekyll, Hugo, or any off-the-shelf SSG)
 - **Hosting:** GitHub Pages from `master` branch
+- **`AGENTS.md` is not for you:** the root `AGENTS.md` targets *content-consuming* AI agents (crawlers, LLMs citing the site) — attribution and machine-readable entry points. This `CLAUDE.md` is the guidance for coding assistants editing the repo. Don't fold one into the other.
 - **CI/CD:** `.github/workflows/publish-blog.yml` auto-runs `build_blog.py` + `build_sitemap.py` on push to `blog/source/**`, then commits back a **fixed file allowlist** (posts, index, feed, search-index, popular-posts, tags, archive, sitemaps). If a build script starts emitting a new output path, add it to that workflow's `git add` line or CI will silently drop it. `build_projects.py` and `gen_og_image.py` are **not** run by CI — regenerate and commit their output manually.
 
 ---
@@ -59,10 +60,10 @@ All output in `blog/posts/`, `blog/tags/`, `blog/archive/`, plus `blog/index.htm
 
 `build_blog.py` is the single source of truth for all blog content. Key structures:
 
-- **`POST_META` dict** (defined near line 162, ~337 entries) — keyed by source filename (e.g. `"2026-06-01-my-post.md"`), contains `slug`, `date`, `tags`, `audience`, `excerpt`, `citations`. Adding a new post requires a new entry here. `POST_META` is the true source of truth: rendered post count, `feed.xml`, `search-index.json`, and `sitemap-blog.xml` all track it (currently 337 each), not the source-file count.
-- **`POST_POPULARITY` dict** (near line 2719) — maps slug → rank for the handful of featured posts (currently ~12), used to build `blog/popular-posts.json`.
+- **`POST_META` dict** (defined near line 161, ~485 entries) — keyed by source filename (e.g. `"2026-06-01-my-post.md"`), contains `slug`, `date`, `tags`, `audience`, `excerpt`, `citations`. Adding a new post requires a new entry here. `POST_META` is the true source of truth: rendered post count, `feed.xml`, `search-index.json`, and `sitemap-blog.xml` all track it (currently ~485 each), not the source-file count.
+- **`POST_POPULARITY` dict** (near line 2988) — maps slug → rank for the handful of featured posts (currently 12), used to build `blog/popular-posts.json`.
 - Markdown source files live in `blog/source/` following the naming convention `YYYY-MM-DD-slug.md`.
-- `POST_META` holds far more entries than `blog/source/` has markdown files (currently ~337 entries vs. ~241 source files — ~84 `.md`-keyed entries plus ~12 legacy `.html`-keyed entries have no markdown on disk). The excess are legacy posts that exist only as pre-rendered HTML. Their metadata still lives in `POST_META` with a missing source file — the script handles this gracefully. Deleting a `POST_META` entry drops the post from the **index and feed** (both are `POST_META`-driven). **The sitemap is the exception**: `build_sitemap.py` globs `blog/posts/*.html` off disk, so a deleted `POST_META` entry (or renamed `slug`) leaves the orphaned HTML on disk and it will *still* appear in `sitemap-blog.xml` until you delete the file. No build script prunes stale post/tag/archive files — removals are manual. (These counts drift as posts are added — don't rely on the exact numbers, only the invariant that entries ≫ source files.)
+- `POST_META` holds far more entries than `blog/source/` has markdown files (currently ~485 entries vs. ~389 source files — ~84 `.md`-keyed entries plus 12 legacy `.html`-keyed entries have no markdown on disk). The excess are legacy posts that exist only as pre-rendered HTML. Their metadata still lives in `POST_META` with a missing source file — the script handles this gracefully. Deleting a `POST_META` entry drops the post from the **index and feed** (both are `POST_META`-driven). **The sitemap is the exception**: `build_sitemap.py` globs `blog/posts/*.html` off disk, so a deleted `POST_META` entry (or renamed `slug`) leaves the orphaned HTML on disk and it will *still* appear in `sitemap-blog.xml` until you delete the file. No build script prunes stale post/tag/archive files — removals are manual. (These counts drift as posts are added — don't rely on the exact numbers, only the invariant that entries ≫ source files.)
 
 Note: the ~84 legacy pre-rendered posts are **not re-rendered** by `build_blog.py` — a change to the HTML templates (`render_post_html` etc.) only reaches the markdown-backed posts. Site-wide changes to legacy posts (e.g. the one-off GA4 backfill) require a separate script that rewrites those HTML files directly.
 - HTML templates are f-strings inside the script (`POST_CSS`, `NAV_HTML`, `SITE_FOOTER`, `render_post_html()`, `render_tag_page()`, `render_index_html()`, `render_rss_feed()`). To change layout or design, edit these functions — there is no separate template file.
@@ -97,7 +98,7 @@ This script imports `SITE_ROOT`, `NAV_HTML`, `SITE_FOOTER`, `POST_CSS`, and `POS
 
 `build_sitemap.py` generates three sub-sitemaps + an index:
 - `sitemap-pages.xml` — the static pages
-- `sitemap-blog.xml` — every blog post URL (one `<loc>` per `POST_META` entry, currently ~337)
+- `sitemap-blog.xml` — every blog post URL (one `<loc>` per `POST_META` entry, currently ~485)
 - `sitemap-tags.xml` — only tag pages with ≥3 posts (avoids thin-content indexing)
 
 `lastmod` dates come from `git log` per file; falls back to today with a stderr warning if a file has no git history.
