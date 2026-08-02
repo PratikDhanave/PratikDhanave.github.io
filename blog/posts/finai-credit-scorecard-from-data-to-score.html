@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Building a Credit Scorecard: From Raw Data to a Score</title>
+<meta name="description" content="The end-to-end credit-scoring pipeline: target definition (bad = 90+ dpd), feature engineering, WOE transformation, a logistic-regression scorecard,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Building a Credit Scorecard: From Raw Data to a Score">
+<meta property="og:description" content="The end-to-end credit-scoring pipeline: target definition (bad = 90+ dpd), feature engineering, WOE transformation, a logistic-regression scorecard, points scaling (PDO), and validation (KS, Gini, AUC).">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/finai-credit-scorecard-from-data-to-score.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-09-04T00:00:00Z">
+<meta property="article:tag" content="Financial AI">
+<meta property="article:tag" content="Machine Learning">
+<meta property="article:tag" content="Credit">
+<meta property="article:tag" content="Lending">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Building a Credit Scorecard: From Raw Data to a Score">
+<meta name="twitter:description" content="The end-to-end credit-scoring pipeline: target definition (bad = 90+ dpd), feature engineering, WOE transformation, a logistic-regression scorecard, points scaling (PDO), and validation (KS, Gini, AUC).">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/finai-credit-scorecard-from-data-to-score.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Building a Credit Scorecard: From Raw Data to a Score",
+  "description": "The end-to-end credit-scoring pipeline: target definition (bad = 90+ dpd), feature engineering, WOE transformation, a logistic-regression scorecard, points scaling (PDO), and validation (KS, Gini, AUC).",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-09-04",
+  "dateModified": "2026-09-04",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Financial AI, Machine Learning, Credit, Lending",
+  "url": "https://pratikdhanave.com/blog/posts/finai-credit-scorecard-from-data-to-score.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/finai-credit-scorecard-from-data-to-score.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Building a Credit Scorecard: From Raw Data to a Score</h1>
+    <p class="post-subtitle">How lenders turn application and bureau data into a single, defensible number — and why the interpretable scorecard still wins in regulated lending.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-09-04">September 04, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/financial-ai/" class="tag-link"><span class="tag">#Financial AI</span></a><a href="/blog/tags/machine-learning/" class="tag-link"><span class="tag">#Machine Learning</span></a><a href="/blog/tags/credit/" class="tag-link"><span class="tag">#Credit</span></a><a href="/blog/tags/lending/" class="tag-link"><span class="tag">#Lending</span></a></div>
+  </header>
+
+
+
+
+
+  <p>A credit scorecard is one of the most durable artifacts in financial engineering. Decades after machine learning swept through every other corner of fintech, the humble points-based scorecard still decides who gets a loan, a card, or a line of credit at most regulated lenders. It survives not because it is the most accurate model you can build, but because it is the most <em>explainable</em> one that is still competitive. This post walks the full pipeline: how a scorecard is defined, engineered, fit, scaled, and validated — end to end.</p>
+<h2 id="start-at-the-end-defining-bad">Start at the end: defining &ldquo;bad&rdquo;</h2>
+<p>Every supervised model needs a label, and for credit risk the label is a definition, not a given. You must decide what counts as a <em>bad</em> account. The industry-standard choice is a delinquency threshold: an account is bad if it reaches 90 or more days past due at any point during a fixed <strong>performance window</strong>. The window matters as much as the threshold. You observe an applicant&rsquo;s attributes at origination, then watch the account for a set period — commonly 12 to 24 months — to see whether it goes bad.</p>
+<p>This creates two timelines. The <strong>observation point</strong> is when you snapshot the features (income, utilization, prior delinquencies). The <strong>performance window</strong> is the forward-looking period over which the outcome is measured. Getting these right avoids the two classic errors: an immature window that hasn&rsquo;t given bad loans time to sour, and target leakage from using any information dated after the observation point. Accounts that are neither clearly good nor bad — say, one or two payments late — are often carved out as <strong>indeterminate</strong> and excluded so the model learns from unambiguous outcomes.</p>
+<h2 id="assembling-the-modeling-sample">Assembling the modeling sample</h2>
+<p>With the target defined, you assemble a modeling table. Two sources dominate: <strong>application data</strong> captured at origination, and <strong>bureau data</strong> — a third party&rsquo;s record of an applicant&rsquo;s credit history and, retrospectively, performance outcomes. These join on the applicant to form one wide feature set. From there you split into training and holdout partitions, and you decide how to sample. Because defaults are rare — often single-digit percentages — many teams keep all bads and subsample goods, then carry a weight so population statistics stay honest.</p>
+<p>Feature engineering here is deliberately conservative. Rather than throwing hundreds of raw columns at an optimizer, you craft a manageable set of candidate predictors with clear business meaning: credit utilization, months since last delinquency, number of recent inquiries, debt-to-income. Each will be transformed the same disciplined way.</p>
+<h2 id="weight-of-evidence-the-scorecards-signature-move">Weight of Evidence: the scorecard&rsquo;s signature move</h2>
+<p>The transformation that defines the classic scorecard is <strong>Weight of Evidence (WOE)</strong>. You bin each predictor into a handful of ranges (for continuous variables) or grouped categories, then replace every raw value with a single number describing how the odds of good-versus-bad shift inside that bin.</p>
+<p>For a bin, WOE is the natural log of the ratio of the share of goods in that bin to the share of bads in that bin:</p>
+<p><code>WOE = ln( (goods_in_bin / total_goods) / (bads_in_bin / total_bads) )</code></p>
+<p>A positive WOE means the bin skews good; a negative WOE means it skews bad. This does three useful things at once. It puts every predictor on the same log-odds scale, it handles missing values gracefully (missing becomes its own bin), and it tames outliers because extreme raw values collapse into an edge bin. Analysts usually enforce a <strong>monotonic</strong> trend across bins — risk should move in one consistent direction as, say, utilization rises — which keeps the final scorecard intuitive and stable.</p>
+<p>The companion statistic is <strong>Information Value (IV)</strong>, a single number summarizing how much a binned predictor separates goods from bads. It is the standard first-pass filter for deciding which features earn a place in the model.</p>
+<h2 id="the-logistic-regression-scorecard">The logistic regression scorecard</h2>
+<p>The model itself is almost always <strong>logistic regression</strong> fit on the WOE-transformed features. Logistic regression models the log-odds of being bad as a linear combination of inputs. Because the inputs are already WOE values — themselves expressed in log-odds units — the whole model lives in one coherent, additive space. Each fitted coefficient tells you how strongly a predictor pushes the odds, and the sign should agree with the monotonic trend you built into the bins. A coefficient that flips sign is a red flag worth investigating before it reaches production.</p>
+<h2 id="scaling-log-odds-into-points">Scaling log-odds into points</h2>
+<p>A raw probability is awkward to communicate. The final step maps the model&rsquo;s log-odds output onto a friendly integer scale using two business parameters: a <strong>base score</strong> anchored to a reference odds level, and the <strong>PDO</strong> — Points to Double the Odds — which sets how many points correspond to a two-fold change in the good/bad odds. The scaling is linear: <code>points = offset + factor x log-odds</code>, where <code>factor = PDO / ln(2)</code> and the offset positions the base score. Because WOE keeps each feature additive, you can distribute the total across bins and publish a literal table — each attribute range earns a fixed number of points, and an applicant&rsquo;s score is just the sum plus a constant. That table <em>is</em> the scorecard.</p>
+<pre><code>   SOURCES          ENCODE            MODEL        SCALE        CONSUME
+ +-----------+   +-------------+                              +-----------+
+ |Application|--&gt;| WOE Encoding|--WOE vectors--+              | Scorecard |
+ |   Data    |   | (binned)    |               |              |   Score   |
+ +-----------+   +-------------+               v          +--&gt;+-----------+
+ +-----------+          ^              +-------------+     |
+ |  Bureau   |--history-+          +--&gt;| Logistic Fit|--log-odds
+ |   Data    |--delinq--+          |   | (coeffs)    |--&gt; Scale to
+ +-----------+          v          |   +-------------+    Points (PDO)
+                 +-------------+    |                      |
+                 |Define Target|---+  (bad flag)          +--&gt;+-----------+
+                 | 90+ DPD win |                          scored |Validation|
+                 +-------------+                          holdout|  Report  |
+                                                          ------&gt;+-----------+
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/finai-credit-scorecard-from-data-to-score.html">Open the interactive diagram</a></strong> — the end-to-end scorecard data flow, from application and bureau sources through WOE encoding and logistic fitting to a scaled score and validation report.</p>
+</blockquote>
+<h2 id="validating-discrimination-and-calibration">Validating discrimination and calibration</h2>
+<p>A scorecard earns trust through evidence, measured on a holdout sample the model never saw. Two questions matter. First, <strong>discrimination</strong>: can the model rank a random bad above a random good? The <strong>Kolmogorov-Smirnov (KS)</strong> statistic captures the maximum separation between the cumulative good and bad distributions across score bands, while <strong>Gini</strong> (equivalently, the <strong>AUC</strong> of the ROC curve, since Gini = 2·AUC − 1) summarizes ranking power in one number. Higher is better, and both are reported per score band so you can see where separation concentrates.</p>
+<p>Second, <strong>calibration</strong>: do the predicted default rates match reality? A model can rank perfectly yet still be miscalibrated, quoting a 3% default probability where 6% actually default. You check this by bucketing applicants by predicted risk and plotting predicted against observed default rates — a well-calibrated scorecard tracks the diagonal. Calibration is what makes a score usable for pricing and provisioning, not just approve/decline.</p>
+<h2 id="why-interpretability-still-wins">Why interpretability still wins</h2>
+<p>Gradient-boosted trees and neural nets often edge out a scorecard on raw discrimination. Yet regulated lenders keep choosing the scorecard, and the reason is governance, not nostalgia. Fair-lending law demands that a lender explain an adverse decision with specific reasons; an additive points table produces those reasons for free, since each attribute&rsquo;s contribution is right there. Model-risk teams can inspect every coefficient, challenge every bin, and reproduce every score by hand. The monotonic WOE bins make the model&rsquo;s behavior predictable at the edges of the data, and the whole artifact is stable enough to monitor for drift over years.</p>
+<p>The lesson generalizes beyond credit: in high-stakes, regulated decisions, a model you can defend line by line often beats a marginally sharper one you cannot. The scorecard endures because it was engineered, from its first design choice to its last validation chart, to be explained.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/finai-reject-inference-credit-scoring.html">Reject Inference: Modeling the Applicants You Declined</a>
+      <span class="related-date">Sep 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/finai-credit-explainability-shap-reason-codes.html">Explaining Credit Decisions: SHAP and Adverse-Action Reason Codes</a>
+      <span class="related-date">Sep 06</span>
+    </li>
+    <li>
+      <a href="/blog/posts/finai-weight-of-evidence-iv-binning.html">Weight of Evidence and Information Value: Binning for Credit Models</a>
+      <span class="related-date">Sep 05</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

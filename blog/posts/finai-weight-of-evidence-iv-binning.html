@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Weight of Evidence and Information Value: Binning for...</title>
+<meta name="description" content="How WOE binning turns raw variables into monotonic, interpretable predictors, how Information Value ranks feature predictive power, monotonic binning,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Weight of Evidence and Information Value: Binning for...">
+<meta property="og:description" content="How WOE binning turns raw variables into monotonic, interpretable predictors, how Information Value ranks feature predictive power, monotonic binning, handling missing/rare bins, and why this discipline underpins regulat…">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/finai-weight-of-evidence-iv-binning.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-09-05T00:00:00Z">
+<meta property="article:tag" content="Financial AI">
+<meta property="article:tag" content="Machine Learning">
+<meta property="article:tag" content="Credit">
+<meta property="article:tag" content="Feature Engineering">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Weight of Evidence and Information Value: Binning for...">
+<meta name="twitter:description" content="How WOE binning turns raw variables into monotonic, interpretable predictors, how Information Value ranks feature predictive power, monotonic binning, handling missing/rare bins, and why this discipline underpins regulat…">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/finai-weight-of-evidence-iv-binning.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Weight of Evidence and Information Value: Binning for Credit Models",
+  "description": "How WOE binning turns raw variables into monotonic, interpretable predictors, how Information Value ranks feature predictive power, monotonic binning, handling missing/rare bins, and why this discipline underpins regulat\u2026",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-09-05",
+  "dateModified": "2026-09-05",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Financial AI, Machine Learning, Credit, Feature Engineering",
+  "url": "https://pratikdhanave.com/blog/posts/finai-weight-of-evidence-iv-binning.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/finai-weight-of-evidence-iv-binning.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Weight of Evidence and Information Value: Binning for Credit Models</h1>
+    <p class="post-subtitle">How WOE binning turns raw variables into monotonic, interpretable predictors on a log-odds scale, and how Information Value ranks which features earn a place in a regulator-defensible scorecard.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-09-05">September 05, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/financial-ai/" class="tag-link"><span class="tag">#Financial AI</span></a><a href="/blog/tags/machine-learning/" class="tag-link"><span class="tag">#Machine Learning</span></a><a href="/blog/tags/credit/" class="tag-link"><span class="tag">#Credit</span></a><a href="/blog/tags/feature-engineering/" class="tag-link"><span class="tag">#Feature Engineering</span></a></div>
+  </header>
+
+
+
+
+
+  <p>Credit risk models live under a constraint that most machine learning work never feels: someone will eventually ask you to explain, line by line, why an applicant was scored the way they were. A model examiner, an internal validator, or a customer exercising their right to an explanation all expect the same thing. That a change in one input moves the score in a direction a human can defend. Weight of Evidence (WOE) binning and Information Value (IV) are the two techniques that make this possible, and they have quietly powered application and behavioral scorecards for decades. They are not glamorous, but they are the reason a logistic-regression scorecard can be both accurate and auditable.</p>
+<h2 id="the-problem-woe-solves">The problem WOE solves</h2>
+<p>Raw predictors arrive in awkward shapes. Age is continuous but its relationship to default risk is rarely a straight line. Number of recent delinquencies is a skewed count with a long tail. Employment type is a category with a handful of rare values that barely appear in the data. If you feed these directly into a linear model, you force a single coefficient to describe a relationship that bends, plateaus, or reverses. You also make the model brittle. A single outlier or a thinly populated category can swing a coefficient wildly.</p>
+<p>WOE reframes every predictor onto a common, meaningful scale. The scale of the log-odds of the outcome. Instead of asking the model to learn the shape of each variable, you pre-encode that shape through binning, then hand the model clean, monotonic inputs it can weight linearly.</p>
+<h2 id="what-weight-of-evidence-actually-measures">What Weight of Evidence actually measures</h2>
+<p>Start by splitting the target into two groups. The &ldquo;bads&rdquo; (accounts that defaulted, charged off, or hit whatever adverse definition you chose) and the &ldquo;goods&rdquo; (everyone else). Then cut the predictor into bins. For a continuous variable these are ranges; for a categorical one they are groups of levels.</p>
+<p>Within each bin you compute two distributions. The share of all goods that fall in the bin, and the share of all bads that fall in the bin. WOE is the natural log of the ratio of those two shares:</p>
+<pre><code>WOE(bin) = ln( (goods in bin / total goods) / (bads in bin / total bads) )
+</code></pre>
+<p>The intuition is clean. A bin with a WOE above zero holds proportionally more goods than bads, so it is safer than the overall population. A bin below zero is riskier. A bin near zero looks like the average book. Because WOE is a log-odds quantity, it lines up naturally with logistic regression, whose coefficients also live in log-odds space. When you replace a raw value with its bin&rsquo;s WOE, the model&rsquo;s job collapses to learning a single scaling coefficient per variable rather than an entire curve.</p>
+<p>A crucial discipline follows. The WOE values across ordered bins should move monotonically. As age increases, or as delinquency count rises, WOE should trend consistently in one direction rather than zig-zag. Monotonicity is what makes the model defensible: you can state plainly that &ldquo;more recent delinquencies never lowers predicted risk,&rdquo; and the scorecard will honor that claim for every applicant.</p>
+<h2 id="information-value-ranking-a-features-strength">Information Value: ranking a feature&rsquo;s strength</h2>
+<p>WOE describes each bin. Information Value summarizes the whole variable in a single number that answers &ldquo;how well does this predictor separate goods from bads?&rdquo; It sums, across all bins, the WOE weighted by the difference between the good and bad shares:</p>
+<pre><code>IV = Σ ( (goods in bin / total goods) − (bads in bin / total bads) ) × WOE(bin)
+</code></pre>
+<p>Each term is positive whether a bin leans good or bad, because the sign of the share difference always matches the sign of the WOE. So IV accumulates predictive signal from every bin. The conventional reading of the resulting number is widely shared across the industry:</p>
+<ul>
+<li>Below 0.02: the variable is essentially useless, drop it.</li>
+<li>0.02 to 0.1: weak but possibly worth keeping.</li>
+<li>0.1 to 0.3: medium strength, a solid contributor.</li>
+<li>0.3 to 0.5: strong.</li>
+<li>Above 0.5: suspiciously strong. Investigate before trusting it.</li>
+</ul>
+<p>That last band matters as much as the others. An IV over 0.5 frequently signals leakage. A field that is a proxy for the outcome, or a value that is populated only after the account has already gone bad. Treat an implausibly high IV as a warning, not a trophy.</p>
+<h2 id="binning-in-practice-monotonic-and-optimal">Binning in practice: monotonic and optimal</h2>
+<p>Good binning is where most of the real work sits. A common recipe starts with fine bins (say, twenty quantile-based slices of a continuous variable), computes WOE for each, then merges adjacent bins until the WOE sequence is monotonic and every bin holds enough observations to be stable. A frequent rule of thumb is that each bin should contain at least five percent of the population and a non-trivial count of bads, so the estimated distributions are not driven by a handful of accounts.</p>
+<p>Optimal binning tools automate the merge step. They search for the set of cut points that maximizes separation (often IV, or a tree-based split criterion) subject to constraints. Monotonic WOE, a minimum bin size, and a cap on the number of bins. The output is a small, stable set of bins that a human can read as a table and a regulator can reproduce.</p>
+<pre><code>raw variable ─▶ fine bins ─▶ monotonic?
+                                 │  no
+                                 ▼
+                          merge adjacent  ──┐
+                                 ▲          │
+                                 └──────────┘
+                                 │  yes
+                                 ▼
+                     compute WOE ─▶ compute IV ─▶ keep / drop
+                                                  (by IV band)
+      missing / rare ─▶ own WOE bin ─▶ (joins WOE step)
+</code></pre>
+<blockquote>
+<p><strong>▸ <a href="/blog/diagrams/finai-weight-of-evidence-iv-binning.html">Open the interactive diagram</a></strong> — the WOE/IV binning workflow from a raw variable to a kept-or-dropped feature, with the re-bin loop and special-value handling.</p>
+</blockquote>
+<h2 id="missing-values-and-rare-categories">Missing values and rare categories</h2>
+<p>Two edge cases separate a toy pipeline from a production one.</p>
+<p>Missing values are information, not noise. In credit data, a blank field often correlates strongly with risk. An applicant with no recorded credit history behaves differently from one with a rich file. So rather than imputing a mean and discarding that signal, give &ldquo;missing&rdquo; its own bin and let it earn its own WOE. If missingness turns out to be uninformative, its WOE will sit near zero and cost nothing; if it is informative, you have captured it honestly.</p>
+<p>Rare categories need grouping. A categorical level that appears in a handful of records cannot support a stable WOE. Its distribution estimate is pure noise. The standard fix is to merge sparse levels, either into a shared &ldquo;other&rdquo; bucket or into the neighboring level whose risk profile they most resemble. This keeps every bin populated enough that its WOE will not swing on the next data refresh.</p>
+<h2 id="why-this-discipline-produces-defensible-stable-models">Why this discipline produces defensible, stable models</h2>
+<p>The payoff is threefold. First, interpretability. Every input is a small table mapping bins to WOE, and every coefficient reads as a weight on a log-odds contribution. You can trace any score back to the exact bins the applicant landed in. Second, stability. Coarse, well-populated, monotonic bins do not lurch when the portfolio shifts slightly, and you can monitor them over time by watching whether the population distribution across bins drifts (the same binning underpins the population stability index). Third, defensibility. Monotonic relationships and documented, reproducible cut points are precisely what model validators and examiners ask to see. The relationship between each variable and risk is stated as a rule, not discovered as an accident.</p>
+<p>WOE and IV will not win a leaderboard against a gradient-boosted ensemble on raw accuracy alone. But in a domain where a model must be explained, monitored, and defended for years, the modest cost of careful binning buys something a black box cannot. A scorecard whose every decision you can stand behind.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/finai-reject-inference-credit-scoring.html">Reject Inference: Modeling the Applicants You Declined</a>
+      <span class="related-date">Sep 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/finai-credit-explainability-shap-reason-codes.html">Explaining Credit Decisions: SHAP and Adverse-Action Reason Codes</a>
+      <span class="related-date">Sep 06</span>
+    </li>
+    <li>
+      <a href="/blog/posts/finai-credit-scorecard-from-data-to-score.html">Building a Credit Scorecard: From Raw Data to a Score</a>
+      <span class="related-date">Sep 04</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
