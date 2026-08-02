@@ -3615,6 +3615,16 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     description = meta["excerpt"]
     canonical = f"{SITE_URL}/blog/posts/{meta['slug']}.html"
 
+    # A short excerpt makes a thin meta description (SEO warns under ~120 chars).
+    # Supplement it with clean text pulled from the rendered body so the meta/OG
+    # description lands in the healthy 120-160 char range.
+    if len(description) < 120 and body_html:
+        body_text = re.sub(r"<[^>]+>", " ", body_html)
+        body_text = re.sub(r"\s+", " ", body_text).strip()
+        if body_text:
+            base = description.rstrip().rstrip(".")
+            description = (base + ". " + body_text) if base else body_text
+
     # Auto-truncate description for meta tags (max 155 chars, break at word boundary)
     meta_desc = description
     if len(meta_desc) > 155:
