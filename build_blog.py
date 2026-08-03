@@ -3632,6 +3632,16 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     if len(meta_desc) > 155:
         meta_desc = meta_desc[:152].rsplit(' ', 1)[0] + '...'
 
+    # Thin-content guard: posts under ~400 words of body add little standalone value
+    # and dilute site-quality signals (mainly the short maf-py-* tutorial stubs), so
+    # keep them accessible/linked but out of the index — noindex, follow.
+    THIN_WORD_THRESHOLD = 400
+    body_word_count = len(re.sub(r"<[^>]+>", " ", body_html or "").split())
+    if body_word_count < THIN_WORD_THRESHOLD:
+        robots_meta = '<meta name="robots" content="noindex, follow">'
+    else:
+        robots_meta = '<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">'
+
     # Escape for safe embedding in HTML attributes and JSON-LD
     title_html = _html_escape(title, quote=True)
     desc_html = _html_escape(meta_desc, quote=True)
@@ -3742,7 +3752,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 <title>{meta_title_html}</title>
 <meta name="description" content="{desc_html}">
 <meta name="author" content="Pratik Dhanave">
-<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+{robots_meta}
 
 <meta property="og:title" content="{meta_title_html}">
 <meta property="og:description" content="{full_desc_html}">

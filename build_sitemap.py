@@ -134,6 +134,14 @@ def collect_blog_posts():
 
     for html_file in sorted(posts_dir.glob("*.html")):
         slug = html_file.stem
+        # Skip noindexed (thin) posts — a URL in the sitemap that the page itself
+        # asks Google not to index is a contradictory signal. build_blog.py marks
+        # posts under the thin-content threshold with a noindex robots meta.
+        try:
+            if 'content="noindex' in html_file.read_text(encoding="utf-8", errors="ignore"):
+                continue
+        except OSError:
+            pass
         url = f"{SITE_URL}/blog/posts/{slug}.html"
         lastmod = git_last_modified(html_file)
 
