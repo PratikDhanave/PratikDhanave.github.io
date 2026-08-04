@@ -159,6 +159,13 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+    "2026-08-04-maf-py-tools-functions-mcp.md": {
+        "slug": "maf-py-tools-functions-mcp",
+        "date": "2026-08-04",
+        "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Tools", "MCP"],
+        "audience": "Python developers building tool-using agents on Microsoft Agent Framework",
+        "excerpt": "A complete guide to giving a Microsoft Agent Framework agent the ability to act: function tools, provider-hosted tools (code interpreter, file search, web search), local and hosted MCP, plus Skills and CodeAct \u2014 with the code and gotchas for each.",
+    },
     # -- Financial AI series (wave 2: Fraud/Investment/Customer ML) --
     "2026-07-28-finai-supervised-fraud-imbalanced-data.md": {"slug": "finai-supervised-fraud-imbalanced-data", "date": "2026-07-28", "tags": ["Financial AI", "Machine Learning", "Fraud", "Risk"], "audience": "Data scientists and engineers building fraud-detection models", "excerpt": "Fraud is a needle-in-a-haystack problem."},
     "2026-07-29-finai-anomaly-detection-fraud.md": {"slug": "finai-anomaly-detection-fraud", "date": "2026-07-29", "tags": ["Financial AI", "Machine Learning", "Fraud", "Anomaly Detection"], "audience": "Data scientists and engineers building fraud-detection models", "excerpt": "When you have few or no labels: unsupervised anomaly detection."},
@@ -585,6 +592,7 @@ POST_META = {
     },
     "2026-04-10-maf-py-10-mcp-tools.md": {
         "slug": "maf-py-10-mcp-tools", "date": "2026-04-10",
+        "redirect_to": "maf-py-tools-functions-mcp",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "MCP"],
         "audience": "Python developers who want an agent to use tools from external MCP servers instead of hand-writing every tool.",
         "excerpt": "Connecting a Microsoft Agent Framework agent to an external Model Context Protocol server via MCPStdioTool, entered with async with, so its remote tools merge into tools=[...].",
@@ -729,6 +737,7 @@ POST_META = {
     },
     "2026-04-22-maf-py-22-skills.md": {
         "slug": "maf-py-22-skills", "date": "2026-04-22",
+        "redirect_to": "maf-py-tools-functions-mcp",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Skills"],
         "audience": "Python developers who want to package reusable agent capabilities that load lazily via progressive disclosure through a SkillsProvider.",
         "excerpt": "Package reusable agent capabilities as skills: define an InlineSkill with frontmatter, resources, and scripts, attach via SkillsProvider, and let the agent load them lazily on demand.",
@@ -753,6 +762,7 @@ POST_META = {
     },
     "2026-04-24-maf-py-24-code-act.md": {
         "slug": "maf-py-24-code-act", "date": "2026-04-24",
+        "redirect_to": "maf-py-tools-functions-mcp",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "CodeAct"],
         "audience": "Python developers who want an agent to write and run one Python program in a sandbox via Hyperlight instead of looping tool-by-tool.",
         "excerpt": "CodeAct adds a single execute_code tool so the agent writes one sandboxed Python program calling tools via call_tool, wired through the Hyperlight provider with a fallback to direct tools.",
@@ -909,6 +919,7 @@ POST_META = {
     },
     "2026-05-07-maf-py-37-function-tools.md": {
         "slug": "maf-py-37-function-tools", "date": "2026-05-07",
+        "redirect_to": "maf-py-tools-functions-mcp",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Function Tools"],
         "audience": "Python developers turning plain functions into agent tools and shaping the JSON schema the model sees.",
         "excerpt": "The framework turns a function's signature and docstring into a schema. Annotated Field descriptions document each parameter, and @tool overrides the name and description.",
@@ -921,6 +932,7 @@ POST_META = {
     },
     "2026-05-08-maf-py-38-controlling-tool-availability.md": {
         "slug": "maf-py-38-controlling-tool-availability", "date": "2026-05-08",
+        "redirect_to": "maf-py-tools-functions-mcp",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Progressive Tools"],
         "audience": "Python developers who want to grow or shrink an agent's tool set mid-run to enforce ordering like read-before-write.",
         "excerpt": "From inside a tool you can call ctx.add_tools and ctx.remove_tools to reveal or hide tools on the next loop iteration, plus tool_choice to force a mandatory first call.",
@@ -933,6 +945,7 @@ POST_META = {
     },
     "2026-05-09-maf-py-39-tool-approval.md": {
         "slug": "maf-py-39-tool-approval", "date": "2026-05-09",
+        "redirect_to": "maf-py-tools-functions-mcp",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Human in the Loop"],
         "audience": "Python developers gating sensitive tools behind a human yes/no before the agent is allowed to execute them.",
         "excerpt": "Mark a tool approval_mode always_require and the run pauses with user_input_requests. Show the pending call, collect a decision, feed the approval back into a fresh run.",
@@ -945,6 +958,7 @@ POST_META = {
     },
     "2026-05-10-maf-py-40-code-interpreter.md": {
         "slug": "maf-py-40-code-interpreter", "date": "2026-05-10",
+        "redirect_to": "maf-py-tools-functions-mcp",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Code Interpreter"],
         "audience": "Python developers who want the model to write and run Python in a provider sandbox for exact arithmetic and data work.",
         "excerpt": "The hosted code interpreter runs the model's Python server-side. Attach it via FoundryChatClient.get_code_interpreter_tool and read the code and output as content parts.",
@@ -957,6 +971,7 @@ POST_META = {
     },
     "2026-05-11-maf-py-41-file-search.md": {
         "slug": "maf-py-41-file-search", "date": "2026-05-11",
+        "redirect_to": "maf-py-tools-functions-mcp",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "File Search"],
         "audience": "Python developers grounding a Foundry agent in uploaded documents via a hosted vector-store file-search tool.",
         "excerpt": "File search is a hosted tool: upload files, index them into a vector store, and bind the agent to the store id so Foundry runs retrieval server-side.",
@@ -969,6 +984,7 @@ POST_META = {
     },
     "2026-05-12-maf-py-42-web-search.md": {
         "slug": "maf-py-42-web-search", "date": "2026-05-12",
+        "redirect_to": "maf-py-tools-functions-mcp",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Web Search"],
         "audience": "Python developers giving a Foundry agent live web search with server-side grounding and URL citations.",
         "excerpt": "The hosted web search tool lets an agent reach live results past its training cutoff; Foundry searches and grounds server-side and returns URL citations.",
@@ -981,6 +997,7 @@ POST_META = {
     },
     "2026-05-13-maf-py-43-hosted-mcp.md": {
         "slug": "maf-py-43-hosted-mcp", "date": "2026-05-13",
+        "redirect_to": "maf-py-tools-functions-mcp",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Hosted MCP"],
         "audience": "Python developers pointing a Foundry agent at a remote MCP server that the service dials and invokes on their behalf.",
         "excerpt": "A hosted MCP tool aims the agent at a remote MCP server and lets Foundry connect and call it; you describe the server once and set an approval mode.",
@@ -3881,6 +3898,32 @@ def _render_post_card(p, link_prefix="/blog/posts/"):
     </article>"""
 
 
+def render_redirect_html(target_slug, target_title=""):
+    """Minimal redirect stub for a consolidated/moved post.
+
+    Keeps the old URL alive (no dead links) but sends both humans and crawlers
+    to the canonical post: meta-refresh for browsers, rel=canonical + noindex so
+    search engines fold it into the target instead of indexing a stub. Used for
+    posts carrying a ``redirect_to`` key in POST_META (series consolidation)."""
+    target_url = f"{SITE_URL}/blog/posts/{target_slug}.html"
+    label = _html_escape(target_title, quote=True) if target_title else "the consolidated guide"
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moved — Pratik Dhanave</title>
+<link rel="canonical" href="{target_url}">
+<meta name="robots" content="noindex, follow">
+<meta http-equiv="refresh" content="0; url={target_url}">
+</head>
+<body>
+<p>This lesson has been consolidated into <a href="{target_url}">{label}</a>. Redirecting…</p>
+</body>
+</html>
+"""
+
+
 def render_index_html(posts, tag_counts=None, popular_posts=None):
     """Build the blog landing page with curated sections."""
     if tag_counts is None:
@@ -4707,7 +4750,13 @@ def main():
     # First pass: collect all posts
     rendered = []
     posts_data = {}  # Keep body_html for each post
+    _redirect_targets = {}  # slug -> target_slug for consolidated/moved posts
     for filename, meta in POST_META.items():
+        # Consolidated/moved posts: write a redirect stub and drop from index/feed/
+        # search/tags/archive (never added to `rendered`). Target title resolved after.
+        if meta.get("redirect_to"):
+            _redirect_targets[meta["slug"]] = meta["redirect_to"]
+            continue
         md_path = SRC_DIR / filename
         if md_path.exists():
             title, subtitle, body_md = parse_post(md_path)
@@ -4727,6 +4776,12 @@ def main():
                 rendered.append({"meta": meta, "title": post_title, "subtitle": "", "read_time": read_time})
             else:
                 print(f"SKIP missing: {md_path} and {html_path}", file=sys.stderr)
+
+    # Write redirect stubs for consolidated/moved posts (target titles now known).
+    for slug, target_slug in _redirect_targets.items():
+        target_title = posts_data.get(target_slug, {}).get("title", "")
+        (POSTS_DIR / f"{slug}.html").write_text(render_redirect_html(target_slug, target_title))
+        print(f"  wrote redirect {slug} -> {target_slug}")
 
     # Sort newest first by date (for index).
     rendered.sort(key=lambda p: p["meta"]["date"], reverse=True)
