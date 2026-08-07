@@ -1,4 +1,4 @@
-# Workflows with Agents — MAF in Python
+# Workflows with Agents — Microsoft Agent Framework in Python
 
 *Agents as graph nodes: switch-case routing, fan-out/fan-in, and mixing plain functions with agent steps in one workflow.*
 
@@ -96,4 +96,4 @@ Once you see agents as executors, orchestration stops being a separate framework
 
 ---
 
-Next: [Orchestration Patterns — MAF in Python](/blog/posts/maf-python-10-orchestrations.html)
+Next: [Orchestration Patterns — Microsoft Agent Framework in Python](/blog/posts/maf-python-10-orchestrations.html)

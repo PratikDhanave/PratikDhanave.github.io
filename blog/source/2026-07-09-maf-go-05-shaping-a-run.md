@@ -1,4 +1,4 @@
-# Shaping a Run — MAF in Go
+# Shaping a Run — Microsoft Agent Framework in Go
 
 *Decoding typed structs from a run, draining a streamed response, and sending an image with `RunMessage`.*
 
@@ -91,4 +91,4 @@ Input and output are the two things you shape. Input gets richer through a multi
 
 ---
 
-Next: [Middleware — MAF in Go](/blog/posts/maf-go-06-middleware.html)
+Next: [Middleware — Microsoft Agent Framework in Go](/blog/posts/maf-go-06-middleware.html)

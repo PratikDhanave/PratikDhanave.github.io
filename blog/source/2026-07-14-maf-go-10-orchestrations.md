@@ -1,4 +1,4 @@
-# Orchestration Patterns — MAF in Go
+# Orchestration Patterns — Microsoft Agent Framework in Go
 
 *The prebuilt orchestration builders in agent-framework-go — Sequential, Concurrent, Group Chat — plus wrapping a whole workflow as one agent.*
 
@@ -102,4 +102,4 @@ The rule I settled on: reach for an orchestration builder when your problem *is*
 
 ---
 
-Next: [Advanced Workflows — MAF in Go](/blog/posts/maf-go-11-advanced-workflows.html)
+Next: [Advanced Workflows — Microsoft Agent Framework in Go](/blog/posts/maf-go-11-advanced-workflows.html)

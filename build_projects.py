@@ -61,7 +61,7 @@ PROJECT_META = {
             ["Genie on GitHub", "https://github.com/c2siorg/genie"],
             ["Documentation", "https://github.com/c2siorg/genie#readme"],
         ],
-        "blog_tags": ["MAF", "Multi-Agent AI", "Architecture", "Security", "Governance"],
+        "blog_tags": ["Microsoft Agent Framework", "Multi-Agent AI", "Architecture", "Security", "Governance"],
         "blog_posts": ["/blog/posts/adk-to-maf-migration-why.html"],
         "credits": [
             {
@@ -113,7 +113,7 @@ PROJECT_META = {
         "links": [
             ["Project Page", "https://pratikdhanave.com/projects/bodh/"],
         ],
-        "blog_tags": ["MAF", "Medical AI", "Architecture", "Healthcare"],
+        "blog_tags": ["Microsoft Agent Framework", "Medical AI", "Architecture", "Healthcare"],
         "blog_posts": [],
         "credits": [
             {

@@ -25,7 +25,7 @@ agent = Agent(
 
 Callbacks are explicit parameters. They're interceptors.
 
-**Microsoft Agent Framework (MAF)** uses middleware (decorators/wrappers):
+**Microsoft Agent Framework** uses middleware (decorators/wrappers):
 ```python
 def log_agent_execution(agent_func):
     async def wrapper(*args, **kwargs):

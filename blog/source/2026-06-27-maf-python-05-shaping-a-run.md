@@ -1,4 +1,4 @@
-# Shaping a Run — MAF in Python
+# Shaping a Run — Microsoft Agent Framework in Python
 
 *Typed results from `response_format`, consuming a stream event by event, and sending an image alongside text.*
 
@@ -81,4 +81,4 @@ They are the same idea from three angles: `run()` takes richer *input* (a multi-
 
 ---
 
-Next: [Middleware — MAF in Python](/blog/posts/maf-python-06-middleware.html)
+Next: [Middleware — Microsoft Agent Framework in Python](/blog/posts/maf-python-06-middleware.html)

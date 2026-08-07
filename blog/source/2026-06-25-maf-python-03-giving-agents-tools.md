@@ -1,4 +1,4 @@
-# Giving an Agent Tools — MAF in Python
+# Giving an Agent Tools — Microsoft Agent Framework in Python
 
 *Turn a plain Python function into something the model can call, and watch the tool-call loop close itself.*
 
@@ -10,7 +10,7 @@ The good news: a tool is just a Python function. You describe it, register it, a
 
 ## A tool is a decorated function
 
-In MAF, you mark a function with `@tool` and lean on type annotations to describe the arguments. Here is the weather tool from my lesson:
+In Microsoft Agent Framework, you mark a function with `@tool` and lean on type annotations to describe the arguments. Here is the weather tool from my lesson:
 
 ```python
 from typing import Annotated
@@ -102,4 +102,4 @@ The mistake that cost me time: a vague docstring. When I wrote `"""Convert curre
 
 ---
 
-Next: [Conversation and Memory — MAF in Python](/blog/posts/maf-python-04-conversation-and-memory.html)
+Next: [Conversation and Memory — Microsoft Agent Framework in Python](/blog/posts/maf-python-04-conversation-and-memory.html)

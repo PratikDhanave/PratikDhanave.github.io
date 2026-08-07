@@ -1,4 +1,4 @@
-# Hosting and the Capstone App — MAF in Python
+# Hosting and the Capstone App — Microsoft Agent Framework in Python
 
 *Turning agents into a service you can run and expose, then a full DocQA app that ties the whole series together.*
 

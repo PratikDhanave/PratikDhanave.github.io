@@ -1,4 +1,4 @@
-# Observability, Safety, and Providers — MAF in Go
+# Observability, Safety, and Providers — Microsoft Agent Framework in Go
 
 *Wrap every run in an OpenTelemetry span, gate risky tool actions behind a permission handler, and swap model providers behind one agent.Agent.*
 
@@ -81,4 +81,4 @@ Observability tells you *what happened*, safety controls *what an action is allo
 
 ---
 
-Next: [Workflow Mechanics — MAF in Go](/blog/posts/maf-go-08-workflow-mechanics.html)
+Next: [Workflow Mechanics — Microsoft Agent Framework in Go](/blog/posts/maf-go-08-workflow-mechanics.html)

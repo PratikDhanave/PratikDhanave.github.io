@@ -1,4 +1,4 @@
-# Workflow Mechanics — MAF in Go
+# Workflow Mechanics — Microsoft Agent Framework in Go
 
 *The graph model underneath every multi-agent app: executors as nodes, edges as data flow, and typed events streaming out of `WatchStream` as it runs.*
 
@@ -77,4 +77,4 @@ Everything above is model-free. Dropping an *agent* into the graph is then trivi
 
 ---
 
-Next: [Workflows with Agents — MAF in Go](/blog/posts/maf-go-09-workflows-with-agents.html)
+Next: [Workflows with Agents — Microsoft Agent Framework in Go](/blog/posts/maf-go-09-workflows-with-agents.html)

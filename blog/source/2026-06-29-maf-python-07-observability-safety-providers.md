@@ -1,4 +1,4 @@
-# Observability, Safety, and Providers — MAF in Python
+# Observability, Safety, and Providers — Microsoft Agent Framework in Python
 
 *Turn agent runs into OpenTelemetry spans, block prompt injection with information-flow control, and swap model providers behind one Agent API.*
 
@@ -74,4 +74,4 @@ They are the operational surface of a real deployment: observability tells you *
 
 ---
 
-Next: [Workflow Mechanics — MAF in Python](/blog/posts/maf-python-08-workflow-mechanics.html)
+Next: [Workflow Mechanics — Microsoft Agent Framework in Python](/blog/posts/maf-python-08-workflow-mechanics.html)

@@ -16,7 +16,7 @@ result = await agent.run(prompt, session=session)
 
 State persists across calls in a dictionary. It's implicit.
 
-**Microsoft Agent Framework (MAF)** uses an `AgentThread`:
+**Microsoft Agent Framework** uses an `AgentThread`:
 ```python
 thread = AgentThread(user_id=user_id)
 # Conversation history is the thread

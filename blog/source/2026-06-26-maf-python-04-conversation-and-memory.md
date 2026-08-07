@@ -1,4 +1,4 @@
-# Conversation and Memory — MAF in Python
+# Conversation and Memory — Microsoft Agent Framework in Python
 
 *How a stateless agent remembers: sessions carry one conversation, context providers carry knowledge across all of them.*
 
@@ -98,4 +98,4 @@ Keep those four straight and multi-turn state stops being mysterious. Next I'll 
 
 ---
 
-Next: [Shaping a Run — MAF in Python](/blog/posts/maf-python-05-shaping-a-run.html)
+Next: [Shaping a Run — Microsoft Agent Framework in Python](/blog/posts/maf-python-05-shaping-a-run.html)

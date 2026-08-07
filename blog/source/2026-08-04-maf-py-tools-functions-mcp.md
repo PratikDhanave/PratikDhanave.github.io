@@ -4,7 +4,7 @@
 
 ---
 
-A language model on its own can only produce text. **Tools** are how an agent *does* things — look up a record, run Python, search the web, call a remote service. Microsoft Agent Framework (MAF) gives you four distinct ways to put tools in front of a model, and choosing the right one is most of the design work:
+A language model on its own can only produce text. **Tools** are how an agent *does* things — look up a record, run Python, search the web, call a remote service. Microsoft Agent Framework gives you four distinct ways to put tools in front of a model, and choosing the right one is most of the design work:
 
 1. **Function tools** — ordinary Python you write; runs in your process.
 2. **Hosted tools** — provider-side capabilities (code interpreter, file search, web search) that run inside Azure AI Foundry, not your process.
@@ -17,7 +17,7 @@ Every example below drives a `FoundryChatClient` on Azure AI Foundry with `Azure
 
 ## 1. Function tools: a Python function becomes a schema
 
-The foundation. A *function tool* is ordinary Python the agent is allowed to call. MAF reads the function's signature and docstring, turns it into a JSON schema the model sees, invokes your function when the model asks, and feeds the return value back so the model can phrase its answer.
+The foundation. A *function tool* is ordinary Python the agent is allowed to call. Microsoft Agent Framework reads the function's signature and docstring, turns it into a JSON schema the model sees, invokes your function when the model asks, and feeds the return value back so the model can phrase its answer.
 
 The lesson is in how that schema is built: the docstring becomes the tool description, and `Annotated[..., Field(description=...)]` describes each parameter so the model picks tools and arguments accurately.
 
@@ -43,7 +43,7 @@ Tools attach at agent creation: `tools=[get_weather, convert_currency]`.
 
 ## 2. Governing the tool set at runtime
 
-Handing the model every tool up front is rarely optimal — a large schema hurts tool selection and costs tokens. MAF gives you two levers to control the tool set *while a turn is running*.
+Handing the model every tool up front is rarely optimal — a large schema hurts tool selection and costs tokens. Microsoft Agent Framework gives you two levers to control the tool set *while a turn is running*.
 
 ### Progressive tool availability
 
@@ -138,7 +138,7 @@ Citations arrive as annotations: iterate `result.messages → message.contents �
 
 ## 4. MCP: borrowing tools from an external server
 
-The Model Context Protocol lets an agent borrow tools from an **external** server — a filesystem server, a GitHub server, your own — over a standard protocol. You don't write the tool; you connect to a server that provides it. MAF supports two postures.
+The Model Context Protocol lets an agent borrow tools from an **external** server — a filesystem server, a GitHub server, your own — over a standard protocol. You don't write the tool; you connect to a server that provides it. Microsoft Agent Framework supports two postures.
 
 ### Local MCP — your process dials the server
 

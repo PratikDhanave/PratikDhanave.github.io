@@ -17,7 +17,7 @@ agent = Agent(..., tools=[fetch_account_balance])
 
 > **▸ [Open the interactive diagram](/blog/diagrams/adk-to-maf-tool-wrapping.html)** — pan, zoom, and trace every step (light/dark, self-contained).
 
-**Microsoft Agent Framework (MAF)**:
+**Microsoft Agent Framework**:
 ```python
 from agent_framework import tool
 

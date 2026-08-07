@@ -4,7 +4,7 @@
 
 ---
 
-A single agent is one request in, one answer out. Real work is rarely that shape: you draft then edit, classify then route, prepare then generate then finalize. A **workflow** is how Microsoft Agent Framework (MAF) composes several steps — plain functions, branching logic, and whole agents — into one runnable unit that carries a message from start to finish.
+A single agent is one request in, one answer out. Real work is rarely that shape: you draft then edit, classify then route, prepare then generate then finalize. A **workflow** is how Microsoft Agent Framework composes several steps — plain functions, branching logic, and whole agents — into one runnable unit that carries a message from start to finish.
 
 The framework gives you two ways to express the same idea, and picking between them is most of the design decision:
 

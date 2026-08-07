@@ -4,9 +4,9 @@
 
 ---
 
-An agent needs a brain, and in Microsoft Agent Framework (MAF) that brain is a **chat client** — the object that turns your messages into a model call and streams the reply back. Everything else in the framework (tools, sessions, streaming, approvals) is layered on top of a small, uniform agent interface, which means the *provider* underneath is a swappable detail. That swappability is the whole point of this guide: you can point an agent at an Azure AI Foundry deployment, at any OpenAI-compatible server, at a service-managed agent whose definition lives in a portal, or at code you wrote yourself — and the caller barely changes.
+An agent needs a brain, and in Microsoft Agent Framework that brain is a **chat client** — the object that turns your messages into a model call and streams the reply back. Everything else in the framework (tools, sessions, streaming, approvals) is layered on top of a small, uniform agent interface, which means the *provider* underneath is a swappable detail. That swappability is the whole point of this guide: you can point an agent at an Azure AI Foundry deployment, at any OpenAI-compatible server, at a service-managed agent whose definition lives in a portal, or at code you wrote yourself — and the caller barely changes.
 
-There are really two axes to reason about. The first is **who owns the agent's behavior** — your process, or a remote service. The second is **what wire protocol the model speaks** — Foundry's Responses endpoint, the OpenAI Chat Completions API, or the stateful OpenAI Responses API. Get those two axes straight and the rest of MAF's provider surface falls into place. Every example below drives a model deployed in a Foundry project with `AzureCliCredential()`, so `az login` first.
+There are really two axes to reason about. The first is **who owns the agent's behavior** — your process, or a remote service. The second is **what wire protocol the model speaks** — Foundry's Responses endpoint, the OpenAI Chat Completions API, or the stateful OpenAI Responses API. Get those two axes straight and the rest of Microsoft Agent Framework's provider surface falls into place. Every example below drives a model deployed in a Foundry project with `AzureCliCredential()`, so `az login` first.
 
 ---
 
@@ -44,7 +44,7 @@ The behavioral split between the two doors is the thing to internalize. With `Fo
 
 ## 3. OpenAI-compatible endpoints: consuming other servers
 
-MAF speaks the OpenAI wire protocols — the Chat Completions API and the newer, stateful Responses API — on both sides of an agent. On the *consuming* side, you point the framework at any OpenAI-compatible endpoint via `base_url`: Ollama, vLLM, LM Studio, or a hosted OpenAI-flavored service. The agent interface doesn't change; only the client underneath does.
+Microsoft Agent Framework speaks the OpenAI wire protocols — the Chat Completions API and the newer, stateful Responses API — on both sides of an agent. On the *consuming* side, you point the framework at any OpenAI-compatible endpoint via `base_url`: Ollama, vLLM, LM Studio, or a hosted OpenAI-flavored service. The agent interface doesn't change; only the client underneath does.
 
 ```python
 # Consuming side: point a generic OpenAI client at any compatible server.

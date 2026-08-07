@@ -6,7 +6,7 @@
 
 ## Pattern 1: Cloud Run (Stateless)
 
-Both ADK and Microsoft Agent Framework (MAF) can run on Cloud Run. The main difference: Microsoft Agent Framework is explicit about state.
+Both ADK and Microsoft Agent Framework can run on Cloud Run. The main difference: Microsoft Agent Framework is explicit about state.
 
 **ADK**:
 ```python

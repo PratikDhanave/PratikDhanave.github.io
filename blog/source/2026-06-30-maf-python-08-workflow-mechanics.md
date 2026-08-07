@@ -1,4 +1,4 @@
-# Workflow Mechanics — MAF in Python
+# Workflow Mechanics — Microsoft Agent Framework in Python
 
 *The graph model underneath every multi-agent app: executors as nodes, edges as data flow, and typed events streaming out as it runs.*
 
@@ -77,4 +77,4 @@ Everything above is model-free — `01_control_flow.py` routes evens and odds wi
 
 ---
 
-Next: [Workflows with Agents — MAF in Python](/blog/posts/maf-python-09-workflows-with-agents.html)
+Next: [Workflows with Agents — Microsoft Agent Framework in Python](/blog/posts/maf-python-09-workflows-with-agents.html)

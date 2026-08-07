@@ -1,4 +1,4 @@
-# Your First Agent — MAF in Python
+# Your First Agent — Microsoft Agent Framework in Python
 
 *The minimal loop: a Foundry chat client, an Agent with instructions, run non-streaming and streaming — and what actually comes back.*
 
@@ -84,4 +84,4 @@ That's the loop. A client you can point anywhere, an instruction string that is 
 
 ---
 
-Next: [Giving an Agent Tools — MAF in Python](/blog/posts/maf-python-03-giving-agents-tools.html)
+Next: [Giving an Agent Tools — Microsoft Agent Framework in Python](/blog/posts/maf-python-03-giving-agents-tools.html)

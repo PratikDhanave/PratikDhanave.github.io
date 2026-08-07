@@ -1,4 +1,4 @@
-# Advanced Workflows — MAF in Python
+# Advanced Workflows — Microsoft Agent Framework in Python
 
 *Durable workflows in Python: checkpoint and resume, pause for a human with request_info, and package a workflow as an agent.*
 
@@ -88,4 +88,4 @@ Durability, human gates, and composition are all just the workflow graph with on
 
 ---
 
-Next: [Hosting and the Capstone App — MAF in Python](/blog/posts/maf-python-12-hosting-and-capstone.html)
+Next: [Hosting and the Capstone App — Microsoft Agent Framework in Python](/blog/posts/maf-python-12-hosting-and-capstone.html)
