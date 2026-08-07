@@ -1,4 +1,4 @@
-# Conversation and Memory — MAF in Go
+# Conversation and Memory — Microsoft Agent Framework in Go
 
 *A Session threads history into each run; a ContextProvider carries memory across sessions — and because a Session is JSON, both survive a process restart.*
 
@@ -105,4 +105,4 @@ Two objects, one additive contract, and JSON for durability. Next I'll look at s
 
 ---
 
-Next: [Shaping a Run — MAF in Go](/blog/posts/maf-go-05-shaping-a-run.html)
+Next: [Shaping a Run — Microsoft Agent Framework in Go](/blog/posts/maf-go-05-shaping-a-run.html)

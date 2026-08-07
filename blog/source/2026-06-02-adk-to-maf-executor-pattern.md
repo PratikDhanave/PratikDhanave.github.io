@@ -20,7 +20,7 @@ result = await orchestrator.run(prompt)  # Returns final AgentResponse
 
 The orchestrator owns the loop. You don't see intermediate states. Callbacks let you hook into them, but you're an observer, not the driver.
 
-In Microsoft Agent Framework (MAF), builders are different:
+In Microsoft Agent Framework, builders are different:
 
 ```python
 workflow = SequentialBuilder(participants=[planner, executor, reviewer])

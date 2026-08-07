@@ -4,7 +4,7 @@
 
 ---
 
-An agent you can't watch is an agent you can't debug, and an agent that forgets everything when the process dies is an agent you can't ship. Microsoft Agent Framework (MAF) answers both from its hosting layer. **DevUI** gives any agent a local chat window plus an inspector that renders every model call, tool call, and OpenTelemetry span as it happens — the fastest way to actually *see* an agent behave, with no curl and no print statements. The **Durable Extension** goes the other direction: it checkpoints threads, orchestration progress, and workflow steps onto Durable Task infrastructure so a session survives a process crash, resumes on any worker, and can pause for hours or days without burning compute.
+An agent you can't watch is an agent you can't debug, and an agent that forgets everything when the process dies is an agent you can't ship. Microsoft Agent Framework answers both from its hosting layer. **DevUI** gives any agent a local chat window plus an inspector that renders every model call, tool call, and OpenTelemetry span as it happens — the fastest way to actually *see* an agent behave, with no curl and no print statements. The **Durable Extension** goes the other direction: it checkpoints threads, orchestration progress, and workflow steps onto Durable Task infrastructure so a session survives a process crash, resumes on any worker, and can pause for hours or days without burning compute.
 
 Both are transport, not intelligence. Every entity below is a plain `Agent` over a `FoundryChatClient` — `project_endpoint` + `model` + `AzureCliCredential()`, so `az login` first — with a local `get_weather` tool as the thing to inspect. DevUI and the Durable Extension render or persist the exact same model and tool calls the Foundry client already makes; they never change how the agent thinks. That shared foundation means the boilerplate is explained once here and assumed everywhere after.
 
@@ -22,7 +22,7 @@ print("Starting DevUI — open the printed URL, ask about the weather, watch the
 serve(entities=[agent])  # blocks; add more agents/workflows to switch between them
 ```
 
-The signature detail is `entities` — a *list*. One DevUI process can front several agents and even workflows side by side, and the UI lets you switch between them. Because it accepts anything MAF can run, DevUI is a single pane over your whole local fleet.
+The signature detail is `entities` — a *list*. One DevUI process can front several agents and even workflows side by side, and the UI lets you switch between them. Because it accepts anything Microsoft Agent Framework can run, DevUI is a single pane over your whole local fleet.
 
 **The gotcha:** DevUI ships as a *separate* package — `agent-framework-devui` — so `from agent_framework.devui import serve` raises `ModuleNotFoundError` on a bare install. Fix it with `uv sync --extra hosting` (or `uv add agent-framework-devui`). And `serve()` owns the event loop: it is a blocking call, so there is no `asyncio.run()` around it and no `await`. You call it directly from a synchronous `main()`. When your agent construction is itself async, build the finished agent first — `await build_agent()` inside `main()` — and only then hand the completed object to the blocking `serve()`.
 

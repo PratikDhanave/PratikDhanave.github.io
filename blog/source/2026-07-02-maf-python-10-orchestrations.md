@@ -1,4 +1,4 @@
-# Orchestration Patterns — MAF in Python
+# Orchestration Patterns — Microsoft Agent Framework in Python
 
 *Five prebuilt multi-agent shapes — Sequential, Concurrent, Group Chat, Handoff, Magentic — and when each beats hand-wiring a graph.*
 
@@ -100,4 +100,4 @@ The rule I settled on: reach for an orchestration when your problem *is* one of 
 
 ---
 
-Next: [Advanced Workflows — MAF in Python](/blog/posts/maf-python-11-advanced-workflows.html)
+Next: [Advanced Workflows — Microsoft Agent Framework in Python](/blog/posts/maf-python-11-advanced-workflows.html)

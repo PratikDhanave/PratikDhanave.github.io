@@ -1,4 +1,4 @@
-# Workflows with Agents — MAF in Go
+# Workflows with Agents — Microsoft Agent Framework in Go
 
 *Agents as graph executors in Go: switch routing, fan-out/fan-in barriers, and mixing typed function nodes with agent nodes.*
 
@@ -88,4 +88,4 @@ Once agents are just executors, orchestration isn't a separate framework — it'
 
 ---
 
-Next: [Orchestration Patterns — MAF in Go](/blog/posts/maf-go-10-orchestrations.html)
+Next: [Orchestration Patterns — Microsoft Agent Framework in Go](/blog/posts/maf-go-10-orchestrations.html)

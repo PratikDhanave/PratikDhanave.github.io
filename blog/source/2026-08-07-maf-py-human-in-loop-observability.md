@@ -4,7 +4,7 @@
 
 ---
 
-A workflow that runs start to finish untouched is the easy case. The hard cases are the ones every real system hits: a step that can't proceed without a person's sign-off, a workflow you want to reuse wherever an agent is expected, and a run whose behavior you need to *see* — before it executes and after. Microsoft Agent Framework (MAF) answers all three with the same small vocabulary you already use to build workflows: `request_info` to suspend for a human, `as_agent()` to repackage, and a one-call setup for tracing plus `WorkflowViz` for drawing.
+A workflow that runs start to finish untouched is the easy case. The hard cases are the ones every real system hits: a step that can't proceed without a person's sign-off, a workflow you want to reuse wherever an agent is expected, and a run whose behavior you need to *see* — before it executes and after. Microsoft Agent Framework answers all three with the same small vocabulary you already use to build workflows: `request_info` to suspend for a human, `as_agent()` to repackage, and a one-call setup for tracing plus `WorkflowViz` for drawing.
 
 The two workflows that touch a real model below drive a `FoundryChatClient` on Azure AI Foundry authenticated with `AzureCliCredential()` — so `az login` first. The rest run entirely offline with plain executors and zero credentials; the mechanics are provider-agnostic either way.
 
@@ -12,7 +12,7 @@ The two workflows that touch a real model below drive a `FoundryChatClient` on A
 
 ## 1. Suspending a workflow for a human
 
-Approvals, clarifications, sign-offs — some steps simply can't proceed without a person. `RunContext.request_info` is MAF's uniform way to put one in the loop: it **suspends** the workflow and returns a pending request to your code. You gather the human's answer and **resume** by re-running with that answer keyed by `request_id`.
+Approvals, clarifications, sign-offs — some steps simply can't proceed without a person. `RunContext.request_info` is Microsoft Agent Framework's uniform way to put one in the loop: it **suspends** the workflow and returns a pending request to your code. You gather the human's answer and **resume** by re-running with that answer keyed by `request_id`.
 
 The suspend point is a single awaited call inside a `@workflow`. Here an `approval_flow` asks whether to publish a release note, suspends, and on resume either publishes or rejects:
 

@@ -1,4 +1,4 @@
-# Middleware — MAF in Go
+# Middleware — Microsoft Agent Framework in Go
 
 *A guardrail that blocks a run before the model, chained ahead of a logger — and the upstream nil-update panic I fixed along the way.*
 
@@ -90,4 +90,4 @@ Middleware is the composable seam around every run. Next I open the box wider: t
 
 ---
 
-Next: [Observability, Safety, and Providers — MAF in Go](/blog/posts/maf-go-07-observability-safety-providers.html)
+Next: [Observability, Safety, and Providers — Microsoft Agent Framework in Go](/blog/posts/maf-go-07-observability-safety-providers.html)

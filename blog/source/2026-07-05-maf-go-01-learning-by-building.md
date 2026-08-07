@@ -81,4 +81,4 @@ Next post: the smallest thing that compiles and runs — a provider, instruction
 
 ---
 
-Next: [Your First Agent — MAF in Go](/blog/posts/maf-go-02-your-first-agent.html)
+Next: [Your First Agent — Microsoft Agent Framework in Go](/blog/posts/maf-go-02-your-first-agent.html)

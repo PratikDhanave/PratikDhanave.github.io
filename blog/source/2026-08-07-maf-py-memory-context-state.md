@@ -4,7 +4,7 @@
 
 ---
 
-A language model call is stateless: send messages, get a reply, forget everything. Turning that into an *assistant* — one that recalls your name across turns, remembers your bank across conversations, stays under a token budget as the chat grows, and threads a user id into a tool without exposing it to the model — is entirely a question of **what state lives where**. Microsoft Agent Framework (MAF) gives you a small set of explicit places to put that state, and picking the right one is most of the design work:
+A language model call is stateless: send messages, get a reply, forget everything. Turning that into an *assistant* — one that recalls your name across turns, remembers your bank across conversations, stays under a token budget as the chat grows, and threads a user id into a tool without exposing it to the model — is entirely a question of **what state lives where**. Microsoft Agent Framework gives you a small set of explicit places to put that state, and picking the right one is most of the design work:
 
 1. **Sessions** — conversation history and scratch state carried across `agent.run()` calls.
 2. **Storage** — where that history actually lives: local session state vs. service-managed.
@@ -42,7 +42,7 @@ Because a session is serializable, a conversation can be paused, persisted, and 
 
 ## 2. Storage: where the history actually lives
 
-A session's history has to be stored *somewhere*, and MAF gives you two modes. In **local session state**, the full transcript is kept in the session and re-sent on each run — you opt in with an `InMemoryHistoryProvider` (or a DB/Redis-backed equivalent). In **service-managed** mode, the service holds the conversation and the session only carries a remote id. Either way, to survive a process restart you persist the *whole* `AgentSession`, not just the message text.
+A session's history has to be stored *somewhere*, and Microsoft Agent Framework gives you two modes. In **local session state**, the full transcript is kept in the session and re-sent on each run — you opt in with an `InMemoryHistoryProvider` (or a DB/Redis-backed equivalent). In **service-managed** mode, the service holds the conversation and the session only carries a remote id. Either way, to survive a process restart you persist the *whole* `AgentSession`, not just the message text.
 
 ```python
 return Agent(
@@ -141,7 +141,7 @@ Providers **stack**. A `FileHistoryProvider("./sessions")` and a `ToneAndTally()
 
 ## 5. Runtime context: per-request values that skip the schema
 
-Sometimes a tool needs a value that came from *this* request — a user id, a tenant — but that value has no business in the tool's JSON schema, where the model would try to fill it in. MAF splits per-run state into three explicit buckets on `agent.run(...)`:
+Sometimes a tool needs a value that came from *this* request — a user id, a tenant — but that value has no business in the tool's JSON schema, where the model would try to fill it in. Microsoft Agent Framework splits per-run state into three explicit buckets on `agent.run(...)`:
 
 - `session=` — conversation state and history (read via `ctx.session`).
 - `function_invocation_kwargs=` — values only tools and function middleware see (`ctx.kwargs`).
@@ -167,7 +167,7 @@ Middleware sees the *same* `FunctionInvocationContext`, so it can enrich kwargs 
 
 ## 6. Shared state: passing data between middleware
 
-Middleware in a chain often needs to hand data forward — a request id, timing, accumulated metrics. MAF's Python function-middleware signature is deliberately minimal — `async def mw(context, call_next)` — with no shared bag baked in. The idiomatic trick is to put both middleware **on the same object** and let them read and write instance attributes. That instance *is* the shared state.
+Middleware in a chain often needs to hand data forward — a request id, timing, accumulated metrics. Microsoft Agent Framework's Python function-middleware signature is deliberately minimal — `async def mw(context, call_next)` — with no shared bag baked in. The idiomatic trick is to put both middleware **on the same object** and let them read and write instance attributes. That instance *is* the shared state.
 
 ```python
 class MiddlewareContainer:
@@ -216,7 +216,7 @@ You wire them in by passing **bound methods of one instance**: `middleware=[cont
 - **Runtime context skips the schema.** `function_invocation_kwargs` reach tools via `ctx.kwargs` and never reach the model; `ctx.session.state` written in a tool persists across runs. Don't use blanket `**kwargs`.
 - **Shared middleware state is plain Python.** Put both middleware on one object; read `context.result` only after `await call_next()`.
 
-The pattern that holds across all of it: MAF doesn't hide state in one magic bag. It gives you named places — the session, the provider list, the kwargs buckets, the shared instance — and asks you to decide *what lives where* and *how long it should last*. Swap the `FoundryChatClient` for another chat client and every one of these mechanics still holds.
+The pattern that holds across all of it: Microsoft Agent Framework doesn't hide state in one magic bag. It gives you named places — the session, the provider list, the kwargs buckets, the shared instance — and asks you to decide *what lives where* and *how long it should last*. Swap the `FoundryChatClient` for another chat client and every one of these mechanics still holds.
 
 ---
 

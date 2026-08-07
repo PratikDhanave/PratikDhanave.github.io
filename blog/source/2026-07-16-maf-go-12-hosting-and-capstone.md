@@ -1,4 +1,4 @@
-# Hosting and the Capstone App — MAF in Go
+# Hosting and the Capstone App — Microsoft Agent Framework in Go
 
 *Wrapping Go agents in A2A, MCP, and AG-UI transports, then a full client/server app that ties the whole series together.*
 

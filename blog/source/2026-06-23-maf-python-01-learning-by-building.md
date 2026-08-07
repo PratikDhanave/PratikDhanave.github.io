@@ -85,4 +85,4 @@ Next post: the smallest possible thing that works — a client, instructions, an
 
 ---
 
-Next: [Your First Agent — MAF in Python](/blog/posts/maf-python-02-your-first-agent.html)
+Next: [Your First Agent — Microsoft Agent Framework in Python](/blog/posts/maf-python-02-your-first-agent.html)

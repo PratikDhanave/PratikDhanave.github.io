@@ -13,7 +13,7 @@ But we hit a fork in the road:
 1. **ADK's vision**: Tightly coupled to Google Cloud. Vertex AI, Gemini models, Google's tool ecosystem.
 2. **Our vision**: Platform-agnostic multi-agent systems. Swap LLM providers (OpenAI, Azure, local Ollama). Run on any cloud (GCP, Azure, on-prem). Keep agent logic pure; LLM choice should be a config knob.
 
-So we chose Microsoft's Agent Framework (MAF) — the reference architecture, not the vendor lock-in.
+So we chose Microsoft's Agent Framework (Microsoft Agent Framework) — the reference architecture, not the vendor lock-in.
 
 ## What Changed (The Mapping)
 

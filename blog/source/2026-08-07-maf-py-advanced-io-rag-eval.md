@@ -4,7 +4,7 @@
 
 ---
 
-A basic Microsoft Agent Framework (MAF) agent reads a string and writes a string. Real applications need more: to reason about an image, to hand back typed data instead of prose, to keep working on a long task without blocking, to ground its answers in your documents, to be defined in a file instead of code, and — critically — to be scored so you know it still works after a change. This guide takes an agent from a text-in/text-out box to a production-shaped component along exactly those axes.
+A basic Microsoft Agent Framework agent reads a string and writes a string. Real applications need more: to reason about an image, to hand back typed data instead of prose, to keep working on a long task without blocking, to ground its answers in your documents, to be defined in a file instead of code, and — critically — to be scored so you know it still works after a change. This guide takes an agent from a text-in/text-out box to a production-shaped component along exactly those axes.
 
 Every example drives an `Agent` over a `FoundryChatClient` on Azure AI Foundry, authenticated with `AzureCliCredential` (so `az login` first, with `FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_MODEL` set). That boilerplate is identical everywhere below, so it's stated once here and omitted from the snippets — the mechanics are what change, and most of them are provider-agnostic in shape.
 

@@ -25,7 +25,7 @@ That's 3 months of engineering for a provider swap.
 
 ## The Solution: Provider Abstraction
 
-**Microsoft Agent Framework (MAF)**:
+**Microsoft Agent Framework**:
 ```python
 from multi_agent.providers import build_chat_client
 

@@ -1,4 +1,4 @@
-# Your First Agent — MAF in Go
+# Your First Agent — Microsoft Agent Framework in Go
 
 *The minimal loop in Go: a Foundry provider, an Agent with instructions, run collected and streamed — and what RunText hands back.*
 
@@ -88,4 +88,4 @@ That's the minimal loop. A lazy credential, a provider that turns it into a live
 
 ---
 
-Next: [Giving an Agent Tools — MAF in Go](/blog/posts/maf-go-03-giving-agents-tools.html)
+Next: [Giving an Agent Tools — Microsoft Agent Framework in Go](/blog/posts/maf-go-03-giving-agents-tools.html)

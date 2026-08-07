@@ -4,7 +4,7 @@
 
 ---
 
-An agent, stripped to its essentials, is smaller than it looks. In Microsoft Agent Framework (MAF) it is a chat client bound to a deployed model, an instruction string, and a name — plus one verb, `run()`. Everything else the framework offers (tools, memory, hosting, workflows) is a layer on top of that single loop. This guide builds the whole picture from the bottom up: construct an agent, learn the ways to call it, give it memory and tools, then wrap it in a server so you can use it like a product.
+An agent, stripped to its essentials, is smaller than it looks. In Microsoft Agent Framework it is a chat client bound to a deployed model, an instruction string, and a name — plus one verb, `run()`. Everything else the framework offers (tools, memory, hosting, workflows) is a layer on top of that single loop. This guide builds the whole picture from the bottom up: construct an agent, learn the ways to call it, give it memory and tools, then wrap it in a server so you can use it like a product.
 
 Every example drives a `FoundryChatClient` on Azure AI Foundry, authenticated with `AzureCliCredential`. Because that setup is identical everywhere, we do it once here and never repeat it.
 
@@ -132,7 +132,7 @@ The docstring and `Field` descriptions **are the API the model sees.** The Found
 
 ## From script to service
 
-Everything so far ran once and exited. To use an agent like a product, put a server in front of it. MAF gives you two hosting surfaces, and the same `build_agent()` you already have drops straight into both.
+Everything so far ran once and exited. To use an agent like a product, put a server in front of it. Microsoft Agent Framework gives you two hosting surfaces, and the same `build_agent()` you already have drops straight into both.
 
 ### DevUI — a local web chat in one call
 

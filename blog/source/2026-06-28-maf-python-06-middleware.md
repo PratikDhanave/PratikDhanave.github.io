@@ -1,4 +1,4 @@
-# Middleware — MAF in Python
+# Middleware — Microsoft Agent Framework in Python
 
 *Wrapping an agent run with async seams that log, time, guard, and short-circuit — without touching the agent's logic.*
 
@@ -8,7 +8,7 @@ This is post 6 of 12 in **Learning the Microsoft Agent Framework — Python**, w
 
 ## Three seams, one shape
 
-A middleware in MAF is just `async def mw(context, call_next)`. There are three kinds, distinguished by a decorator and the context they receive:
+A middleware in Microsoft Agent Framework is just `async def mw(context, call_next)`. There are three kinds, distinguished by a decorator and the context they receive:
 
 - `@agent_middleware` — wraps the **whole run**; context is `AgentContext`.
 - `@chat_middleware` — wraps each **model call**; context is `ChatContext`.
@@ -83,4 +83,4 @@ The run gave me a place to stand *around* the agent. Next I open the box further
 
 ---
 
-Next: [Observability, Safety, and Providers — MAF in Python](/blog/posts/maf-python-07-observability-safety-providers.html)
+Next: [Observability, Safety, and Providers — Microsoft Agent Framework in Python](/blog/posts/maf-python-07-observability-safety-providers.html)

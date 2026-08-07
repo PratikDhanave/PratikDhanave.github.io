@@ -1,4 +1,4 @@
-# Advanced Workflows — MAF in Go
+# Advanced Workflows — Microsoft Agent Framework in Go
 
 *Durable workflows in Go: checkpoint and rehydrate, pause on a RequestPort for a human, nest sub-workflows, and coordinate through scoped shared state.*
 
@@ -83,4 +83,4 @@ Each capability is the same graph with one runtime affordance added. Next I'll h
 
 ---
 
-Next: [Hosting and the Capstone App — MAF in Go](/blog/posts/maf-go-12-hosting-and-capstone.html)
+Next: [Hosting and the Capstone App — Microsoft Agent Framework in Go](/blog/posts/maf-go-12-hosting-and-capstone.html)

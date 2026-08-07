@@ -1,4 +1,4 @@
-# Giving an Agent Tools — MAF in Go
+# Giving an Agent Tools — Microsoft Agent Framework in Go
 
 *Wrap a typed Go function as a tool, let the model call it, and compose whole agents as tools.*
 
@@ -108,4 +108,4 @@ Coming from Python, I kept looking for a decorator. There isn't one — in Go th
 
 ---
 
-Next: [Conversation and Memory — MAF in Go](/blog/posts/maf-go-04-conversation-and-memory.html)
+Next: [Conversation and Memory — Microsoft Agent Framework in Go](/blog/posts/maf-go-04-conversation-and-memory.html)

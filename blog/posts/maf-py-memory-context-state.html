@@ -85,7 +85,7 @@
       <li><a href="/open-source/">Open Source</a></li>
       <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
       <li><a href="/recommendations/">Recommendations</a></li>
-      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
       <li><a href="/mentoring/">Mentoring</a></li>
       <li><a href="/gsoc/">GSoC</a></li>
       <li><a href="/resume/">Resume</a></li>
@@ -117,7 +117,7 @@
 
 
 
-  <p>A language model call is stateless: send messages, get a reply, forget everything. Turning that into an <em>assistant</em> — one that recalls your name across turns, remembers your bank across conversations, stays under a token budget as the chat grows, and threads a user id into a tool without exposing it to the model — is entirely a question of <strong>what state lives where</strong>. Microsoft Agent Framework (MAF) gives you a small set of explicit places to put that state, and picking the right one is most of the design work:</p>
+  <p>A language model call is stateless: send messages, get a reply, forget everything. Turning that into an <em>assistant</em> — one that recalls your name across turns, remembers your bank across conversations, stays under a token budget as the chat grows, and threads a user id into a tool without exposing it to the model — is entirely a question of <strong>what state lives where</strong>. Microsoft Agent Framework gives you a small set of explicit places to put that state, and picking the right one is most of the design work:</p>
 <ol>
 <li><strong>Sessions</strong> — conversation history and scratch state carried across <code>agent.run()</code> calls.</li>
 <li><strong>Storage</strong> — where that history actually lives: local session state vs. service-managed.</li>
@@ -145,7 +145,7 @@ third = await agent.run(&quot;And what did I just ask you?&quot;, session=resume
 <p><strong>The gotcha:</strong> <code>agent.create_session()</code> is synchronous in Python — no <code>await</code>. Threading is entirely manual: forget to pass <code>session=session</code> into a <code>run()</code> and that turn starts cold, breaking the memory chain. A session exposes both a local <code>session_id</code> and a <code>service_session_id</code> (the remote conversation id), plus that mutable <code>state</code> dict shared with context and history providers. Sessions are agent- and service-specific — reusing one across a different agent configuration or provider can produce invalid context.</p>
 <hr>
 <h2 id="2-storage-where-the-history-actually-lives">2. Storage: where the history actually lives</h2>
-<p>A session&rsquo;s history has to be stored <em>somewhere</em>, and MAF gives you two modes. In <strong>local session state</strong>, the full transcript is kept in the session and re-sent on each run — you opt in with an <code>InMemoryHistoryProvider</code> (or a DB/Redis-backed equivalent). In <strong>service-managed</strong> mode, the service holds the conversation and the session only carries a remote id. Either way, to survive a process restart you persist the <em>whole</em> <code>AgentSession</code>, not just the message text.</p>
+<p>A session&rsquo;s history has to be stored <em>somewhere</em>, and Microsoft Agent Framework gives you two modes. In <strong>local session state</strong>, the full transcript is kept in the session and re-sent on each run — you opt in with an <code>InMemoryHistoryProvider</code> (or a DB/Redis-backed equivalent). In <strong>service-managed</strong> mode, the service holds the conversation and the session only carries a remote id. Either way, to survive a process restart you persist the <em>whole</em> <code>AgentSession</code>, not just the message text.</p>
 <pre><code class="language-python">return Agent(
     client=client,
     name=&quot;StorageAgent&quot;,
@@ -213,7 +213,7 @@ compaction = CompactionProvider(before_strategy=pipeline, history_source_id=hist
 <p><strong>The gotcha:</strong> <code>source_id</code> is required in <code>super().__init__()</code>, and both hooks are keyword-only (<code>*, agent, session, context, state</code>) — miss the leading <code>*</code> and the framework won&rsquo;t call them as expected. And choose your storage deliberately: put a counter on <code>self</code> and it follows the <em>provider</em>; put it in <code>state</code> and it follows the <em>session</em>. Storing session-scoped data on <code>self</code> means it won&rsquo;t travel with the session across reuse.</p>
 <hr>
 <h2 id="5-runtime-context-per-request-values-that-skip-the-schema">5. Runtime context: per-request values that skip the schema</h2>
-<p>Sometimes a tool needs a value that came from <em>this</em> request — a user id, a tenant — but that value has no business in the tool&rsquo;s JSON schema, where the model would try to fill it in. MAF splits per-run state into three explicit buckets on <code>agent.run(...)</code>:</p>
+<p>Sometimes a tool needs a value that came from <em>this</em> request — a user id, a tenant — but that value has no business in the tool&rsquo;s JSON schema, where the model would try to fill it in. Microsoft Agent Framework splits per-run state into three explicit buckets on <code>agent.run(...)</code>:</p>
 <ul>
 <li><code>session=</code> — conversation state and history (read via <code>ctx.session</code>).</li>
 <li><code>function_invocation_kwargs=</code> — values only tools and function middleware see (<code>ctx.kwargs</code>).</li>
@@ -232,7 +232,7 @@ def send_email(address, ctx: FunctionInvocationContext) -&gt; str:
 <p><strong>The gotcha:</strong> any parameter annotated <code>FunctionInvocationContext</code> is injected regardless of its name and is <strong>hidden from the tool&rsquo;s schema</strong>. Read per-run values with <code>ctx.kwargs["..."]</code> — do <strong>not</strong> add a blanket <code>**kwargs</code> to tools, because unexpected runtime kwargs are rejected; consume them through the context object instead. <code>function_invocation_kwargs</code> never reach the model, and <code>session.state</code> written inside a tool survives across runs on the same session — the same <code>state</code> dict from Section 4, now written from a tool.</p>
 <hr>
 <h2 id="6-shared-state-passing-data-between-middleware">6. Shared state: passing data between middleware</h2>
-<p>Middleware in a chain often needs to hand data forward — a request id, timing, accumulated metrics. MAF&rsquo;s Python function-middleware signature is deliberately minimal — <code>async def mw(context, call_next)</code> — with no shared bag baked in. The idiomatic trick is to put both middleware <strong>on the same object</strong> and let them read and write instance attributes. That instance <em>is</em> the shared state.</p>
+<p>Middleware in a chain often needs to hand data forward — a request id, timing, accumulated metrics. Microsoft Agent Framework&rsquo;s Python function-middleware signature is deliberately minimal — <code>async def mw(context, call_next)</code> — with no shared bag baked in. The idiomatic trick is to put both middleware <strong>on the same object</strong> and let them read and write instance attributes. That instance <em>is</em> the shared state.</p>
 <pre><code class="language-python">class MiddlewareContainer:
     def __init__(self) -&gt; None:
         self.call_count: int = 0  # the shared state both methods touch
@@ -321,7 +321,7 @@ def send_email(address, ctx: FunctionInvocationContext) -&gt; str:
 <li><strong>Runtime context skips the schema.</strong> <code>function_invocation_kwargs</code> reach tools via <code>ctx.kwargs</code> and never reach the model; <code>ctx.session.state</code> written in a tool persists across runs. Don&rsquo;t use blanket <code>**kwargs</code>.</li>
 <li><strong>Shared middleware state is plain Python.</strong> Put both middleware on one object; read <code>context.result</code> only after <code>await call_next()</code>.</li>
 </ul>
-<p>The pattern that holds across all of it: MAF doesn&rsquo;t hide state in one magic bag. It gives you named places — the session, the provider list, the kwargs buckets, the shared instance — and asks you to decide <em>what lives where</em> and <em>how long it should last</em>. Swap the <code>FoundryChatClient</code> for another chat client and every one of these mechanics still holds.</p>
+<p>The pattern that holds across all of it: Microsoft Agent Framework doesn&rsquo;t hide state in one magic bag. It gives you named places — the session, the provider list, the kwargs buckets, the shared instance — and asks you to decide <em>what lives where</em> and <em>how long it should last</em>. Swap the <code>FoundryChatClient</code> for another chat client and every one of these mechanics still holds.</p>
 <hr>
 <h2 id="interactive-diagrams">Interactive diagrams</h2>
 <p>Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):</p>
@@ -334,7 +334,7 @@ def send_email(address, ctx: FunctionInvocationContext) -&gt; str:
     <h3>Related Reading</h3>
     <ul>
     <li>
-      <a href="/blog/posts/maf-python-04-conversation-and-memory.html">Conversation and Memory — MAF in Python</a>
+      <a href="/blog/posts/maf-python-04-conversation-and-memory.html">Conversation and Memory — Microsoft Agent Framework in Python</a>
       <span class="related-date">Jun 26</span>
     </li>
     <li>
