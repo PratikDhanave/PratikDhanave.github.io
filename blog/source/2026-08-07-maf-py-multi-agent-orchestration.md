@@ -175,3 +175,14 @@ The patterns are not competitors so much as answers to different questions: *Is 
 - **A2A is the boundary layer, not a topology.** It wraps an unchanged agent as a network service so any of the in-process patterns can extend across teams and companies.
 
 Pick the smallest shape that matches your flow of control: a line when steps are ordered, a fan when they're independent, a mesh when routing depends on content, an orchestrator when agents must converse, a planner when the path is unknown — and A2A when the boundary is the network itself.
+
+---
+
+## Interactive diagrams
+
+Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):
+
+- [Handoff](/blog/diagrams/maf-py-62-handoff.html)
+- [Group Chat](/blog/diagrams/maf-py-63-group-chat.html)
+- [Magentic](/blog/diagrams/maf-py-64-magentic.html)
+- [A2A](/blog/diagrams/maf-py-66-a2a.html)

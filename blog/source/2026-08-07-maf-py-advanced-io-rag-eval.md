@@ -199,3 +199,12 @@ The `@evaluator` decorator wraps a plain function; its *parameter names* decide 
 - **Evaluation is what makes the rest safe to change.** Start with a `LocalEvaluator` for offline, zero-setup checks, call `raise_for_status()` to gate CI, and graduate to Foundry LLM-as-judge when you need it.
 
 Swap the `FoundryChatClient` for another chat client and most of these mechanics hold — the model reads richer input and emits richer output; your job is to shape the turn, branch on what comes back, ground it in the right facts, and prove it still works.
+
+---
+
+## Interactive diagrams
+
+Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):
+
+- [Background Responses](/blog/diagrams/maf-py-18-background-responses.html)
+- [Harness](/blog/diagrams/maf-py-23-harness.html)

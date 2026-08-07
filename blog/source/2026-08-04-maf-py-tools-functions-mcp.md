@@ -239,3 +239,11 @@ agent = Agent(client=client, name="CodeActAgent",
 - **Skills and CodeAct trade schema size for indirection** — reach for them when a flat tool list stops scaling.
 
 Everything here is provider-agnostic in shape: swap the `FoundryChatClient` for another chat client and the tool mechanics hold. The model reads schemas and citations; your job is to decide *where each tool runs* and *what a human must approve*.
+
+---
+
+## Interactive diagrams
+
+Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):
+
+- [Code Act](/blog/diagrams/maf-py-24-code-act.html)

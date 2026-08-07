@@ -262,3 +262,11 @@ The event plumbing is client-agnostic, but when an executor wraps a `FoundryChat
 - **Events are one type, discriminated by `.type`.** Stream with `run(x, stream=True)` (there is no `run_stream()`); `"started"`, `"status"`, and `"failed"` are reserved for the framework.
 
 Everything here is provider-agnostic in shape: the `FoundryChatClient` + `AzureCliCredential` pairing is just the model plumbing, and swapping it changes only the innermost ChatClient layer. Your real design work is choosing between the functional and graph APIs, deciding where each node yields versus forwards, and where the data — not the model — should decide the path. When you outgrow a single graph and need parallel fan-out, resumable checkpoints, or nested sub-workflows, the advanced workflows guide picks up from here.
+
+---
+
+## Interactive diagrams
+
+Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):
+
+- [Agent Pipeline](/blog/diagrams/maf-py-15-agent-pipeline.html)
