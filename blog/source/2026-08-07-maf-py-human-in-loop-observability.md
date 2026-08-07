@@ -150,3 +150,11 @@ The rendering carries meaning: the start executor draws as green "(Start)", fan-
 - **Observability is one call, driven by env vars.** `configure_otel_providers()` both enables and wires OpenTelemetry; console exporters need no backend, sensitive data stays off by default, and `load_dotenv()` must run first.
 - **`WorkflowViz` reads shape, not behavior.** Mermaid and DOT are dependency-free and run no agents; image export needs the GraphViz binary, and fan-in targets must be plain executors.
 - **The pieces compose.** Suspend a nested workflow, wrap it as an agent, trace the whole tree by one trace ID, and draw the wiring before you run it — the same small workflow vocabulary spans design, execution, and inspection.
+
+---
+
+## Interactive diagrams
+
+Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):
+
+- [Human In The Loop](/blog/diagrams/maf-py-47-human-in-the-loop.html)

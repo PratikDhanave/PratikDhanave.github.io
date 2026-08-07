@@ -217,3 +217,11 @@ You wire them in by passing **bound methods of one instance**: `middleware=[cont
 - **Shared middleware state is plain Python.** Put both middleware on one object; read `context.result` only after `await call_next()`.
 
 The pattern that holds across all of it: MAF doesn't hide state in one magic bag. It gives you named places — the session, the provider list, the kwargs buckets, the shared instance — and asks you to decide *what lives where* and *how long it should last*. Swap the `FoundryChatClient` for another chat client and every one of these mechanics still holds.
+
+---
+
+## Interactive diagrams
+
+Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):
+
+- [Compaction](/blog/diagrams/maf-py-27-compaction.html)

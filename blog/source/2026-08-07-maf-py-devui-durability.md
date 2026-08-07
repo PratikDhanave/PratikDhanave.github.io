@@ -123,3 +123,11 @@ The split is clean: DevUI is a **development-time** window you open and close; t
 - **Durability is a wrapper around an unchanged agent.** `AgentFunctionApp` checkpoints threads per `x-ms-thread-id`; inside an orchestration always fetch the durable wrapper with `app.get_agent(context, ...)`, keep the trigger a generator so it can replay, and expect to run it under `func start`, not `uv run`.
 
 DevUI and the Durable Extension bracket an agent's life: you build and debug it in the local chat-and-timeline window, then host it durably so a crash costs you nothing. Both hold the same Foundry-backed agent at their center — swap the client and the mechanics carry straight over.
+
+---
+
+## Interactive diagrams
+
+Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):
+
+- [Durable Extension](/blog/diagrams/maf-py-67-durable-extension.html)
