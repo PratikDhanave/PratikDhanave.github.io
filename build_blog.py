@@ -159,6 +159,76 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+    "2026-08-07-maf-py-getting-started.md": {
+        "slug": "maf-py-getting-started",
+        "date": "2026-08-07",
+        "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Getting Started"],
+        "audience": "Python developers building agents on Microsoft Agent Framework",
+        "excerpt": "From the smallest possible agent to a browsable service \u2014 the core loop, the four ways to run it, how memory and tools attach, and two ways to put a server in front of it.",
+    },
+    "2026-08-07-maf-py-middleware-cross-cutting.md": {
+        "slug": "maf-py-middleware-cross-cutting",
+        "date": "2026-08-07",
+        "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Middleware"],
+        "audience": "Python developers building agents on Microsoft Agent Framework",
+        "excerpt": "How to wrap an agent run to log, guard, retry, redact, and secure it \u2014 using middleware seams that sit entirely outside the agent's own logic.",
+    },
+    "2026-08-07-maf-py-memory-context-state.md": {
+        "slug": "maf-py-memory-context-state",
+        "date": "2026-08-07",
+        "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Memory", "State"],
+        "audience": "Python developers building agents on Microsoft Agent Framework",
+        "excerpt": "A complete guide to what an agent remembers \u2014 from a single conversation held in a session, to durable facts injected on every run, to the per-request values that reach a tool without ever...",
+    },
+    "2026-08-07-maf-py-workflows-core.md": {
+        "slug": "maf-py-workflows-core",
+        "date": "2026-08-07",
+        "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Workflows"],
+        "audience": "Python developers building agents on Microsoft Agent Framework",
+        "excerpt": "From a single decorated async function to an explicit graph of executors and agent nodes \u2014 the core workflow model in Microsoft Agent Framework, and the two APIs that express it.",
+    },
+    "2026-08-07-maf-py-workflows-advanced.md": {
+        "slug": "maf-py-workflows-advanced",
+        "date": "2026-08-07",
+        "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Workflows"],
+        "audience": "Python developers building agents on Microsoft Agent Framework",
+        "excerpt": "Once you can wire a chain of executors, the graph earns its keep: concurrency, durable state, composition, and control \u2014 the patterns that turn a toy pipeline into a system that survives a crash.",
+    },
+    "2026-08-07-maf-py-human-in-loop-observability.md": {
+        "slug": "maf-py-human-in-loop-observability",
+        "date": "2026-08-07",
+        "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Human-in-the-Loop", "Observability"],
+        "audience": "Python developers building agents on Microsoft Agent Framework",
+        "excerpt": "How to pause a workflow for a human decision, package a whole workflow as an agent, and see exactly what a run did \u2014 through OpenTelemetry spans and a rendered graph \u2014 in Microsoft Agent Framework.",
+    },
+    "2026-08-07-maf-py-multi-agent-orchestration.md": {
+        "slug": "maf-py-multi-agent-orchestration",
+        "date": "2026-08-07",
+        "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Multi-Agent"],
+        "audience": "Python developers building agents on Microsoft Agent Framework",
+        "excerpt": "A complete guide to coordinating many agents \u2014 from a fixed pipeline, to parallel fan-out, to a self-routing mesh, to a planner that decides who acts next, to publishing an agent as a network...",
+    },
+    "2026-08-07-maf-py-models-providers.md": {
+        "slug": "maf-py-models-providers",
+        "date": "2026-08-07",
+        "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Providers"],
+        "audience": "Python developers building agents on Microsoft Agent Framework",
+        "excerpt": "A complete guide to where a Microsoft Agent Framework agent gets its model \u2014 from direct Foundry inference to OpenAI-compatible endpoints, service-managed agents, hand-rolled providers, and...",
+    },
+    "2026-08-07-maf-py-advanced-io-rag-eval.md": {
+        "slug": "maf-py-advanced-io-rag-eval",
+        "date": "2026-08-07",
+        "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "RAG", "Evaluation"],
+        "audience": "Python developers building agents on Microsoft Agent Framework",
+        "excerpt": "Once an agent can call tools, the next questions are what it can read, what it returns, how long it can run, where its facts come from, how it's defined, and whether it actually works \u2014 this guide...",
+    },
+    "2026-08-07-maf-py-devui-durability.md": {
+        "slug": "maf-py-devui-durability",
+        "date": "2026-08-07",
+        "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "DevUI", "Durability"],
+        "audience": "Python developers building agents on Microsoft Agent Framework",
+        "excerpt": "A guide to the two hosting concerns every agent eventually hits \u2014 seeing it run in a local chat window with a live call inspector, and keeping its state alive across crashes on Durable Task...",
+    },
     "2026-08-04-maf-py-tools-functions-mcp.md": {
         "slug": "maf-py-tools-functions-mcp",
         "date": "2026-08-04",
@@ -484,6 +554,7 @@ POST_META = {
     # ── Microsoft Agent Framework Python — Every Lesson (72 posts) ──
     "2026-04-01-maf-py-01-hello-agent.md": {
         "slug": "maf-py-01-hello-agent", "date": "2026-04-01",
+        "redirect_to": "maf-py-getting-started",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Agent basics"],
         "audience": "Python developers taking their first step with the Microsoft Agent Framework and Azure AI Foundry.",
         "excerpt": "The smallest MAF Python agent: wire a FoundryChatClient plus instructions, then run it once collected and once streamed with stream=True.",
@@ -496,6 +567,7 @@ POST_META = {
     },
     "2026-04-02-maf-py-02-add-tools.md": {
         "slug": "maf-py-02-add-tools", "date": "2026-04-02",
+        "redirect_to": "maf-py-getting-started",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Function tools"],
         "audience": "Python developers ready to give an agent callable tools so it can act, not just talk.",
         "excerpt": "Turn a Python function into a tool with the @tool decorator and Annotated Field descriptions, then let the model pick the right one from the question wording.",
@@ -508,6 +580,7 @@ POST_META = {
     },
     "2026-04-03-maf-py-03-multi-turn.md": {
         "slug": "maf-py-03-multi-turn", "date": "2026-04-03",
+        "redirect_to": "maf-py-getting-started",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Sessions"],
         "audience": "Python developers who need an agent to remember earlier turns within one conversation.",
         "excerpt": "An Agent is stateless; an AgentSession carries history between turns. Thread create_session() through each run so turn two can see turn one.",
@@ -520,6 +593,7 @@ POST_META = {
     },
     "2026-04-04-maf-py-04-memory.md": {
         "slug": "maf-py-04-memory", "date": "2026-04-04",
+        "redirect_to": "maf-py-memory-context-state",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Context providers"],
         "audience": "Python developers who want an agent to remember durable facts across separate conversations.",
         "excerpt": "A ContextProvider holds facts that outlive any session and injects them into every run via before_run and context.extend_instructions.",
@@ -532,6 +606,7 @@ POST_META = {
     },
     "2026-04-05-maf-py-05-functional-workflow-with-agents.md": {
         "slug": "maf-py-05-functional-workflow-with-agents", "date": "2026-04-05",
+        "redirect_to": "maf-py-workflows-core",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Workflows"],
         "audience": "Python developers ready to compose two agents into a pipeline with the functional workflow API.",
         "excerpt": "Decorate an async function with @workflow and call agents inside it with plain await: a writer drafts, an editor tightens, one line of glue each.",
@@ -544,6 +619,7 @@ POST_META = {
     },
     "2026-04-06-maf-py-06-functional-workflow-basics.md": {
         "slug": "maf-py-06-functional-workflow-basics", "date": "2026-04-06",
+        "redirect_to": "maf-py-workflows-core",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Workflows"],
         "audience": "Python developers who want to understand workflow mechanics without an LLM in the way.",
         "excerpt": "A credential-free workflow of two @step functions composed by a @workflow, isolating checkpointing, steps and outputs from any model call.",
@@ -556,6 +632,7 @@ POST_META = {
     },
     "2026-04-07-maf-py-07-first-graph-workflow.md": {
         "slug": "maf-py-07-first-graph-workflow", "date": "2026-04-07",
+        "redirect_to": "maf-py-workflows-core",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Workflows"],
         "audience": "Python developers ready to build an explicit graph workflow of executors and edges.",
         "excerpt": "Build a two-node graph with WorkflowBuilder: executors send_message or yield_output, and the type hint on WorkflowContext carries the routing intent.",
@@ -568,6 +645,7 @@ POST_META = {
     },
     "2026-04-08-maf-py-08-host-your-agent.md": {
         "slug": "maf-py-08-host-your-agent", "date": "2026-04-08",
+        "redirect_to": "maf-py-getting-started",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "DevUI hosting"],
         "audience": "Python developers who want to interact with an agent through a local web UI instead of a script.",
         "excerpt": "serve() from agent_framework.devui wraps any agent in a local web chat; it blocks with its own event loop and ships as a separate install.",
@@ -580,6 +658,7 @@ POST_META = {
     },
     "2026-04-09-maf-py-09-middleware.md": {
         "slug": "maf-py-09-middleware", "date": "2026-04-09",
+        "redirect_to": "maf-py-middleware-cross-cutting",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Middleware"],
         "audience": "Python developers who want to add logging, guardrails, or short-circuit logic around an agent run without changing the agent itself.",
         "excerpt": "Agent, chat, and function middleware in Microsoft Agent Framework: one middleware=[...] list, call_next() with no args, and short-circuiting via MiddlewareTermination.",
@@ -605,6 +684,7 @@ POST_META = {
     },
     "2026-04-11-maf-py-11-context-and-memory.md": {
         "slug": "maf-py-11-context-and-memory", "date": "2026-04-11",
+        "redirect_to": "maf-py-memory-context-state",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Context Providers"],
         "audience": "Python developers who want to inject instructions per run and persist conversation history that survives process restarts.",
         "excerpt": "ContextProvider before_run/after_run hooks in Microsoft Agent Framework, plus FileHistoryProvider for on-disk transcripts and a per-session state dict for counters.",
@@ -617,6 +697,7 @@ POST_META = {
     },
     "2026-04-12-maf-py-12-observability.md": {
         "slug": "maf-py-12-observability", "date": "2026-04-12",
+        "redirect_to": "maf-py-middleware-cross-cutting",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Observability"],
         "audience": "Python developers who want OpenTelemetry spans for latency, tokens, and tool activity across an agent run.",
         "excerpt": "Wiring OpenTelemetry into a Microsoft Agent Framework agent with configure_otel_providers, console vs OTLP export, and the enable_sensitive_data content trade-off.",
@@ -629,6 +710,7 @@ POST_META = {
     },
     "2026-04-13-maf-py-13-security.md": {
         "slug": "maf-py-13-security", "date": "2026-04-13",
+        "redirect_to": "maf-py-middleware-cross-cutting",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Security"],
         "audience": "Python developers hardening agents against prompt injection from attacker-controlled tool output.",
         "excerpt": "Defending a Microsoft Agent Framework agent from prompt injection with SecureAgentConfig, information-flow labeling of untrusted content, and block_on_violation enforcement.",
@@ -641,6 +723,7 @@ POST_META = {
     },
     "2026-04-14-maf-py-14-running-agents.md": {
         "slug": "maf-py-14-running-agents", "date": "2026-04-14",
+        "redirect_to": "maf-py-getting-started",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Streaming"],
         "audience": "Python developers who need to choose between non-streaming, streaming, session, and per-run option modes of agent.run().",
         "excerpt": "The four ways to call run() in Microsoft Agent Framework: AgentResponse, stream=True with a ResponseStream, sessions for state, and per-run options merged over defaults.",
@@ -653,6 +736,7 @@ POST_META = {
     },
     "2026-04-15-maf-py-15-agent-pipeline.md": {
         "slug": "maf-py-15-agent-pipeline", "date": "2026-04-15",
+        "redirect_to": "maf-py-workflows-core",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Architecture"],
         "audience": "Python developers who want to understand the layered Agent/ChatClient pipeline to know where custom behavior plugs in.",
         "excerpt": "The layered execution model of a Microsoft Agent Framework agent: agent middleware, RawAgent, context providers, and the separate swappable ChatClient pipeline.",
@@ -665,6 +749,7 @@ POST_META = {
     },
     "2026-04-16-maf-py-16-multimodal.md": {
         "slug": "maf-py-16-multimodal", "date": "2026-04-16",
+        "redirect_to": "maf-py-advanced-io-rag-eval",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Multimodal"],
         "audience": "Python developers who want an agent to reason over images by building multi-part Message content.",
         "excerpt": "Sending images to a Microsoft Agent Framework agent by building a Message of Content parts with Content.from_uri and Content.from_data, targeting a vision-capable Foundry model.",
@@ -677,6 +762,7 @@ POST_META = {
     },
     "2026-04-17-maf-py-17-structured-outputs.md": {
         "slug": "maf-py-17-structured-outputs", "date": "2026-04-17",
+        "redirect_to": "maf-py-advanced-io-rag-eval",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Structured Outputs"],
         "audience": "Python developers who want a Foundry agent to return typed Pydantic or JSON-schema data instead of free-form prose.",
         "excerpt": "Use response_format in agent.run options to make a Microsoft Agent Framework agent return a typed Pydantic model or parsed JSON on response.value, including streaming.",
@@ -689,6 +775,7 @@ POST_META = {
     },
     "2026-04-18-maf-py-18-background-responses.md": {
         "slug": "maf-py-18-background-responses", "date": "2026-04-18",
+        "redirect_to": "maf-py-advanced-io-rag-eval",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Background Responses"],
         "audience": "Python developers running long agent tasks who need to start work in the background and poll a continuation token instead of blocking.",
         "excerpt": "Start long agent work with options background True, poll by re-running with the continuation_token until it returns None, and resume interrupted streams from the last token seen.",
@@ -701,6 +788,7 @@ POST_META = {
     },
     "2026-04-19-maf-py-19-rag.md": {
         "slug": "maf-py-19-rag", "date": "2026-04-19",
+        "redirect_to": "maf-py-advanced-io-rag-eval",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "RAG"],
         "audience": "Python developers who want to ground a Foundry agent in their own documents by exposing a search tool and requiring citations.",
         "excerpt": "Ground a Microsoft Agent Framework agent with RAG-as-a-tool: expose a search function over your docs, instruct the agent to retrieve then answer and cite, and decline when nothing matches.",
@@ -713,6 +801,7 @@ POST_META = {
     },
     "2026-04-20-maf-py-20-declarative-agents.md": {
         "slug": "maf-py-20-declarative-agents", "date": "2026-04-20",
+        "redirect_to": "maf-py-advanced-io-rag-eval",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Declarative Agents"],
         "audience": "Python developers who want to define and version agents from a YAML spec via AgentFactory instead of constructing them in code.",
         "excerpt": "Define a Microsoft Agent Framework agent from a YAML spec with AgentFactory create_agent_from_yaml, resolving connection values from env and building the Foundry client from the spec.",
@@ -725,6 +814,7 @@ POST_META = {
     },
     "2026-04-21-maf-py-21-evaluation.md": {
         "slug": "maf-py-21-evaluation", "date": "2026-04-21",
+        "redirect_to": "maf-py-advanced-io-rag-eval",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Evaluation"],
         "audience": "Python developers who want to score agent outputs offline with LocalEvaluator and gate CI on evaluation results.",
         "excerpt": "Score Microsoft Agent Framework agent outputs with evaluate_agent and a LocalEvaluator: run offline keyword, tool-call, and custom evaluator checks, then gate CI via raise_for_status.",
@@ -750,6 +840,7 @@ POST_META = {
     },
     "2026-04-23-maf-py-23-harness.md": {
         "slug": "maf-py-23-harness", "date": "2026-04-23",
+        "redirect_to": "maf-py-advanced-io-rag-eval",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Agent Harness"],
         "audience": "Python developers who want a batteries-included autonomous agent pipeline with todos, modes, and compaction from a single factory call.",
         "excerpt": "Assemble a batteries-included autonomous agent with create_harness_agent: a function-calling loop, todo list, plan/execute modes, and compaction, each individually switchable via disable flags.",
@@ -775,6 +866,7 @@ POST_META = {
     },
     "2026-04-25-maf-py-25-session.md": {
         "slug": "maf-py-25-session", "date": "2026-04-25",
+        "redirect_to": "maf-py-memory-context-state",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Conversation State"],
         "audience": "Python developers who need an agent to remember earlier turns and resume a paused conversation.",
         "excerpt": "AgentSession carries history across separate agent.run() calls; pass the same session every time and serialize it with to_dict()/from_dict() to resume.",
@@ -787,6 +879,7 @@ POST_META = {
     },
     "2026-04-26-maf-py-26-storage.md": {
         "slug": "maf-py-26-storage", "date": "2026-04-26",
+        "redirect_to": "maf-py-memory-context-state",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "History Providers"],
         "audience": "Python developers deciding whether conversation history lives client-side or is service-managed, and how to persist it.",
         "excerpt": "Local session state via InMemoryHistoryProvider re-sends the transcript each run; service-managed keeps only a remote id. Persist the whole AgentSession to survive restarts.",
@@ -799,6 +892,7 @@ POST_META = {
     },
     "2026-04-27-maf-py-27-compaction.md": {
         "slug": "maf-py-27-compaction", "date": "2026-04-27",
+        "redirect_to": "maf-py-memory-context-state",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Context Compaction"],
         "audience": "Python developers whose long conversations blow the context window and need to trim history under a token budget.",
         "excerpt": "CompactionProvider rewrites in-memory history before each model call; a TokenBudgetComposedStrategy layers tool-result collapse, summarization and sliding window gentlest-first.",
@@ -811,6 +905,7 @@ POST_META = {
     },
     "2026-04-28-maf-py-28-chat-middleware.md": {
         "slug": "maf-py-28-chat-middleware", "date": "2026-04-28",
+        "redirect_to": "maf-py-middleware-cross-cutting",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Middleware"],
         "audience": "Python developers who want to inspect, mutate, or short-circuit every model call an agent makes.",
         "excerpt": "Chat middleware wraps each model call via ChatContext and call_next; mutate context.messages in place, or set context.result and raise MiddlewareTermination to skip the model.",
@@ -823,6 +918,7 @@ POST_META = {
     },
     "2026-04-29-maf-py-29-agent-vs-run-scope.md": {
         "slug": "maf-py-29-agent-vs-run-scope", "date": "2026-04-29",
+        "redirect_to": "maf-py-middleware-cross-cutting",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Middleware"],
         "audience": "Python developers choosing whether a middleware should apply to every run or only a single agent.run() call.",
         "excerpt": "Agent-scope middleware fires on every run for cross-cutting policy; run-scope fires only for its call. The same middleware= keyword nests both around the agent.",
@@ -835,6 +931,7 @@ POST_META = {
     },
     "2026-04-30-maf-py-30-termination.md": {
         "slug": "maf-py-30-termination", "date": "2026-04-30",
+        "redirect_to": "maf-py-workflows-advanced",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Guardrails"],
         "audience": "Python developers building input guardrails and response quotas by stopping a run from inside middleware.",
         "excerpt": "Raise MiddlewareTermination to stop a run: block disallowed input before the model, or cap responses using state carried on the middleware instance across runs.",
@@ -847,6 +944,7 @@ POST_META = {
     },
     "2026-05-01-maf-py-31-result-overrides.md": {
         "slug": "maf-py-31-result-overrides", "date": "2026-05-01",
+        "redirect_to": "maf-py-middleware-cross-cutting",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Middleware"],
         "audience": "Python developers who need to enrich, redact, or replace an agent's output after the model finishes.",
         "excerpt": "Result-override middleware rewrites context.result after call_next(); chat middleware overrides each ChatResponse and agent middleware wraps the whole AgentResponse.",
@@ -859,6 +957,7 @@ POST_META = {
     },
     "2026-05-02-maf-py-32-exception-handling.md": {
         "slug": "maf-py-32-exception-handling", "date": "2026-05-02",
+        "redirect_to": "maf-py-middleware-cross-cutting",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Error Handling"],
         "audience": "Python developers who want tool failures caught centrally and turned into graceful replies instead of crashes.",
         "excerpt": "Wrap call_next() in try/except inside FunctionInvocationContext middleware to catch tool exceptions like TimeoutError and set context.result to a friendly fallback.",
@@ -871,6 +970,7 @@ POST_META = {
     },
     "2026-05-03-maf-py-33-shared-state.md": {
         "slug": "maf-py-33-shared-state", "date": "2026-05-03",
+        "redirect_to": "maf-py-memory-context-state",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Middleware Shared State"],
         "audience": "Python developers chaining function middleware that needs to pass data forward across calls in Microsoft Agent Framework.",
         "excerpt": "Function middleware has no built-in shared bag, so put both middleware on one object and let them read and write instance attributes. That instance is the shared state.",
@@ -883,6 +983,7 @@ POST_META = {
     },
     "2026-05-04-maf-py-34-runtime-context.md": {
         "slug": "maf-py-34-runtime-context", "date": "2026-05-04",
+        "redirect_to": "maf-py-memory-context-state",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Runtime Context"],
         "audience": "Python developers who need to pass per-request values to tools without exposing them in the model's tool schema.",
         "excerpt": "Pass per-run values via function_invocation_kwargs and read them from FunctionInvocationContext inside tools and middleware, with session.state for state that persists across runs.",
@@ -895,6 +996,7 @@ POST_META = {
     },
     "2026-05-05-maf-py-35-foundry.md": {
         "slug": "maf-py-35-foundry", "date": "2026-05-05",
+        "redirect_to": "maf-py-models-providers",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Azure AI Foundry"],
         "audience": "Python developers choosing between direct-inference FoundryChatClient and service-managed FoundryAgent for an Azure AI Foundry project.",
         "excerpt": "Foundry offers two doors to a deployed model: FoundryChatClient where your app owns the loop, and FoundryAgent where the portal definition wins. This runs the direct path end to end.",
@@ -907,6 +1009,7 @@ POST_META = {
     },
     "2026-05-06-maf-py-36-custom-provider.md": {
         "slug": "maf-py-36-custom-provider", "date": "2026-05-06",
+        "redirect_to": "maf-py-models-providers",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Custom Agent"],
         "audience": "Python developers writing their own agent by subclassing BaseAgent so it drops in wherever a framework Agent is used.",
         "excerpt": "Subclass BaseAgent and implement one run() method to satisfy SupportsAgentRun. A deterministic EchoAgent then behaves like any framework agent, no chat client required.",
@@ -1010,6 +1113,7 @@ POST_META = {
     },
     "2026-05-14-maf-py-44-control-flow.md": {
         "slug": "maf-py-44-control-flow", "date": "2026-05-14",
+        "redirect_to": "maf-py-workflows-core",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Control Flow"],
         "audience": "Python developers routing a workflow's next executor by data with switch-case edge groups, no model required.",
         "excerpt": "A workflow isn't always a straight line: a switch-case edge group routes a message to the first Case whose predicate is true, else to the Default.",
@@ -1022,6 +1126,7 @@ POST_META = {
     },
     "2026-05-15-maf-py-45-parallelism.md": {
         "slug": "maf-py-45-parallelism", "date": "2026-05-15",
+        "redirect_to": "maf-py-workflows-advanced",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Parallelism"],
         "audience": "Python developers fanning work out to concurrent executors and fanning it back in to a joiner in a MAF workflow.",
         "excerpt": "Fan-out broadcasts the same message to concurrent workers; fan-in gives a joiner a list of all outputs and fires once every source completes.",
@@ -1034,6 +1139,7 @@ POST_META = {
     },
     "2026-05-16-maf-py-46-checkpointing.md": {
         "slug": "maf-py-46-checkpointing", "date": "2026-05-16",
+        "redirect_to": "maf-py-workflows-advanced",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Checkpointing"],
         "audience": "Python developers persisting workflow state so long or human-gated runs survive crashes and can resume.",
         "excerpt": "Hand the builder a CheckpointStorage and it snapshots state after each superstep, so you can list saved checkpoints and resume from an id.",
@@ -1046,6 +1152,7 @@ POST_META = {
     },
     "2026-05-17-maf-py-47-human-in-the-loop.md": {
         "slug": "maf-py-47-human-in-the-loop", "date": "2026-05-17",
+        "redirect_to": "maf-py-human-in-loop-observability",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Human In The Loop"],
         "audience": "Python developers suspending a workflow for a human decision and resuming with the answer keyed by request_id.",
         "excerpt": "request_info suspends the workflow and returns a pending request; you resume by re-running with the human's answer keyed by the same request_id.",
@@ -1058,6 +1165,7 @@ POST_META = {
     },
     "2026-05-18-maf-py-48-workflow-as-agent.md": {
         "slug": "maf-py-48-workflow-as-agent", "date": "2026-05-18",
+        "redirect_to": "maf-py-human-in-loop-observability",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Workflow As Agent"],
         "audience": "Python developers packaging a whole workflow as an agent so it drops in anywhere an agent is expected.",
         "excerpt": "A workflow and an agent both expose run(); workflow.as_agent() packages a workflow as an agent whose start executor accepts a list of Message.",
@@ -1070,6 +1178,7 @@ POST_META = {
     },
     "2026-05-19-maf-py-49-events.md": {
         "slug": "maf-py-49-events", "date": "2026-05-19",
+        "redirect_to": "maf-py-workflows-core",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Workflow Events"],
         "audience": "Python developers who want to stream a running workflow and react to built-in and custom events as they happen.",
         "excerpt": "Stream a Microsoft Agent Framework workflow with run(stream=True). Every event is one WorkflowEvent keyed by a .type string, plus custom events via ctx.add_event.",
@@ -1082,6 +1191,7 @@ POST_META = {
     },
     "2026-05-20-maf-py-50-workflow-builder.md": {
         "slug": "maf-py-50-workflow-builder", "date": "2026-05-20",
+        "redirect_to": "maf-py-workflows-core",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Workflow Builder"],
         "audience": "Python developers assembling multi-step agent pipelines as a graph of executors and edges.",
         "excerpt": "Build a graph workflow with WorkflowBuilder: set a start executor, add edges, build, and run. Handlers are async and type-annotated; output_from names the terminal node.",
@@ -1094,6 +1204,7 @@ POST_META = {
     },
     "2026-05-21-maf-py-51-agents-in-workflows.md": {
         "slug": "maf-py-51-agents-in-workflows", "date": "2026-05-21",
+        "redirect_to": "maf-py-workflows-core",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Multi-Agent Workflows"],
         "audience": "Python developers composing multi-agent pipelines where each agent is a graph node.",
         "excerpt": "Use an agent as a workflow executor node directly, no subclass needed. Wire Writer to Reviewer with an edge and group streamed AgentResponseUpdate tokens by author.",
@@ -1106,6 +1217,7 @@ POST_META = {
     },
     "2026-05-22-maf-py-52-state-management.md": {
         "slug": "maf-py-52-state-management", "date": "2026-05-22",
+        "redirect_to": "maf-py-workflows-advanced",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Shared State"],
         "audience": "Python developers who need downstream executors to read data that never traveled on the edge.",
         "excerpt": "Share workflow state with ctx.set_state and ctx.get_state so big payloads skip the edge. Writers see updates immediately; other nodes see them the next superstep.",
@@ -1118,6 +1230,7 @@ POST_META = {
     },
     "2026-05-23-maf-py-53-declarative-workflow.md": {
         "slug": "maf-py-53-declarative-workflow", "date": "2026-05-23",
+        "redirect_to": "maf-py-workflows-advanced",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Declarative Workflows"],
         "audience": "Python developers who want orchestration as editable YAML data rather than hand-wired Python.",
         "excerpt": "Declare a workflow in YAML and load it with WorkflowFactory. Ordered actions call agents resolved by name, with PowerFx expressions for prompts and variables.",
@@ -1130,6 +1243,7 @@ POST_META = {
     },
     "2026-05-24-maf-py-54-workflow-observability.md": {
         "slug": "maf-py-54-workflow-observability", "date": "2026-05-24",
+        "redirect_to": "maf-py-human-in-loop-observability",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "OpenTelemetry"],
         "audience": "Python developers who want to trace a workflow run as OpenTelemetry spans they can inspect.",
         "excerpt": "Trace a workflow with configure_otel_providers and a root span. The framework emits workflow.build, workflow.run, executor.process, edge_group.process, message.send spans.",
@@ -1142,6 +1256,7 @@ POST_META = {
     },
     "2026-05-25-maf-py-55-visualization.md": {
         "slug": "maf-py-55-visualization", "date": "2026-05-25",
+        "redirect_to": "maf-py-human-in-loop-observability",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Workflow Visualization"],
         "audience": "Python developers who want to eyeball a workflow's fan-out/fan-in structure before running it.",
         "excerpt": "Render a built workflow with WorkflowViz as Mermaid or Graphviz DOT, or export an image. Text formats need no deps; visualization reads graph shape without calling agents.",
@@ -1154,6 +1269,7 @@ POST_META = {
     },
     "2026-05-26-maf-py-56-agent-executor.md": {
         "slug": "maf-py-56-agent-executor", "date": "2026-05-26",
+        "redirect_to": "maf-py-workflows-advanced",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Agent Executor"],
         "audience": "Python developers chaining agents in a workflow who need control over ids and context mode.",
         "excerpt": "Wrap agents explicitly as AgentExecutors to set the id and context_mode. last_agent mode feeds a downstream agent only the previous reply, ideal for translate and refine.",
@@ -1166,6 +1282,7 @@ POST_META = {
     },
     "2026-05-27-maf-py-57-execution-modes.md": {
         "slug": "maf-py-57-execution-modes", "date": "2026-05-27",
+        "redirect_to": "maf-py-workflows-advanced",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Workflow Execution"],
         "audience": "Python developers who want to consume the same workflow both as an awaited result and as a live event stream.",
         "excerpt": "One workflow.run graph, two modes: await it to completion or iterate stream=True live events. The .NET OffThread/Lockstep modes do not apply to Python.",
@@ -1178,6 +1295,7 @@ POST_META = {
     },
     "2026-05-28-maf-py-58-resettable-executors.md": {
         "slug": "maf-py-58-resettable-executors", "date": "2026-05-28",
+        "redirect_to": "maf-py-workflows-advanced",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Executor State"],
         "audience": "Python developers whose stateful executors leak data when a workflow instance is reused across independent runs.",
         "excerpt": "Reusing one workflow across runs leaks executor state. .NET has IResettableExecutor; Python's answer is a factory that builds fresh workflow and executor instances per run.",
@@ -1190,6 +1308,7 @@ POST_META = {
     },
     "2026-05-29-maf-py-59-sub-workflows.md": {
         "slug": "maf-py-59-sub-workflows", "date": "2026-05-29",
+        "redirect_to": "maf-py-workflows-advanced",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Sub-Workflows"],
         "audience": "Python developers composing large workflows from smaller, reusable, independently-testable graphs nested as executors.",
         "excerpt": "Run a whole workflow as one executor inside a parent: wrap the inner graph in WorkflowExecutor, line up its I/O types, and drop it into the parent like any node.",
@@ -1202,6 +1321,7 @@ POST_META = {
     },
     "2026-05-30-maf-py-60-sequential.md": {
         "slug": "maf-py-60-sequential", "date": "2026-05-30",
+        "redirect_to": "maf-py-multi-agent-orchestration",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Orchestration"],
         "audience": "Python developers wiring agents into a pipeline where each step builds on the previous one.",
         "excerpt": "Sequential orchestration chains agents so each runs in turn and feeds the next. Hand a list to SequentialBuilder, build, and run once — draft then review.",
@@ -1214,6 +1334,7 @@ POST_META = {
     },
     "2026-05-31-maf-py-61-concurrent.md": {
         "slug": "maf-py-61-concurrent", "date": "2026-05-31",
+        "redirect_to": "maf-py-multi-agent-orchestration",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Orchestration"],
         "audience": "Python developers who want several agents to answer one prompt in parallel and aggregate the results.",
         "excerpt": "Concurrent orchestration fans one prompt out to several agents in parallel, then fans their answers back in with a built-in aggregator. Latency is max(agent), not sum.",
@@ -1226,6 +1347,7 @@ POST_META = {
     },
     "2026-06-01-maf-py-62-handoff.md": {
         "slug": "maf-py-62-handoff", "date": "2026-06-01",
+        "redirect_to": "maf-py-multi-agent-orchestration",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Orchestration"],
         "audience": "Python developers building support-style meshes where specialists transfer whole conversations to each other with no central orchestrator.",
         "excerpt": "Handoff orchestration lets any agent transfer the whole conversation to a better-suited peer via an auto-injected tool call. Run unattended with autonomous mode.",
@@ -1238,6 +1360,7 @@ POST_META = {
     },
     "2026-06-02-maf-py-63-group-chat.md": {
         "slug": "maf-py-63-group-chat", "date": "2026-06-02",
+        "redirect_to": "maf-py-multi-agent-orchestration",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Orchestration"],
         "audience": "Python developers coordinating a collaborative multi-agent conversation where an orchestrator picks who speaks next.",
         "excerpt": "Group chat coordinates several agents in a star topology: an orchestrator decides who speaks next while agents share full history and refine each other over rounds.",
@@ -1250,6 +1373,7 @@ POST_META = {
     },
     "2026-06-03-maf-py-64-magentic.md": {
         "slug": "maf-py-64-magentic", "date": "2026-06-03",
+        "redirect_to": "maf-py-multi-agent-orchestration",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Orchestration"],
         "audience": "Python developers tackling open-ended tasks where a manager agent must plan and delegate to specialists dynamically.",
         "excerpt": "Magentic orchestration puts a manager agent in charge: it plans, keeps a shared ledger, and picks which specialist acts next round by round until it synthesizes an answer.",
@@ -1262,6 +1386,7 @@ POST_META = {
     },
     "2026-06-04-maf-py-65-devui.md": {
         "slug": "maf-py-65-devui", "date": "2026-06-04",
+        "redirect_to": "maf-py-devui-durability",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "DevUI"],
         "audience": "Python developers who want a local web chat window and call inspector to see an agent and its tool calls in real time.",
         "excerpt": "DevUI wraps any Foundry agent in a local chat window plus a live inspector via serve(entities=[agent]) from the separate agent-framework-devui package.",
@@ -1274,6 +1399,7 @@ POST_META = {
     },
     "2026-06-05-maf-py-66-a2a.md": {
         "slug": "maf-py-66-a2a", "date": "2026-06-05",
+        "redirect_to": "maf-py-multi-agent-orchestration",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "A2A Protocol"],
         "audience": "Python developers who need one agent to call another over a standard network protocol, either consuming or exposing agents.",
         "excerpt": "A2A turns an agent into a network service: consume a remote one with A2AAgent(url=...) or expose your local Foundry agent by wrapping it in A2AExecutor.",
@@ -1286,6 +1412,7 @@ POST_META = {
     },
     "2026-06-06-maf-py-67-durable-extension.md": {
         "slug": "maf-py-67-durable-extension", "date": "2026-06-06",
+        "redirect_to": "maf-py-devui-durability",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Durable Hosting"],
         "audience": "Python developers who need agent threads and multi-agent orchestrations to survive crashes and resume on any worker.",
         "excerpt": "The Durable Extension checkpoints agent threads on Durable Task infra: wrap agents in AgentFunctionApp and yield durable-wrapper calls inside orchestration triggers.",
@@ -1298,6 +1425,7 @@ POST_META = {
     },
     "2026-06-07-maf-py-68-openai-endpoints.md": {
         "slug": "maf-py-68-openai-endpoints", "date": "2026-06-07",
+        "redirect_to": "maf-py-models-providers",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "OpenAI Protocol"],
         "audience": "Python developers who want their agent to speak the OpenAI Chat Completions and Responses wire protocols, hosting or consuming.",
         "excerpt": "Agent Framework speaks the OpenAI Chat Completions and stateful Responses protocols; the Python pivot consumes any base_url endpoint while a Foundry agent stays the backend brain.",
@@ -1310,6 +1438,7 @@ POST_META = {
     },
     "2026-06-08-maf-py-69-foundry-hosted-agent.md": {
         "slug": "maf-py-69-foundry-hosted-agent", "date": "2026-06-08",
+        "redirect_to": "maf-py-models-providers",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Foundry Hosting"],
         "audience": "Python developers who want to package an agent as a container on Foundry Agent Service with managed scaling and identity.",
         "excerpt": "A Foundry hosted agent runs as a managed container: wrap the agent in ResponsesHostServer to serve POST /responses, and set store=False so the host owns history.",
@@ -1322,6 +1451,7 @@ POST_META = {
     },
     "2026-06-09-maf-py-70-devui-discovery.md": {
         "slug": "maf-py-70-devui-discovery", "date": "2026-06-09",
+        "redirect_to": "maf-py-devui-durability",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "DevUI"],
         "audience": "Python developers who want DevUI to auto-discover and serve a whole directory of agents with one command.",
         "excerpt": "DevUI directory discovery serves a folder of agents at once: each entity dir exports a module-level agent variable, then devui ./entities finds them all.",
@@ -1334,6 +1464,7 @@ POST_META = {
     },
     "2026-06-10-maf-py-71-devui-tracing.md": {
         "slug": "maf-py-71-devui-tracing", "date": "2026-06-10",
+        "redirect_to": "maf-py-devui-durability",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "Observability"],
         "audience": "Python developers who want to see the OpenTelemetry spans an agent emits rendered as a timeline in the DevUI debug panel.",
         "excerpt": "DevUI tracing renders the OTel GenAI spans the framework already emits: pass tracing_enabled=True to serve() to see LLM and tool calls as a timeline.",
@@ -1346,6 +1477,7 @@ POST_META = {
     },
     "2026-06-11-maf-py-72-getting-started.md": {
         "slug": "maf-py-72-getting-started", "date": "2026-06-11",
+        "redirect_to": "maf-py-getting-started",
         "tags": ["Microsoft Agent Framework", "Python", "AI Agents", "AG-UI"],
         "audience": "Python developers who want to expose an agent to any HTTP front-end as a streaming SSE endpoint via FastAPI.",
         "excerpt": "AG-UI exposes an agent over HTTP + SSE: one add_agent_framework_fastapi_endpoint call registers a POST route that streams RUN_STARTED through RUN_FINISHED events.",
