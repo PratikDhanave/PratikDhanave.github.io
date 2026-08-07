@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Building Workflows in Microsoft Agent Framework...</title>
+<meta name="description" content="From a single decorated async function to an explicit graph of executors and agent nodes — the core workflow model in Microsoft Agent Framework, and...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Building Workflows in Microsoft Agent Framework...">
+<meta property="og:description" content="From a single decorated async function to an explicit graph of executors and agent nodes — the core workflow model in Microsoft Agent Framework, and the two APIs that express it.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/maf-py-workflows-core.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-07T00:00:00Z">
+<meta property="article:tag" content="Microsoft Agent Framework">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Workflows">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Building Workflows in Microsoft Agent Framework...">
+<meta name="twitter:description" content="From a single decorated async function to an explicit graph of executors and agent nodes — the core workflow model in Microsoft Agent Framework, and the two APIs that express it.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/maf-py-workflows-core.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Building Workflows in Microsoft Agent Framework (Python): The Core Model",
+  "description": "From a single decorated async function to an explicit graph of executors and agent nodes \u2014 the core workflow model in Microsoft Agent Framework, and the two APIs that express it.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-07",
+  "dateModified": "2026-08-07",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Microsoft Agent Framework, Python, AI Agents, Workflows",
+  "url": "https://pratikdhanave.com/blog/posts/maf-py-workflows-core.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/maf-py-workflows-core.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">GCN Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Building Workflows in Microsoft Agent Framework (Python): The Core Model</h1>
+    <p class="post-subtitle">From a single decorated async function to an explicit graph of executors and agent nodes — the core workflow model in Microsoft Agent Framework, and the two APIs that express it.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-07">August 07, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/microsoft-agent-framework/" class="tag-link"><span class="tag">#Microsoft Agent Framework</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/workflows/" class="tag-link"><span class="tag">#Workflows</span></a></div>
+  </header>
+
+
+
+
+
+  <p>A single agent is one request in, one answer out. Real work is rarely that shape: you draft then edit, classify then route, prepare then generate then finalize. A <strong>workflow</strong> is how Microsoft Agent Framework (MAF) composes several steps — plain functions, branching logic, and whole agents — into one runnable unit that carries a message from start to finish.</p>
+<p>The framework gives you two ways to express the same idea, and picking between them is most of the design decision:</p>
+<ol>
+<li><strong>The functional API</strong> — decorate an async function with <code>@workflow</code> and write orchestration as ordinary Python: <code>if</code>, <code>for</code>, and <code>await</code>. The graph is implicit in your control flow.</li>
+<li><strong>The graph API</strong> — declare <strong>executors</strong> (nodes) and wire them with <strong>edges</strong> using <code>WorkflowBuilder</code>. The graph is explicit, and it&rsquo;s what unlocks branching, streaming events, and — in the advanced guide — parallelism, checkpointing, and sub-workflows.</li>
+</ol>
+<p>Both APIs run the same engine underneath. This guide walks from the gentlest entry point up to a graph of agents, keeping every mechanic visible along the way.</p>
+<p>A note on credentials before we start: any example that calls a model drives a <code>FoundryChatClient</code> on Azure AI Foundry authenticated with <code>AzureCliCredential()</code> — so <code>az login</code> first. Construction is always offline; the client only touches the network when a workflow actually <code>run()</code>s. Several examples below have <strong>no</strong> model at all, and those need no credentials whatsoever — a deliberate choice, because it lets you reason about the orchestration machinery without the LLM in the way.</p>
+<hr>
+<h2 id="1-the-functional-api-plain-python-is-the-orchestration">1. The functional API: plain Python is the orchestration</h2>
+<p>The softest entry point hides the graph completely. You write an async function, decorate it with <code>@workflow</code>, and ordinary control flow <em>becomes</em> the orchestration. To see the mechanics with nothing else in the picture, start with a workflow that has no agent and no model call at all — it classifies a string as &ldquo;short&rdquo; or &ldquo;long&rdquo;:</p>
+<pre><code class="language-python">@step
+async def normalize(text: str) -&gt; str:
+    return text.strip().lower()
+
+@step
+async def word_count(text: str) -&gt; int:
+    return len(text.split())
+
+@workflow
+async def summarize_input(raw: str) -&gt; str:
+    clean = await normalize(raw)
+    count = await word_count(clean)
+    verdict = &quot;short&quot; if count &lt; 5 else &quot;long&quot;
+    return f&quot;{count} words ({verdict}): {clean!r}&quot;
+</code></pre>
+<p>A <code>@step</code> is an async unit of work whose result is cached and checkpointed; a <code>@workflow</code> composes steps with ordinary control flow. There&rsquo;s no DSL to learn before the graph API arrives — sequential <code>await</code>s and a plain <code>if</code> branch are the whole program. The reason <code>@step</code> matters even here, where it just runs top to bottom, is that <strong>checkpointing lives in the step boundary</strong>: each step&rsquo;s result is cached, which is what makes workflows resumable later.</p>
+<p>Swap the pure functions for agents and nothing about the shape changes — a WRITER drafts a paragraph and an EDITOR tightens it, one line of glue each:</p>
+<pre><code class="language-python">@workflow
+async def draft_and_edit(topic: str) -&gt; str:
+    draft = await writer.run(topic)
+    print(f&quot;\n[writer draft]\n{draft.text}\n&quot;)
+    final = await editor.run(draft.text)
+    return final.text
+</code></pre>
+<p>The key thing to notice is that <strong>the output of one step feeds the next as plain data</strong>. <code>editor.run(draft.text)</code> consumes the writer&rsquo;s text directly — no message bus, no wiring, just <code>await</code>. Both agents share one <code>FoundryChatClient</code>, so this workflow makes two sequential Foundry calls, writer then editor.</p>
+<p>Running a functional workflow looks like calling any async function, but the return type has a twist:</p>
+<pre><code class="language-python">result = await draft_and_edit.run(&quot;Deploying to production on a Friday&quot;)
+print(result.get_outputs()[0])
+</code></pre>
+<p><strong>The gotcha:</strong> <code>.run()</code> returns a <code>WorkflowRunResult</code>, <strong>not</strong> the value. Call <code>.get_outputs()</code> to get a list — a workflow can yield more than one output — and <code>[0]</code> is the returned string. The other thing to expect: the functional workflow API is marked experimental in this SDK build, so you may see an experimental-feature warning at runtime. That is expected, not an error.</p>
+<p>The functional API is ideal when your orchestration is a straight line or simple branch you can read top-to-bottom. The moment you need data-driven routing, live progress events, or fan-out, you want the graph to be a real object you can inspect and wire — which is the graph API.</p>
+<hr>
+<h2 id="2-the-graph-model-executors-and-edges">2. The graph model: executors and edges</h2>
+<p>Under the functional sugar, a workflow is a set of <strong>executors</strong> (nodes) joined by <strong>edges</strong>. A message enters the start executor and flows along the edges; each executor either forwards a message with <code>ctx.send_message</code> or emits a final result with <code>ctx.yield_output</code>. Making that graph explicit is the graph API&rsquo;s whole job.</p>
+<p>There are two ways to write an executor: subclass <code>Executor</code> and mark a method with <code>@handler</code>, or decorate a module-level async function with <code>@executor</code>. A minimal two-node graph — uppercase, then reverse — shows both, wired with <code>WorkflowBuilder</code>:</p>
+<pre><code class="language-python">class Upper(Executor):
+    @handler
+    async def process(self, text: str, ctx: WorkflowContext[str]) -&gt; None:
+        await ctx.send_message(text.upper())
+
+@executor(id=&quot;reverse&quot;)
+async def reverse_text(text: str, ctx: WorkflowContext[Never, str]) -&gt; None:
+    await ctx.yield_output(text[::-1])
+
+workflow = WorkflowBuilder(start_executor=up).add_edge(up, reverse_text).build()
+</code></pre>
+<p>The subtlety worth internalizing is that <strong>the type hint carries routing intent</strong>. <code>WorkflowContext[str]</code> means the node will <code>send_message(str)</code> onward; <code>WorkflowContext[Never, str]</code> marks the node <strong>terminal</strong> — it sends no further message and only <code>yield_output(str)</code>. That distinction is the entire routing contract, declared in the annotation.</p>
+<p><strong>The gotcha:</strong> <code>send_message</code> versus <code>yield_output</code> is the whole distinction — one forwards to the next edge, the other ends the workflow. Get them backwards and your graph either never terminates or terminates too early.</p>
+<p>The fluent builder scales to longer chains the same way. Here three nodes run in sequence — a plain function executor prepares a prompt, a Foundry agent wrapped in an <code>Executor</code> writes, and a final node yields the output:</p>
+<pre><code class="language-python">@executor(id=&quot;prepare&quot;)
+async def prepare(topic: str, ctx: WorkflowContext[str]) -&gt; None:
+    await ctx.send_message(f&quot;Write a two-sentence explainer about: {topic}&quot;)
+
+@executor(id=&quot;finalize&quot;)
+async def finalize(draft: str, ctx: WorkflowContext[Never, str]) -&gt; None:
+    await ctx.yield_output(draft.strip())
+
+return (
+    WorkflowBuilder(start_executor=prepare, output_from=[finalize])
+    .add_edge(prepare, writer)
+    .add_edge(writer, finalize)
+    .build()
+)
+</code></pre>
+<p><strong>The gotcha:</strong> <code>WorkflowBuilder</code> takes <code>start_executor=...</code> as a <strong>keyword</strong> arg, not positional. Handlers must be async and <strong>type-annotated</strong> — the framework reads the annotations to route messages. And <em>which</em> executor&rsquo;s <code>yield_output</code> counts as the terminal answer is a <strong>build-time</strong> choice: pass <code>output_from=[...]</code> to the builder to name it. A non-streaming <code>run</code> returns a <code>WorkflowRunResult</code>, read with <code>result.get_outputs()</code>, exactly like the functional API.</p>
+<p>The pattern to carry forward: an agent drops into a graph as an ordinary node by wrapping it in an <code>Executor</code> subclass. The Foundry client only touches the network when that node runs — construction stays offline.</p>
+<hr>
+<h2 id="3-where-agents-plug-in-the-agent-pipeline">3. Where agents plug in: the agent pipeline</h2>
+<p>Before wiring agents directly into graphs, it helps to know what an <code>Agent</code> actually <em>is</em>, because that tells you exactly where you can intervene. An <code>Agent</code> is not a single function call — it&rsquo;s a layered pipeline every request flows through, built by class composition:</p>
+<pre><code>Agent (outer)                     ← what you construct
+  ├─ Agent Middleware + Telemetry ← wraps run(); logging/validation/spans
+  ├─ RawAgent                     ← core logic; invokes context providers
+  └─ Context Providers            ← history + extra context, per-run
+ChatClient (separate, swappable)
+  ├─ FunctionInvocation           ← the tool-calling loop
+  ├─ Chat Middleware + Telemetry  ← runs per model call
+  └─ RawChatClient                ← provider-specific LLM comms (Foundry here)
+</code></pre>
+<p>A request descends the Agent layers, crosses into the ChatClient pipeline, hits the model, and the response flows back up. You hook the outermost layer with middleware:</p>
+<pre><code class="language-python">@agent_middleware
+async def tracing_middleware(context: AgentContext, call_next) -&gt; None:
+    print(&quot;  [agent-middleware] entering pipeline — request handed to RawAgent&quot;)
+    await call_next()  # descend: context providers -&gt; ChatClient -&gt; LLM -&gt; back up
+    print(&quot;  [agent-middleware] leaving pipeline — response has flowed back up&quot;)
+</code></pre>
+<p>Wiring it together, <code>Agent(..., middleware=[tracing_middleware], context_providers=[InMemoryHistoryProvider()])</code> attaches the outermost layer and the context layer. With a history provider in place, turn 1 stores a name and turn 2 recalls it, because the provider replays turn 1 into the request before it reaches the ChatClient.</p>
+<p><strong>The gotcha:</strong> middleware is attached at construction (<code>Agent(..., middleware=[fn])</code>), and both history and RAG/context providers live in <strong>one</strong> unified <code>context_providers=[...]</code> list — there&rsquo;s no separate history argument. Providers run in list order and can even attach per-invocation chat/function middleware, which the agent flattens before entering the ChatClient pipeline.</p>
+<p>The payoff for workflow design is the bottom of the diagram: <strong>the ChatClient is a separate, interchangeable component.</strong> Swapping Foundry (<code>FoundryChatClient</code> + <code>AzureCliCredential</code>) for another provider changes only <code>RawChatClient</code> — every outer Agent layer, and therefore every workflow that wraps the agent, is unchanged. That&rsquo;s why an agent behaves like any other node once it&rsquo;s in the graph.</p>
+<hr>
+<h2 id="4-agents-as-nodes-directly">4. Agents as nodes, directly</h2>
+<p>Wrapping an agent in an <code>Executor</code> subclass works, but for the common case you don&rsquo;t even need the wrapper — <strong>an agent can be a graph node directly.</strong> Here a Writer agent drafts content and a direct edge hands its output to a Reviewer agent that critiques it:</p>
+<pre><code class="language-python">return (
+    WorkflowBuilder(start_executor=writer_agent)
+    .add_edge(writer_agent, reviewer_agent)
+    .build()
+)
+</code></pre>
+<p>The agents <em>are</em> the executors — the Writer is the start node, an edge feeds the Reviewer, output flows down the pipeline, and latency is sequential (Writer, then Reviewer). Both share one <code>FoundryChatClient</code>, so the whole pipeline runs against a single Foundry model deployment. This is how you compose multi-agent behavior — draft → review → edit — without ever leaving the workflow graph.</p>
+<p>Reading streamed output from a multi-agent graph takes a little care, because tokens from different agents interleave:</p>
+<pre><code class="language-python">async for event in workflow.run(prompt, stream=True):
+    if event.type == &quot;output&quot; and isinstance(event.data, AgentResponseUpdate):
+        update = event.data
+        if update.author_name != last_author:
+            print(f&quot;\n{update.author_name}: {update.text}&quot;, end=&quot;&quot;, flush=True)
+            last_author = update.author_name
+        else:
+            print(update.text, end=&quot;&quot;, flush=True)
+</code></pre>
+<p><strong>The gotcha:</strong> <code>workflow.run(prompt, stream=True)</code> yields <code>WorkflowEvent</code>s — filter <code>event.type == "output"</code> <strong>and</strong> check <code>isinstance(event.data, AgentResponseUpdate)</code> to read streamed agent tokens. Each update carries <code>.author_name</code> (which agent) and <code>.text</code> (the token chunk), so you group consecutive chunks by author to reconstruct each agent&rsquo;s message. (Upstream docs sometimes build agents via <code>client.as_agent(...)</code>; this repo&rsquo;s house style uses the <code>Agent(client=...)</code> constructor — same resulting executor.)</p>
+<hr>
+<h2 id="5-branching-routing-by-the-data">5. Branching: routing by the data</h2>
+<p>A pipeline that always runs the same nodes in the same order is only half the story. Often the <em>next</em> executor depends on the <em>data</em>, and the graph API expresses that with a <strong>switch-case edge group</strong>: from one source, a message is routed to the first <code>Case</code> whose predicate is true, else to the <code>Default</code>. This is the first branching primitive beyond a straight line — and, like the base graph, it needs no model, so it runs credential-free.</p>
+<p>The branching lives entirely in <code>add_switch_case_edge_group</code>. This example routes even numbers to a &ldquo;fast lane&rdquo; executor and odds to a &ldquo;review lane&rdquo;:</p>
+<pre><code class="language-python">workflow = (
+    WorkflowBuilder(start_executor=intake)
+    .add_switch_case_edge_group(
+        intake,
+        [
+            Case(condition=lambda x: x % 2 == 0, target=even),
+            Default(target=odd),
+        ],
+    )
+    .build()
+)
+result = await workflow.run(n)
+return result.get_outputs()[0]
+</code></pre>
+<p>Two properties govern the routing. <strong>Cases are evaluated in order</strong> — the message goes to the <em>first</em> <code>Case</code> whose <code>condition</code> returns true, so order matters when predicates overlap. And <strong>predicates are plain callables</strong>: <code>lambda x: x % 2 == 0</code> is ordinary Python over the message, which keeps routing logic in your code rather than the model&rsquo;s. Each target executor is a small class with a <code>@handler</code> that calls <code>ctx.yield_output(...)</code> on the routed message, its output type declared on the context as before (<code>WorkflowContext[Never, str]</code> for a terminal node, <code>WorkflowContext[int]</code> for one that forwards).</p>
+<p><strong>The gotcha:</strong> every switch-case group needs a <code>Default</code>. Cases are <strong>not</strong> exhaustive on their own — a message that matches no <code>Case</code> and has no <code>Default</code> has nowhere to go. Always terminate the group with a <code>Default(target=...)</code> so the routing is total.</p>
+<p>This is graph plumbing that sits <em>below</em> the agent layer, but the same edge groups carry agent executors: swap the even/odd handlers for agents and the switch-case decides which agent handles a message. Learning routing on pure functions first keeps the mechanics visible before models enter the graph.</p>
+<hr>
+<h2 id="6-watching-a-run-events-and-streaming">6. Watching a run: events and streaming</h2>
+<p>A workflow doesn&rsquo;t have to be a black box. As it runs, it <strong>emits events</strong> at every step, and <code>workflow.run(x, stream=True)</code> hands them to you one at a time as an async iterator — so you can show progress, log diagnostics, or relay domain data live instead of only seeing the final output.</p>
+<p>The design choice that shapes everything here: the Python SDK has <strong>no per-kind event classes</strong>. Every event is a single <code>WorkflowEvent</code> discriminated by a <code>.type</code> string — <code>"executor_invoked"</code>, <code>"executor_completed"</code>, <code>"output"</code>, <code>"intermediate"</code>, <code>"error"</code>. Executors can also emit <strong>custom</strong> events with any <code>type=</code> string plus a <code>data=</code> payload. An executor emits a custom <code>"progress"</code> event, and the caller filters on <code>.type</code>:</p>
+<pre><code class="language-python">class Summarize(Executor):
+    @handler
+    async def run(self, text: str, ctx: WorkflowContext[str]) -&gt; None:
+        await ctx.add_event(WorkflowEvent(type=&quot;progress&quot;, data=&quot;summarize: calling model&quot;))
+        reply = await agent.run(text)
+        await ctx.send_message(reply.text.strip())
+
+async for event in workflow.run(ARTICLE, stream=True):
+    if event.type == &quot;executor_invoked&quot;:
+        print(f&quot;  → invoked   : {event.executor_id}&quot;)
+    elif event.type == &quot;progress&quot;:            # our custom event
+        print(f&quot;  · progress  : {event.data}&quot;)
+    elif event.type == &quot;output&quot;:              # terminal, from ctx.yield_output
+        print(f&quot;  ★ output    : {event.data!r}&quot;)
+</code></pre>
+<p><strong>The gotcha:</strong> streaming is <code>workflow.run(x, stream=True)</code> — there is <strong>no</strong> <code>run_stream()</code>. And the types <code>"started"</code>, <code>"status"</code>, and <code>"failed"</code> are <strong>reserved</strong> for framework lifecycle: if an executor tries to emit one, the event is silently dropped and a warning logged. Mind the output distinction too — <code>"output"</code> is terminal output (via <code>ctx.yield_output</code>, read with <code>result.get_outputs()</code>) while <code>"intermediate"</code> is observational (read with <code>result.get_intermediate_outputs()</code>); <code>"data"</code> is a deprecated alias for <code>"intermediate"</code>.</p>
+<p>The event plumbing is client-agnostic, but when an executor wraps a <code>FoundryChatClient</code> agent the streamed <code>executor_invoked</code> / <code>progress</code> / <code>executor_completed</code> / <code>output</code> sequence wraps a real model call. In production you&rsquo;d forward the same events to a UI or an OpenTelemetry pipeline.</p>
+<hr>
+<h2 id="7-choosing-an-approach">7. Choosing an approach</h2>
+<table><caption class="sr-only">7. Choosing an approach</caption>
+<thead>
+<tr>
+<th>Need</th>
+<th>Reach for</th>
+<th>Model call?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Straight-line or simple-branch orchestration you read top-to-bottom</td>
+<td>Functional API (<code>@workflow</code> / <code>@step</code>)</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td>Resumable steps with cached results</td>
+<td><code>@step</code> boundaries (functional)</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td>An explicit, inspectable graph you wire node-by-node</td>
+<td>Graph API (<code>WorkflowBuilder</code> + edges)</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td>Compose several agents (draft → review → edit)</td>
+<td>Agents as executor nodes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Route the next node by the data</td>
+<td><code>add_switch_case_edge_group</code> (<code>Case</code> / <code>Default</code>)</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td>Watch progress live / relay custom domain events</td>
+<td><code>run(x, stream=True)</code> + <code>WorkflowEvent.type</code></td>
+<td>Optional</td>
+</tr>
+<tr>
+<td>Intercept every agent request</td>
+<td>Agent middleware + context providers</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Fan-out parallelism, checkpointing, sub-workflows</td>
+<td><em>See the advanced workflows guide</em></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Two APIs, one engine.</strong> The functional API (<code>@workflow</code> over plain <code>await</code>) is the gentlest entry point; the graph API (<code>WorkflowBuilder</code> + executors + edges) makes the graph an explicit object — and that explicitness is what unlocks branching, streaming, and the advanced features.</li>
+<li><strong><code>.run()</code> returns a <code>WorkflowRunResult</code>, never the value.</strong> Read terminal output with <code>result.get_outputs()</code> — it&rsquo;s a list because a workflow can yield more than one output.</li>
+<li><strong><code>send_message</code> forwards, <code>yield_output</code> terminates</strong>, and the <code>WorkflowContext[...]</code> type hint declares which a node does. <code>WorkflowContext[Never, T]</code> marks a terminal node that only yields.</li>
+<li><strong>Agents are nodes.</strong> Wrap one in an <code>Executor</code>, or drop the agent straight into <code>WorkflowBuilder</code> as a node — the layered Agent pipeline (middleware → context providers → swappable ChatClient) is why it composes cleanly.</li>
+<li><strong>Branching needs a <code>Default</code>.</strong> Switch-case groups evaluate <code>Case</code>s in order and are not exhaustive on their own.</li>
+<li><strong>Events are one type, discriminated by <code>.type</code>.</strong> Stream with <code>run(x, stream=True)</code> (there is no <code>run_stream()</code>); <code>"started"</code>, <code>"status"</code>, and <code>"failed"</code> are reserved for the framework.</li>
+</ul>
+<p>Everything here is provider-agnostic in shape: the <code>FoundryChatClient</code> + <code>AzureCliCredential</code> pairing is just the model plumbing, and swapping it changes only the innermost ChatClient layer. Your real design work is choosing between the functional and graph APIs, deciding where each node yields versus forwards, and where the data — not the model — should decide the path. When you outgrow a single graph and need parallel fan-out, resumable checkpoints, or nested sub-workflows, the advanced workflows guide picks up from here.</p>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/maf-py-workflows-advanced.html">Advanced Workflows in Microsoft Agent Framework (Python)</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/maf-python-11-advanced-workflows.html">Advanced Workflows — MAF in Python</a>
+      <span class="related-date">Jul 03</span>
+    </li>
+    <li>
+      <a href="/blog/posts/maf-python-09-workflows-with-agents.html">Workflows with Agents — MAF in Python</a>
+      <span class="related-date">Jul 01</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
