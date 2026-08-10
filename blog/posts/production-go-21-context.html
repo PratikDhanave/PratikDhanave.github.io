@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>context: Cancellation, Deadlines, and Values</title>
+<meta name="description" content="How Go&#x27;s `context` package carries a cancellation signal, a deadline, and a small bag of request-scoped values across every API and goroutine boundary...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="context: Cancellation, Deadlines, and Values">
+<meta property="og:description" content="How Go&#x27;s `context` package carries a cancellation signal, a deadline, and a small bag of request-scoped values across every API and goroutine boundary in a request — and the handful of rules that keep it...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-21-context.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-16T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Concurrency">
+<meta property="article:tag" content="context">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="context: Cancellation, Deadlines, and Values">
+<meta name="twitter:description" content="How Go&#x27;s `context` package carries a cancellation signal, a deadline, and a small bag of request-scoped values across every API and goroutine boundary in a request — and the handful of rules that keep it...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-21-context.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "context: Cancellation, Deadlines, and Values",
+  "description": "How Go's `context` package carries a cancellation signal, a deadline, and a small bag of request-scoped values across every API and goroutine boundary in a request \u2014 and the handful of rules that keep it...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-16",
+  "dateModified": "2026-07-16",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Concurrency, context",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-21-context.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-21-context.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>context: Cancellation, Deadlines, and Values</h1>
+    <p class="post-subtitle">How Go&#x27;s `context` package carries a cancellation signal, a deadline, and a small bag of request-scoped values across every API and goroutine boundary in a request — and the handful of rules that keep it from leaking or lying to you.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-16">July 16, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/concurrency/" class="tag-link"><span class="tag">#Concurrency</span></a><a href="/blog/tags/context/" class="tag-link"><span class="tag">#context</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 21 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-20-atomic-and-memory-model.html" class="series-prev">&larr; Part 20: Atomics and the Go Memory Model</a></div>
+  </div>
+
+
+
+  <p>Every non-trivial Go program is a tree of goroutines doing work on someone&rsquo;s behalf: an HTTP handler that queries a database, which opens a connection, which runs a goroutine to read from the socket. When the caller at the top gives up — the client hangs up, a timeout fires, a sibling request fails — that signal has to travel <em>down</em> the whole tree so the leaf work stops instead of burning CPU and holding connections for an answer nobody will read.</p>
+<p>There is no language feature for that. Go&rsquo;s answer is a plain value you pass by hand: a <code>context.Context</code>. It carries three things across boundaries — a <strong>cancellation signal</strong>, an optional <strong>deadline</strong>, and a set of <strong>request-scoped values</strong> — and it does so in a way that composes: a context derived from another inherits everything the parent carried. Master the derivation tree and the four rules below and you have most of what production Go concurrency asks of you.</p>
+<hr>
+<h2 id="why-context-exists-the-propagation-problem">Why context exists: the propagation problem</h2>
+<p>Before <code>context</code>, cancellation was ad hoc — every library invented its own <code>Stop()</code> method, <code>done chan struct{}</code>, or timeout argument, and none of them composed. To abandon a slow database call, you had to hope the driver exposed <em>some</em> hook, and hope every layer in between forwarded it.</p>
+<p><code>context.Context</code> standardizes that hook into one interface every layer agrees to speak:</p>
+<pre><code class="language-go">type Context interface {
+    Deadline() (deadline time.Time, ok bool)
+    Done() &lt;-chan struct{}
+    Err() error
+    Value(key any) any
+}
+</code></pre>
+<p><code>Done()</code> returns a channel that is closed when the work should stop. <code>Err()</code> tells you <em>why</em> once it is closed. <code>Deadline()</code> reports when it will fire on its own. <code>Value()</code> retrieves request-scoped data. Because it is a single interface, a cancellation started in an HTTP handler flows unchanged through your service layer, into the SQL driver, and down to the socket read — every layer only has to accept a <code>ctx</code> and pass it along.</p>
+<hr>
+<h2 id="the-roots-background-and-todo">The roots: <code>Background</code> and <code>TODO</code></h2>
+<p>Every context tree starts at a root you never cancel. There are exactly two:</p>
+<pre><code class="language-go">ctx := context.Background() // the top of the tree: main, init, top-level requests
+ctx := context.TODO()       // a placeholder — &quot;I haven't decided which context yet&quot;
+</code></pre>
+<p>Functionally they are identical — both are empty, never cancelled, no deadline, no values. The difference is <em>intent</em>. <code>Background()</code> is what you use in <code>main</code>, in tests, and as the root of an incoming request when you have nothing else. <code>TODO()</code> is a marker you leave when you know a context <em>should</em> be threaded through but the surrounding code doesn&rsquo;t provide one yet; static analysis tools and reviewers read it as &ldquo;come back and fix this.&rdquo;</p>
+<p><strong>The gotcha:</strong> you almost never call <code>Background()</code> deep inside a request. If you find yourself minting a fresh <code>context.Background()</code> in a helper function, you have severed the tree — the cancellation and deadline from the real caller no longer reach that code. Accept a <code>ctx</code> parameter instead and derive from it.</p>
+<hr>
+<h2 id="deriving-cancellable-contexts-and-always-defer-cancel">Deriving cancellable contexts — and always <code>defer cancel()</code></h2>
+<p>You don&rsquo;t cancel a context directly; you <em>derive</em> a child that comes with a cancel function, and calling that function cancels the child (and everything derived from it). There are three constructors:</p>
+<pre><code class="language-go">ctx, cancel := context.WithCancel(parent)                 // cancel manually
+ctx, cancel := context.WithTimeout(parent, 5*time.Second) // cancel after a duration
+ctx, cancel := context.WithDeadline(parent, someTime)     // cancel at an absolute time
+</code></pre>
+<p><code>WithTimeout</code> is just <code>WithDeadline(parent, time.Now().Add(d))</code> — same machinery, friendlier argument. All three return a <code>cancel</code> function, and <strong>you must always call it</strong>, even when a timeout will fire on its own:</p>
+<pre><code class="language-go">ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+defer cancel()
+
+if err := doWork(ctx); err != nil {
+    return err
+}
+</code></pre>
+<p><strong>The gotcha:</strong> forgetting <code>cancel()</code> leaks resources. Deriving a cancellable context registers it with its parent so cancellation can propagate; until <code>cancel</code> runs, that registration — and any timer <code>WithTimeout</code> started — stays alive, even after the function returns and the context is otherwise unreachable. <code>defer cancel()</code> on the line right after the constructor is the idiom, and <code>go vet</code> ships a <code>lostcancel</code> check that flags a cancel function you never call. Calling <code>cancel</code> a second time is a harmless no-op, so <code>defer</code> is always safe.</p>
+<hr>
+<h2 id="reacting-to-cancellation-done-err-and-select">Reacting to cancellation: <code>Done()</code>, <code>Err()</code>, and <code>select</code></h2>
+<p>Accepting a <code>ctx</code> is only half the contract; the other half is <em>acting</em> on it. A function that takes a context but never checks it is lying to its callers — it accepts the cancellation signal and ignores it.</p>
+<p>For code that blocks or loops, <code>select</code> on <code>ctx.Done()</code>:</p>
+<pre><code class="language-go">func worker(ctx context.Context, jobs &lt;-chan Job) error {
+    for {
+        select {
+        case &lt;-ctx.Done():
+            return ctx.Err() // Canceled or DeadlineExceeded
+        case job, ok := &lt;-jobs:
+            if !ok {
+                return nil
+            }
+            process(job)
+        }
+    }
+}
+</code></pre>
+<p><code>ctx.Done()</code> returns a channel that is <em>closed</em> on cancellation — and a receive from a closed channel returns immediately, forever, which is exactly what you want: once cancelled, every future <code>select</code> takes the <code>Done</code> branch. After that, <code>ctx.Err()</code> is non-nil and tells you which of two sentinel errors applies: <code>context.Canceled</code> (someone called <code>cancel</code>) or <code>context.DeadlineExceeded</code> (a timeout or deadline elapsed).</p>
+<p><strong>The gotcha:</strong> <code>Done()</code> allocates a channel lazily, so poll it, don&rsquo;t hoard it — but more importantly, a tight compute loop with no blocking operation won&rsquo;t notice cancellation on its own. Add an explicit check at a sensible granularity:</p>
+<pre><code class="language-go">for i, item := range items {
+    if i%1000 == 0 {
+        if err := ctx.Err(); err != nil {
+            return err // bail out of a long CPU-bound loop
+        }
+    }
+    crunch(item)
+}
+</code></pre>
+<p>Checking <code>ctx.Err()</code> every iteration of a hot loop is itself overhead; sampling every N iterations keeps the loop responsive without paying the cost on every pass.</p>
+<hr>
+<h2 id="the-rules-of-passing-context">The rules of passing context</h2>
+<p>Two conventions are near-universal in idiomatic Go, and both are enforced by convention and tooling rather than the compiler.</p>
+<p><strong>First parameter, always named <code>ctx</code>:</strong></p>
+<pre><code class="language-go">func FetchUser(ctx context.Context, id string) (*User, error) // yes
+func FetchUser(id string, ctx context.Context) (*User, error) // no
+</code></pre>
+<p>Putting it first makes the threading obvious and lets <code>go vet</code> and linters reason about call sites. The one exception is variadic functions, where it still leads: <code>func Log(ctx context.Context, args ...any)</code>.</p>
+<p><strong>Never store a context in a struct.</strong> A context describes the lifetime of <em>one call</em>; a struct outlives any single call. Stashing a <code>ctx</code> in a field means later method calls use a stale cancellation signal and deadline — often one that already fired, or one that will never fire for the operation actually running.</p>
+<pre><code class="language-go">type Server struct {
+    ctx context.Context // wrong: whose request does this belong to?
+}
+
+func (s *Server) Handle(ctx context.Context, r Request) error { // right: fresh per call
+    ...
+}
+</code></pre>
+<p><strong>The gotcha:</strong> the tempting exception — &ldquo;but I need the context in a background goroutine the struct spawns&rdquo; — is exactly where storing it bites hardest, because the request context is cancelled the moment the request returns, killing your background work. If you need work to outlive the request, derive from <code>context.Background()</code> deliberately (perhaps with its own timeout), don&rsquo;t smuggle the request context out through a field.</p>
+<hr>
+<h2 id="the-derivation-tree-and-the-deadline-minimum-rule">The derivation tree and the deadline-minimum rule</h2>
+<p>Every derived context points at its parent, forming a tree rooted at <code>Background()</code>. Cancellation flows <em>down</em>: cancel a node and every descendant&rsquo;s <code>Done()</code> closes too. It never flows up — cancelling a child leaves the parent and its siblings untouched.</p>
+<p>Deadlines compose the same way, and the rule is worth memorizing: <strong>a child&rsquo;s effective deadline is the minimum of its own and its parent&rsquo;s.</strong> You can tighten a deadline by deriving a shorter one, but you can never loosen it — asking for more time than the parent allows gets you the parent&rsquo;s deadline.</p>
+<pre><code class="language-go">parent, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+defer cancel()
+
+// This asks for 10s, but the parent only has 2s left — the child fires at 2s.
+child, cancelChild := context.WithTimeout(parent, 10*time.Second)
+defer cancelChild()
+</code></pre>
+<p>This is why a per-request deadline set at the edge of your service silently bounds every downstream call: a database query deriving its own generous timeout still can&rsquo;t outrun the request&rsquo;s remaining budget. It also means you should derive tighter deadlines for individual sub-operations freely — the parent remains the ceiling.</p>
+<hr>
+<h2 id="withvalue-request-scoped-data-and-only-that"><code>WithValue</code>: request-scoped data, and only that</h2>
+<p>The fourth thing a context carries is a small set of key-value pairs, attached with <code>context.WithValue</code> and read with <code>ctx.Value(key)</code>. This is for data that is genuinely <em>scoped to the request and crosses API boundaries</em> — a request ID for correlating logs, an authenticated user identity, a trace span. It is emphatically <strong>not</strong> a way to pass optional function parameters.</p>
+<p>The critical detail is the key. Using a bare string like <code>"userID"</code> invites collisions: another package (or a future version of yours) using the same string silently overwrites your value. The idiom is an <strong>unexported custom type</strong> so the key is unique across the entire program:</p>
+<pre><code class="language-go">package auth
+
+// unexported type — no other package can construct this key
+type contextKey int
+
+const userKey contextKey = 0
+
+// typed setter and getter keep the any-typed API off your callers
+func WithUser(ctx context.Context, u *User) context.Context {
+    return context.WithValue(ctx, userKey, u)
+}
+
+func UserFrom(ctx context.Context) (*User, bool) {
+    u, ok := ctx.Value(userKey).(*User)
+    return u, ok
+}
+</code></pre>
+<p>Because <code>contextKey</code> is unexported, no code outside <code>package auth</code> can produce a key equal to <code>userKey</code>, so nobody can collide with or read your value except through the typed helpers you expose.</p>
+<p><strong>The gotcha:</strong> <code>Value</code> lookups walk the context chain link by link, and the API is untyped (<code>any</code> in, <code>any</code> out) — that&rsquo;s why you wrap it in typed helpers rather than sprinkling raw <code>ctx.Value(...)</code> and type assertions through the codebase. If you catch yourself passing a <em>behavioral</em> parameter — a page size, a flag, a callback — through the context, stop: those belong in the function signature where the compiler can check them. The context is for cross-cutting request metadata, nothing more.</p>
+<hr>
+<h2 id="knowing-why-it-was-cancelled-withcancelcause-and-cause">Knowing <em>why</em> it was cancelled: <code>WithCancelCause</code> and <code>Cause</code></h2>
+<p>Plain <code>cancel()</code> collapses every reason into the same <code>context.Canceled</code> error. When several things can cancel the same context, that ambiguity hurts. Go 1.20 added <code>WithCancelCause</code>, whose cancel function takes an error explaining the reason, and <code>context.Cause(ctx)</code>, which retrieves it:</p>
+<pre><code class="language-go">ctx, cancel := context.WithCancelCause(parent)
+defer cancel(nil) // nil cause is fine; still required to avoid a leak
+
+go func() {
+    if err := validate(input); err != nil {
+        cancel(fmt.Errorf(&quot;validation failed: %w&quot;, err))
+    }
+}()
+
+&lt;-ctx.Done()
+fmt.Println(ctx.Err())        // context.Canceled  (the generic signal)
+fmt.Println(context.Cause(ctx)) // validation failed: ... (your specific reason)
+</code></pre>
+<p><code>ctx.Err()</code> still returns the generic sentinel for compatibility, while <code>context.Cause(ctx)</code> returns the specific error you supplied — or <code>context.Canceled</code>/<code>context.DeadlineExceeded</code> when no custom cause was given. Go 1.21 rounded this out with <code>context.WithDeadlineCause</code> and <code>context.WithTimeoutCause</code>, letting you attach a descriptive error to a <em>timeout</em> as well, and <code>context.AfterFunc</code>, which registers a callback to run when a context is done.</p>
+<p><strong>The gotcha:</strong> <code>Cause</code> only tells you something richer than <code>Err</code> if you actually derived with a <code>*Cause</code> constructor and passed a meaningful error to <code>cancel</code>. <code>WithCancelCause</code> still returns a cancel function you must call — its signature is <code>func(cause error)</code>, and passing <code>nil</code> is the equivalent of a plain cancel. The <code>defer cancel(nil)</code> is still mandatory to avoid the leak.</p>
+<hr>
+<h2 id="a-cancellable-worker-with-a-timeout-tied-together">A cancellable worker with a timeout, tied together</h2>
+<p>The three pieces — a derived timeout, a <code>select</code> on <code>Done()</code>, and honest error propagation — compose into the shape you&rsquo;ll write constantly:</p>
+<pre><code class="language-go">func fetchWithTimeout(parent context.Context, url string) (string, error) {
+    ctx, cancel := context.WithTimeout(parent, 2*time.Second)
+    defer cancel()
+
+    result := make(chan string, 1) // buffered: the goroutine never blocks on send
+    go func() {
+        result &lt;- slowFetch(url) // real work; ideally slowFetch takes ctx too
+    }()
+
+    select {
+    case &lt;-ctx.Done():
+        return &quot;&quot;, ctx.Err() // timed out or parent cancelled — abandon the wait
+    case r := &lt;-result:
+        return r, nil
+    }
+}
+</code></pre>
+<p>The buffered channel matters: if the timeout branch wins and the function returns, the goroutine can still complete its send into the buffer instead of blocking forever on an unbuffered channel nobody receives from. The truly correct version also threads <code>ctx</code> into <code>slowFetch</code> so the underlying work <em>stops</em> — abandoning the wait while the work grinds on is a leak of a different kind.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Context propagates three things across boundaries:</strong> a cancellation signal, a deadline, and request-scoped values — through one interface every layer speaks.</li>
+<li><strong>Derive, then <code>defer cancel()</code>.</strong> Every <code>WithCancel</code>/<code>WithTimeout</code>/<code>WithDeadline</code> returns a cancel function you must call, or you leak; <code>go vet</code>&rsquo;s <code>lostcancel</code> check enforces it.</li>
+<li><strong>Accepting a context means acting on it.</strong> <code>select</code> on <code>ctx.Done()</code> in blocking code, poll <code>ctx.Err()</code> in long CPU loops, and return the error you get.</li>
+<li><strong>Pass <code>ctx</code> first, never store it in a struct.</strong> It describes one call&rsquo;s lifetime; a field outlives that call and hands out a stale signal.</li>
+<li><strong>The tree enforces <code>min(parent, own)</code> deadlines.</strong> You can tighten a downstream budget but never exceed the parent&rsquo;s.</li>
+<li><strong><code>WithValue</code> is for request-scoped metadata only, keyed by a private type.</strong> Behavioral parameters belong in the signature; a bare-string key invites silent collisions.</li>
+<li><strong><code>WithCancelCause</code>/<code>context.Cause</code> (1.20+) recover the <em>reason</em></strong> when the generic <code>context.Canceled</code> isn&rsquo;t enough to debug why work stopped.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/blog/context">Go Concurrency Patterns: Context</a> — the original Go blog post that introduced the pattern and its rationale.</li>
+<li><a href="https://pkg.go.dev/context"><code>context</code> package documentation</a> — the authoritative reference for every constructor, including the Go 1.20/1.21 <code>*Cause</code> and <code>AfterFunc</code> additions.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-07-hierarchical-supervision.html">Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation</a>
+      <span class="related-date">Jul 24</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-20-atomic-and-memory-model.html">Atomics and the Go Memory Model</a>
+      <span class="related-date">Jul 15</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-19-sync-package.html">The sync Package</a>
+      <span class="related-date">Jul 14</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

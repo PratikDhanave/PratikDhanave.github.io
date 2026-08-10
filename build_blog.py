@@ -159,6 +159,62 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+    "2026-07-10-production-go-15-errors-wrapping-is-as.md": {
+        "slug": "production-go-15-errors-wrapping-is-as",
+        "date": "2026-07-10",
+        "tags": ["Go", "Errors", "Error Handling"],
+        "audience": "Developers learning Go's fundamentals the right way",
+        "excerpt": "Go treats errors as ordinary values, not exceptions \u2014 which means everything you know about passing, comparing, and inspecting values applies. This is a working guide to sentinel errors, wrapping with %w,...",
+        "series": "Road Go Ever On", "series_position": 15, "series_total": 45,
+    },
+    "2026-07-11-production-go-16-panic-and-recover.md": {
+        "slug": "production-go-16-panic-and-recover",
+        "date": "2026-07-11",
+        "tags": ["Go", "Errors", "panic"],
+        "audience": "Developers learning Go's fundamentals the right way",
+        "excerpt": "Go handles ordinary failure with values, not exceptions \u2014 so what are panic and recover actually for? A working guide to how panic unwinds the stack through your defers, why recover only fires inside a...",
+        "series": "Road Go Ever On", "series_position": 16, "series_total": 45,
+    },
+    "2026-07-12-production-go-17-goroutines.md": {
+        "slug": "production-go-17-goroutines",
+        "date": "2026-07-12",
+        "tags": ["Go", "Concurrency", "Goroutines"],
+        "audience": "Developers learning Go's fundamentals the right way",
+        "excerpt": "What a goroutine actually is, why it is cheaper than a thread, and the one rule that separates working concurrent code from a program that quietly leaks itself to death: every goroutine you start must have...",
+        "series": "Road Go Ever On", "series_position": 17, "series_total": 45,
+    },
+    "2026-07-13-production-go-18-channels-and-select.md": {
+        "slug": "production-go-18-channels-and-select",
+        "date": "2026-07-13",
+        "tags": ["Go", "Concurrency", "Channels"],
+        "audience": "Developers learning Go's fundamentals the right way",
+        "excerpt": "A working guide to Go's channels \u2014 unbuffered rendezvous vs buffered capacity, send/receive/close semantics, directional types in APIs, and how `select` multiplexes, times out, and disables cases with a nil...",
+        "series": "Road Go Ever On", "series_position": 18, "series_total": 45,
+    },
+    "2026-07-14-production-go-19-sync-package.md": {
+        "slug": "production-go-19-sync-package",
+        "date": "2026-07-14",
+        "tags": ["Go", "Concurrency", "sync"],
+        "audience": "Developers learning Go's fundamentals the right way",
+        "excerpt": "When channels are the wrong tool \u2014 a working guide to shared memory and locks in Go: Mutex, RWMutex, WaitGroup, Once, Cond, Map, Pool, and the race detector that keeps you honest.",
+        "series": "Road Go Ever On", "series_position": 19, "series_total": 45,
+    },
+    "2026-07-15-production-go-20-atomic-and-memory-model.md": {
+        "slug": "production-go-20-atomic-and-memory-model",
+        "date": "2026-07-15",
+        "tags": ["Go", "Concurrency", "Memory Model"],
+        "audience": "Developers learning Go's fundamentals the right way",
+        "excerpt": "What a data race actually is, why it is undefined behavior rather than \"just a wrong number,\" the happens-before rules that make concurrent code correct, and when `sync/atomic` is the right tool \u2014 and when...",
+        "series": "Road Go Ever On", "series_position": 20, "series_total": 45,
+    },
+    "2026-07-16-production-go-21-context.md": {
+        "slug": "production-go-21-context",
+        "date": "2026-07-16",
+        "tags": ["Go", "Concurrency", "context"],
+        "audience": "Developers learning Go's fundamentals the right way",
+        "excerpt": "How Go's `context` package carries a cancellation signal, a deadline, and a small bag of request-scoped values across every API and goroutine boundary in a request \u2014 and the handful of rules that keep it...",
+        "series": "Road Go Ever On", "series_position": 21, "series_total": 45,
+    },
     "2026-07-06-production-go-11-methods-and-receivers.md": {
         "slug": "production-go-11-methods-and-receivers",
         "date": "2026-07-06",

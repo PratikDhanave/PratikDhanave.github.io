@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Atomics and the Go Memory Model — Pratik Dhanave</title>
+<meta name="description" content="What a data race actually is, why it is undefined behavior rather than &quot;just a wrong number,&quot; the happens-before rules that make concurrent code...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Atomics and the Go Memory Model — Pratik Dhanave">
+<meta property="og:description" content="What a data race actually is, why it is undefined behavior rather than &quot;just a wrong number,&quot; the happens-before rules that make concurrent code correct, and when `sync/atomic` is the right tool — and when...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-20-atomic-and-memory-model.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-15T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Concurrency">
+<meta property="article:tag" content="Memory Model">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Atomics and the Go Memory Model — Pratik Dhanave">
+<meta name="twitter:description" content="What a data race actually is, why it is undefined behavior rather than &quot;just a wrong number,&quot; the happens-before rules that make concurrent code correct, and when `sync/atomic` is the right tool — and when...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-20-atomic-and-memory-model.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Atomics and the Go Memory Model",
+  "description": "What a data race actually is, why it is undefined behavior rather than \"just a wrong number,\" the happens-before rules that make concurrent code correct, and when `sync/atomic` is the right tool \u2014 and when...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-15",
+  "dateModified": "2026-07-15",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Concurrency, Memory Model",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-20-atomic-and-memory-model.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-20-atomic-and-memory-model.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Atomics and the Go Memory Model</h1>
+    <p class="post-subtitle">What a data race actually is, why it is undefined behavior rather than &quot;just a wrong number,&quot; the happens-before rules that make concurrent code correct, and when `sync/atomic` is the right tool — and when it quietly is not.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-15">July 15, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/concurrency/" class="tag-link"><span class="tag">#Concurrency</span></a><a href="/blog/tags/memory-model/" class="tag-link"><span class="tag">#Memory Model</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 20 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-19-sync-package.html" class="series-prev">&larr; Part 19: The sync Package</a>
+<a href="/blog/posts/production-go-21-context.html" class="series-next">Part 21: context: Cancellation, Deadlines, and Values &rarr;</a></div>
+  </div>
+
+
+
+  <p>Most Go developers learn concurrency as a set of recipes: put <code>go</code> in front of a call, guard shared state with a <code>sync.Mutex</code>, pass values over channels. The recipes work, but they leave a gap. Sooner or later you write <code>counter++</code> from two goroutines, notice it produces the wrong total, reach for <code>sync/atomic</code>, and it fixes the number. What you have not learned is <em>why</em> the plain <code>counter++</code> was broken, why it was broken even though <code>int</code> is a single machine word, and why &ldquo;it printed the right answer on my laptop&rdquo; is not evidence of anything.</p>
+<p>That gap is the Go memory model. It is the contract that says which writes in one goroutine are guaranteed to be visible to reads in another. This post works through it at the level you actually need in production: what a data race is, the happens-before relation that defines correctness, what <code>sync/atomic</code> gives you, and the sharp edge that catches experienced people — atomics do not compose.</p>
+<hr>
+<h2 id="what-a-data-race-is">What a data race is</h2>
+<p>A data race has a precise definition, and it is worth memorizing because every rule downstream follows from it. A data race occurs when:</p>
+<ol>
+<li>two or more goroutines access the same memory location,</li>
+<li>at least one of those accesses is a write, and</li>
+<li>the accesses are not ordered by a synchronization event.</li>
+</ol>
+<p>All three conditions must hold. Two goroutines reading the same variable is fine — no write, no race. A goroutine reading and another writing, but with a mutex serializing them, is fine — the accesses are ordered. Remove the ordering while one side writes, and you have a race.</p>
+<pre><code class="language-go">// DATA RACE: two goroutines, both writing, no synchronization.
+func main() {
+    var counter int
+    var wg sync.WaitGroup
+    for i := 0; i &lt; 1000; i++ {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            counter++ // read counter, add 1, write counter — three steps, no lock
+        }()
+    }
+    wg.Wait()
+    fmt.Println(counter) // almost never 1000
+}
+</code></pre>
+<p>The reason this loses increments is that <code>counter++</code> is not one operation. It is a load, an add, and a store. Two goroutines can both load <code>41</code>, both add one, and both store <code>42</code> — two increments, one net change. The <code>WaitGroup</code> correctly waits for every goroutine to finish, but it does nothing to order the accesses <em>to <code>counter</code></em> against each other. That is the missing third condition.</p>
+<hr>
+<h2 id="a-race-is-undefined-behavior-not-a-wrong-number">A race is undefined behavior, not a wrong number</h2>
+<p>Here is the part that trips up people who think of a race as &ldquo;sometimes I lose an update.&rdquo; Under the Go memory model, a program with a data race has <strong>no defined behavior at all</strong> for the racing accesses. It is not &ldquo;you get one of the two values.&rdquo; The specification makes no promise about what you get.</p>
+<p>In practice this means more than a lost increment. A racing read of a multi-word value — an interface, a slice header, a string, a <code>map</code> — can observe a <strong>torn</strong> value: the pointer half from one write and the length half from another, a combination that was never actually stored. Dereference that and you get a crash, not a wrong answer. The runtime explicitly detects concurrent map writes and aborts the process with <code>fatal error: concurrent map writes</code> precisely because the alternative is silent corruption.</p>
+<p><strong>The gotcha:</strong> &ldquo;it works on my machine&rdquo; tells you nothing about a racy program. Compilers are permitted to assume race-free code, so the optimizer may hoist a load out of a loop, cache a value in a register, or reorder stores — all legal transformations that change racy behavior between <code>-race</code> and release builds, between architectures (x86 has stronger memory ordering than ARM), and between Go versions. A race that &ldquo;passes&rdquo; today is not fixed; it is unobserved. Treat every race as a correctness bug, never a performance quirk.</p>
+<hr>
+<h2 id="the-memory-model-at-a-working-level">The memory model, at a working level</h2>
+<p>The Go memory model is built on one relation: <strong>happens-before</strong>. If event A happens-before event B, then A&rsquo;s effects are guaranteed visible to B. If neither happens-before the other, they are <em>concurrent</em>, and concurrent access where one side writes is exactly a data race.</p>
+<p>Within a single goroutine, happens-before matches program order — line 1 happens-before line 2, as you would expect. The interesting question is <em>across</em> goroutines, and the answer is that you only get a happens-before edge through an explicit synchronization operation. The everyday ones:</p>
+<ul>
+<li><strong>Channel operations.</strong> A send on a channel happens-before the corresponding receive completes. And the close of a channel happens-before a receive that returns because the channel is closed. This is why passing a value over a channel is safe: the send publishes everything the sending goroutine did beforehand.</li>
+<li><strong>Mutex.</strong> For a <code>sync.Mutex</code>, the <em>n</em>-th <code>Unlock</code> happens-before the <em>(n+1)</em>-th <code>Lock</code> returns. Unlocking publishes your writes to whoever locks next.</li>
+<li><strong><code>sync.Once</code>.</strong> The single call to <code>once.Do(f)</code> completes (returns from <code>f</code>) happens-before any other <code>once.Do(f)</code> returns. That is what makes lazy initialization safe.</li>
+<li><strong><code>sync.WaitGroup</code>.</strong> The <code>Done</code> calls (which decrement the counter) happen-before the <code>Wait</code> that they release. So work done before <code>Done</code> is visible after <code>Wait</code> returns.</li>
+<li><strong><code>sync/atomic</code>.</strong> An atomic write happens-before a subsequent atomic read of the same location that observes the written value (Go&rsquo;s atomics are sequentially consistent).</li>
+</ul>
+<p>Notice what is <em>not</em> on this list: <code>time.Sleep</code>, print statements, plain variable assignments, and &ldquo;the goroutine obviously ran first.&rdquo; None of those establish happens-before. If the only thing connecting a write in one goroutine to a read in another is that you are <em>pretty sure</em> of the timing, you have a race.</p>
+<pre><code class="language-go">// The channel makes this correct.
+func main() {
+    done := make(chan struct{})
+    var result int
+    go func() {
+        result = expensiveComputation() // write
+        close(done)                     // publishes the write
+    }()
+    &lt;-done                              // receive happens-after the close
+    fmt.Println(result)                 // guaranteed to see the write
+}
+</code></pre>
+<p>The write to <code>result</code> happens-before <code>close(done)</code> (same goroutine, program order), and <code>close(done)</code> happens-before the <code>&lt;-done</code> receive completes (channel rule). Happens-before is transitive, so the write happens-before the read. No race, no atomics needed — the channel already did the synchronization.</p>
+<hr>
+<h2 id="syncatomic-the-typed-atomics"><code>sync/atomic</code>: the typed atomics</h2>
+<p>When you genuinely need shared mutable state and a full mutex is heavier than the job warrants — a counter, a flag, a hot-swapped pointer — <code>sync/atomic</code> gives you operations that are indivisible and that establish happens-before.</p>
+<p>Since Go 1.19 the idiomatic form is the <strong>typed atomic</strong>: <code>atomic.Int64</code>, <code>atomic.Int32</code>, <code>atomic.Uint64</code>, <code>atomic.Bool</code>, and the generic <code>atomic.Pointer[T]</code>. Prefer these over the older free functions (<code>atomic.AddInt64(&amp;x, 1)</code> and friends). The typed wrappers make the atomic contract part of the variable&rsquo;s type, so there is no way to accidentally touch the value non-atomically, and they carry no alignment footguns.</p>
+<pre><code class="language-go">type Metrics struct {
+    requests atomic.Int64
+    healthy  atomic.Bool
+}
+
+func (m *Metrics) OnRequest() {
+    m.requests.Add(1) // atomic read-modify-write; no lost increments
+}
+
+func (m *Metrics) Count() int64 {
+    return m.requests.Load() // atomic read
+}
+</code></pre>
+<p><code>m.requests.Add(1)</code> fixes the earlier broken counter: the load-add-store now happens as one indivisible step, and each <code>Add</code> establishes happens-before the next. The core methods are worth knowing by name:</p>
+<ul>
+<li><strong><code>Load</code></strong> / <strong><code>Store</code></strong> — atomic read and write of the whole value.</li>
+<li><strong><code>Add</code></strong> — atomic read-modify-write, returning the new value.</li>
+<li><strong><code>Swap</code></strong> — store a new value, return the old one, atomically.</li>
+<li><strong><code>CompareAndSwap</code></strong> (CAS) — if the current value equals <code>old</code>, set it to <code>new</code> and report success; otherwise do nothing. This is the primitive for lock-free algorithms.</li>
+</ul>
+<p><strong>The gotcha:</strong> never mix atomic and non-atomic access to the same variable. If one goroutine does <code>x.Store(5)</code> and another reads the underlying value directly (or you memcpy a struct containing an <code>atomic.Int64</code>), you are back to a data race — the atomic guarantee only holds when <em>every</em> access goes through the atomic methods. For the same reason, do not copy an atomic value after first use; the <code>sync</code> types (and <code>go vet</code>&rsquo;s <code>copylocks</code> check) exist to catch this. Pass a pointer to the struct that contains them.</p>
+<hr>
+<h2 id="why-one-word-is-still-a-race">Why one word is still a race</h2>
+<p>A frequent misconception: &ldquo;<code>int</code> is a single machine word, so <code>x = 5</code> is atomic anyway — I don&rsquo;t need synchronization for a single word.&rdquo; This is wrong for two independent reasons, and both matter.</p>
+<p>First, <strong>atomicity is not visibility.</strong> Even if the store lands in one instruction, nothing forces another goroutine&rsquo;s read to <em>observe</em> it. Without a happens-before edge, the compiler may keep the value in a register and the CPU may reorder the store relative to other stores. A goroutine spinning on a plain <code>for !done {}</code> can loop forever even after another goroutine sets <code>done = true</code>, because the compiler is entitled to hoist the load out of the loop — it never re-reads memory.</p>
+<p>Second, <strong>the compiler assumes no races.</strong> Once you have a race, the optimizer&rsquo;s transformations are no longer required to preserve the behavior you imagined, so reasoning about &ldquo;well, the write is one instruction&rdquo; is moot. The specification has already declared the behavior undefined.</p>
+<p>The fix is to make the shared flag an atomic:</p>
+<pre><code class="language-go">var done atomic.Bool
+
+func worker() {
+    for !done.Load() { // re-reads memory every iteration; sees the Store
+        doWork()
+    }
+}
+
+func stop() {
+    done.Store(true) // establishes happens-before with the Load that sees it
+}
+</code></pre>
+<p><code>atomic.Bool</code> is not needed because a <code>bool</code> is &ldquo;too big&rdquo; to write in one step — it is needed because <code>Load</code>/<code>Store</code> are the only way to get the <em>happens-before edge</em> that makes the write visible and forbids the compiler from caching the read.</p>
+<hr>
+<h2 id="a-correct-cas-loop">A correct CAS loop</h2>
+<p><code>CompareAndSwap</code> is how you build a lock-free update when the new value depends on the old one and a plain <code>Add</code> will not express it — for example, clamping a maximum:</p>
+<pre><code class="language-go">// RecordMax atomically raises the stored high-water mark to v if v is larger.
+func RecordMax(max *atomic.Int64, v int64) {
+    for {
+        old := max.Load()
+        if v &lt;= old {
+            return // already at or above v; nothing to do
+        }
+        if max.CompareAndSwap(old, v) {
+            return // we won the race: old was still current, swap succeeded
+        }
+        // Another goroutine changed max between our Load and CAS.
+        // Loop and retry with the fresh value.
+    }
+}
+</code></pre>
+<p>The shape is the canonical CAS loop and worth internalizing: read the current value, compute the new value from it, then attempt to swap <em>only if nothing changed in between</em>. If the <code>CompareAndSwap</code> fails, some other goroutine moved the value, so your computed update is stale — you loop, re-read, and try again. The loop is not busy-waiting on a lock; each iteration either succeeds or means real contention that another goroutine resolved. This is exactly how <code>Add</code> is implemented under the hood, and it generalizes to any single-word update you can express as &ldquo;compute from old, install if unchanged.&rdquo;</p>
+<hr>
+<h2 id="atomics-do-not-compose">Atomics do not compose</h2>
+<p>This is the failure I see most from developers who have learned atomics well enough to trust them too far. Each atomic operation is individually safe. <strong>A sequence of atomic operations is not.</strong></p>
+<pre><code class="language-go">type Account struct {
+    balance  atomic.Int64
+    lastTxID atomic.Int64
+}
+
+// BROKEN: two atomics, but the pair is not atomic together.
+func (a *Account) Deposit(amount, txID int64) {
+    a.balance.Add(amount)     // step 1: atomic
+    a.lastTxID.Store(txID)    // step 2: atomic
+    // Between step 1 and step 2 another goroutine can observe the new
+    // balance with the OLD lastTxID — an invariant violation.
+}
+</code></pre>
+<p>Each line is atomic in isolation, but there is no atomicity <em>across</em> the two. Another goroutine can read <code>balance</code> after step 1 and <code>lastTxID</code> before step 2 and see a state that is internally inconsistent. Atomics protect a single memory location; they cannot protect an <em>invariant that spans multiple fields</em>.</p>
+<p><strong>The gotcha:</strong> the moment your correctness condition involves more than one variable — &ldquo;balance and lastTxID must agree,&rdquo; &ldquo;the length and the backing array must match,&rdquo; &ldquo;read the config and the version together&rdquo; — atomics are the wrong tool. Use a <code>sync.Mutex</code> (or <code>sync.RWMutex</code>) to make the whole update a single critical section:</p>
+<pre><code class="language-go">type Account struct {
+    mu       sync.Mutex
+    balance  int64
+    lastTxID int64
+}
+
+func (a *Account) Deposit(amount, txID int64) {
+    a.mu.Lock()
+    defer a.mu.Unlock()
+    a.balance += amount   // both fields updated inside one critical section:
+    a.lastTxID = txID     // no other goroutine can observe a half-done state
+}
+</code></pre>
+<p>The rule of thumb: reach for <code>sync/atomic</code> when the shared state is a <em>single</em> value — a counter, a flag, a pointer you hot-swap wholesale. The instant you need two things to change together, or a read to see a consistent snapshot of several fields, use a mutex. Atomics buy you speed at the cost of composability, and paying that cost where you need multi-field invariants is how you ship a subtle corruption bug.</p>
+<hr>
+<h2 id="the-race-detector">The race detector</h2>
+<p>You do not have to reason about all of this by inspection. Go ships a <strong>race detector</strong> that instruments memory accesses at runtime and reports any that are unsynchronized. Turn it on with the <code>-race</code> flag:</p>
+<pre><code class="language-bash">go test -race ./...
+go run -race ./cmd/server
+go build -race -o server ./cmd/server
+</code></pre>
+<p>When it finds a race it prints both stacks — the read and the conflicting write — with the goroutines that made them, which usually points straight at the bug. Two things to understand about it. First, it has <strong>no false positives</strong>: if <code>-race</code> reports a race, there is a race, full stop. Second, it only detects races on code paths that <em>actually execute during the run</em>, so its coverage is exactly your test coverage — a race in a branch your tests never hit stays invisible.</p>
+<p><strong>The gotcha:</strong> the detector adds significant overhead (memory use and CPU both climb several-fold), so it is a testing and CI tool, not something you run in production. The discipline that works: run your whole test suite under <code>-race</code> in CI, and make sure the concurrent paths are actually exercised by tests. A race the detector never runs is a race it never finds — so the value you get out is only as good as the concurrency your tests drive.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>A data race is a precise thing:</strong> concurrent access to one location, at least one write, no synchronization ordering them. All three conditions must hold.</li>
+<li><strong>A race is undefined behavior, not a wrong number.</strong> It can tear multi-word values and crash, and the compiler is free to optimize racy code in ways that differ across builds and architectures. &ldquo;Works on my machine&rdquo; proves nothing.</li>
+<li><strong>The memory model is happens-before.</strong> Only explicit synchronization — channel ops, mutex Lock/Unlock, <code>sync.Once</code>, <code>WaitGroup</code>, and atomics — creates the visibility edge. <code>time.Sleep</code> and timing intuition do not.</li>
+<li><strong>Prefer the typed atomics</strong> (<code>atomic.Int64</code>, <code>atomic.Bool</code>, <code>atomic.Pointer[T]</code>, Go 1.19+) over the old free functions, and never mix atomic and non-atomic access to the same variable.</li>
+<li><strong>A plain shared <code>var x int</code> is a race even though it is one word</strong> — atomicity is not visibility, and the optimizer assumes no races. Use <code>Load</code>/<code>Store</code> for the happens-before edge.</li>
+<li><strong>Atomics do not compose.</strong> They protect a single location; the moment an invariant spans multiple fields, use a mutex to make the whole update one critical section.</li>
+<li><strong>Run <code>go test -race</code> in CI.</strong> It has no false positives, but it only catches races on code your tests actually execute.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/ref/mem">The Go Memory Model</a> — the authoritative specification of happens-before and exactly which operations establish it. Short, precise, and worth reading in full.</li>
+<li><a href="https://pkg.go.dev/sync/atomic"><code>sync/atomic</code> package documentation</a> — the typed atomics, their methods, and the alignment and copying caveats.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-07-hierarchical-supervision.html">Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation</a>
+      <span class="related-date">Jul 24</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-21-context.html">context: Cancellation, Deadlines, and Values</a>
+      <span class="related-date">Jul 16</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-19-sync-package.html">The sync Package</a>
+      <span class="related-date">Jul 14</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

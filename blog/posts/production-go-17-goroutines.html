@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Goroutines — Pratik Dhanave</title>
+<meta name="description" content="What a goroutine actually is, why it is cheaper than a thread, and the one rule that separates working concurrent code from a program that quietly...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Goroutines — Pratik Dhanave">
+<meta property="og:description" content="What a goroutine actually is, why it is cheaper than a thread, and the one rule that separates working concurrent code from a program that quietly leaks itself to death: every goroutine you start must have...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-17-goroutines.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-12T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Concurrency">
+<meta property="article:tag" content="Goroutines">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Goroutines — Pratik Dhanave">
+<meta name="twitter:description" content="What a goroutine actually is, why it is cheaper than a thread, and the one rule that separates working concurrent code from a program that quietly leaks itself to death: every goroutine you start must have...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-17-goroutines.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Goroutines",
+  "description": "What a goroutine actually is, why it is cheaper than a thread, and the one rule that separates working concurrent code from a program that quietly leaks itself to death: every goroutine you start must have...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-12",
+  "dateModified": "2026-07-12",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Concurrency, Goroutines",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-17-goroutines.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-17-goroutines.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Goroutines</h1>
+    <p class="post-subtitle">What a goroutine actually is, why it is cheaper than a thread, and the one rule that separates working concurrent code from a program that quietly leaks itself to death: every goroutine you start must have a way to stop.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-12">July 12, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/concurrency/" class="tag-link"><span class="tag">#Concurrency</span></a><a href="/blog/tags/goroutines/" class="tag-link"><span class="tag">#Goroutines</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 17 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-16-panic-and-recover.html" class="series-prev">&larr; Part 16: panic, recover, and defer&#x27;s Role</a>
+<a href="/blog/posts/production-go-18-channels-and-select.html" class="series-next">Part 18: Channels and select &rarr;</a></div>
+  </div>
+
+
+
+  <p>Concurrency is the feature people reach for Go to get, and the goroutine is the primitive underneath all of it. Channels, <code>sync.WaitGroup</code>, worker pools, the <code>net/http</code> server that hands each request its own goroutine — all of it is built on one idea: you start a function running independently by putting the word <code>go</code> in front of the call. That is easy to write and surprisingly easy to get wrong. The syntax hides two questions that matter enormously in production: <em>when does this goroutine finish</em>, and <em>what happens if it never does</em>. This post answers both.</p>
+<p>We will build up from what a goroutine is at runtime, through the semantics of <code>go f()</code>, to the two bugs that account for most concurrency incidents I have seen: forgetting to synchronize, and leaking goroutines that block forever.</p>
+<hr>
+<h2 id="what-a-goroutine-is">What a goroutine is</h2>
+<p>A goroutine is a function that runs concurrently with the rest of your program, scheduled by the Go runtime rather than the operating system. That last part is the whole trick. When you start a goroutine, you are not asking the OS for a thread — you are handing a function to Go&rsquo;s scheduler, which multiplexes many goroutines onto a small pool of OS threads.</p>
+<p>The practical consequence is cost. An OS thread reserves a large fixed stack (commonly a megabyte or more) and every context switch goes through the kernel. A goroutine starts with a tiny stack — a couple of kilobytes — that <strong>grows and shrinks on demand</strong> as the call stack deepens. The runtime allocates a bigger stack and copies the goroutine&rsquo;s frames over when it needs more room, and reclaims the space when it doesn&rsquo;t. Because switching between goroutines happens in user space, it is far cheaper than a kernel thread switch.</p>
+<p>This is why &ldquo;just start a goroutine&rdquo; is idiomatic in Go in situations where &ldquo;just start a thread&rdquo; would be reckless in other languages. Tens of thousands of live goroutines is normal; the same count of OS threads would exhaust memory.</p>
+<pre><code class="language-go">func main() {
+    go greet(&quot;world&quot;) // runs concurrently; main does not wait
+    fmt.Println(&quot;main keeps going&quot;)
+}
+
+func greet(name string) {
+    fmt.Println(&quot;hello&quot;, name)
+}
+</code></pre>
+<p>If you run that, you will often see <code>main keeps going</code> and <em>not</em> <code>hello world</code>. That is not a bug in the runtime — it is the single most important fact about goroutines, and the next section is entirely about it.</p>
+<hr>
+<h2 id="go-f-semantics-start-and-forget"><code>go f()</code> semantics: start and forget</h2>
+<p><code>go f(args)</code> does exactly one thing: it evaluates <code>f</code> and its arguments <em>now</em>, on the current goroutine, then schedules the call to run on a new goroutine and immediately returns. It does not wait for <code>f</code> to run, let alone finish. There is no handle, no future, no join — the statement has no return value.</p>
+<p>Two details trip people up:</p>
+<ul>
+<li><strong>Arguments are evaluated at the call site, immediately.</strong> <code>go f(compute())</code> runs <code>compute()</code> on the calling goroutine before the new goroutine starts. Only the call to <code>f</code> is deferred.</li>
+<li><strong>A return value from <code>f</code> is discarded.</strong> A goroutine&rsquo;s function can return a value, but there is nowhere for it to go. If you want a result out of a goroutine, you must send it somewhere — a channel is the usual answer.</li>
+</ul>
+<p>Because <code>go</code> returns instantly, the calling code races ahead. In the <code>greet</code> example, <code>main</code> reaches the end of its body and the program exits before the scheduler ever runs <code>greet</code>. Which brings us to the lifecycle.</p>
+<hr>
+<h2 id="the-lifecycle-and-why-main-exiting-kills-everything">The lifecycle, and why main exiting kills everything</h2>
+<p>A goroutine lives from the <code>go</code> statement that starts it until its function returns (or the whole program stops). There is no &ldquo;goroutine finished&rdquo; event you can subscribe to, and no built-in way to name or enumerate them.</p>
+<p>The rule that surprises newcomers: <strong>when <code>main</code> returns, the program exits immediately and every other goroutine is killed mid-flight.</strong> No deferred functions in those goroutines run, no cleanup happens — the process is simply gone. <code>main</code> is not &ldquo;the last goroutine to finish&rdquo;; it is the goroutine whose exit ends the world.</p>
+<p>So the <code>greet</code> program does not print <code>hello world</code> because <code>main</code> returned before the scheduler got around to <code>greet</code>. The fix is <em>not</em> to make <code>main</code> wait a little longer and hope. You have to synchronize.</p>
+<p><strong>The gotcha:</strong> the reflex fix is <code>time.Sleep</code>. Do not do this.</p>
+<pre><code class="language-go">func main() {
+    go greet(&quot;world&quot;)
+    time.Sleep(100 * time.Millisecond) // WRONG: a guess, not a guarantee
+}
+</code></pre>
+<p><code>time.Sleep</code> is a bet that the goroutine finishes within some arbitrary window. On a loaded CI box or under the race detector it will lose that bet, and you get a flaky test or a dropped write that only reproduces in production. Sleeping to wait for a goroutine is never correct — it either wastes time (you slept too long) or corrupts results (you slept too short). Use a real synchronization primitive.</p>
+<hr>
+<h2 id="synchronizing-waitgroup-and-channels">Synchronizing: WaitGroup and channels</h2>
+<p>There are two everyday tools for waiting on goroutines correctly.</p>
+<p>A <code>sync.WaitGroup</code> is a counter. You <code>Add</code> before starting work, each goroutine calls <code>Done</code> when it finishes, and <code>Wait</code> blocks until the counter hits zero. It is the right choice when you just need to know <em>everyone is done</em>.</p>
+<pre><code class="language-go">func main() {
+    var wg sync.WaitGroup
+    for _, name := range []string{&quot;world&quot;, &quot;gophers&quot;, &quot;reader&quot;} {
+        wg.Add(1)
+        go func() {
+            defer wg.Done() // runs even if greet panics-and-recovers
+            greet(name)
+        }()
+    }
+    wg.Wait() // blocks until all three Done calls land
+}
+</code></pre>
+<p>Two habits make <code>WaitGroup</code> reliable: call <code>Add</code> <em>before</em> the <code>go</code> statement (not inside the goroutine, where it may run after <code>Wait</code> already returned), and <code>defer wg.Done()</code> as the goroutine&rsquo;s first line so it fires on every exit path.</p>
+<p>When you need the <em>results</em> back, use a channel. A channel both transfers the value and synchronizes: the receive blocks until a send happens, so no separate wait is needed.</p>
+<pre><code class="language-go">func main() {
+    results := make(chan int, 3) // buffered so senders never block
+    for i := 1; i &lt;= 3; i++ {
+        go func() {
+            results &lt;- i * i
+        }()
+    }
+    for i := 0; i &lt; 3; i++ {
+        fmt.Println(&lt;-results) // each receive waits for one send
+    }
+}
+</code></pre>
+<p>Channels are worth their own post; the point here is that they are the idiomatic way to get a value <em>out</em> of a goroutine, and the receive doubles as your synchronization point.</p>
+<hr>
+<h2 id="goroutine-leaks-the-number-one-concurrency-bug">Goroutine leaks: the number one concurrency bug</h2>
+<p>Here is the failure mode I check for first in any concurrency review. A <strong>goroutine leak</strong> is a goroutine that blocks forever because nothing will ever unblock it. It never returns, so its stack is never reclaimed, and it sits there holding memory and whatever resources it captured — for the life of the process.</p>
+<p>Leaks are insidious because the program keeps working. Nothing crashes. You just watch goroutine count and memory climb over hours or days until the service falls over. The most common shape is a goroutine that sends on a channel no one will ever receive from:</p>
+<pre><code class="language-go">// LEAK: if the caller returns early, the goroutine blocks on the send forever.
+func firstResult(ctx context.Context, urls []string) (string, error) {
+    ch := make(chan string) // unbuffered
+    for _, u := range urls {
+        go func() {
+            ch &lt;- fetch(u) // blocks until someone receives
+        }()
+    }
+    select {
+    case r := &lt;-ch: // we take exactly ONE result
+        return r, nil
+    case &lt;-ctx.Done():
+        return &quot;&quot;, ctx.Err()
+    }
+    // Every goroutine except the one we read is now blocked on `ch &lt;- ...`
+    // forever. One call, len(urls)-1 leaked goroutines.
+}
+</code></pre>
+<p>The receiver takes one value and returns. Every other goroutine is stuck on <code>ch &lt;- fetch(u)</code> with no receiver left — permanently. Call this in a loop and you leak a goroutine per URL per call, forever.</p>
+<p>The rule that prevents this: <strong>every goroutine you start must have a guaranteed way to exit.</strong> If a goroutine can block, there must be something that eventually unblocks it on <em>every</em> path, including the paths where the caller gives up early.</p>
+<p>Two fixes apply here. The simplest is to give the send somewhere to go by buffering the channel so a send never blocks even if no one reads:</p>
+<pre><code class="language-go">func firstResult(ctx context.Context, urls []string) (string, error) {
+    ch := make(chan string, len(urls)) // buffer for ALL senders
+    for _, u := range urls {
+        go func() {
+            ch &lt;- fetch(u) // never blocks: buffer has room for everyone
+        }()
+    }
+    select {
+    case r := &lt;-ch:
+        return r, nil
+    case &lt;-ctx.Done():
+        return &quot;&quot;, ctx.Err()
+    }
+}
+</code></pre>
+<p>Now the goroutines whose results we ignore still complete their send into the buffer and return normally. The buffer holds values nobody reads, but the goroutines are gone and the channel is garbage-collected once unreferenced.</p>
+<p>The more general fix is a <strong>cancellation signal</strong> — usually <code>context.Context</code> — so a goroutine can abandon a blocking operation instead of hanging on it:</p>
+<pre><code class="language-go">func worker(ctx context.Context, jobs &lt;-chan Job) {
+    for {
+        select {
+        case job, ok := &lt;-jobs:
+            if !ok {
+                return // channel closed: no more work, exit cleanly
+            }
+            process(job)
+        case &lt;-ctx.Done():
+            return // cancelled: stop waiting and exit
+        }
+    }
+}
+</code></pre>
+<p>This goroutine has <em>two</em> exits: the jobs channel being closed, and the context being cancelled. It cannot get wedged waiting on <code>jobs</code> forever, because <code>ctx.Done()</code> is always another way out. That is the shape you want every long-lived goroutine to have — a closed channel or a cancelled context that guarantees it returns.</p>
+<p><strong>The gotcha:</strong> a leaked goroutine does not show up in normal testing because the program produces the right answer — the leak is invisible until you measure it. Watch <code>runtime.NumGoroutine()</code> in tests around a function that spawns goroutines: if the count is higher after than before, you have a leak. The <code>go.uber.org/goleak</code> package automates exactly this check in test teardown, and I treat a leak it flags as a failing test, not a warning.</p>
+<hr>
+<h2 id="capturing-loop-variables">Capturing loop variables</h2>
+<p>For years the classic Go gotcha was capturing a loop variable in a goroutine:</p>
+<pre><code class="language-go">// Behavior depends on your Go version.
+for _, name := range []string{&quot;a&quot;, &quot;b&quot;, &quot;c&quot;} {
+    go func() {
+        fmt.Println(name)
+    }()
+}
+</code></pre>
+<p><strong>Before Go 1.22</strong>, the loop variable <code>name</code> was a <em>single</em> variable reused across every iteration. All three goroutines closed over the same <code>name</code>, and since they run later, they typically all saw the final value — printing <code>c c c</code> (in some order) instead of <code>a b c</code>. The fix was to shadow the variable per iteration (<code>name := name</code>) or pass it as an argument (<code>go func(n string) {...}(name)</code>).</p>
+<p><strong>As of Go 1.22</strong>, the language changed: loop variables in <code>for</code> statements are now scoped <em>per iteration</em>. Each goroutine captures its own <code>name</code>, and the loop above prints <code>a</code>, <code>b</code>, <code>c</code> as you&rsquo;d expect. The old workaround is now redundant but harmless.</p>
+<p><strong>The gotcha:</strong> the version matters. The per-iteration semantics apply only when the module&rsquo;s <code>go</code> directive in <code>go.mod</code> is <code>1.22</code> or higher — the compiler keys the behavior off the language version the module targets. If you maintain code that must build under older toolchains, or a module still declaring <code>go 1.21</code>, the old capture bug is live and the explicit <code>name := name</code> shadow is still your protection. When reading unfamiliar code, check <code>go.mod</code> before you trust a bare capture.</p>
+<hr>
+<h2 id="you-rarely-spawn-goroutines-unbounded">You rarely spawn goroutines unbounded</h2>
+<p>One last discipline that separates toy code from production code. Every example above starts a fixed, known number of goroutines. Real systems get input they don&rsquo;t control — a queue with a million messages, a slice of user-supplied URLs, a firehose of requests. The naive <code>for _, x := range hugeSlice { go work(x) }</code> starts <em>one goroutine per item</em>, and while goroutines are cheap, they are not free: a million of them will exhaust memory or bury a downstream service in concurrent calls.</p>
+<p>The production pattern is a <strong>bounded worker pool</strong> — a fixed number of goroutines pulling from a shared channel — so concurrency is capped no matter how much work arrives. The details of that pattern, along with how the runtime scheduler actually maps goroutines onto threads (the G-M-P model), deserve their own treatment and I will cover them in a later post on the scheduler and worker pools. For now, hold the rule: unbounded input should never mean unbounded goroutines.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>A goroutine is a runtime-scheduled function with a small, growable stack</strong> — cheap enough to start thousands of, because the Go scheduler multiplexes them onto a few OS threads instead of one thread each.</li>
+<li><strong><code>go f()</code> starts and returns immediately.</strong> Arguments are evaluated at the call site; the return value is discarded. There is no built-in way to wait.</li>
+<li><strong>When <code>main</code> returns, all other goroutines die instantly</strong> with no cleanup. You must synchronize to wait — use <code>sync.WaitGroup</code> or a channel, <strong>never <code>time.Sleep</code></strong>.</li>
+<li><strong>The number one concurrency bug is the goroutine leak:</strong> a goroutine blocked forever because no one reads or cancels. Give every goroutine a guaranteed exit — a buffered channel, a closed channel, or a cancelled <code>context</code>.</li>
+<li><strong>Loop-variable capture is fixed in Go 1.22</strong> (per-iteration scoping), but the old <code>c c c</code> bug is live in modules targeting Go 1.21 or earlier — check <code>go.mod</code>.</li>
+<li><strong>Don&rsquo;t spawn goroutines unbounded</strong> over input you don&rsquo;t control; a bounded worker pool caps concurrency.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/doc/effective_go#goroutines">Effective Go — Goroutines</a> — the canonical description of the primitive and how <code>go</code> statements behave.</li>
+<li><a href="https://go.dev/blog/">The Go Blog</a> — deeper pieces on concurrency patterns, channels, and context; start with the concurrency-patterns and pipelines articles.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-07-hierarchical-supervision.html">Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation</a>
+      <span class="related-date">Jul 24</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-21-context.html">context: Cancellation, Deadlines, and Values</a>
+      <span class="related-date">Jul 16</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-20-atomic-and-memory-model.html">Atomics and the Go Memory Model</a>
+      <span class="related-date">Jul 15</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

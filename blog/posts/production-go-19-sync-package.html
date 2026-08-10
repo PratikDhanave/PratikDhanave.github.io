@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>The sync Package — Pratik Dhanave</title>
+<meta name="description" content="When channels are the wrong tool — a working guide to shared memory and locks in Go: Mutex, RWMutex, WaitGroup, Once, Cond, Map, Pool, and the race...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="The sync Package — Pratik Dhanave">
+<meta property="og:description" content="When channels are the wrong tool — a working guide to shared memory and locks in Go: Mutex, RWMutex, WaitGroup, Once, Cond, Map, Pool, and the race detector that keeps you honest.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-19-sync-package.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-14T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Concurrency">
+<meta property="article:tag" content="sync">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The sync Package — Pratik Dhanave">
+<meta name="twitter:description" content="When channels are the wrong tool — a working guide to shared memory and locks in Go: Mutex, RWMutex, WaitGroup, Once, Cond, Map, Pool, and the race detector that keeps you honest.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-19-sync-package.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The sync Package",
+  "description": "When channels are the wrong tool \u2014 a working guide to shared memory and locks in Go: Mutex, RWMutex, WaitGroup, Once, Cond, Map, Pool, and the race detector that keeps you honest.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-14",
+  "dateModified": "2026-07-14",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Concurrency, sync",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-19-sync-package.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-19-sync-package.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>The sync Package</h1>
+    <p class="post-subtitle">When channels are the wrong tool — a working guide to shared memory and locks in Go: Mutex, RWMutex, WaitGroup, Once, Cond, Map, Pool, and the race detector that keeps you honest.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-14">July 14, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/concurrency/" class="tag-link"><span class="tag">#Concurrency</span></a><a href="/blog/tags/sync/" class="tag-link"><span class="tag">#sync</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 19 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-18-channels-and-select.html" class="series-prev">&larr; Part 18: Channels and select</a>
+<a href="/blog/posts/production-go-20-atomic-and-memory-model.html" class="series-next">Part 20: Atomics and the Go Memory Model &rarr;</a></div>
+  </div>
+
+
+
+  <p>Go&rsquo;s famous advice is &ldquo;don&rsquo;t communicate by sharing memory; share memory by communicating.&rdquo; It&rsquo;s good advice, and it makes channels the first thing most people reach for. But it is a <em>default</em>, not a law. A large fraction of real concurrent Go — caches, counters, connection pools, lazily-initialized singletons — is plainer, faster, and easier to reason about when you protect a piece of shared memory with a lock than when you route every access through a goroutine and a channel.</p>
+<p>The <code>sync</code> package is that other half of the story. This guide walks the primitives you actually reach for, when each earns its place, and the specific ways each one bites. Everything here is standard library; the only external tool is the race detector, which is built into the <code>go</code> command.</p>
+<hr>
+<h2 id="when-shared-memory-beats-channels">When shared memory beats channels</h2>
+<p>Use a channel when you are <strong>transferring ownership</strong> of data or <strong>coordinating</strong> the flow of work between goroutines — a pipeline stage handing a value downstream, a worker pool draining a job queue, a signal that something happened. The channel <em>is</em> the design.</p>
+<p>Reach for <code>sync</code> when the goroutines all touch <strong>one piece of state that stays put</strong> and you just need to serialize access to it. A hit counter, an in-memory map, a config struct that&rsquo;s read constantly and updated rarely — wrapping every read and write in a channel round-trip adds latency and ceremony for no benefit. A mutex says exactly what you mean: &ldquo;only one goroutine in here at a time.&rdquo;</p>
+<p>The honest test: if you find yourself building a goroutine whose entire job is to own a variable and answer request/reply channels, you&rsquo;ve reinvented a mutex the hard way. Just use the mutex.</p>
+<hr>
+<h2 id="syncmutex-the-workhorse">sync.Mutex: the workhorse</h2>
+<p>A <code>Mutex</code> is a mutual-exclusion lock. <code>Lock()</code> blocks until the lock is free and then acquires it; <code>Unlock()</code> releases it. The region between the two is a <strong>critical section</strong> that exactly one goroutine occupies at a time.</p>
+<pre><code class="language-go">type Counter struct {
+    mu    sync.Mutex
+    count int
+}
+
+func (c *Counter) Inc() {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    c.count++
+}
+
+func (c *Counter) Value() int {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    return c.count
+}
+</code></pre>
+<p>Two habits make mutex code reliable. First, <strong><code>defer c.mu.Unlock()</code> right after <code>Lock()</code></strong>. It guarantees the lock is released even if the critical section panics or returns early, and it keeps the pair visually adjacent so a later edit can&rsquo;t accidentally strand a lock. (The one time to skip <code>defer</code> is a hot path where you want to release <em>before</em> doing more work in the function — then unlock explicitly and be careful.) Second, keep the critical section <strong>short and self-contained</strong>: never call out to unknown code, block on I/O, or acquire a second lock while holding the first unless you have a strict, documented lock ordering. Holding a lock across a network call is how a whole service seizes up.</p>
+<p>The zero value of a <code>Mutex</code> is a ready-to-use unlocked mutex, so you never initialize one — just embed it or declare it. And critically, note that <code>Value()</code> above takes the lock too. Reading an <code>int</code> <em>feels</em> atomic, but without synchronization the Go memory model gives you no guarantee another goroutine&rsquo;s write is ever visible. A read that races with a write is a data race, full stop.</p>
+<p><strong>The gotcha:</strong> never copy a <code>Mutex</code> — or any struct that contains one — after it has been used. A <code>Mutex</code> carries internal state (who holds it, who&rsquo;s waiting); copying it produces a second lock that shares none of that state, so the copy and the original no longer exclude each other. This bites most often silently: a method with a value receiver (<code>func (c Counter)</code> instead of <code>func (c *Counter)</code>) copies the whole struct, mutex included, on every call. Always use pointer receivers for types with a mutex, and pass them by pointer. <code>go vet</code> catches this class of bug — it reports &ldquo;passes lock by value&rdquo; — so run it in CI and treat the finding as a real error, not a nit.</p>
+<hr>
+<h2 id="syncrwmutex-many-readers-one-writer">sync.RWMutex: many readers, one writer</h2>
+<p>An <code>RWMutex</code> distinguishes readers from writers. Any number of goroutines can hold the read lock (<code>RLock</code>/<code>RUnlock</code>) simultaneously, but the write lock (<code>Lock</code>/<code>Unlock</code>) is exclusive — it waits for all readers to leave and blocks new readers while held.</p>
+<pre><code class="language-go">type Config struct {
+    mu     sync.RWMutex
+    values map[string]string
+}
+
+func (c *Config) Get(key string) string {
+    c.mu.RLock()
+    defer c.mu.RUnlock()
+    return c.values[key]
+}
+
+func (c *Config) Set(key, val string) {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    c.values[key] = val
+}
+</code></pre>
+<p>The shape to look for is <strong>read-mostly</strong> state: configuration, routing tables, caches that are queried far more than they&rsquo;re mutated. There, letting readers proceed in parallel is a genuine win.</p>
+<p>But an <code>RWMutex</code> is not a free upgrade over a plain <code>Mutex</code>. It does more bookkeeping, so each acquisition is more expensive; if the critical section is tiny (a map lookup, a field read), that overhead can outweigh the concurrency you gain, and a plain <code>Mutex</code> is actually faster. It also only helps when readers genuinely overlap and the work under the lock is non-trivial — if writes are frequent, readers wait for writers anyway and you&rsquo;ve paid for machinery you don&rsquo;t use. Reach for <code>RWMutex</code> when you&rsquo;ve established the workload is read-heavy, not reflexively.</p>
+<hr>
+<h2 id="syncwaitgroup-wait-for-a-set-of-goroutines">sync.WaitGroup: wait for a set of goroutines</h2>
+<p>A <code>WaitGroup</code> counts outstanding work. <code>Add(n)</code> raises the counter, each goroutine calls <code>Done()</code> (which decrements it) as it finishes, and <code>Wait()</code> blocks until the counter hits zero.</p>
+<pre><code class="language-go">func fetchAll(urls []string) []Result {
+    results := make([]Result, len(urls))
+    var wg sync.WaitGroup
+
+    for i, url := range urls {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            results[i] = fetch(url)
+        }()
+    }
+
+    wg.Wait()
+    return results
+}
+</code></pre>
+<p>Note the discipline: <code>wg.Add(1)</code> happens <strong>before</strong> the <code>go</code> statement, and <code>defer wg.Done()</code> is the first line of the goroutine. Writing to a distinct index of <code>results</code> per goroutine needs no lock — the goroutines touch disjoint memory, and <code>Wait()</code> establishes the happens-before edge that makes every write visible before <code>fetchAll</code> reads the slice back.</p>
+<p>(A note on the loop variable: as of Go 1.22 each iteration gets a fresh <code>i</code> and <code>url</code>, so capturing them directly in the closure is safe. On Go 1.21 and earlier you had to shadow them — <code>i, url := i, url</code> — or every goroutine would see the final iteration&rsquo;s values.)</p>
+<p><strong>The gotcha:</strong> call <code>Add</code> from the goroutine that <em>spawns</em> the work, before launching it — never inside the goroutine itself. If <code>Add(1)</code> runs inside the new goroutine, <code>Wait()</code> can execute before that goroutine is scheduled, see a counter of zero, and return while work is still pending. Two related rules: don&rsquo;t reuse a <code>WaitGroup</code> for a new round until <code>Wait()</code> has fully returned, and never let the counter go negative (more <code>Done</code>s than <code>Add</code>s), which panics. A <code>WaitGroup</code> must not be copied after first use either — pass it by pointer, and <code>go vet</code> flags copies here too.</p>
+<hr>
+<h2 id="synconce-exactly-once-initialization">sync.Once: exactly-once initialization</h2>
+<p><code>Once</code> guarantees a function runs one time, no matter how many goroutines call it concurrently. Every caller blocks until that first run completes, so they all safely observe the initialized result.</p>
+<pre><code class="language-go">var (
+    once     sync.Once
+    instance *Client
+)
+
+func GetClient() *Client {
+    once.Do(func() {
+        instance = newExpensiveClient()
+    })
+    return instance
+}
+</code></pre>
+<p>This is the clean answer to lazy singletons and one-time setup — a connection pool, a compiled regexp, a parsed config — without the double-checked-locking dance people write by hand and get subtly wrong. The function passed to <code>Do</code> runs at most once for the lifetime of that <code>Once</code> value; even if it panics, <code>Once</code> considers the attempt spent and will not retry.</p>
+<p>That &ldquo;spent even on panic&rdquo; behavior is the thing to know: if your init can fail and you want retries, <code>Once</code> is the wrong tool — capture the error and handle it, or use a different pattern. Go 1.21 added the convenience wrappers <code>sync.OnceFunc</code>, <code>sync.OnceValue</code>, and <code>sync.OnceValues</code>, which return a function that memoizes a call or its result; they&rsquo;re often tidier than managing a bare <code>Once</code> plus package-level variables.</p>
+<hr>
+<h2 id="synccond-usually-reach-for-a-channel-instead">sync.Cond: usually reach for a channel instead</h2>
+<p>A <code>Cond</code> is a condition variable — a way for goroutines to wait until some shared condition becomes true, and to be woken (<code>Signal</code> for one waiter, <code>Broadcast</code> for all) when another goroutine changes it. It&rsquo;s built around a lock you hold while checking the condition in a loop.</p>
+<pre><code class="language-go">c := sync.NewCond(&amp;sync.Mutex{})
+// waiter:
+c.L.Lock()
+for !ready {          // always re-check in a loop, never a bare if
+    c.Wait()          // atomically unlocks, sleeps, re-locks on wake
+}
+c.L.Unlock()
+</code></pre>
+<p><code>Cond</code> is correct but easy to misuse — you must always re-test the condition in a <code>for</code> loop after <code>Wait()</code> returns, because wakeups can be spurious and the condition may have changed again by the time you&rsquo;re scheduled. In practice, most &ldquo;wait until X happens&rdquo; problems in Go are cleaner with a channel: close one to broadcast a one-time event, or send on one to hand off. Keep <code>Cond</code> for the narrow case of many goroutines waiting on a repeatedly-changing shared predicate where a channel would be awkward — reach for it deliberately, not by default.</p>
+<hr>
+<h2 id="syncmap-a-specialist-not-a-general-map">sync.Map: a specialist, not a general map</h2>
+<p><code>sync.Map</code> is a concurrent map you can use without wrapping it in your own mutex. It is tempting to treat it as &ldquo;the thread-safe map,&rdquo; but that&rsquo;s a trap: for most workloads a plain <code>map</code> guarded by a <code>sync.Mutex</code> (or <code>RWMutex</code>) is simpler <em>and</em> faster.</p>
+<p><code>sync.Map</code> is optimized for two narrow patterns its own documentation calls out: keys that are written once and then read many times (a stable cache), and workloads where <strong>different goroutines touch disjoint sets of keys</strong>. In those cases its internal design avoids lock contention that a mutex-wrapped map would suffer. Outside those patterns — a map with churn, or many goroutines hammering the same keys — it can be <em>slower</em> than the naive approach, and its untyped <code>interface{}</code> API (<code>Load</code>, <code>Store</code>, <code>LoadOrStore</code>, <code>Delete</code>, <code>Range</code>) costs you compile-time type safety and adds allocation.</p>
+<pre><code class="language-go">var cache sync.Map // maps string -&gt; *User
+
+func getUser(id string) (*User, bool) {
+    v, ok := cache.Load(id)
+    if !ok {
+        return nil, false
+    }
+    return v.(*User), true // type assertion required
+}
+</code></pre>
+<p>Default to a mutex plus a typed map. Reach for <code>sync.Map</code> only after you&rsquo;ve confirmed your access pattern matches one of the two it&rsquo;s built for — ideally with a benchmark, not a hunch.</p>
+<hr>
+<h2 id="syncpool-reusing-transient-allocations">sync.Pool: reusing transient allocations</h2>
+<p><code>sync.Pool</code> holds a set of temporary objects that can be reused to relieve pressure on the garbage collector. You <code>Get()</code> an object (the pool hands you a free one or calls your <code>New</code> func to make one), use it, and <code>Put()</code> it back for the next caller. It shines for short-lived, frequently-allocated objects like byte buffers in a hot request path.</p>
+<pre><code class="language-go">var bufPool = sync.Pool{
+    New: func() any { return new(bytes.Buffer) },
+}
+
+func process(data []byte) {
+    buf := bufPool.Get().(*bytes.Buffer)
+    buf.Reset()          // pooled objects are dirty — reset before use
+    defer bufPool.Put(buf)
+    // ... use buf ...
+}
+</code></pre>
+<p>Two things define correct use: objects you <code>Get</code> are in whatever state their last user left them, so <strong>reset before use</strong>, and the pool can drop any or all of its contents at any time (it&rsquo;s cleared during GC), so it&rsquo;s a cache for <em>reducing allocations</em>, never a place to store anything you must not lose. Whether pooling actually helps is a measurement question, not an assumption — I&rsquo;ll treat the performance profiling of <code>sync.Pool</code> (and how to tell if it&rsquo;s earning its keep) as its own topic elsewhere in this series.</p>
+<hr>
+<h2 id="the-race-detector-your-ground-truth">The race detector: your ground truth</h2>
+<p>None of this reasoning matters if you can&rsquo;t verify it, and data races are invisible until they aren&rsquo;t — they surface as impossible values, corrupted maps, and crashes that reproduce once a week. Go ships a race detector built into the toolchain:</p>
+<pre><code class="language-bash">go test -race ./...
+go run -race ./cmd/server
+go build -race -o server ./cmd/server
+</code></pre>
+<p>The <code>-race</code> flag instruments memory accesses and reports, with full goroutine stacks, any time two goroutines touch the same memory concurrently without synchronization and at least one is a write. It&rsquo;s a <strong>dynamic</strong> detector: it only flags races on code paths your tests actually exercise, so its value is proportional to your coverage of concurrent paths. It also raises memory use and slows execution, so you run it in CI and locally, not in production.</p>
+<p>Make <code>go test -race</code> part of your standard CI. A green race build is the difference between &ldquo;I reasoned about the locking and I think it&rsquo;s right&rdquo; and &ldquo;the tooling confirms these paths don&rsquo;t race.&rdquo; Both <code>go vet</code> (copied locks, misused <code>WaitGroup</code>s) and <code>-race</code> (actual data races) belong in every Go pipeline.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Channels coordinate; locks protect.</strong> Use <code>sync</code> when goroutines share one piece of stationary state — don&rsquo;t route everything through channels out of dogma.</li>
+<li><strong><code>Mutex</code> is the default lock.</strong> <code>Lock</code> then <code>defer Unlock</code>, keep critical sections short, use pointer receivers, and never copy a mutex — <code>go vet</code> catches the copy.</li>
+<li><strong><code>RWMutex</code> is for read-mostly state only.</strong> It&rsquo;s more expensive per call; a plain <code>Mutex</code> wins for tiny critical sections or write-heavy loads.</li>
+<li><strong><code>WaitGroup</code>: <code>Add</code> before the goroutine, <code>Done</code> in a <code>defer</code>, then <code>Wait</code>.</strong> Calling <code>Add</code> inside the goroutine is a race.</li>
+<li><strong><code>Once</code> is exactly-once, even on panic.</strong> Perfect for lazy init; wrong if you need retry-on-failure.</li>
+<li><strong><code>Cond</code> is niche — a channel is usually clearer.</strong> <code>sync.Map</code> and <code>sync.Pool</code> are specialists; default to a mutex-guarded map and profile before pooling.</li>
+<li><strong><code>go test -race</code> is non-negotiable.</strong> It&rsquo;s the only thing that turns &ldquo;I think it&rsquo;s correct&rdquo; into evidence.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://pkg.go.dev/sync">The <code>sync</code> package documentation</a> — the authoritative reference for every primitive above, including the precise contracts for <code>sync.Map</code>, <code>sync.Pool</code>, and the <code>Once</code> variants.</li>
+<li><a href="https://go.dev/ref/mem">The Go Memory Model</a> — what &ldquo;happens-before&rdquo; actually guarantees, and why an unsynchronized read of shared memory is undefined behavior, not just a stale value.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-07-hierarchical-supervision.html">Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation</a>
+      <span class="related-date">Jul 24</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-21-context.html">context: Cancellation, Deadlines, and Values</a>
+      <span class="related-date">Jul 16</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-20-atomic-and-memory-model.html">Atomics and the Go Memory Model</a>
+      <span class="related-date">Jul 15</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

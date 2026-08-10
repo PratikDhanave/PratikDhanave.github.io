@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Channels and select — Pratik Dhanave</title>
+<meta name="description" content="A working guide to Go&#x27;s channels — unbuffered rendezvous vs buffered capacity, send/receive/close semantics, directional types in APIs, and how...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Channels and select — Pratik Dhanave">
+<meta property="og:description" content="A working guide to Go&#x27;s channels — unbuffered rendezvous vs buffered capacity, send/receive/close semantics, directional types in APIs, and how `select` multiplexes, times out, and disables cases with a nil...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-18-channels-and-select.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-13T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Concurrency">
+<meta property="article:tag" content="Channels">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Channels and select — Pratik Dhanave">
+<meta name="twitter:description" content="A working guide to Go&#x27;s channels — unbuffered rendezvous vs buffered capacity, send/receive/close semantics, directional types in APIs, and how `select` multiplexes, times out, and disables cases with a nil...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-18-channels-and-select.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Channels and select",
+  "description": "A working guide to Go's channels \u2014 unbuffered rendezvous vs buffered capacity, send/receive/close semantics, directional types in APIs, and how `select` multiplexes, times out, and disables cases with a nil...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-13",
+  "dateModified": "2026-07-13",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Concurrency, Channels",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-18-channels-and-select.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-18-channels-and-select.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Channels and select</h1>
+    <p class="post-subtitle">A working guide to Go&#x27;s channels — unbuffered rendezvous vs buffered capacity, send/receive/close semantics, directional types in APIs, and how `select` multiplexes, times out, and disables cases with a nil channel.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-13">July 13, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/concurrency/" class="tag-link"><span class="tag">#Concurrency</span></a><a href="/blog/tags/channels/" class="tag-link"><span class="tag">#Channels</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 18 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-17-goroutines.html" class="series-prev">&larr; Part 17: Goroutines</a>
+<a href="/blog/posts/production-go-19-sync-package.html" class="series-next">Part 19: The sync Package &rarr;</a></div>
+  </div>
+
+
+
+  <p>Goroutines are cheap to start. The hard part is getting them to talk without corrupting shared state or deadlocking. Channels are Go&rsquo;s answer: a <strong>typed conduit</strong> that carries values from one goroutine to another and, just as importantly, synchronizes the two at the moment of handoff. The Go proverb is &ldquo;don&rsquo;t communicate by sharing memory; share memory by communicating&rdquo; — and channels make that slogan practical.</p>
+<p>This guide walks through what a channel actually guarantees, unbuffered vs buffered channels, the rules around closing (which trip up nearly everyone at first), and <code>select</code> — the control structure that turns one channel into a real concurrency toolkit.</p>
+<hr>
+<h2 id="a-channel-is-a-typed-conduit-with-a-synchronization-guarantee">A channel is a typed conduit with a synchronization guarantee</h2>
+<p>You create a channel with <code>make</code>, and its type includes the element type it carries. A <code>chan int</code> moves <code>int</code> values; nothing else will compile.</p>
+<pre><code class="language-go">ch := make(chan int)   // unbuffered
+ch &lt;- 42               // send: blocks until a receiver is ready
+v := &lt;-ch              // receive: blocks until a sender is ready
+</code></pre>
+<p>The arrow always points <em>in the direction the value flows</em>: into the channel on a send, out of it on a receive. Beyond moving data, a channel establishes a <strong>happens-before</strong> relationship — everything the sending goroutine did before the send is visible to the receiving goroutine after the receive. That memory guarantee is why you can pass a pointer or a slice through a channel and read it safely on the other side without a mutex.</p>
+<hr>
+<h2 id="unbuffered-channels-a-synchronous-rendezvous">Unbuffered channels: a synchronous rendezvous</h2>
+<p>An unbuffered channel (<code>make(chan T)</code>, capacity zero) has no room to hold a value. A send blocks until some other goroutine is ready to receive, and a receive blocks until some goroutine is ready to send. The two operations complete together, at the same instant — a <strong>rendezvous</strong>.</p>
+<pre><code class="language-go">func main() {
+    done := make(chan struct{})
+
+    go func() {
+        fmt.Println(&quot;worker: doing work&quot;)
+        done &lt;- struct{}{} // won't complete until main receives
+    }()
+
+    &lt;-done // blocks here until the worker sends
+    fmt.Println(&quot;main: worker finished&quot;)
+}
+</code></pre>
+<p>Because the send and receive are simultaneous, an unbuffered channel is a <strong>signal</strong> as much as a transport. The <code>chan struct{}</code> idiom above carries no data — a zero-size <code>struct{}</code> value costs nothing — it exists purely to mark &ldquo;this happened.&rdquo; Use unbuffered channels when you want a guarantee that the receiver has actually taken the value, not merely that you managed to hand it off.</p>
+<hr>
+<h2 id="buffered-channels-capacity-and-asynchrony-up-to-the-cap">Buffered channels: capacity and asynchrony up to the cap</h2>
+<p>Give <code>make</code> a second argument and the channel gains an internal buffer. A send succeeds immediately as long as the buffer has room; only when the buffer is full does a send block. Symmetrically, a receive succeeds while the buffer holds values and blocks only when it&rsquo;s empty.</p>
+<pre><code class="language-go">ch := make(chan int, 2) // capacity 2
+ch &lt;- 1                 // fits, returns immediately
+ch &lt;- 2                 // fits, returns immediately
+// ch &lt;- 3              // would block: buffer full, no receiver yet
+
+fmt.Println(&lt;-ch, &lt;-ch) // 1 2 — FIFO order
+</code></pre>
+<p><code>len(ch)</code> reports how many values are currently queued; <code>cap(ch)</code> reports the capacity. Buffering decouples sender and receiver <em>up to the cap</em> — useful when producers and consumers run at uneven rates. It is <strong>not</strong> an unbounded queue and not a substitute for correct synchronization: pick a capacity for a concrete reason (a known batch size, a bounded worklist), not as a guess to &ldquo;make blocking go away.&rdquo; A too-large buffer just hides backpressure until it&rsquo;s a bigger problem.</p>
+<p><strong>The gotcha:</strong> a buffered channel does not guarantee the receiver ever ran. <code>ch &lt;- x</code> on a channel with spare capacity returns whether or not anyone is listening, so a &ldquo;done&rdquo; signal sent over a buffered channel can be lost if the program exits first. When you need proof of delivery, use an unbuffered channel.</p>
+<hr>
+<h2 id="receiving-closing-and-the-two-value-receive">Receiving, closing, and the two-value receive</h2>
+<p>A sender can <code>close</code> a channel to announce that no more values are coming. Closing is a broadcast: every current and future receiver sees it.</p>
+<p>Receiving from a closed channel never blocks. It drains any buffered values first, then returns the element type&rsquo;s <strong>zero value</strong> forever after. The two-value form of receive tells you which case you&rsquo;re in:</p>
+<pre><code class="language-go">v, ok := &lt;-ch
+// ok == true : v is a real value sent on the channel
+// ok == false: the channel is closed AND drained; v is the zero value
+</code></pre>
+<p>That <code>ok</code> flag is the only reliable way to distinguish &ldquo;a real zero was sent&rdquo; from &ldquo;the channel is closed.&rdquo; Ranging over a channel wraps this up for you: <code>for v := range ch</code> receives values until the channel is closed and drained, then exits the loop cleanly.</p>
+<pre><code class="language-go">func produce(n int) &lt;-chan int {
+    out := make(chan int)
+    go func() {
+        defer close(out) // sender closes when finished
+        for i := 0; i &lt; n; i++ {
+            out &lt;- i * i
+        }
+    }()
+    return out
+}
+
+func main() {
+    for v := range produce(5) {
+        fmt.Println(v) // 0 1 4 9 16, then the loop ends
+    }
+}
+</code></pre>
+<hr>
+<h2 id="who-closes-a-channel-and-the-rules-you-cannot-break">Who closes a channel — and the rules you cannot break</h2>
+<p>There is one owner of a channel&rsquo;s lifecycle, and it is the <strong>sender</strong>. The receiver must never close a channel, because a receiver has no way to know whether another goroutine is still about to send. Three rules follow, and violating them is a runtime panic, not a compile error:</p>
+<ul>
+<li><strong>Sending on a closed channel panics.</strong> So does closing an already-closed channel.</li>
+<li><strong>Closing is optional.</strong> You only need to close when a receiver relies on it — typically to terminate a <code>range</code>. A channel that is simply garbage-collected doesn&rsquo;t need closing.</li>
+<li><strong>The sender closes; the receiver detects.</strong> If several goroutines send on one channel, none of them may close it unilaterally. Coordinate them (for example with a <code>sync.WaitGroup</code>) and let a single goroutine close once they&rsquo;ve all finished.</li>
+</ul>
+<pre><code class="language-go">func fanIn(sources ...&lt;-chan int) &lt;-chan int {
+    out := make(chan int)
+    var wg sync.WaitGroup
+    wg.Add(len(sources))
+    for _, s := range sources {
+        go func(c &lt;-chan int) {
+            defer wg.Done()
+            for v := range c {
+                out &lt;- v
+            }
+        }(s)
+    }
+    go func() {
+        wg.Wait()  // wait for every sender to finish
+        close(out) // exactly one close, by one goroutine
+    }()
+    return out
+}
+</code></pre>
+<p><strong>The gotcha:</strong> <code>close</code> means &ldquo;no more sends,&rdquo; not &ldquo;stop receiving.&rdquo; Receivers can and should keep draining after a close to collect buffered values. If you want to signal receivers to stop <em>sending</em> to you, that&rsquo;s a different channel (or a <code>context.Context</code>) flowing the other way — closing your output channel doesn&rsquo;t do it.</p>
+<hr>
+<h2 id="directional-channel-types-make-apis-honest">Directional channel types make APIs honest</h2>
+<p>A function that only sends should accept a <strong>send-only</strong> channel; one that only receives should accept a <strong>receive-only</strong> channel. The syntax puts the arrow next to <code>chan</code>:</p>
+<pre><code class="language-go">func emit(out chan&lt;- int)      { out &lt;- 1 }    // send-only: may send (and close), cannot receive
+func drain(in &lt;-chan int) int  { return &lt;-in } // receive-only: may receive, cannot send or close
+</code></pre>
+<p>A bidirectional <code>chan int</code> converts implicitly to either directional type, but not back — so once a function has a <code>&lt;-chan int</code>, the compiler forbids it from sending or closing. This is not decoration: it moves a whole class of &ldquo;wrong goroutine closed the channel&rdquo; bugs from runtime panics to compile errors. Notice the <code>produce</code> and <code>fanIn</code> examples above return <code>&lt;-chan int</code> — callers can only receive, which documents ownership and enforces it. Make your channel-returning functions hand back the narrowest direction the caller needs.</p>
+<hr>
+<h2 id="select-multiplexing-over-multiple-channels">select: multiplexing over multiple channels</h2>
+<p><code>select</code> is to channels what <code>switch</code> is to values: it lets a goroutine wait on several channel operations at once and proceeds with whichever is ready first.</p>
+<pre><code class="language-go">select {
+case v := &lt;-in1:
+    fmt.Println(&quot;from in1:&quot;, v)
+case v := &lt;-in2:
+    fmt.Println(&quot;from in2:&quot;, v)
+case out &lt;- compute():
+    fmt.Println(&quot;sent a result&quot;)
+}
+</code></pre>
+<p>If exactly one case is ready, that case runs. If <strong>several</strong> are ready simultaneously, <code>select</code> picks one <strong>at random</strong> — a deliberate design choice that prevents starvation, so you can never assume the first-listed ready case wins. If <strong>no</strong> case is ready, <code>select</code> blocks until one becomes ready (unless there&rsquo;s a <code>default</code>, below).</p>
+<hr>
+<h2 id="default-making-select-non-blocking">default: making select non-blocking</h2>
+<p>Add a <code>default</code> case and <code>select</code> stops blocking: if no channel operation is ready <em>right now</em>, it runs <code>default</code> immediately. This turns <code>select</code> into a try-send or try-receive.</p>
+<pre><code class="language-go">// Non-blocking send: drop the value if nobody's ready to take it.
+select {
+case ch &lt;- value:
+    // delivered
+default:
+    // buffer full / no receiver — skip rather than block
+}
+
+// Non-blocking receive: poll without waiting.
+select {
+case v := &lt;-ch:
+    handle(v)
+default:
+    // nothing available right now
+}
+</code></pre>
+<p>This pattern is how you implement dropping under load, or a poll that must never stall. Use it deliberately: a <code>default</code> inside a tight <code>for</code> loop with nothing else to wait on becomes a <strong>busy-wait</strong> that pins a CPU core. If the goal is &ldquo;wait, but not forever,&rdquo; reach for a timeout instead.</p>
+<hr>
+<h2 id="timeouts-with-timeafter">Timeouts with time.After</h2>
+<p>Because <code>time.After</code> returns a channel that delivers a value after a duration, it drops straight into a <code>select</code> as a timeout arm:</p>
+<pre><code class="language-go">select {
+case res := &lt;-work:
+    fmt.Println(&quot;result:&quot;, res)
+case &lt;-time.After(2 * time.Second):
+    fmt.Println(&quot;timed out waiting for work&quot;)
+}
+</code></pre>
+<p>Whichever fires first wins. If <code>work</code> produces within two seconds you take the result; otherwise the timer&rsquo;s channel becomes ready and you bail out. For a deadline shared across many operations, prefer a <code>context.Context</code> with <code>context.WithTimeout</code> and select on <code>ctx.Done()</code> — but <code>time.After</code> is the right tool for a single, local wait.</p>
+<p><strong>The gotcha:</strong> in a long-running loop, <code>time.After(d)</code> allocates a fresh timer <em>every iteration</em>, and the old timer isn&rsquo;t collected until it fires. For a hot loop, create one <code>time.NewTimer</code> (or <code>time.NewTicker</code>) outside the loop and reset it, so you&rsquo;re not leaking timers under the covers.</p>
+<hr>
+<h2 id="nil-channels-block-forever-the-disable-a-case-trick">nil channels block forever — the disable-a-case trick</h2>
+<p>A receive or send on a <code>nil</code> channel blocks <em>forever</em>. That sounds like a pure hazard, but it&rsquo;s the cleanest way to <strong>disable a case</strong> in a <code>select</code>: a <code>nil</code> channel case can never be selected, so setting a channel variable to <code>nil</code> removes its arm from consideration on the next loop iteration.</p>
+<pre><code class="language-go">func merge(a, b &lt;-chan int) &lt;-chan int {
+    out := make(chan int)
+    go func() {
+        defer close(out)
+        for a != nil || b != nil { // keep going while either is live
+            select {
+            case v, ok := &lt;-a:
+                if !ok {
+                    a = nil // a is drained; disable this case
+                    continue
+                }
+                out &lt;- v
+            case v, ok := &lt;-b:
+                if !ok {
+                    b = nil // b is drained; disable this case
+                    continue
+                }
+                out &lt;- v
+            }
+        }
+    }()
+    return out
+}
+</code></pre>
+<p>Without the nil trick, a closed channel stays <em>permanently ready</em> in a <code>select</code> — it fires instantly with <code>ok == false</code> on every iteration, spinning the loop. Nilling the drained channel takes its case out of the running so <code>select</code> waits properly on whatever&rsquo;s left, and the loop condition <code>a != nil || b != nil</code> gives you a clean exit once both are done.</p>
+<p><strong>The gotcha:</strong> the closed-channel-stays-ready behavior is exactly why a naive <code>select</code> over channels you never nil out can turn into a hot spin after one of them closes. If a <code>select</code> loop suddenly burns CPU, suspect a closed channel whose case you forgot to disable.</p>
+<hr>
+<h2 id="channels-or-a-mutex-choosing-between-the-two-models">Channels or a mutex? Choosing between the two models</h2>
+<p>Channels are not always the right tool. Go ships <code>sync.Mutex</code> precisely because some problems are about protecting state, not moving it. A rough guide:</p>
+<table><caption class="sr-only">Channels or a mutex? Choosing between the two models</caption>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Reach for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Transferring ownership of data between goroutines</td>
+<td>Channel</td>
+</tr>
+<tr>
+<td>Pipelines / producer-consumer / fan-in-fan-out</td>
+<td>Channel</td>
+</tr>
+<tr>
+<td>Signaling events, cancellation, completion</td>
+<td>Channel (or <code>context</code>)</td>
+</tr>
+<tr>
+<td>Guarding a field or map read/written by many goroutines</td>
+<td>Mutex</td>
+</tr>
+<tr>
+<td>A simple counter or cache with short critical sections</td>
+<td>Mutex (or <code>sync/atomic</code>)</td>
+</tr>
+<tr>
+<td>Distributing work across N workers</td>
+<td>Channel (a job queue)</td>
+</tr>
+</tbody>
+</table>
+<p>The heuristic: if a value has an <strong>owner</strong> that changes over time, pass it on a channel so ownership moves with it; if a value is <strong>shared state</strong> several goroutines poke at in place, protect it with a mutex. Mixing the two is fine — a worker pool often uses channels to hand out jobs and a mutex to accumulate results into a shared map. Don&rsquo;t force everything through channels for purity&rsquo;s sake; a mutex around three lines is clearer than a goroutine and two channels to serialize the same access.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>A channel synchronizes as it transports.</strong> The value handoff also establishes happens-before, which is what makes passing pointers between goroutines safe.</li>
+<li><strong>Unbuffered = rendezvous, buffered = capacity.</strong> Unbuffered proves the receiver took the value; buffered decouples the two up to <code>cap</code>. Size a buffer for a reason, never to paper over blocking.</li>
+<li><strong>The sender closes, never the receiver.</strong> Sending on or closing a closed channel panics. Use the <code>v, ok := &lt;-ch</code> form (or <code>range</code>) to detect closure and drain cleanly.</li>
+<li><strong>Directional types (<code>chan&lt;-</code>, <code>&lt;-chan</code>) turn ownership bugs into compile errors.</strong> Return the narrowest direction your caller needs.</li>
+<li><strong><code>select</code> multiplexes; <code>default</code> makes it non-blocking; <code>time.After</code> times it out.</strong> Ready cases are chosen at random — never assume ordering.</li>
+<li><strong>A <code>nil</code> channel blocks forever — use it to disable a <code>select</code> case</strong> once a source is drained, and to avoid the hot spin a closed channel would otherwise cause.</li>
+<li><strong>Share memory by communicating — but keep the mutex.</strong> Channels move ownership; a mutex guards shared state. Pick the model that matches the problem.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/doc/effective_go#channels">Effective Go — Channels</a></li>
+<li><a href="https://go.dev/blog/pipelines">The Go Blog — Go Concurrency Patterns: Pipelines and cancellation</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-07-hierarchical-supervision.html">Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation</a>
+      <span class="related-date">Jul 24</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-21-context.html">context: Cancellation, Deadlines, and Values</a>
+      <span class="related-date">Jul 16</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-20-atomic-and-memory-model.html">Atomics and the Go Memory Model</a>
+      <span class="related-date">Jul 15</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

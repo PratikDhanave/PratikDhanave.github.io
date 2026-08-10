@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>panic, recover, and defer&#x27;s Role — Pratik Dhanave</title>
+<meta name="description" content="Go handles ordinary failure with values, not exceptions — so what are panic and recover actually for? A working guide to how panic unwinds the stack...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="panic, recover, and defer&#x27;s Role — Pratik Dhanave">
+<meta property="og:description" content="Go handles ordinary failure with values, not exceptions — so what are panic and recover actually for? A working guide to how panic unwinds the stack through your defers, why recover only fires inside a...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-16-panic-and-recover.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-11T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Errors">
+<meta property="article:tag" content="panic">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="panic, recover, and defer&#x27;s Role — Pratik Dhanave">
+<meta name="twitter:description" content="Go handles ordinary failure with values, not exceptions — so what are panic and recover actually for? A working guide to how panic unwinds the stack through your defers, why recover only fires inside a...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-16-panic-and-recover.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "panic, recover, and defer's Role",
+  "description": "Go handles ordinary failure with values, not exceptions \u2014 so what are panic and recover actually for? A working guide to how panic unwinds the stack through your defers, why recover only fires inside a...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-11",
+  "dateModified": "2026-07-11",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Errors, panic",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-16-panic-and-recover.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-16-panic-and-recover.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>panic, recover, and defer&#x27;s Role</h1>
+    <p class="post-subtitle">Go handles ordinary failure with values, not exceptions — so what are panic and recover actually for? A working guide to how panic unwinds the stack through your defers, why recover only fires inside a deferred function, and the narrow set of places where catching a panic is the right call rather than a code smell.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-11">July 11, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/errors/" class="tag-link"><span class="tag">#Errors</span></a><a href="/blog/tags/panic/" class="tag-link"><span class="tag">#panic</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 16 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-15-errors-wrapping-is-as.html" class="series-prev">&larr; Part 15: Errors, Wrapping, and errors.Is / errors.As</a>
+<a href="/blog/posts/production-go-17-goroutines.html" class="series-next">Part 17: Goroutines &rarr;</a></div>
+  </div>
+
+
+
+  <p>The previous post argued that Go treats errors as ordinary values: you return them, compare them, and inspect them with the same tools you&rsquo;d use on any other value. That model covers the overwhelming majority of failure in a Go program. So it&rsquo;s fair to ask what <code>panic</code> and <code>recover</code> are even for — they look like the <code>throw</code>/<code>catch</code> Go deliberately walked away from.</p>
+<p>They aren&rsquo;t. <code>panic</code> is not exception handling wearing a Go costume, and reaching for it as control flow is a clear sign that someone learned the language from another one. The mechanism is real and occasionally indispensable, but its correct uses are narrow. This post draws that line precisely: what <code>panic</code> does to the stack, why <code>recover</code> is welded to <code>defer</code>, and the handful of situations where catching a panic is engineering rather than a smell.</p>
+<hr>
+<h2 id="what-panic-actually-does">What panic actually does</h2>
+<p>A <code>panic</code> stops the ordinary flow of the current function immediately. But it does not just crash — it begins <em>unwinding</em> the goroutine&rsquo;s stack, and on the way out it runs every deferred function that was registered, in last-in-first-out order, in each frame it passes through.</p>
+<pre><code class="language-go">func work() {
+    defer fmt.Println(&quot;work: deferred&quot;)
+    fmt.Println(&quot;work: before panic&quot;)
+    panic(&quot;something broke&quot;)
+    fmt.Println(&quot;work: after panic&quot;) // never runs
+}
+
+func main() {
+    defer fmt.Println(&quot;main: deferred&quot;)
+    work()
+    fmt.Println(&quot;main: after work&quot;) // never runs
+}
+</code></pre>
+<p>This prints <code>work: before panic</code>, then <code>work: deferred</code>, then <code>main: deferred</code>, and finally the program dies with the panic message and a stack trace. The two &ldquo;after&rdquo; lines never execute. The important detail is that deferred functions <em>still run</em> during a panic — that&rsquo;s the whole reason <code>defer</code> and <code>panic</code> belong in the same conversation. Your cleanup (closing files, releasing locks, flushing buffers) fires on the way out whether the function returns normally or panics. If nothing along the way stops the unwind, it reaches the top of the goroutine&rsquo;s stack and the runtime terminates the whole program.</p>
+<p>That last clause matters more than it looks: <strong>an unrecovered panic anywhere kills the entire process, not just the goroutine.</strong> There is no &ldquo;let this one goroutine die quietly&rdquo; — a panic that escapes its goroutine takes everything down with it.</p>
+<hr>
+<h2 id="recover-only-from-inside-a-defer">recover: only from inside a defer</h2>
+<p><code>recover</code> is the one function that can stop an unwind in progress. It has a strict contract: it only does anything <strong>when called directly from a deferred function</strong> while a panic is propagating. Call it anywhere else — in normal flow, or one call deeper than the deferred function — and it returns <code>nil</code> and does nothing.</p>
+<pre><code class="language-go">func safeDivide(a, b int) (result int, err error) {
+    defer func() {
+        if r := recover(); r != nil {
+            err = fmt.Errorf(&quot;recovered: %v&quot;, r)
+        }
+    }()
+    return a / b, nil // integer divide-by-zero panics at runtime
+}
+</code></pre>
+<p>When <code>b</code> is zero the division panics, the unwind begins, and because <code>safeDivide</code> registered a deferred closure, that closure runs. Inside it, <code>recover()</code> returns the panic value (here a <code>runtime.Error</code>), the unwind stops there, and <code>safeDivide</code> returns normally — with <code>err</code> set. Call it with a non-zero <code>b</code> and <code>recover()</code> returns <code>nil</code>, the <code>if</code> is skipped, and the function returns its real result.</p>
+<p>Two things make this work, and both are easy to get wrong:</p>
+<ul>
+<li>The <code>recover</code> call must be <strong>directly inside the deferred function</strong>. If you factor it into a helper that the deferred function calls, <code>recover</code> is no longer running at the right stack depth and returns <code>nil</code>.</li>
+<li><code>recover</code> only reports a value <strong>when there is an active panic</strong>. On a normal return it always returns <code>nil</code>, which is exactly why the <code>if r := recover(); r != nil</code> guard is the canonical shape.</li>
+</ul>
+<p><strong>The gotcha:</strong> <code>recover()</code> invoked outside a deferred function — or invoked when no panic is in flight — is not an error and gives no warning. It silently returns <code>nil</code>. A <code>recover</code> you <em>thought</em> was catching panics but placed one call too deep will let every panic sail straight past it, and you won&rsquo;t find out until production.</p>
+<hr>
+<h2 id="convert-a-panic-into-an-error-with-a-named-return">Convert a panic into an error with a named return</h2>
+<p>The <code>safeDivide</code> example above quietly used the single most useful pattern in this entire topic, so it&rsquo;s worth naming: a <strong>named return value</strong> lets a deferred <code>recover</code> change what the function returns.</p>
+<p>Because <code>err</code> is declared in the signature, the deferred closure can assign to it <em>after</em> the panic has interrupted the normal <code>return</code>. The function still returns cleanly to its caller — with an error value instead of a crash. Without a named return there is no variable for the closure to write to, and the recovered function would return its zero values silently, which is almost never what you want.</p>
+<pre><code class="language-go">func parseConfig(raw []byte) (cfg Config, err error) {
+    defer func() {
+        if r := recover(); r != nil {
+            err = fmt.Errorf(&quot;parseConfig: %w&quot;, asError(r))
+        }
+    }()
+    return mustParse(raw), nil // mustParse may panic on malformed input
+}
+
+func asError(r any) error {
+    if e, ok := r.(error); ok {
+        return e
+    }
+    return fmt.Errorf(&quot;%v&quot;, r)
+}
+</code></pre>
+<p>This is how a package with a panicking internal core presents a clean, boring <code>(T, error)</code> face to its callers. The <code>asError</code> helper is worth keeping around: a panic value is <code>any</code>, and it&rsquo;s frequently — but not always — an <code>error</code>, so you type-assert before wrapping.</p>
+<hr>
+<h2 id="when-panic-is-the-right-tool">When panic is the right tool</h2>
+<p>The rule is short: <strong>use <code>panic</code> for programmer errors and truly unrecoverable states, never for expected failures.</strong> Expected failures — a missing file, a malformed request, a timed-out call — are values that go back to the caller as errors. Panic is for the situations where continuing would be meaningless or unsafe:</p>
+<ul>
+<li><strong>Invariants that must hold.</strong> A <code>switch</code> over an enum that has covered every legitimate case can <code>panic("unreachable")</code> in the <code>default</code> — if you land there, the program&rsquo;s assumptions are already broken.</li>
+<li><strong>Impossible-to-handle constructor failures at init.</strong> The standard library does this deliberately: <code>regexp.MustCompile</code> panics on a bad pattern because the pattern is a compile-time constant written by the programmer, not runtime input. The <code>Must*</code> naming is the convention that says &ldquo;this panics; only feed it values you control.&rdquo;</li>
+<li><strong>Nil dereferences, out-of-range indexing, and the like</strong> — these panic on their own. You don&rsquo;t write them; the runtime raises them when your code has a bug.</li>
+</ul>
+<p>The test is simple: <em>could a correct program, given valid input, hit this?</em> If yes, it&rsquo;s an error value. If it can only happen because the code itself is wrong, a panic is defensible — it fails loudly and close to the bug instead of limping onward with corrupted state.</p>
+<hr>
+<h2 id="legitimate-recovery-the-goroutine-boundary">Legitimate recovery: the goroutine boundary</h2>
+<p>If panic is mostly for bugs, why ever recover? Because sometimes the blast radius of a single bug is unacceptable. The textbook case is a server: one HTTP handler hits a nil-pointer bug, panics, and without intervention that panic unwinds past the handler, escapes its goroutine, and <strong>kills the entire server</strong> — dropping every other in-flight request along with it. That&rsquo;s a terrible trade for one bad handler.</p>
+<p>So a server recovers at the boundary between &ldquo;framework code&rdquo; and &ldquo;your handler,&rdquo; converting a panic into a <code>500</code> and keeping the process alive. Go&rsquo;s own <code>net/http</code> does exactly this: the server recovers from handler panics so one request can&rsquo;t take down the rest.</p>
+<pre><code class="language-go">func recoverMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        defer func() {
+            if rec := recover(); rec != nil {
+                log.Printf(&quot;panic serving %s: %v\n%s&quot;, r.URL.Path, rec, debug.Stack())
+                http.Error(w, &quot;internal server error&quot;, http.StatusInternalServerError)
+            }
+        }()
+        next.ServeHTTP(w, r)
+    })
+}
+</code></pre>
+<p>Two disciplines make this responsible rather than reckless. First, <strong>log the panic and its stack</strong> (<code>debug.Stack()</code>) — recovering silently just converts a loud crash into a mystery. Second, recover only at the boundary you own. This isn&rsquo;t &ldquo;catch everything so nothing fails&rdquo;; it&rsquo;s &ldquo;contain a bug to the one request that triggered it, then surface it so someone fixes it.&rdquo;</p>
+<p>The same reasoning applies to <strong>libraries</strong>: a well-behaved package should not let panics cross its public API. If your internals use panic for control (some parsers and recursive-descent evaluators do, because it&rsquo;s genuinely cleaner than threading errors through deep recursion), recover at the exported boundary and hand the caller an <code>error</code>. The caller of your <code>Parse</code> function should never have to wrap their call site in a defer/recover to use your library safely.</p>
+<hr>
+<h2 id="re-panicking-recover-then-decide">Re-panicking: recover, then decide</h2>
+<p>Recovering doesn&rsquo;t oblige you to swallow. A common and correct pattern is to recover, inspect the value, handle the cases you understand, and <strong>re-panic</strong> on the ones you don&rsquo;t:</p>
+<pre><code class="language-go">defer func() {
+    if r := recover(); r != nil {
+        if pe, ok := r.(parseError); ok {
+            err = pe // ours; convert to a clean error
+            return
+        }
+        panic(r) // not ours — let it keep unwinding
+    }
+}()
+</code></pre>
+<p>This is how a package that uses panic internally distinguishes its own signalling from a genuine bug. A <code>parseError</code> it threw on purpose becomes a returned error; a <code>runtime.Error</code> (nil deref, index out of range) is a real defect that has no business being hidden, so it re-panics up the stack. Blanket-catching everything and returning <code>nil</code> is how you turn a crash into silent data corruption.</p>
+<hr>
+<h2 id="the-gotcha-that-bites-everyone-recover-is-per-goroutine">The gotcha that bites everyone: recover is per-goroutine</h2>
+<p>Here is the mistake that survives code review and fails in production. A <code>defer</code>/<code>recover</code> protects <strong>only the goroutine it runs in.</strong> You cannot recover a panic that happens in a <em>different</em> goroutine — even one you just started.</p>
+<pre><code class="language-go">func doomed() {
+    defer func() {
+        // This recover protects doomed's goroutine — NOT the one below.
+        if r := recover(); r != nil {
+            log.Println(&quot;recovered:&quot;, r)
+        }
+    }()
+
+    go func() {
+        panic(&quot;in a child goroutine&quot;) // NOT caught above — crashes the process
+    }()
+
+    time.Sleep(time.Second)
+}
+</code></pre>
+<p>The panic in the child goroutine unwinds <em>its own</em> stack, finds no <code>recover</code> there, reaches the top, and takes the whole program down. The parent&rsquo;s deferred <code>recover</code> never sees it, because recover only inspects the panicking goroutine&rsquo;s own stack. <strong>Every goroutine is responsible for recovering its own panics.</strong> If you spawn a goroutine that might panic — especially anything running handler logic — that goroutine needs its <em>own</em> deferred recover as its first statement, or a helper that wraps the work:</p>
+<pre><code class="language-go">func safeGo(work func()) {
+    go func() {
+        defer func() {
+            if r := recover(); r != nil {
+                log.Printf(&quot;goroutine panic: %v\n%s&quot;, r, debug.Stack())
+            }
+        }()
+        work()
+    }()
+}
+</code></pre>
+<p>This is easy to forget precisely because the parent looks protected. It isn&rsquo;t. When you fan work out across goroutines, the recover has to travel with the work.</p>
+<hr>
+<h2 id="panicnil-and-the-go-121-change">panic(nil) and the Go 1.21 change</h2>
+<p>For years there was a genuine trap: <code>panic(nil)</code> would panic with a <code>nil</code> value, and the idiomatic <code>if r := recover(); r != nil</code> guard would then treat it as &ldquo;no panic happened.&rdquo; Code could panic and be recovered, yet the recovery logic would silently skip its handling because the value tested as <code>nil</code>.</p>
+<p>Go 1.21 closed this. Now <code>panic(nil)</code> (or panicking with any nil interface value) causes <code>recover</code> to return a non-nil <code>*runtime.PanicNilError</code>, so the standard guard works correctly and the panic is no longer swallowed. You can opt back into the old behavior with <code>GODEBUG=panicnil=1</code>, but there&rsquo;s no reason to. The practical takeaway: don&rsquo;t call <code>panic(nil)</code>; if you need a signal value, panic with a real one. And know that on any modern Go, the <code>r != nil</code> check you&rsquo;ll see everywhere is now genuinely reliable.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>panic unwinds the stack, running every defer on the way out.</strong> Cleanup still happens; if nothing recovers, the whole process dies — not just the goroutine.</li>
+<li><strong>recover only works when called directly inside a deferred function during an active panic.</strong> One call too deep, or outside a defer, and it silently returns <code>nil</code>.</li>
+<li><strong>Panic is for programmer errors and unrecoverable states, not expected failure.</strong> Expected failure is a returned error value — that&rsquo;s the contract from the previous post, and panic doesn&rsquo;t change it.</li>
+<li><strong>Named return + recover is how you convert a panic into an error</strong> and present a clean <code>(T, error)</code> API over a panicking core.</li>
+<li><strong>Recover at boundaries: the server request handler and the library&rsquo;s public edge.</strong> Log the stack, re-panic on values you don&rsquo;t own, and never blanket-swallow.</li>
+<li><strong>recover is per-goroutine.</strong> A panic in a child goroutine is invisible to the parent&rsquo;s recover — every goroutine you spawn needs its own, or it will crash the process.</li>
+<li><strong>Don&rsquo;t <code>panic(nil)</code>.</strong> Since Go 1.21 it yields a <code>*runtime.PanicNilError</code>, so the usual <code>r != nil</code> guard finally behaves.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/blog/defer-panic-and-recover">Defer, Panic, and Recover</a> — the Go blog&rsquo;s foundational walkthrough of how the three interact.</li>
+<li><a href="https://go.dev/ref/spec#Handling_panics">The Go Programming Language Specification: Handling panics</a> — the precise semantics of <code>panic</code> and <code>recover</code>.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/production-go-15-errors-wrapping-is-as.html">Errors, Wrapping, and errors.Is / errors.As</a>
+      <span class="related-date">Jul 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-07-hierarchical-supervision.html">Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation</a>
+      <span class="related-date">Jul 24</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Errors, Wrapping, and errors.Is / errors.As — Pratik Dhanave</title>
+<meta name="description" content="Go treats errors as ordinary values, not exceptions — which means everything you know about passing, comparing, and inspecting values applies. This is...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Errors, Wrapping, and errors.Is / errors.As — Pratik Dhanave">
+<meta property="og:description" content="Go treats errors as ordinary values, not exceptions — which means everything you know about passing, comparing, and inspecting values applies. This is a working guide to sentinel errors, wrapping with %w,...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-15-errors-wrapping-is-as.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-10T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Errors">
+<meta property="article:tag" content="Error Handling">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Errors, Wrapping, and errors.Is / errors.As — Pratik Dhanave">
+<meta name="twitter:description" content="Go treats errors as ordinary values, not exceptions — which means everything you know about passing, comparing, and inspecting values applies. This is a working guide to sentinel errors, wrapping with %w,...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-15-errors-wrapping-is-as.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Errors, Wrapping, and errors.Is / errors.As",
+  "description": "Go treats errors as ordinary values, not exceptions \u2014 which means everything you know about passing, comparing, and inspecting values applies. This is a working guide to sentinel errors, wrapping with %w,...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-10",
+  "dateModified": "2026-07-10",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Errors, Error Handling",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-15-errors-wrapping-is-as.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-15-errors-wrapping-is-as.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Errors, Wrapping, and errors.Is / errors.As</h1>
+    <p class="post-subtitle">Go treats errors as ordinary values, not exceptions — which means everything you know about passing, comparing, and inspecting values applies. This is a working guide to sentinel errors, wrapping with %w, and the two verbs that make error chains navigable: errors.Is and errors.As.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-10">July 10, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/errors/" class="tag-link"><span class="tag">#Errors</span></a><a href="/blog/tags/error-handling/" class="tag-link"><span class="tag">#Error Handling</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 15 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-14-generics.html" class="series-prev">&larr; Part 14: Generics: Type Parameters and Constraints</a>
+<a href="/blog/posts/production-go-16-panic-and-recover.html" class="series-next">Part 16: panic, recover, and defer&#x27;s Role &rarr;</a></div>
+  </div>
+
+
+
+  <p>Most languages hide failure behind control flow: you <code>throw</code>, the stack unwinds, and a <code>catch</code> block far away decides what to do. Go made a different bet. An error is just a value implementing a one-method interface, returned like any other value and inspected with the same tools you&rsquo;d use on a <code>string</code> or a struct. That&rsquo;s why <code>if err != nil</code> shows up on nearly every page of Go — and why error handling here rewards being deliberate.</p>
+<p>This post is about that deliberateness: how to construct errors, how to compare them without brittle code, how to preserve context as an error travels up the stack, and how <code>errors.Is</code> and <code>errors.As</code> let a caller ask precise questions about a failure three layers down.</p>
+<hr>
+<h2 id="errors-are-values">Errors are values</h2>
+<p>The entire contract is this interface from the standard library:</p>
+<pre><code class="language-go">type error interface {
+    Error() string
+}
+</code></pre>
+<p>Anything with an <code>Error() string</code> method <em>is</em> an error — that&rsquo;s the whole type. A <code>nil</code> error means success; a non-nil error carries the details itself. Because it&rsquo;s an interface, an error can be a trivial string, a rich struct with fields, or a chain of nested errors — the caller decides how much it wants to know.</p>
+<p>The idiom that falls out of this is the multiple-return signature: a function hands back its result <em>and</em> an error, and the caller checks the error before trusting the result.</p>
+<pre><code class="language-go">func parseTimeout(raw string) (time.Duration, error) {
+    d, err := time.ParseDuration(raw)
+    if err != nil {
+        return 0, err
+    }
+    if d &lt; 0 {
+        return 0, fmt.Errorf(&quot;timeout must be non-negative, got %s&quot;, raw)
+    }
+    return d, nil
+}
+</code></pre>
+<p>Two conventions worth internalising early. First, the error is the <em>last</em> return value, always. Second, when you return a non-nil error, return the zero value for everything else — callers are entitled to ignore the result when <code>err != nil</code>, and a half-populated result on failure is a trap.</p>
+<p><strong>The gotcha:</strong> an interface value is only <code>nil</code> when both its type and its value are nil. If you store a concrete error pointer that happens to be <code>nil</code> into an <code>error</code> variable and return that, the caller&rsquo;s <code>err != nil</code> check will be <em>true</em> even though &ldquo;nothing went wrong.&rdquo; Never declare <code>var err *MyError</code> and return it as an <code>error</code>; return the interface directly and return a literal <code>nil</code> on the success path.</p>
+<hr>
+<h2 id="sentinel-errors-and-why-is-fragile">Sentinel errors, and why <code>==</code> is fragile</h2>
+<p>Sometimes a caller needs to react to a <em>specific</em> failure — end of input, record not found, permission denied. The oldest pattern for this is the <strong>sentinel error</strong>: a package-level variable the caller can compare against.</p>
+<pre><code class="language-go">package store
+
+import &quot;errors&quot;
+
+var ErrNotFound = errors.New(&quot;store: record not found&quot;)
+
+func (s *Store) Load(id string) (*Record, error) {
+    r, ok := s.data[id]
+    if !ok {
+        return nil, ErrNotFound
+    }
+    return r, nil
+}
+</code></pre>
+<p><code>errors.New</code> returns a pointer under the hood, so each call produces a distinct value — that&rsquo;s exactly why exporting it <em>once</em> as <code>ErrNotFound</code> matters. Callers compare identity:</p>
+<pre><code class="language-go">r, err := s.Load(id)
+if err == ErrNotFound {
+    // fall back to a default
+}
+</code></pre>
+<p>This works right up until someone adds context on the way up. The moment an intermediate layer does <code>fmt.Errorf("loading user %s: %v", id, err)</code>, the returned value is a <em>brand-new</em> error whose text mentions &ldquo;record not found&rdquo; but which is no longer <code>==</code> to <code>ErrNotFound</code>. The comparison silently stops matching, and a fallback that used to fire now doesn&rsquo;t.</p>
+<p><strong>The gotcha:</strong> direct <code>==</code> comparison against a sentinel only works if the error is returned completely unwrapped, all the way up. Any layer that adds context with <code>%v</code> breaks it, and it breaks <em>quietly</em> — the code compiles, the test that only checks the happy path passes, and the bug hides until production. The fix is to wrap deliberately and compare with <code>errors.Is</code> instead, which we&rsquo;ll get to below.</p>
+<hr>
+<h2 id="wrapping-with-w-to-preserve-the-chain">Wrapping with <code>%w</code> to preserve the chain</h2>
+<p>Go 1.13 added a way to add context to an error <em>without</em> discarding the original: the <code>%w</code> verb in <code>fmt.Errorf</code>. Where <code>%v</code> formats the error as text and throws the value away, <code>%w</code> stores the original error inside the new one, forming a chain you can walk later.</p>
+<pre><code class="language-go">func (s *Service) User(id string) (*User, error) {
+    r, err := s.store.Load(id)
+    if err != nil {
+        return nil, fmt.Errorf(&quot;service.User(%s): %w&quot;, id, err)
+    }
+    return userFromRecord(r), nil
+}
+</code></pre>
+<p>The returned error prints as <code>service.User(42): store: record not found</code> — you get the readable, layered message <em>and</em> the original <code>ErrNotFound</code> stays reachable inside. Under the hood, <code>%w</code> produces an error with an <code>Unwrap() error</code> method returning the wrapped error. That single method is the entire mechanism the <code>errors</code> package builds on.</p>
+<p>A few rules keep wrapping clean:</p>
+<ul>
+<li>Use exactly <strong>one</strong> <code>%w</code> per <code>fmt.Errorf</code> call in the common case. (Go 1.20+ allows several, which builds a multi-error — more on that later.)</li>
+<li>Don&rsquo;t repeat the callee&rsquo;s message. Add what <em>this</em> layer knows — the id, the operation, the file path — not a paraphrase of what you&rsquo;re wrapping.</li>
+<li>Don&rsquo;t start the message with &ldquo;error&rdquo; or &ldquo;failed to.&rdquo; The caller may prefix it again; you&rsquo;ll end up with &ldquo;failed to failed to.&rdquo;</li>
+</ul>
+<p><strong>The gotcha:</strong> <code>%w</code> and <code>%v</code> look almost identical but differ in a way that matters. <code>%v</code> <em>severs</em> the chain — the original becomes unreachable text, and <code>errors.Is</code> / <code>errors.As</code> can no longer find anything inside. Reach for <code>%v</code> deliberately, only when you <em>want</em> to hide the underlying error (see the API-boundary section). When unsure, <code>%w</code> is the safer default: you can always stop unwrapping, but you can&rsquo;t recover what <code>%v</code> discarded.</p>
+<hr>
+<h2 id="errorsis-matching-a-sentinel-through-wraps"><code>errors.Is</code>: matching a sentinel through wraps</h2>
+<p><code>errors.Is(err, target)</code> walks the chain — calling <code>Unwrap</code> at each step — and reports whether <em>any</em> error in it matches <code>target</code>. It&rsquo;s the wrap-aware replacement for <code>==</code>.</p>
+<pre><code class="language-go">r, err := svc.User(id)
+if errors.Is(err, store.ErrNotFound) {
+    // still matches, even though svc.User wrapped it twice
+    return defaultUser(), nil
+}
+</code></pre>
+<p>Rewrite every <code>err == ErrSomething</code> as <code>errors.Is(err, ErrSomething)</code> and your comparisons survive any amount of wrapping in between. It also handles the un-wrapped case, so use it uniformly.</p>
+<p>You can teach <code>errors.Is</code> a broader notion of &ldquo;matches&rdquo; by giving a custom type an <code>Is(target error) bool</code> method — useful when several distinct values should count as the same category. But for the common sentinel case you write nothing: the default identity comparison at each link is enough.</p>
+<p><strong>The gotcha:</strong> <code>errors.Is</code> compares by <em>identity</em> at each link, so the target must be the same value the code produced — a package-level <code>var</code>. If you write <code>errors.Is(err, errors.New("record not found"))</code>, it will <em>never</em> match: <code>errors.New</code> mints a fresh pointer every call, and identity comparison against a throwaway value always fails. Sentinels exist precisely so there&rsquo;s one stable value to point <code>errors.Is</code> at.</p>
+<hr>
+<h2 id="errorsas-extracting-a-typed-error-through-wraps"><code>errors.As</code>: extracting a typed error through wraps</h2>
+<p><code>errors.Is</code> answers a yes/no question. Often you need more: the <em>fields</em> of a structured error — an HTTP status code, the offending field name, a retry-after duration. That&rsquo;s <code>errors.As</code>. It walks the chain looking for an error that matches a concrete type, and if it finds one, assigns it into a pointer you supply so you can read its fields.</p>
+<pre><code class="language-go">type ValidationError struct {
+    Field string
+    Rule  string
+}
+
+func (e *ValidationError) Error() string {
+    return fmt.Sprintf(&quot;validation failed on %q: %s&quot;, e.Field, e.Rule)
+}
+</code></pre>
+<p>A caller three layers up can pull that structured value back out of a wrapped chain:</p>
+<pre><code class="language-go">var vErr *ValidationError
+if errors.As(err, &amp;vErr) {
+    // vErr is now the concrete *ValidationError from deep in the chain
+    http.Error(w, vErr.Error(), http.StatusBadRequest)
+    log.Printf(&quot;bad field: %s&quot;, vErr.Field)
+}
+</code></pre>
+<p>The second argument is a <em>pointer to</em> the type you want — here <code>**ValidationError</code>, because the error is <code>*ValidationError</code>. Get that indirection wrong and <code>errors.As</code> panics at runtime: the variable is <code>var vErr *ValidationError</code>, and you pass <code>&amp;vErr</code>.</p>
+<p><strong>The gotcha:</strong> the type in the <code>As</code> target must exactly match how the error was <em>created</em>, pointer-ness included. If your <code>Error()</code> method has a pointer receiver, values of that type only satisfy <code>error</code> as pointers, so you construct <code>&amp;ValidationError{...}</code> and match with <code>var vErr *ValidationError</code>. Match against the non-pointer <code>ValidationError</code> and it won&rsquo;t find anything. Pick pointer-or-value once per type and stay consistent — mixing them is the most common reason <code>errors.As</code> &ldquo;mysteriously&rdquo; returns false.</p>
+<hr>
+<h2 id="custom-error-types-error-and-unwrap">Custom error types: <code>Error()</code> and <code>Unwrap()</code></h2>
+<p>A struct error earns its place when callers need to branch on <em>data</em>, not just identity. Give it an <code>Error()</code> method to satisfy the interface, and — if it wraps something — an <code>Unwrap()</code> method so <code>errors.Is</code> and <code>errors.As</code> can see through it.</p>
+<pre><code class="language-go">type QueryError struct {
+    Query string
+    Err   error // the underlying cause
+}
+
+func (e *QueryError) Error() string {
+    return fmt.Sprintf(&quot;query %q: %v&quot;, e.Query, e.Err)
+}
+
+func (e *QueryError) Unwrap() error {
+    return e.Err
+}
+</code></pre>
+<p>Now <code>QueryError</code> is both a rich, inspectable value <em>and</em> a transparent link in the chain. A caller can do <code>errors.As(err, &amp;qErr)</code> to read <code>qErr.Query</code> <em>and</em> <code>errors.Is(err, sql.ErrNoRows)</code> to detect the wrapped cause — both work because <code>Unwrap</code> exposes the inner error. It&rsquo;s the same transparency <code>%w</code> gives you, written by hand so you can attach fields.</p>
+<p>The distinction, plainly: <code>fmt.Errorf</code> with <code>%w</code> is the quick way to add a <em>message</em> to a chain; a custom type is what you reach for when callers need <em>structured data</em> to branch on.</p>
+<hr>
+<h2 id="wrapping-vs-not-wrapping-the-api-boundary">Wrapping vs. not-wrapping: the API boundary</h2>
+<p>Wrapping preserves information — which is usually what you want, but not always. When you wrap with <code>%w</code>, you make the underlying error part of your <strong>public contract</strong>. Callers can now write <code>errors.Is(err, sql.ErrNoRows)</code> against your function, and if you later swap your database layer, that comparison breaks. You&rsquo;ve leaked an implementation detail across your API boundary.</p>
+<p>So the rule is contextual:</p>
+<ul>
+<li><strong>Wrap (<code>%w</code>)</strong> within a package or subsystem, and whenever callers legitimately need to detect the underlying cause. This is the default.</li>
+<li><strong>Don&rsquo;t wrap (<code>%v</code>, or a fresh error)</strong> at a public boundary when the underlying error is an internal detail you don&rsquo;t want to commit to. Translate it into a stable error your package owns.</li>
+</ul>
+<pre><code class="language-go">func (s *Service) Fetch(id string) (*Doc, error) {
+    d, err := s.db.query(id)
+    if errors.Is(err, sql.ErrNoRows) {
+        // translate: callers depend on ErrDocMissing, not on our DB choice
+        return nil, ErrDocMissing
+    }
+    if err != nil {
+        // opaque: don't expose the raw driver error across the boundary
+        return nil, fmt.Errorf(&quot;fetch %s: %v&quot;, id, err)
+    }
+    return d, nil
+}
+</code></pre>
+<p><strong>The gotcha:</strong> wrapping is a promise. Every error you expose with <code>%w</code> is something a caller may start matching against, and removing it later is a breaking change even though the compiler won&rsquo;t flag it. Wrap generously <em>inside</em> your own code where you control both sides; wrap <em>conservatively</em> at the edges where other people&rsquo;s code depends on you.</p>
+<hr>
+<h2 id="errorsjoin-more-than-one-thing-went-wrong"><code>errors.Join</code>: more than one thing went wrong</h2>
+<p>Go 1.20 added <code>errors.Join</code>, which combines several errors into one. It&rsquo;s the tool for situations where a single &ldquo;first error wins&rdquo; return would throw away real information — validating many fields, closing several resources, running a batch where some items fail.</p>
+<pre><code class="language-go">func validate(u *User) error {
+    var errs []error
+    if u.Name == &quot;&quot; {
+        errs = append(errs, errors.New(&quot;name is required&quot;))
+    }
+    if u.Age &lt; 0 {
+        errs = append(errs, errors.New(&quot;age must be non-negative&quot;))
+    }
+    if !strings.Contains(u.Email, &quot;@&quot;) {
+        errs = append(errs, errors.New(&quot;email is invalid&quot;))
+    }
+    return errors.Join(errs...) // nil if errs is empty
+}
+</code></pre>
+<p><code>errors.Join</code> returns <code>nil</code> when every argument is nil (and skips nil arguments), so the empty-<code>errs</code> case just works — no special-casing needed. The joined error&rsquo;s <code>Error()</code> prints each sub-error on its own line, and — importantly — <code>errors.Is</code> and <code>errors.As</code> both search <em>across all</em> the joined errors, not just a single chain. So a caller can still ask <code>errors.Is(err, ErrRequired)</code> against a joined value and get a hit if any branch contributed it.</p>
+<p><strong>The gotcha:</strong> <code>errors.Join</code> builds a <em>tree</em>, not a linear chain, and there&rsquo;s no single <code>Unwrap() error</code> to walk — the multi-error implements <code>Unwrap() []error</code> instead. If you write code that manually calls <code>Unwrap()</code> expecting one error, it won&rsquo;t see the joined children. Always inspect joined errors with <code>errors.Is</code> / <code>errors.As</code>, which understand both shapes, rather than hand-rolling the traversal.</p>
+<hr>
+<h2 id="when-to-return-handle-or-log">When to return, handle, or log</h2>
+<p>The last piece is judgment, not syntax: an error should be dealt with <strong>exactly once</strong>. The common anti-pattern is handling it more than once — logging <em>and</em> returning it — so the same failure shows up three times in your logs, once per layer, each entry looking like a separate incident.</p>
+<p>The discipline:</p>
+<ul>
+<li><strong>Return it</strong> (usually wrapped) when the current function can&rsquo;t sensibly decide what to do. This is most functions most of the time. Add context, hand it up.</li>
+<li><strong>Handle it</strong> when <em>this</em> layer is the right place to recover — retry, fall back to a default, degrade gracefully. Once you&rsquo;ve handled it, the error is dealt with; don&rsquo;t also return it.</li>
+<li><strong>Log it</strong> only at the layer that finally decides the outcome — typically the top of a request handler, a <code>main</code>, or a worker loop. Log once, with the full wrapped chain (which now carries context from every layer it passed through), and stop.</li>
+</ul>
+<p>Wrapping and &ldquo;handle once&rdquo; reinforce each other: because each layer adds context with <code>%w</code> on the way up, a <em>single</em> log line at the top contains the whole story — operation, ids, and root cause — so you never needed the intermediate log lines.</p>
+<table><caption class="sr-only">When to return, handle, or log</caption>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Do this</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Callers may need to detect a specific failure</td>
+<td>Sentinel <code>var Err… = errors.New(...)</code>, matched with <code>errors.Is</code></td>
+</tr>
+<tr>
+<td>Callers need structured fields off the failure</td>
+<td>Custom type with <code>Error()</code> + <code>Unwrap()</code>, extracted with <code>errors.As</code></td>
+</tr>
+<tr>
+<td>Adding context as the error travels up</td>
+<td><code>fmt.Errorf("...: %w", err)</code></td>
+</tr>
+<tr>
+<td>Hiding an internal error at a public boundary</td>
+<td><code>fmt.Errorf("...: %v", err)</code> or a fresh package-owned error</td>
+</tr>
+<tr>
+<td>Several independent failures at once</td>
+<td><code>errors.Join(errs...)</code></td>
+</tr>
+<tr>
+<td>You can recover here</td>
+<td>Handle it — don&rsquo;t also return or log it</td>
+</tr>
+<tr>
+<td>You&rsquo;re at the top of the call stack</td>
+<td>Log the full chain once</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Errors are values.</strong> They satisfy a one-method interface, travel as ordinary return values, and are inspected with ordinary tools — no exceptions, no unwinding.</li>
+<li><strong><code>==</code> against a sentinel is fragile;</strong> any layer that adds context breaks it silently. Use <code>errors.Is</code>, which walks the wrap chain.</li>
+<li><strong><code>%w</code> preserves the chain, <code>%v</code> severs it.</strong> Default to <code>%w</code> inside your code so <code>errors.Is</code> / <code>errors.As</code> keep working; drop to <code>%v</code> deliberately at boundaries you don&rsquo;t want to commit to.</li>
+<li><strong><code>errors.Is</code> answers &ldquo;is this <em>that</em> error?&rdquo;; <code>errors.As</code> answers &ldquo;give me the typed error so I can read its fields.&rdquo;</strong> Match <code>As</code> targets to how the error was constructed, pointer-ness and all.</li>
+<li><strong>A custom type needs <code>Error()</code> to be an error and <code>Unwrap()</code> to stay transparent</strong> to <code>Is</code>/<code>As</code>.</li>
+<li><strong><code>errors.Join</code> (1.20+) collects multiple failures</strong> into a tree that <code>Is</code>/<code>As</code> still search; don&rsquo;t hand-walk it.</li>
+<li><strong>Deal with each error once</strong> — return, handle, <em>or</em> log. Wrap on the way up so a single log line at the top tells the whole story.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/blog/go1.13-errors">Working with Errors in Go 1.13</a> — the Go blog post that introduced <code>%w</code>, <code>errors.Is</code>, and <code>errors.As</code>.</li>
+<li><a href="https://pkg.go.dev/errors"><code>errors</code> package documentation</a> — the reference for <code>Is</code>, <code>As</code>, <code>Join</code>, <code>New</code>, and <code>Unwrap</code>.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/production-go-16-panic-and-recover.html">panic, recover, and defer&#x27;s Role</a>
+      <span class="related-date">Jul 11</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-07-hierarchical-supervision.html">Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation</a>
+      <span class="related-date">Jul 24</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
