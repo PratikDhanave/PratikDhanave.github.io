@@ -159,6 +159,63 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+    "2026-06-26-python-01-philosophy-and-toolchain.md": {
+        "slug": "python-01-philosophy-and-toolchain",
+        "date": "2026-06-26",
+        "tags": ["Python", "Programming", "Software Engineering"],
+        "audience": "Developers learning Python deeply, from the fundamentals up",
+        "excerpt": "What actually makes Python *Python* \u2014 the design values that shape the language, how it runs, and the everyday tools you'll live in. The first post in a series that treats readability and correctness as...",
+        "series": "Python Programming", "series_position": 1, "series_total": 45,
+        "featured": True,
+    },
+    "2026-06-27-python-02-objects-names-binding.md": {
+        "slug": "python-02-objects-names-binding",
+        "date": "2026-06-27",
+        "tags": ["Python", "Data Model", "Programming"],
+        "audience": "Developers learning Python deeply, from the fundamentals up",
+        "excerpt": "The single mental model that explains most of Python's surprises \u2014 everything is an object with an identity, a type, and a value; a name is a reference bound to an object, not a box that holds one; and...",
+        "series": "Python Programming", "series_position": 2, "series_total": 45,
+    },
+    "2026-06-28-python-03-numbers-booleans-none.md": {
+        "slug": "python-03-numbers-booleans-none",
+        "date": "2026-06-28",
+        "tags": ["Python", "Numbers", "Programming"],
+        "audience": "Developers learning Python deeply, from the fundamentals up",
+        "excerpt": "A working guide to Python's scalar types \u2014 arbitrary-precision integers, IEEE-754 floats and the 0.1 + 0.2 trap, when to reach for Decimal and Fraction, the operators that surprise you with negatives, why a...",
+        "series": "Python Programming", "series_position": 3, "series_total": 45,
+    },
+    "2026-06-29-python-04-strings-bytes-unicode.md": {
+        "slug": "python-04-strings-bytes-unicode",
+        "date": "2026-06-29",
+        "tags": ["Python", "Strings", "Unicode"],
+        "audience": "Developers learning Python deeply, from the fundamentals up",
+        "excerpt": "Why Python draws a hard line between text and raw bytes, how the encode/decode boundary works, and the string-handling habits that keep that line from cutting you.",
+        "series": "Python Programming", "series_position": 4, "series_total": 45,
+    },
+    "2026-06-30-python-05-control-flow.md": {
+        "slug": "python-05-control-flow",
+        "date": "2026-06-30",
+        "tags": ["Python", "Control Flow", "Programming"],
+        "audience": "Developers learning Python deeply, from the fundamentals up",
+        "excerpt": "How Python decides what runs next \u2014 conditionals and the ternary, for-each iteration done idiomatically, while loops, break/continue and the surprising loop-else, structural pattern matching with...",
+        "series": "Python Programming", "series_position": 5, "series_total": 45,
+    },
+    "2026-07-01-python-06-functions.md": {
+        "slug": "python-06-functions",
+        "date": "2026-07-01",
+        "tags": ["Python", "Functions", "Programming"],
+        "audience": "Developers learning Python deeply, from the fundamentals up",
+        "excerpt": "A working guide to Python's function signatures \u2014 positional and keyword arguments, default values and the mutable-default trap, packing with *args/**kwargs, unpacking at call sites, keyword-only and...",
+        "series": "Python Programming", "series_position": 6, "series_total": 45,
+    },
+    "2026-07-02-python-07-closures-and-scope.md": {
+        "slug": "python-07-closures-and-scope",
+        "date": "2026-07-02",
+        "tags": ["Python", "Closures", "Scope"],
+        "audience": "Developers learning Python deeply, from the fundamentals up",
+        "excerpt": "How Python decides what a name means \u2014 the LEGB lookup rule, what a closure actually captures, the late-binding loop trap and its fixes, and when you genuinely need `nonlocal` or `global`.",
+        "series": "Python Programming", "series_position": 7, "series_total": 45,
+    },
     "2026-07-10-production-go-15-errors-wrapping-is-as.md": {
         "slug": "production-go-15-errors-wrapping-is-as",
         "date": "2026-07-10",

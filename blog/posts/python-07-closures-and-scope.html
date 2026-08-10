@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Closures and Scope: LEGB, nonlocal, and global</title>
+<meta name="description" content="How Python decides what a name means — the LEGB lookup rule, what a closure actually captures, the late-binding loop trap and its fixes, and when you...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Closures and Scope: LEGB, nonlocal, and global">
+<meta property="og:description" content="How Python decides what a name means — the LEGB lookup rule, what a closure actually captures, the late-binding loop trap and its fixes, and when you genuinely need `nonlocal` or `global`.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/python-07-closures-and-scope.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-02T00:00:00Z">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="Closures">
+<meta property="article:tag" content="Scope">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Closures and Scope: LEGB, nonlocal, and global">
+<meta name="twitter:description" content="How Python decides what a name means — the LEGB lookup rule, what a closure actually captures, the late-binding loop trap and its fixes, and when you genuinely need `nonlocal` or `global`.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/python-07-closures-and-scope.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Closures and Scope: LEGB, nonlocal, and global",
+  "description": "How Python decides what a name means \u2014 the LEGB lookup rule, what a closure actually captures, the late-binding loop trap and its fixes, and when you genuinely need `nonlocal` or `global`.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-02",
+  "dateModified": "2026-07-02",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Python, Closures, Scope",
+  "url": "https://pratikdhanave.com/blog/posts/python-07-closures-and-scope.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/python-07-closures-and-scope.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Closures and Scope: LEGB, nonlocal, and global</h1>
+    <p class="post-subtitle">How Python decides what a name means — the LEGB lookup rule, what a closure actually captures, the late-binding loop trap and its fixes, and when you genuinely need `nonlocal` or `global`.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-02">July 02, 2026</time>
+      <span>·</span>
+      <span>9 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a><a href="/blog/tags/closures/" class="tag-link"><span class="tag">#Closures</span></a><a href="/blog/tags/scope/" class="tag-link"><span class="tag">#Scope</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 7 of 45</span>
+    <span class="series-title">Python Programming</span>
+    <div class="series-nav"><a href="/blog/posts/python-06-functions.html" class="series-prev">&larr; Part 6: Functions: Arguments, *args, **kwargs, and Defaults</a></div>
+  </div>
+
+
+
+  <p>Almost every confusing Python bug that isn&rsquo;t a typo comes down to one question: <em>when I write a name here, which binding does Python find?</em> Scope is the set of rules that answers that question, and closures are what happen when a function outlives the scope it was defined in but keeps a live connection to it. Get these two ideas right and a whole category of &ldquo;why is this variable the wrong value?&rdquo; mysteries disappears.</p>
+<p>This guide builds up from name resolution to closures to the two keywords — <code>global</code> and <code>nonlocal</code> — that let you rebind names you&rsquo;d otherwise only be able to read. Everything below is standard CPython behaviour with no external dependencies; paste any snippet into a REPL and watch it run.</p>
+<hr>
+<h2 id="1-legb-the-order-python-searches-for-a-name">1. LEGB: the order Python searches for a name</h2>
+<p>When Python evaluates a bare name like <code>x</code>, it doesn&rsquo;t guess — it searches four scopes in a fixed order and stops at the first match. The mnemonic is <strong>LEGB</strong>:</p>
+<ul>
+<li><strong>L — Local:</strong> names assigned inside the current function.</li>
+<li><strong>E — Enclosing:</strong> the local scopes of any functions wrapping this one, innermost first.</li>
+<li><strong>G — Global:</strong> names at the top level of the module.</li>
+<li><strong>B — Built-in:</strong> names Python provides everywhere (<code>len</code>, <code>print</code>, <code>range</code>).</li>
+</ul>
+<pre><code class="language-python">value = &quot;global&quot;          # G
+
+def outer():
+    value = &quot;enclosing&quot;   # E (relative to inner)
+
+    def inner():
+        value = &quot;local&quot;   # L
+        print(value)      # finds Local first -&gt; &quot;local&quot;
+
+    inner()
+
+outer()
+</code></pre>
+<p>Delete the local <code>value = "local"</code> line and <code>inner</code> prints <code>"enclosing"</code>; delete the enclosing one too and it prints <code>"global"</code>. Each removal makes the lookup climb one rung up the LEGB ladder.</p>
+<p>The critical detail: <strong>a name is local to a function if it is <em>assigned anywhere</em> in that function&rsquo;s body</strong> — Python decides this once, when it compiles the function, not while it runs. Assignment includes <code>=</code>, <code>for x in ...</code>, <code>with ... as x</code>, function/class definitions, and imports.</p>
+<pre><code class="language-python">count = 10
+
+def show():
+    print(count)   # UnboundLocalError, not 10
+    count = 5
+</code></pre>
+<p><strong>The gotcha:</strong> because <code>count = 5</code> appears later in the body, <code>count</code> is local for the <em>entire</em> function — including the <code>print</code> above it. Python doesn&rsquo;t fall back to the global <code>count</code>; it sees a local that hasn&rsquo;t been assigned yet and raises <code>UnboundLocalError</code>. Scope is a compile-time property of the whole function, not something that changes line by line.</p>
+<hr>
+<h2 id="2-what-a-closure-actually-is">2. What a closure actually is</h2>
+<p>A <strong>closure</strong> is a nested function that refers to a name from an enclosing function&rsquo;s scope, packaged together with a live link to that name so it keeps working after the outer function has returned.</p>
+<pre><code class="language-python">def make_multiplier(factor):
+    def multiply(n):
+        return n * factor   # factor comes from the enclosing scope
+    return multiply
+
+double = make_multiplier(2)
+triple = make_multiplier(3)
+
+print(double(10))   # 20
+print(triple(10))   # 30
+</code></pre>
+<p><code>make_multiplier</code> has already returned by the time we call <code>double</code>, yet <code>factor</code> is still available. That&rsquo;s the closure: <code>multiply</code> closed over <code>factor</code>. CPython stores these captured names as <strong>cell objects</strong>, and you can inspect them:</p>
+<pre><code class="language-python">print(double.__closure__[0].cell_contents)   # 2
+print(triple.__code__.co_freevars)           # ('factor',)
+</code></pre>
+<p>The captured name is called a <em>free variable</em> — free because it&rsquo;s neither local to <code>multiply</code> nor global; it lives in the enclosing frame. Closures are how decorators, callbacks, and factory functions carry state without a class.</p>
+<hr>
+<h2 id="3-the-late-binding-trap-closures-capture-the-variable-not-the-value">3. The late-binding trap: closures capture the variable, not the value</h2>
+<p>Here is the single most common closure mistake in Python, and it follows directly from how closures work.</p>
+<pre><code class="language-python">functions = []
+for i in range(3):
+    functions.append(lambda: i)
+
+print([f() for f in functions])   # [2, 2, 2] — not [0, 1, 2]
+</code></pre>
+<p>Every reasonable person expects <code>[0, 1, 2]</code>. The reason it&rsquo;s <code>[2, 2, 2]</code> is the heart of this whole topic: <strong>a closure captures the variable, not the value at the moment of definition.</strong> All three lambdas close over <em>the same</em> <code>i</code> — the one loop variable — and by the time you <em>call</em> them, the loop has finished and <code>i</code> is stuck at its final value, <code>2</code>. This is called <strong>late binding</strong>: the free variable is looked up when the function runs, not when it&rsquo;s created.</p>
+<p>Two idiomatic fixes, both of which give each function its <em>own</em> binding.</p>
+<p><strong>Fix 1 — default argument (bind the value at definition time):</strong></p>
+<pre><code class="language-python">functions = [lambda i=i: i for i in range(3)]
+print([f() for f in functions])   # [0, 1, 2]
+</code></pre>
+<p>Default arguments are evaluated <em>once, when the function object is created</em>, so <code>i=i</code> snapshots the current value into a fresh per-function parameter. It no longer relies on the shared free variable at all.</p>
+<p><strong>Fix 2 — a factory function (a fresh scope per iteration):</strong></p>
+<pre><code class="language-python">def make_returner(value):
+    return lambda: value
+
+functions = [make_returner(i) for i in range(3)]
+print([f() for f in functions])   # [0, 1, 2]
+</code></pre>
+<p>Each call to <code>make_returner</code> creates a brand-new local <code>value</code>, so each closure captures a distinct cell. This is the clearer choice when the captured logic is more than a trivial expression.</p>
+<p><strong>The gotcha:</strong> late binding isn&rsquo;t a bug — it&rsquo;s the <em>same</em> mechanism that makes <code>make_multiplier</code> work. There, each call gets its own <code>factor</code>, so late binding is invisible. In the loop, one shared <code>i</code> is reused, so late binding bites. The rule to remember: closures created in a loop over the same variable all see its final value unless you deliberately give each one its own binding.</p>
+<hr>
+<h2 id="4-nonlocal-rebinding-a-name-in-the-enclosing-scope">4. <code>nonlocal</code>: rebinding a name in the enclosing scope</h2>
+<p>Reading an enclosing name works automatically. <strong>Rebinding</strong> one does not — because, as we saw in section 1, assigning to a name makes it local. So a counter written the obvious way fails:</p>
+<pre><code class="language-python">def make_counter():
+    count = 0
+    def increment():
+        count += 1        # UnboundLocalError: count is treated as local here
+        return count
+    return increment
+</code></pre>
+<p><code>count += 1</code> is <code>count = count + 1</code>, an assignment, so <code>count</code> becomes local to <code>increment</code> — and reading it before assignment fails. <code>nonlocal</code> fixes this by telling Python &ldquo;this name lives in an enclosing function scope; bind there, don&rsquo;t create a new local&rdquo;:</p>
+<pre><code class="language-python">def make_counter():
+    count = 0
+    def increment():
+        nonlocal count
+        count += 1
+        return count
+    return increment
+
+c = make_counter()
+print(c(), c(), c())   # 1 2 3
+</code></pre>
+<p>Now <code>increment</code> mutates the enclosing <code>count</code>, and its state persists across calls. <code>nonlocal</code> requires the name to already exist in an enclosing (non-global) scope — you can&rsquo;t create one with it, and it will not reach all the way out to module globals.</p>
+<p>The distinction to internalise: you need <code>nonlocal</code> only to <strong>rebind</strong> (reassign) an enclosing name. If the captured object is <em>mutable</em> and you merely mutate it in place, no keyword is required, because you&rsquo;re not reassigning the name:</p>
+<pre><code class="language-python">def make_log():
+    entries = []
+    def add(msg):
+        entries.append(msg)   # mutation, not rebinding -&gt; no nonlocal needed
+        return entries
+    return add
+</code></pre>
+<hr>
+<h2 id="5-global-rebinding-a-module-level-name-and-why-you-rarely-should">5. <code>global</code>: rebinding a module-level name (and why you rarely should)</h2>
+<p><code>global</code> is the same idea aimed at module scope: it lets a function <em>rebind</em> a name at the top level of the module rather than creating a local.</p>
+<pre><code class="language-python">counter = 0
+
+def bump():
+    global counter
+    counter += 1
+
+bump()
+bump()
+print(counter)   # 2
+</code></pre>
+<p>Without <code>global</code>, the <code>counter += 1</code> would raise <code>UnboundLocalError</code> for exactly the reason from section 1. With it, the assignment targets the module-level name.</p>
+<p>Here&rsquo;s the honest advice: <strong>you almost never need <code>global</code>.</strong> Rebinding module state from inside functions creates action-at-a-distance — any function can change the value, so reasoning about the program means reading all of them. The two cleaner alternatives:</p>
+<ul>
+<li><strong>Return a value</strong> and let the caller decide what to store. Functions that take inputs and return outputs are testable in isolation.</li>
+<li><strong>Encapsulate state in a class</strong> (or a closure like <code>make_counter</code>) so the mutable state has one clear owner.</li>
+</ul>
+<pre><code class="language-python">class Counter:
+    def __init__(self):
+        self.value = 0
+    def bump(self):
+        self.value += 1
+        return self.value
+</code></pre>
+<p><strong>The gotcha:</strong> <code>global</code> and <code>nonlocal</code> are for <em>rebinding</em> only. Reading a global, or mutating a mutable global in place (<code>some_list.append(x)</code>, <code>some_dict[k] = v</code>), needs neither keyword. If you find yourself reaching for <code>global</code> to share state, that&rsquo;s usually the signal to return a value or introduce a class instead.</p>
+<hr>
+<h2 id="6-two-subtleties-worth-knowing">6. Two subtleties worth knowing</h2>
+<h3 id="shadowing-built-ins">Shadowing built-ins</h3>
+<p>The <strong>B</strong> in LEGB is the last rung, which means any name you define at a closer scope <em>shadows</em> the built-in of the same name. Assign <code>list = [...]</code> and you&rsquo;ve lost the <code>list()</code> constructor for the rest of that scope:</p>
+<pre><code class="language-python">sum = 0
+for row in data:
+    sum = sum + row      # 'sum' the built-in is now shadowed
+total = sum(values)      # TypeError: 'int' object is not callable
+</code></pre>
+<p>Python won&rsquo;t warn you — the built-in is simply invisible until the shadowing name goes away. Common casualties are <code>list</code>, <code>dict</code>, <code>id</code>, <code>sum</code>, <code>type</code>, <code>str</code>, and <code>input</code>. Pick a different name (<code>total</code>, <code>row_id</code>, <code>item_type</code>); if you truly need the built-in name for a local, a trailing underscore (<code>type_</code>, <code>id_</code>) is the conventional escape hatch.</p>
+<h3 id="comprehensions-have-their-own-scope">Comprehensions have their own scope</h3>
+<p>In Python 3, comprehensions and generator expressions run in their <strong>own</strong> local scope — the loop variable does not leak into the surrounding function:</p>
+<pre><code class="language-python">x = &quot;outer&quot;
+squares = [x ** 2 for x in range(5)]
+print(x)   # still &quot;outer&quot; — the comprehension's x is separate
+</code></pre>
+<p>This is a deliberate improvement over the old Python 2 behaviour, where the loop variable did leak. One consequence: because a comprehension is effectively a hidden nested function, it <em>closes over</em> names from the enclosing scope just like any closure — which is why the late-binding rules from section 3 apply to lambdas built inside comprehensions too.</p>
+<table><caption class="sr-only">Comprehensions have their own scope</caption>
+<thead>
+<tr>
+<th>Construct</th>
+<th>Creates a new scope?</th>
+<th>Loop var leaks?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>for</code> loop (statement)</td>
+<td>No</td>
+<td>Yes — leaks to the function</td>
+</tr>
+<tr>
+<td>List/set/dict comprehension</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Generator expression</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>def</code> / <code>lambda</code></td>
+<td>Yes</td>
+<td>N/A</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Name resolution is LEGB — Local, Enclosing, Global, Built-in — searched in that order,</strong> stopping at the first match.</li>
+<li><strong>Assignment anywhere in a function makes the name local for the whole function</strong>, decided at compile time; that&rsquo;s the source of <code>UnboundLocalError</code>.</li>
+<li><strong>Closures capture the variable (a cell), not its value.</strong> That&rsquo;s what makes factories work — and what causes the late-binding loop trap, fixed with a default argument (<code>i=i</code>) or a factory function.</li>
+<li><strong><code>nonlocal</code> rebinds an enclosing name; <code>global</code> rebinds a module-level name.</strong> You need them only to <em>reassign</em> — reading or mutating-in-place needs neither.</li>
+<li><strong>Prefer return values and classes over <code>global</code>.</strong> Shared mutable module state is hard to reason about.</li>
+<li><strong>Don&rsquo;t shadow built-ins</strong> (<code>list</code>, <code>sum</code>, <code>id</code>), and remember comprehensions get their own scope, so their loop variables don&rsquo;t leak.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.python.org/3/reference/executionmodel.html#naming-and-binding">Python Language Reference — Naming and binding (execution model)</a> — the authoritative rules for how names are bound and resolved, including the definition of free variables.</li>
+<li><a href="https://docs.python.org/3/reference/simple_stmts.html#the-nonlocal-statement">Python Language Reference — The <code>nonlocal</code> statement</a> and <a href="https://docs.python.org/3/reference/simple_stmts.html#the-global-statement">the <code>global</code> statement</a>.</li>
+<li><a href="https://docs.python.org/3/faq/programming.html#why-do-lambdas-defined-in-a-loop-with-different-values-all-return-the-same-result">Python FAQ — Why do lambdas defined in a loop with different values all return the same result?</a> — the official explanation of the late-binding closure trap and its fixes.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/maf-py-getting-started.html">Getting Started with Microsoft Agent Framework (Python)</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/maf-py-middleware-cross-cutting.html">Middleware &amp; Cross-Cutting Concerns in Microsoft Agent Framework (Python)</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/maf-py-memory-context-state.html">Memory, Context &amp; Session State in Microsoft Agent Framework (Python)</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
