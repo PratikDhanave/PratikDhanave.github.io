@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Methods and Receivers — Pratik Dhanave</title>
+<meta name="description" content="How Go attaches behavior to types without classes — the receiver, the value-versus-pointer decision, method sets and what they mean for interfaces, and...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Methods and Receivers — Pratik Dhanave">
+<meta property="og:description" content="How Go attaches behavior to types without classes — the receiver, the value-versus-pointer decision, method sets and what they mean for interfaces, and the addressability rules that trip people up when a...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-11-methods-and-receivers.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-06T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Methods">
+<meta property="article:tag" content="Interfaces">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Methods and Receivers — Pratik Dhanave">
+<meta name="twitter:description" content="How Go attaches behavior to types without classes — the receiver, the value-versus-pointer decision, method sets and what they mean for interfaces, and the addressability rules that trip people up when a...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-11-methods-and-receivers.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Methods and Receivers",
+  "description": "How Go attaches behavior to types without classes \u2014 the receiver, the value-versus-pointer decision, method sets and what they mean for interfaces, and the addressability rules that trip people up when a...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-06",
+  "dateModified": "2026-07-06",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Methods, Interfaces",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-11-methods-and-receivers.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-11-methods-and-receivers.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Methods and Receivers</h1>
+    <p class="post-subtitle">How Go attaches behavior to types without classes — the receiver, the value-versus-pointer decision, method sets and what they mean for interfaces, and the addressability rules that trip people up when a value lives in a map.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-06">July 06, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/methods/" class="tag-link"><span class="tag">#Methods</span></a><a href="/blog/tags/interfaces/" class="tag-link"><span class="tag">#Interfaces</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 11 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-10-structs-embedding-tags.html" class="series-prev">&larr; Part 10: Structs, Embedding, and Tags</a>
+<a href="/blog/posts/production-go-12-interfaces.html" class="series-next">Part 12: Interfaces &rarr;</a></div>
+  </div>
+
+
+
+  <p>Go has no classes. It has <em>methods</em>, and a method is nothing more than a function with an extra parameter written in a special place — the <strong>receiver</strong> — before the function name. That one syntactic move is the whole object model. Behavior attaches to a type not by living inside a class body but by naming that type in a receiver. Once you internalize that a method <em>is</em> a function and the receiver <em>is</em> just its first argument, most of Go&rsquo;s quirks around value versus pointer, method sets, and addressability stop being surprises and start being consequences.</p>
+<p>This post is about those consequences. It assumes you&rsquo;ve written Go for years and know the syntax; the goal is to make the rules feel inevitable rather than memorized.</p>
+<hr>
+<h2 id="a-method-is-a-function-with-a-receiver">A method is a function with a receiver</h2>
+<p>Here is a method and the free function it is equivalent to:</p>
+<pre><code class="language-go">type Celsius float64
+
+// Method: receiver (c) sits before the name.
+func (c Celsius) Fahrenheit() Celsius {
+    return c*9/5 + 32
+}
+
+// The same logic as an ordinary function.
+func fahrenheit(c Celsius) Celsius {
+    return c*9/5 + 32
+}
+</code></pre>
+<p><code>Celsius(100).Fahrenheit()</code> and <code>fahrenheit(100)</code> compute the same thing. The receiver is a parameter that happens to be written on the left of the method name so the call can be written with dot notation. That framing matters because it explains why the receiver obeys the same value-copy semantics as any other parameter: a value receiver gets a <em>copy</em> of the argument, exactly as <code>fahrenheit</code> would.</p>
+<p>Note also <code>Celsius</code> is not a struct. It&rsquo;s a defined type whose underlying type is <code>float64</code>. Which brings us to the first thing most people under-use.</p>
+<hr>
+<h2 id="you-can-define-methods-on-any-type-you-own">You can define methods on any type you own</h2>
+<p>Methods are not a struct feature. You can attach a method to <strong>any named (defined) type whose definition lives in your package</strong> — a named slice, a named map, a named function type, a named integer. The only rule is that the receiver&rsquo;s base type must be defined in the same package (so you cannot bolt methods onto <code>int</code> or onto <code>time.Time</code>, but you can define your own type over them).</p>
+<pre><code class="language-go">// Named slice type with methods.
+type IntSet []int
+
+func (s IntSet) Contains(x int) bool {
+    for _, v := range s {
+        if v == x {
+            return true
+        }
+    }
+    return false
+}
+
+// Named function type with a method — surprisingly useful.
+type HandlerFunc func(msg string) error
+
+func (f HandlerFunc) Retry(n int, msg string) error {
+    var err error
+    for i := 0; i &lt; n; i++ {
+        if err = f(msg); err == nil {
+            return nil
+        }
+    }
+    return err
+}
+</code></pre>
+<p>The named-function-type pattern is the mechanism behind <code>http.HandlerFunc</code>: it lets a plain function satisfy an interface by giving the function type a method. If you&rsquo;ve ever wondered how a bare function becomes an <code>http.Handler</code>, that&rsquo;s it — a one-method function type doing an adapter&rsquo;s job.</p>
+<p><strong>The gotcha:</strong> you can only define methods on types declared in <em>your</em> package. <code>func (t time.Time) Foo()</code> won&rsquo;t compile, and neither will a method on a bare <code>[]int</code>. When you want to extend a foreign type, define your own named type over it (<code>type Timestamps []time.Time</code>) and hang the methods there.</p>
+<hr>
+<h2 id="value-receivers-versus-pointer-receivers">Value receivers versus pointer receivers</h2>
+<p>This is the decision you make on every method, so it&rsquo;s worth having a firm rule rather than a coin flip.</p>
+<p>A <strong>value receiver</strong> operates on a copy. Mutations to the receiver are discarded when the method returns. A <strong>pointer receiver</strong> operates on the original through a pointer, so mutations stick — and no copy of the underlying value is made on the call.</p>
+<pre><code class="language-go">type Counter struct {
+    n int
+}
+
+// Value receiver: mutates a copy — the caller sees nothing.
+func (c Counter) IncBroken() {
+    c.n++ // lost when the method returns
+}
+
+// Pointer receiver: mutates the original.
+func (c *Counter) Inc() {
+    c.n++
+}
+</code></pre>
+<p>Three questions decide it, in order:</p>
+<ol>
+<li><strong>Does the method need to mutate the receiver?</strong> If yes, it must be a pointer receiver — a value receiver can&rsquo;t. This is the dominant reason.</li>
+<li><strong>Is the struct large, or does copying it have a cost you care about?</strong> A pointer receiver avoids copying the value on every call. For a small struct (a few words) the copy is free and irrelevant; for a big one, or one on a hot path, the pointer saves work.</li>
+<li><strong>Consistency.</strong> If any method of the type needs a pointer receiver, prefer giving <em>all</em> of them pointer receivers, so the type presents one coherent method set. Mixing value and pointer receivers on the same type is a smell that causes real confusion (and, as we&rsquo;ll see, subtle method-set differences).</li>
+</ol>
+<p>There are secondary signals. Types that wrap something you must not copy — a <code>sync.Mutex</code>, a <code>sync.WaitGroup</code>, anything embedding one — must use pointer receivers, because copying the value copies the lock. Conversely, small immutable value types (a <code>time.Time</code>, a 2D point, our <code>Celsius</code>) read naturally with value receivers and are safe to pass around.</p>
+<p><strong>The gotcha:</strong> &ldquo;value receiver = no mutation&rdquo; is not merely a convention; the compiler enforces it. But it&rsquo;s easy to <em>think</em> you mutated something. <code>IncBroken</code> above compiles cleanly and does nothing — the copy is incremented and thrown away. There&rsquo;s no warning. If a mutating method isn&rsquo;t sticking, check the receiver is a pointer first.</p>
+<hr>
+<h2 id="pick-one-receiver-kind-per-type">Pick one receiver kind per type</h2>
+<p>The advice to be consistent deserves its own emphasis because it&rsquo;s the most common review comment on Go types. Don&rsquo;t write this:</p>
+<pre><code class="language-go">type Account struct {
+    balance int
+}
+
+func (a Account) Balance() int      { return a.balance }  // value
+func (a *Account) Deposit(n int)    { a.balance += n }    // pointer
+</code></pre>
+<p>It compiles, and for a variable it even works, because Go auto-takes the address (next section). But the type now has a <em>split personality</em> in method-set terms, and the moment an <code>Account</code> value flows through something non-addressable — a map entry, an interface — the two halves behave differently. Choose pointer receivers for <code>Account</code> (it has mutating methods) and make <code>Balance</code> a pointer receiver too, even though it doesn&rsquo;t mutate. Uniformity buys you a predictable method set.</p>
+<hr>
+<h2 id="automatic-address-of-and-dereference">Automatic address-of and dereference</h2>
+<p>Go quietly inserts a <code>&amp;</code> or a <code>*</code> so you rarely write them at a call site. If you have a value and call a pointer-receiver method, Go takes its address; if you have a pointer and call a value-receiver method, Go dereferences it.</p>
+<pre><code class="language-go">c := Counter{}
+c.Inc()   // c is addressable → Go rewrites this as (&amp;c).Inc()
+fmt.Println(c.n) // 1
+
+p := &amp;Counter{}
+p.Inc()   // already a pointer, called directly
+_ = p.n
+
+// Value-receiver method through a pointer:
+cel := &amp;Celsius{} // silly but legal
+_ = cel.Fahrenheit() // Go rewrites as (*cel).Fahrenheit()
+</code></pre>
+<p>The load-bearing word is <strong>addressable</strong>. Go can only take the address of something that has a home in memory it can point at — a local variable, a struct field of an addressable struct, a slice element, a dereferenced pointer. It <em>cannot</em> take the address of a value that has no such home, and that&rsquo;s where the real trap lives.</p>
+<p><strong>The gotcha:</strong> a value stored in a <strong>map</strong>, or a value <strong>returned directly from a function call</strong>, is <em>not addressable</em>. You therefore cannot call a pointer-receiver method on it, and the compiler rejects it:</p>
+<pre><code class="language-go">type Player struct {
+    Score int
+}
+
+func (p *Player) Bump() { p.Score++ }
+
+func main() {
+    players := map[string]Player{&quot;alice&quot;: {Score: 10}}
+
+    // players[&quot;alice&quot;].Bump()      // compile error:
+    // cannot call pointer method Bump on players[&quot;alice&quot;]
+    // cannot take the address of players[&quot;alice&quot;]
+
+    // The fix: pull it out, mutate, put it back.
+    p := players[&quot;alice&quot;]
+    p.Bump()
+    players[&quot;alice&quot;] = p
+
+    // Or store pointers in the map so the element IS a pointer:
+    ptrs := map[string]*Player{&quot;alice&quot;: {Score: 10}}
+    ptrs[&quot;alice&quot;].Bump() // fine — no address-of needed
+}
+</code></pre>
+<p>The same non-addressability applies to <code>someFunc().Bump()</code> when <code>someFunc</code> returns a <code>Player</code> by value. Slice elements are the happy exception — <code>xs[i].Bump()</code> works because a slice element <em>is</em> addressable. When a type has pointer-receiver methods and you plan to keep it in a map, store <code>*Player</code>, not <code>Player</code>, and the whole class of error disappears.</p>
+<hr>
+<h2 id="method-sets-t-versus-t">Method sets: T versus *T</h2>
+<p>Every type has a <strong>method set</strong> — the set of methods you can call on it <em>through the machinery that only knows the static type</em>, which in practice means through an interface. The rule:</p>
+<ul>
+<li>The method set of <strong><code>T</code></strong> (value) contains only the methods with <strong>value receivers</strong>.</li>
+<li>The method set of <strong><code>*T</code></strong> (pointer) contains <strong>both</strong> value-receiver and pointer-receiver methods.</li>
+</ul>
+<p>That asymmetry is the single most important fact about receivers, because it decides interface satisfaction.</p>
+<pre><code class="language-go">type Stringer interface {
+    String() string
+}
+
+type Named struct{ name string }
+
+// Pointer receiver.
+func (n *Named) String() string { return n.name }
+
+func main() {
+    var s Stringer
+
+    s = &amp;Named{&quot;ok&quot;}   // *Named has String() in its method set ✓
+    // s = Named{&quot;no&quot;}  // compile error: Named does NOT satisfy Stringer,
+    //                   // String has a pointer receiver, so it's only
+    //                   // in the method set of *Named.
+    _ = s
+}
+</code></pre>
+<p>Because <code>String</code> has a pointer receiver, only <code>*Named</code> satisfies <code>Stringer</code>. A plain <code>Named</code> value does not. If you&rsquo;d written <code>func (n Named) String()</code> instead, <em>both</em> <code>Named</code> and <code>*Named</code> would satisfy it — the value-receiver method is in both method sets.</p>
+<p>Why the asymmetry? It comes straight from addressability. To call a pointer-receiver method on a value, Go needs the value&rsquo;s address. When the value sits behind an interface, there <em>is</em> no addressable home to take — the interface holds a copy — so the language simply excludes pointer-receiver methods from <code>T</code>&rsquo;s method set. Consistent with the map rule above; it&rsquo;s the same principle wearing a different hat.</p>
+<p>The practical guidance falls out of this: this is another reason to keep receivers consistent, and, if you satisfy interfaces, to remember that pointer-receiver methods mean you must pass a pointer where the interface is expected. (The interfaces post goes deeper on satisfaction, embedding, and the empty interface; this is the receiver-side half of that story.)</p>
+<table><caption class="sr-only">Method sets: T versus *T</caption>
+<thead>
+<tr>
+<th>Receiver of method <code>M</code></th>
+<th>In method set of <code>T</code>?</th>
+<th>In method set of <code>*T</code>?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Value: <code>func (t T) M()</code></td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Pointer: <code>func (t *T) M()</code></td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="nil-receivers-are-valid">Nil receivers are valid</h2>
+<p>A method call is a function call, and passing <code>nil</code> as the receiver argument is not itself an error. A pointer-receiver method runs fine on a <code>nil</code> receiver <em>as long as the body doesn&rsquo;t dereference the nil pointer</em>. This is not a curiosity — it&rsquo;s a genuine design tool, especially for recursive data structures.</p>
+<pre><code class="language-go">type List struct {
+    val  int
+    next *List
+}
+
+// Works even when called on a nil *List.
+func (l *List) Sum() int {
+    if l == nil {
+        return 0 // base case: the empty list
+    }
+    return l.val + l.next.Sum() // recursion bottoms out on nil
+}
+
+func main() {
+    var l *List // nil
+    fmt.Println(l.Sum()) // 0 — no panic
+}
+</code></pre>
+<p><code>l.next.Sum()</code> eventually calls <code>Sum</code> with a nil receiver, and the <code>l == nil</code> guard handles it instead of panicking. The empty tree, the empty list, the absent node — modeling these as a typed nil receiver lets you skip a separate &ldquo;empty&rdquo; sentinel type. The standard library uses the pattern; a nil <code>*html.Node</code> or a nil method-holding config can answer sensibly.</p>
+<p><strong>The gotcha:</strong> a nil receiver of an interface type is subtly different from a nil concrete pointer. An interface holding a <code>(*T)(nil)</code> is itself <strong>non-nil</strong> — it has a type but a nil value — so <code>iface == nil</code> is <code>false</code> even though the underlying pointer is nil. That mismatch is the classic &ldquo;why is my error not nil&rdquo; bug: returning a nil <code>*MyError</code> as an <code>error</code> yields a non-nil <code>error</code> interface. Nil <em>concrete</em> receivers are safe if the method guards them; nil <em>interfaces</em> are a separate hazard covered with interfaces.</p>
+<hr>
+<h2 id="method-values-and-method-expressions">Method values and method expressions</h2>
+<p>Because a method is a function, you can grab it as a first-class value in two flavors.</p>
+<p>A <strong>method value</strong> binds the receiver now and hands you a function that no longer takes one:</p>
+<pre><code class="language-go">c := Counter{n: 5}
+inc := c.Inc     // receiver c bound here (its address, since Inc is *Counter)
+inc()            // calls c.Inc()
+</code></pre>
+<p>A <strong>method expression</strong> leaves the receiver unbound — you get a plain function whose <em>first parameter</em> is the receiver:</p>
+<pre><code class="language-go">inc := (*Counter).Inc // func(*Counter)
+c := Counter{}
+inc(&amp;c)               // pass the receiver explicitly
+</code></pre>
+<p>Method values are what you pass to <code>time.AfterFunc(d, obj.Cleanup)</code> or a goroutine — the receiver rides along. Method expressions are handy when you want to treat &ldquo;the <code>Inc</code> method of all <code>Counter</code>s&rdquo; as one function over receivers. Both are just the &ldquo;method = function with a receiver&rdquo; identity made concrete: a method value pre-applies the first argument; a method expression leaves it as an ordinary parameter. (The functions post covers closures and first-class functions in full; these two forms are the receiver-flavored corner of that topic.)</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>A method is a function with a receiver parameter.</strong> Every rule below is a consequence of that, plus the copy semantics of ordinary parameters.</li>
+<li><strong>Methods attach to any defined type you own</strong> — named slices, maps, and function types included, not just structs. Named function types are how a bare function satisfies an interface.</li>
+<li><strong>Choose pointer receivers to mutate, to avoid copying large or uncopyable values, and for consistency.</strong> Pick one receiver kind per type and stick to it.</li>
+<li><strong>Method sets drive interface satisfaction:</strong> <code>*T</code> has all methods, <code>T</code> has only the value-receiver ones. A type with pointer-receiver methods satisfies an interface only through a pointer.</li>
+<li><strong>Go auto-takes addresses for method calls on addressable values</strong> — but map entries and function return values aren&rsquo;t addressable, so you can&rsquo;t call pointer-receiver methods on them directly. Store pointers in maps to sidestep it.</li>
+<li><strong>Nil concrete receivers are valid and useful</strong> when the method guards them; a nil pointer inside an interface is a different, non-nil beast.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/doc/effective_go#methods">Effective Go — Methods, and Pointers vs. Values</a> — the canonical treatment of when to use a pointer receiver.</li>
+<li><a href="https://go.dev/ref/spec#Method_sets">The Go Programming Language Specification — Method sets</a> — the precise rules for what <code>T</code> and <code>*T</code> contain and how they govern interface satisfaction.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/production-go-13-type-assertions-and-switches.html">Type Assertions, Type Switches, and Interface Internals</a>
+      <span class="related-date">Jul 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-12-interfaces.html">Interfaces</a>
+      <span class="related-date">Jul 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

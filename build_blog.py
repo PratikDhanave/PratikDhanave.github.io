@@ -159,6 +159,38 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+    "2026-07-06-production-go-11-methods-and-receivers.md": {
+        "slug": "production-go-11-methods-and-receivers",
+        "date": "2026-07-06",
+        "tags": ["Go", "Methods", "Interfaces"],
+        "audience": "Developers learning Go's fundamentals the right way",
+        "excerpt": "How Go attaches behavior to types without classes \u2014 the receiver, the value-versus-pointer decision, method sets and what they mean for interfaces, and the addressability rules that trip people up when a...",
+        "series": "Road Go Ever On", "series_position": 11, "series_total": 45,
+    },
+    "2026-07-07-production-go-12-interfaces.md": {
+        "slug": "production-go-12-interfaces",
+        "date": "2026-07-07",
+        "tags": ["Go", "Interfaces", "Design"],
+        "audience": "Developers learning Go's fundamentals the right way",
+        "excerpt": "How Go turns \"what a value can do\" into a first-class type \u2014 with implicit satisfaction, small contracts, the consumer-defined-interface rule, and the typed-nil trap that catches everyone once.",
+        "series": "Road Go Ever On", "series_position": 12, "series_total": 45,
+    },
+    "2026-07-08-production-go-13-type-assertions-and-switches.md": {
+        "slug": "production-go-13-type-assertions-and-switches",
+        "date": "2026-07-08",
+        "tags": ["Go", "Interfaces", "Type System"],
+        "audience": "Developers learning Go's fundamentals the right way",
+        "excerpt": "How Go recovers a concrete type from an interface value, why the comma-ok form exists, and the two-word memory layout that explains the single most surprising bug in the language \u2014 the non-nil interface...",
+        "series": "Road Go Ever On", "series_position": 13, "series_total": 45,
+    },
+    "2026-07-09-production-go-14-generics.md": {
+        "slug": "production-go-14-generics",
+        "date": "2026-07-09",
+        "tags": ["Go", "Generics", "Type System"],
+        "audience": "Developers learning Go's fundamentals the right way",
+        "excerpt": "How type parameters and constraints actually work in Go 1.18+ \u2014 writing functions and data structures that are type-safe across many types, when the compiler can infer type arguments for you, and the harder...",
+        "series": "Road Go Ever On", "series_position": 14, "series_total": 45,
+    },
     "2026-07-03-production-go-08-arrays-and-slices.md": {
         "slug": "production-go-08-arrays-and-slices",
         "date": "2026-07-03",

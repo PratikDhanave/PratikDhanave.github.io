@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Interfaces — Pratik Dhanave</title>
+<meta name="description" content="How Go turns &quot;what a value can do&quot; into a first-class type — with implicit satisfaction, small contracts, the consumer-defined-interface rule, and the...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Interfaces — Pratik Dhanave">
+<meta property="og:description" content="How Go turns &quot;what a value can do&quot; into a first-class type — with implicit satisfaction, small contracts, the consumer-defined-interface rule, and the typed-nil trap that catches everyone once.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-12-interfaces.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-07T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Interfaces">
+<meta property="article:tag" content="Design">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Interfaces — Pratik Dhanave">
+<meta name="twitter:description" content="How Go turns &quot;what a value can do&quot; into a first-class type — with implicit satisfaction, small contracts, the consumer-defined-interface rule, and the typed-nil trap that catches everyone once.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-12-interfaces.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Interfaces",
+  "description": "How Go turns \"what a value can do\" into a first-class type \u2014 with implicit satisfaction, small contracts, the consumer-defined-interface rule, and the typed-nil trap that catches everyone once.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-07",
+  "dateModified": "2026-07-07",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Interfaces, Design",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-12-interfaces.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-12-interfaces.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Interfaces</h1>
+    <p class="post-subtitle">How Go turns &quot;what a value can do&quot; into a first-class type — with implicit satisfaction, small contracts, the consumer-defined-interface rule, and the typed-nil trap that catches everyone once.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-07">July 07, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/interfaces/" class="tag-link"><span class="tag">#Interfaces</span></a><a href="/blog/tags/design/" class="tag-link"><span class="tag">#Design</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 12 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-11-methods-and-receivers.html" class="series-prev">&larr; Part 11: Methods and Receivers</a>
+<a href="/blog/posts/production-go-13-type-assertions-and-switches.html" class="series-next">Part 13: Type Assertions, Type Switches, and Interface Internals &rarr;</a></div>
+  </div>
+
+
+
+  <p>An interface in Go is a <strong>behavior contract</strong>: a named set of method signatures. A value satisfies the interface if it has those methods — nothing more is required, and nothing more is checked. That single design decision, that satisfaction is <em>structural</em> rather than <em>declared</em>, is the reason Go&rsquo;s interfaces feel different from the <code>implements</code> clauses you know from Java or C#. Almost everything worth saying about Go interfaces follows from it.</p>
+<p>This post is about using interfaces well: why implicit satisfaction is a superpower, why small interfaces beat big ones, where interfaces should be <em>defined</em>, and the one nil-related trap that every Go engineer walks into exactly once. The mechanical questions — how method sets work with pointer vs. value receivers, and how an interface value is laid out in memory — are covered in the methods post and the internals post respectively; I&rsquo;ll point at them where they matter.</p>
+<hr>
+<h2 id="implicit-satisfaction-no-implements-and-why-that-wins">Implicit satisfaction: no <code>implements</code>, and why that wins</h2>
+<p>Here is a complete interface and a type that satisfies it. Notice what&rsquo;s <em>missing</em>.</p>
+<pre><code class="language-go">type Speaker interface {
+    Speak() string
+}
+
+type Dog struct{ Name string }
+
+func (d Dog) Speak() string { return d.Name + &quot; says woof&quot; }
+</code></pre>
+<p><code>Dog</code> never mentions <code>Speaker</code>. There is no <code>implements Speaker</code>, no registration, no annotation. <code>Dog</code> satisfies <code>Speaker</code> because it has a <code>Speak() string</code> method — the compiler works this out at the point where you <em>use</em> a <code>Dog</code> as a <code>Speaker</code>:</p>
+<pre><code class="language-go">var s Speaker = Dog{Name: &quot;Rex&quot;} // compiles: Dog has Speak() string
+fmt.Println(s.Speak())            // Rex says woof
+</code></pre>
+<p>This is <strong>structural typing</strong>, and it buys you two things you can&rsquo;t easily get with nominal <code>implements</code> systems.</p>
+<p>First, <strong>decoupling</strong>. <code>Dog</code> doesn&rsquo;t import the package that defines <code>Speaker</code>. A type can satisfy an interface that didn&rsquo;t exist when the type was written, defined in a package the type&rsquo;s author never heard of. The dependency arrow points only one way: the code that <em>needs</em> the abstraction owns it.</p>
+<p>Second, <strong>retrofitting</strong>. You can write an interface that describes types you don&rsquo;t control — including standard-library types — and they satisfy it for free if the methods line up. <code>*os.File</code> satisfies your <code>io.Reader</code>-shaped interface without <code>os</code> knowing your interface exists. This is impossible in a world where the type has to opt in by name.</p>
+<p><strong>The gotcha:</strong> implicit satisfaction means &ldquo;does this compile&rdquo; is your only satisfaction check, and it happens silently. If you <em>intend</em> a type to satisfy an interface and want the compiler to enforce it — say, so a missing method fails at build time in this package rather than at some distant call site — add a static assertion:</p>
+<pre><code class="language-go">var _ Speaker = Dog{}    // fails to compile if Dog stops satisfying Speaker
+var _ Speaker = (*Dog)(nil) // same check, for a pointer receiver set
+</code></pre>
+<p>The blank identifier means &ldquo;I want this checked, I don&rsquo;t want the value.&rdquo; Put one near the type definition and refactors that break the contract fail loudly and locally.</p>
+<hr>
+<h2 id="small-interfaces-are-better-ioreader-as-the-model">Small interfaces are better: <code>io.Reader</code> as the model</h2>
+<p>The most reused interfaces in Go are the smallest. <code>io.Reader</code> is one method:</p>
+<pre><code class="language-go">type Reader interface {
+    Read(p []byte) (n int, err error)
+}
+</code></pre>
+<p><code>io.Writer</code> is one method. <code>fmt.Stringer</code> is one method. <code>error</code> is one method. These are the load-bearing abstractions of the entire ecosystem, and their power comes <em>from</em> their smallness. A one-method interface is trivial to satisfy, so an enormous number of types satisfy it — files, network connections, byte buffers, HTTP bodies, gzip streams, cipher streams — and every function written against <code>io.Reader</code> composes with all of them.</p>
+<p>Rob Pike&rsquo;s proverb states the principle directly: <strong>the bigger the interface, the weaker the abstraction.</strong> A ten-method interface describes almost nothing, because almost nothing has exactly those ten methods; you&rsquo;ve coupled yourself to one concrete shape wearing an interface costume. A one-method interface describes a <em>capability</em>, and capabilities compose.</p>
+<p>Concretely, prefer to accept the narrowest contract that does the job:</p>
+<pre><code class="language-go">// Weak: demands a whole *os.File, when all we do is read bytes.
+func countLines(f *os.File) (int, error) { /* ... */ }
+
+// Strong: accepts anything readable — file, socket, bytes.Buffer, strings.Reader.
+func countLines(r io.Reader) (int, error) { /* ... */ }
+</code></pre>
+<p>The second version is testable without touching the filesystem (<code>strings.NewReader("...")</code> satisfies it), works over the network, and works in memory. Same code, dramatically wider reach — purely by asking for less.</p>
+<hr>
+<h2 id="accept-interfaces-return-structs">&ldquo;Accept interfaces, return structs&rdquo;</h2>
+<p>A companion idiom, and a good default: <strong>accept interfaces, return concrete types.</strong></p>
+<p>Accept interfaces because it maximizes what a caller can hand you, as we just saw. Return concrete types because it maximizes what the caller can <em>do</em> with the result. If a constructor returns an interface, the caller sees only that interface&rsquo;s methods — even when the concrete value has more to offer, and even when a later version of your type grows useful methods that the interface never learns about.</p>
+<pre><code class="language-go">// Good: caller receives the full, concrete *Client.
+func NewClient(addr string) *Client { return &amp;Client{addr: addr} }
+
+// Usually worse: caller is boxed into whatever Doer exposes, forever.
+func NewClient(addr string) Doer { return &amp;Client{addr: addr} }
+</code></pre>
+<p>Returning a struct also keeps documentation and discoverability honest: the reader sees exactly what they got. The caller can still assign your <code>*Client</code> into their own narrow interface — that&rsquo;s <em>their</em> choice to make at the point of use, which is precisely where the abstraction belongs.</p>
+<p><strong>The gotcha:</strong> the idiom is a default, not a law. The clearest justified exception is <code>error</code>, which is an interface everyone returns — because callers genuinely should treat errors abstractly and inspect them with <code>errors.Is</code>/<code>errors.As</code> rather than reaching for concrete fields. Return an interface when the abstraction is genuinely the point (multiple real implementations the caller must stay agnostic about); return a struct the rest of the time.</p>
+<hr>
+<h2 id="defining-interfaces-at-the-consumer-not-the-producer">Defining interfaces at the consumer, not the producer</h2>
+<p>Structural typing lets you put an interface definition wherever it&rsquo;s most useful — and the most useful place is almost always the <strong>consumer</strong>, the package that <em>calls</em> the methods, not the package that <em>implements</em> them.</p>
+<p>This inverts the instinct trained by nominal languages, where the implementer declares &ldquo;I implement <code>PaymentGateway</code>&rdquo; and therefore the interface lives near the implementation. In Go, put the interface next to the code that needs it:</p>
+<pre><code class="language-go">// package report — the CONSUMER. It defines exactly the slice it needs.
+package report
+
+type stockQuery interface {
+    QuoteAt(ctx context.Context, symbol string, day time.Time) (float64, error)
+}
+
+func Build(ctx context.Context, q stockQuery, symbols []string) (*Report, error) {
+    // uses only q.QuoteAt — nothing else about the data source
+}
+</code></pre>
+<p>The producer — say a <code>marketdata</code> package with a fat <code>*Client</code> exposing dozens of methods — defines <em>no</em> interface. <code>report</code> declares the one-method slice of behavior it actually depends on, and <code>*marketdata.Client</code> satisfies it implicitly. The benefits stack up:</p>
+<ul>
+<li>The interface is minimal by construction, because the consumer only writes down what it uses.</li>
+<li>Tests in <code>report</code> mock <code>stockQuery</code> — one method — instead of a huge client.</li>
+<li><code>marketdata</code> has zero dependency on <code>report</code>, and stays free to grow methods.</li>
+<li>Two different consumers can define two different, smaller views of the same producer.</li>
+</ul>
+<p>A producer-defined interface, by contrast, tends to grow to mirror the whole implementation (&ldquo;everything <code>*Client</code> can do&rdquo;), which is the fat-interface anti-pattern wearing a bow tie. Let the consumer decide what &ldquo;enough&rdquo; means.</p>
+<hr>
+<h2 id="composing-interfaces-by-embedding">Composing interfaces by embedding</h2>
+<p>Interfaces build up from smaller ones by <strong>embedding</strong> — naming one interface inside another merges its method set in. The standard library does this in the open:</p>
+<pre><code class="language-go">type Reader interface{ Read(p []byte) (n int, err error) }
+type Writer interface{ Write(p []byte) (n int, err error) }
+
+type ReadWriter interface {
+    Reader
+    Writer
+}
+</code></pre>
+<p><code>ReadWriter</code> is exactly &ldquo;has <code>Read</code> and has <code>Write</code>.&rdquo; Any type with both methods satisfies it, and — because satisfaction is structural — a type that already satisfies <code>Reader</code> and <code>Writer</code> separately satisfies <code>ReadWriter</code> with no extra work. <code>io.ReadWriteCloser</code> is the same trick with three parts.</p>
+<p>This is how you keep interfaces small <em>and</em> express richer requirements when you truly need them: compose at the point of use rather than authoring a monolith. A function that needs to both read and write asks for <code>io.ReadWriter</code>; one that only reads asks for <code>io.Reader</code>; neither forces the other to over-specify.</p>
+<hr>
+<h2 id="the-empty-interface-and-any-when-not-to-use-it">The empty interface and <code>any</code>: when not to use it</h2>
+<p>An interface with <strong>zero</strong> methods is satisfied by <em>every</em> type, since every type trivially has all zero of its methods. This is <code>interface{}</code>, and since Go 1.18 it has the alias <code>any</code> — they are identical, and <code>any</code> is the spelling to use.</p>
+<pre><code class="language-go">func describe(v any) string {
+    return fmt.Sprintf(&quot;%T: %v&quot;, v, v)
+}
+</code></pre>
+<p><code>any</code> is the right tool when you genuinely handle values of unknown type: <code>fmt.Println</code>, JSON decoding into an unknown shape, a generic container from before generics existed. But it is a contract that promises <em>nothing</em> — the moment you accept <code>any</code>, you&rsquo;ve thrown away the compiler&rsquo;s help, and to do anything meaningful you must claw the type back with a type assertion or type switch:</p>
+<pre><code class="language-go">func length(v any) (int, error) {
+    switch x := v.(type) {
+    case string:
+        return len(x), nil
+    case []int:
+        return len(x), nil
+    default:
+        return 0, fmt.Errorf(&quot;length: unsupported type %T&quot;, v)
+    }
+}
+</code></pre>
+<p>That <code>default</code> branch is the tell: with <code>any</code> you&rsquo;ve moved a whole class of errors from compile time to run time. Two guidelines keep it in check:</p>
+<ul>
+<li>If you can name the behavior you need, define a small interface (<code>Stringer</code>, <code>io.Reader</code>, your own one-method contract) instead of <code>any</code>. The compiler then checks callers for you.</li>
+<li>If you need to write the same logic over many concrete types without losing type information, reach for <strong>generics</strong> — a type parameter constrained by an interface keeps the static guarantees <code>any</code> discards.</li>
+</ul>
+<p><strong>The gotcha:</strong> <code>any</code> is contagious. A field, map value, or return type of <code>any</code> pushes assertions onto everyone downstream, and each one is a run-time panic waiting for a bad input. Treat it as a boundary tool — parse it into a concrete or interface type early, and let the rest of your code work with something the compiler understands.</p>
+<hr>
+<h2 id="the-typed-nil-trap-a-non-nil-interface-holding-a-nil-pointer">The typed-nil trap: a non-nil interface holding a nil pointer</h2>
+<p>This is the interface bug that catches every Go engineer once, and it deserves a clear mental model even though the full mechanism belongs to the internals post.</p>
+<p>An interface value is really a <strong>pair</strong>: a type descriptor and a value. It is <code>nil</code> only when <em>both</em> halves are empty — no type and no value. The trap is that a nil <em>pointer</em> still carries a type, so wrapping one in an interface produces an interface that is decidedly <strong>not nil</strong>:</p>
+<pre><code class="language-go">type appError struct{ msg string }
+
+func (e *appError) Error() string { return e.msg }
+
+func doWork(fail bool) error {
+    var e *appError       // e is a nil *appError
+    if fail {
+        e = &amp;appError{&quot;boom&quot;}
+    }
+    return e              // BUG: always returns a non-nil error
+}
+
+func main() {
+    err := doWork(false)  // no failure...
+    if err != nil {
+        fmt.Println(&quot;got error:&quot;, err) // ...yet this prints!
+    }
+}
+</code></pre>
+<p>Even on the success path, <code>return e</code> wraps a <code>(*appError)(nil)</code> into the <code>error</code> interface. The interface now holds type <code>*appError</code> and value <code>nil</code> — the type half is populated, so <code>err != nil</code> is <strong>true</strong>, and the caller&rsquo;s error check fires on a &ldquo;success.&rdquo; Depending on what happens next, this shows up as a spurious error or as a panic when someone dereferences the nil pointer inside a method that assumed a live receiver.</p>
+<p>The fix is to never let a typed nil escape into an interface. Return the untyped <code>nil</code> literal explicitly, and keep concrete error variables concrete until the last moment:</p>
+<pre><code class="language-go">func doWork(fail bool) error {
+    if !fail {
+        return nil       // the untyped nil — genuinely a nil interface
+    }
+    return &amp;appError{&quot;boom&quot;}
+}
+</code></pre>
+<p>For <em>why</em> the pair works this way — the itab/type-word layout that makes a typed nil non-nil — see the interface internals post. The rule to carry day to day: <strong>don&rsquo;t declare a concrete pointer, populate it conditionally, and return it through an interface.</strong> Return <code>nil</code> (or the concrete value) directly on each path.</p>
+<hr>
+<h2 id="method-sets-decide-satisfaction-pointer-vs-value">Method sets decide satisfaction (pointer vs. value)</h2>
+<p>One last thing that trips people up, and a forward-reference. <em>Which</em> methods count toward satisfying an interface depends on whether you have a value or a pointer, because of <strong>method sets</strong>:</p>
+<ul>
+<li>A value of type <code>T</code> has the methods declared with value receivers (<code>func (t T)</code>).</li>
+<li>A pointer <code>*T</code> has <em>both</em> value-receiver and pointer-receiver (<code>func (t *T)</code>) methods.</li>
+</ul>
+<p>So if <code>Speak</code> is declared on <code>*Dog</code>, then <code>*Dog</code> satisfies <code>Speaker</code> but a plain <code>Dog</code> value does <strong>not</strong> — and <code>var s Speaker = Dog{}</code> fails to compile while <code>var s Speaker = &amp;Dog{}</code> succeeds:</p>
+<pre><code class="language-go">func (d *Dog) Speak() string { return d.Name + &quot; says woof&quot; } // pointer receiver
+
+var s Speaker = Dog{}   // compile error: Dog does not implement Speaker
+var s Speaker = &amp;Dog{}  // OK: *Dog's method set includes Speak
+</code></pre>
+<p>The reasoning behind receiver choice — when to use pointer vs. value receivers, and how addressability interacts with all this — is the subject of the methods post. For interfaces, just remember: <strong>check whether you&rsquo;re satisfying with <code>T</code> or <code>*T</code>, and match the receiver.</strong> The static-assertion trick from earlier (<code>var _ Speaker = (*Dog)(nil)</code>) is the fastest way to pin down which one your callers actually need.</p>
+<hr>
+<h2 id="choosing-well-a-quick-reference">Choosing well: a quick reference</h2>
+<table><caption class="sr-only">Choosing well: a quick reference</caption>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Do this</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Function needs some behavior from its input</td>
+<td>Accept the smallest interface that covers it</td>
+</tr>
+<tr>
+<td>Function produces a value</td>
+<td>Return the concrete type (struct), not an interface</td>
+</tr>
+<tr>
+<td>Deciding where an interface lives</td>
+<td>Define it in the consumer package, not the producer</td>
+</tr>
+<tr>
+<td>Need to guarantee a type satisfies an interface</td>
+<td>Add <code>var _ Iface = T{}</code> (or <code>(*T)(nil)</code>) near the type</td>
+</tr>
+<tr>
+<td>Handling values of genuinely unknown type</td>
+<td><code>any</code> at the boundary, then assert/switch immediately</td>
+</tr>
+<tr>
+<td>Same logic over many known types</td>
+<td>Generics with an interface constraint, not <code>any</code></td>
+</tr>
+<tr>
+<td>Returning an error / optional pointer through an interface</td>
+<td>Return <code>nil</code> literal on the empty path — never a typed nil</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Satisfaction is implicit and structural.</strong> A type satisfies an interface by having the methods — no <code>implements</code>, no import of the interface&rsquo;s package. That enables decoupling and retrofitting types you don&rsquo;t own.</li>
+<li><strong>Small interfaces are strong interfaces.</strong> <code>io.Reader</code>-sized contracts compose with everything; big interfaces describe one concrete shape and nothing else. The bigger the interface, the weaker the abstraction.</li>
+<li><strong>Accept interfaces, return structs.</strong> Ask for the least, hand back the most — with <code>error</code> as the standing exception.</li>
+<li><strong>Define interfaces at the consumer.</strong> Let the code that calls the methods declare exactly the slice of behavior it needs; the producer defines no interface at all.</li>
+<li><strong>Compose with embedding, not accretion.</strong> Build <code>ReadWriter</code> from <code>Reader</code> and <code>Writer</code>; don&rsquo;t author monoliths.</li>
+<li><strong><code>any</code> is a boundary tool.</strong> It promises nothing and moves errors to run time — prefer a named interface or generics wherever you can name the behavior.</li>
+<li><strong>A typed nil in an interface is not nil.</strong> Return the untyped <code>nil</code> on your empty paths; the pair-based internals are covered separately.</li>
+<li><strong>Method sets gate satisfaction.</strong> <code>*T</code> carries pointer-receiver methods, <code>T</code> does not — match the receiver to what your callers hold.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/doc/effective_go#interfaces">Effective Go — Interfaces</a> — the canonical treatment of interface names, embedding, and conversions.</li>
+<li><a href="https://go-proverbs.github.io/">Go Proverbs</a> — Rob Pike&rsquo;s list, including &ldquo;The bigger the interface, the weaker the abstraction&rdquo; and &ldquo;accept interfaces, return structs.&rdquo;</li>
+<li><a href="https://go.dev/blog/">The Go Blog — Rob Pike, <em>Go Proverbs</em> (Gopherfest 2015)</a> — the talk the proverbs come from, on designing with small interfaces.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/production-go-13-type-assertions-and-switches.html">Type Assertions, Type Switches, and Interface Internals</a>
+      <span class="related-date">Jul 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-11-methods-and-receivers.html">Methods and Receivers</a>
+      <span class="related-date">Jul 06</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

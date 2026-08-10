@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Generics: Type Parameters and Constraints — Pratik Dhanave</title>
+<meta name="description" content="How type parameters and constraints actually work in Go 1.18+ — writing functions and data structures that are type-safe across many types, when the...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Generics: Type Parameters and Constraints — Pratik Dhanave">
+<meta property="og:description" content="How type parameters and constraints actually work in Go 1.18+ — writing functions and data structures that are type-safe across many types, when the compiler can infer type arguments for you, and the harder...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-14-generics.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-09T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Generics">
+<meta property="article:tag" content="Type System">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Generics: Type Parameters and Constraints — Pratik Dhanave">
+<meta name="twitter:description" content="How type parameters and constraints actually work in Go 1.18+ — writing functions and data structures that are type-safe across many types, when the compiler can infer type arguments for you, and the harder...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-14-generics.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Generics: Type Parameters and Constraints",
+  "description": "How type parameters and constraints actually work in Go 1.18+ \u2014 writing functions and data structures that are type-safe across many types, when the compiler can infer type arguments for you, and the harder...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-09",
+  "dateModified": "2026-07-09",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Generics, Type System",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-14-generics.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-14-generics.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Generics: Type Parameters and Constraints</h1>
+    <p class="post-subtitle">How type parameters and constraints actually work in Go 1.18+ — writing functions and data structures that are type-safe across many types, when the compiler can infer type arguments for you, and the harder question of when a plain interface is still the better tool.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-09">July 09, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/generics/" class="tag-link"><span class="tag">#Generics</span></a><a href="/blog/tags/type-system/" class="tag-link"><span class="tag">#Type System</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 14 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-13-type-assertions-and-switches.html" class="series-prev">&larr; Part 13: Type Assertions, Type Switches, and Interface Internals</a></div>
+  </div>
+
+
+
+  <p>For most of its life Go asked you to choose between two uncomfortable options when you wanted code to work across many types: write the same function once per type, or reach for <code>interface{}</code> and pay for it with runtime type assertions and lost compile-time safety. Generics, added in Go 1.18, give you a third option — parameterize code over types the way you already parameterize it over values. You write <code>Map</code> or <code>Stack</code> once, the compiler checks it once, and callers get a fully typed result with no assertions and no <code>reflect</code>.</p>
+<p>This post is the foundation for everything generic in Go: how you declare type parameters on functions and types, how <em>constraints</em> describe what those types are allowed to do, when the compiler can infer the type arguments so you never type them, and — the part experience teaches — when generics are genuinely the right tool versus when an interface says what you mean more plainly. A later post picks up the sequel questions (iterators over generic containers, and the discipline of using generics sparingly); here we build the base.</p>
+<hr>
+<h2 id="type-parameters-on-functions">Type parameters on functions</h2>
+<p>A generic function carries an extra bracketed list <em>before</em> its ordinary parameter list. Each entry names a type parameter and gives it a <em>constraint</em> — the set of types that entry is allowed to be. The canonical starter is <code>Map</code>, which turns a <code>[]T</code> into a <code>[]U</code> by applying a function:</p>
+<pre><code class="language-go">func Map[T, U any](s []T, f func(T) U) []U {
+    out := make([]U, len(s))
+    for i, v := range s {
+        out[i] = f(v)
+    }
+    return out
+}
+</code></pre>
+<p><code>[T, U any]</code> declares two type parameters, both constrained by <code>any</code> — meaning &ldquo;any type at all, no operations assumed.&rdquo; Inside the body, <code>T</code> and <code>U</code> behave like real types: you can declare variables of them, form slices of them, pass them around. What you <em>cannot</em> do is anything <code>any</code> doesn&rsquo;t promise — no <code>+</code>, no <code>&lt;</code>, no field access — because the constraint is the only contract the compiler will let the body rely on.</p>
+<p>Callers use it like any other function:</p>
+<pre><code class="language-go">nums := []int{1, 2, 3}
+strs := Map(nums, func(n int) string { return strconv.Itoa(n) })
+// strs is []string{&quot;1&quot;, &quot;2&quot;, &quot;3&quot;}
+</code></pre>
+<p>Notice there are no <code>[int, string]</code> brackets at the call site. That is type inference, which we come back to shortly.</p>
+<hr>
+<h2 id="type-parameters-on-types">Type parameters on types</h2>
+<p>Types take type parameters too, and this is where generics pay off most clearly — homogeneous containers that were previously either copy-pasted per element type or smeared into <code>[]interface{}</code>. A generic stack:</p>
+<pre><code class="language-go">type Stack[T any] struct {
+    items []T
+}
+
+func (s *Stack[T]) Push(v T) {
+    s.items = append(s.items, v)
+}
+
+func (s *Stack[T]) Pop() (T, bool) {
+    var zero T
+    if len(s.items) == 0 {
+        return zero, false
+    }
+    v := s.items[len(s.items)-1]
+    s.items = s.items[:len(s.items)-1]
+    return v, true
+}
+</code></pre>
+<p>Two details worth internalizing. First, the receiver repeats the type parameter: <code>(s *Stack[T])</code>, not <code>(s *Stack)</code>. The method is defined on the <em>generic</em> type and <code>T</code> has to be back in scope. Second, <code>var zero T</code> is the idiom for &ldquo;the zero value of whatever <code>T</code> is&rdquo; — you cannot write <code>nil</code> or <code>0</code>, because you don&rsquo;t know which is meaningful. <code>var zero T</code> gives you the right zero (<code>0</code>, <code>""</code>, <code>nil</code>, an empty struct) for free.</p>
+<p>A caller instantiates the type by supplying the argument:</p>
+<pre><code class="language-go">var s Stack[int]
+s.Push(10)
+s.Push(20)
+top, ok := s.Pop() // top == 20, ok == true
+</code></pre>
+<p><code>Stack[int]</code> and <code>Stack[string]</code> are distinct types, each fully checked. There is no boxing and no assertion when you <code>Pop</code>.</p>
+<hr>
+<h2 id="constraints-from-any-to-real-contracts">Constraints: from <code>any</code> to real contracts</h2>
+<p>A constraint is <em>an interface used as a type set</em>. That reframing is the single most useful idea in Go generics. An ordinary interface lists methods; a constraint interface lists methods <strong>and/or</strong> a set of permitted types, and the type parameter must be a member of that set.</p>
+<p><code>any</code> is the widest constraint — it is literally an alias for <code>interface{}</code>, the empty type set of &ldquo;everything.&rdquo; At the other end, <code>comparable</code> is a built-in constraint for types that support <code>==</code> and <code>!=</code>. You need it the moment a type parameter becomes a map key:</p>
+<pre><code class="language-go">func Unique[T comparable](s []T) []T {
+    seen := make(map[T]struct{}, len(s))
+    out := s[:0]
+    for _, v := range s {
+        if _, ok := seen[v]; ok {
+            continue
+        }
+        seen[v] = struct{}{}
+        out = append(out, v)
+    }
+    return out
+}
+</code></pre>
+<p>Try that with <code>[T any]</code> and the compiler rejects <code>map[T]struct{}</code> and <code>seen[v]</code>, because <code>any</code> makes no promise that <code>T</code> can be compared. <code>comparable</code> is exactly the promise <code>map</code> keys require.</p>
+<p>For method-based contracts, an ordinary interface <em>is</em> a constraint. If a function needs its type to stringify itself, constrain by an interface with that method:</p>
+<pre><code class="language-go">type Stringer interface {
+    String() string
+}
+
+func Join[T Stringer](items []T, sep string) string {
+    parts := make([]string, len(items))
+    for i, it := range items {
+        parts[i] = it.String()
+    }
+    return strings.Join(parts, sep)
+}
+</code></pre>
+<p><strong>The gotcha:</strong> <code>[T Stringer]</code> and taking a plain <code>[]Stringer</code> argument are <em>not</em> interchangeable. The generic form keeps <code>T</code> a single concrete type — every element is the same type, stored without boxing, and the return can be typed in terms of <code>T</code>. The <code>[]Stringer</code> form accepts a mixed slice of different <code>Stringer</code> implementations, each boxed. If you want homogeneity and no boxing, use the type parameter; if you genuinely want a heterogeneous collection, use the interface slice. They solve different problems that happen to look alike.</p>
+<hr>
+<h2 id="union-elements-and-the-approximation">Union elements and the <code>~</code> approximation</h2>
+<p>Method sets can&rsquo;t express &ldquo;any type you can add with <code>+</code>&rdquo; — that&rsquo;s an operator, not a method. Constraints solve this with <em>union elements</em>: a constraint interface can list concrete types separated by <code>|</code>, and the type parameter must be one of them (and may only use operations all listed types support).</p>
+<pre><code class="language-go">type Number interface {
+    int | int64 | float64
+}
+
+func Sum[T Number](s []T) T {
+    var total T
+    for _, v := range s {
+        total += v
+    }
+    return total
+}
+</code></pre>
+<p>Because every type in the union supports <code>+</code>, the body may use <code>+</code>. <code>Sum([]int{...})</code> and <code>Sum([]float64{...})</code> both compile; <code>Sum([]string{...})</code> does not.</p>
+<p>There&rsquo;s a subtlety that bites everyone once. A union of concrete types matches those types <em>exactly</em>. If a caller has a named type whose underlying type is <code>int</code> —</p>
+<pre><code class="language-go">type Celsius int
+</code></pre>
+<p>— then <code>Celsius</code> is <strong>not</strong> <code>int</code>, so <code>Sum([]Celsius{...})</code> would fail against the constraint above. The fix is the <code>~</code> token, the <em>underlying-type approximation</em>. Writing <code>~int</code> means &ldquo;any type whose underlying type is <code>int</code>,&rdquo; which includes <code>int</code> itself and every named type built on it:</p>
+<pre><code class="language-go">type Number interface {
+    ~int | ~int64 | ~float64
+}
+</code></pre>
+<p><strong>The gotcha:</strong> default to <code>~</code> in numeric and ordered constraints. Without it, your library silently rejects perfectly reasonable caller-defined types like <code>Celsius</code>, <code>UserID</code>, or <code>Priority</code>, and the caller gets a baffling &ldquo;does not satisfy&rdquo; error for a type that is obviously an integer. The exceptions are constraints where you deliberately want to exclude derived types — rare — and unions of interface types, where <code>~</code> isn&rsquo;t permitted.</p>
+<p>You rarely have to hand-write these. The standard library ships <code>cmp.Ordered</code> (Go 1.21+) for the <code>&lt;</code>/<code>&gt;</code>-capable types, and <code>golang.org/x/exp/constraints</code> provides <code>Ordered</code>, <code>Integer</code>, <code>Float</code>, <code>Signed</code>, <code>Unsigned</code>, and <code>Complex</code>. Prefer them over rolling your own:</p>
+<pre><code class="language-go">import &quot;golang.org/x/exp/constraints&quot;
+
+func Max[T constraints.Ordered](a, b T) T {
+    if a &gt; b {
+        return a
+    }
+    return b
+}
+</code></pre>
+<hr>
+<h2 id="type-inference-when-you-can-drop-the-brackets">Type inference: when you can drop the brackets</h2>
+<p>You <em>can</em> always spell out type arguments — <code>Map[int, string](nums, f)</code> — but you almost never need to, because the compiler infers them from the ordinary arguments. In the <code>Map</code> call earlier, <code>nums</code> is <code>[]int</code> so <code>T = int</code>, and the function literal returns <code>string</code> so <code>U = string</code>. Both are pinned before you reach the body.</p>
+<p>Inference works from function arguments, not return values. That&rsquo;s why it usually succeeds for <code>Map</code>, <code>Sum</code>, and <code>Filter</code> — the element type is present in the arguments — and why it <em>can&rsquo;t</em> help when a type parameter appears only in the result. A parser that produces a <code>T</code> out of a string has nothing to infer from:</p>
+<pre><code class="language-go">func Parse[T any](s string) (T, error) { /* ... */ }
+
+v, err := Parse[int](&quot;42&quot;) // explicit [int] is required
+</code></pre>
+<p><strong>The gotcha:</strong> inference flows from arguments only. If a type parameter shows up nowhere in the parameter list, you must supply it explicitly at the call site, and no amount of context on the left-hand side of <code>:=</code> will rescue you — Go does not infer from assignment targets. When you find yourself always writing the brackets, that&rsquo;s the signal.</p>
+<hr>
+<h2 id="methods-cannot-introduce-type-parameters">Methods cannot introduce type parameters</h2>
+<p>One rule surprises people arriving from other languages: <strong>a method may use the type parameters of its receiver, but it cannot declare new ones of its own.</strong> This is legal, because <code>T</code> comes from the type:</p>
+<pre><code class="language-go">func (s *Stack[T]) Push(v T) { s.items = append(s.items, v) }
+</code></pre>
+<p>This is <strong>not</strong> legal — a method trying to add its own parameter:</p>
+<pre><code class="language-go">// func (s *Stack[T]) MapTo[U any](f func(T) U) *Stack[U] { ... } // compile error
+</code></pre>
+<p>The reason is depth of implementation: allowing per-method type parameters would demand a much heavier dispatch mechanism. The practical workaround is to make it a <em>package-level function</em> that takes the generic type as an argument, which is exactly why the standard library exposes <code>Map</code> as a free function rather than a method:</p>
+<pre><code class="language-go">func MapStack[T, U any](s *Stack[T], f func(T) U) *Stack[U] {
+    out := &amp;Stack[U]{}
+    for _, v := range s.items {
+        out.Push(f(v))
+    }
+    return out
+}
+</code></pre>
+<p>Keep transformations that change the element type as functions; keep operations that preserve it as methods.</p>
+<hr>
+<h2 id="when-generics-help-and-when-an-interface-is-better">When generics help — and when an interface is better</h2>
+<p>Generics are not a general replacement for interfaces. They pull their weight in two situations, and are the wrong reach in a third.</p>
+<p>Reach for generics when you&rsquo;re building a <strong>container</strong> — a stack, set, ring buffer, ordered map — where all elements are the same type and you want that type preserved end to end without boxing or assertions. And reach for them for <strong>algorithms over a type set</strong> — <code>Max</code>, <code>Sum</code>, <code>Sort</code>, <code>Filter</code>, <code>Keys</code> — where the operation is identical across many types and the only thing varying is the element type. In both cases the alternative was copy-paste or <code>interface{}</code>, and generics strictly improve on both.</p>
+<p>Prefer an <strong>interface</strong> when the abstraction is behavioral — when callers supply <em>different implementations of the same behavior</em> and you don&rsquo;t care about their concrete types. An <code>io.Writer</code>, a <code>http.Handler</code>, a repository you mock in tests: these describe what a value <em>does</em>, and a value satisfying them can be swapped at runtime. Generics can&rsquo;t model &ldquo;any of these unrelated implementations&rdquo; the way a method-set interface does, and forcing it produces constraints nobody can read.</p>
+<table><caption class="sr-only">When generics help — and when an interface is better</caption>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Reach for</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Same-typed collection, no boxing</td>
+<td>Generic type</td>
+<td>Element type preserved end to end</td>
+</tr>
+<tr>
+<td>One algorithm over many element types</td>
+<td>Generic function</td>
+<td>Replaces copy-paste / <code>interface{}</code></td>
+</tr>
+<tr>
+<td>Swappable implementations of a behavior</td>
+<td>Interface</td>
+<td>Runtime polymorphism, concrete types don&rsquo;t matter</td>
+</tr>
+<tr>
+<td>Heterogeneous collection</td>
+<td>Interface slice</td>
+<td>Mixed concrete types, boxing is the point</td>
+</tr>
+<tr>
+<td>Type param used in only one function</td>
+<td>Generic function</td>
+<td>The scope of the abstraction is that small</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The gotcha:</strong> if a type parameter is used by exactly one function and never constrains a relationship <em>between</em> parameters or results, you probably wanted an interface parameter, not generics — it reads more plainly and compiles faster. The strongest signal that generics are right is a type parameter that ties several places together: input element, output element, and return type all moving as one. The clearest signal you&rsquo;ve overreached is a constraint so elaborate it takes a paragraph to explain what it admits. That &ldquo;use generics sparingly&rdquo; instinct — and the iterators that make generic containers pleasant to range over — is the subject of a later post; the foundation is knowing the mechanics well enough to feel where they stop paying off.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Type parameters go in brackets before the arguments</strong> — on functions (<code>func Map[T, U any]</code>) and on types (<code>type Stack[T any]</code>), with the receiver repeating the parameter (<code>(s *Stack[T])</code>).</li>
+<li><strong>A constraint is an interface used as a type set.</strong> <code>any</code> promises nothing, <code>comparable</code> promises <code>==</code>, a method interface promises methods, and a union (<code>~int | ~float64</code>) promises the operations shared by its members.</li>
+<li><strong>Use <code>~</code> for underlying types.</strong> <code>~int</code> admits named types like <code>Celsius</code>; plain <code>int</code> rejects them. Prefer <code>cmp.Ordered</code> and <code>golang.org/x/exp/constraints</code> over hand-rolled numeric constraints.</li>
+<li><strong>Inference flows from arguments, not results or assignment targets.</strong> Omit the brackets when the type shows up in the arguments; spell them out when it only shows up in the return.</li>
+<li><strong>Methods can&rsquo;t add type parameters</strong> — lift element-changing transforms into package-level functions.</li>
+<li><strong>Generics for containers and type-set algorithms; interfaces for swappable behavior.</strong> When a type parameter serves one function and ties nothing together, an interface usually says it better.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/blog/intro-generics">An Introduction to Generics</a> — the Go blog&rsquo;s walkthrough of type parameters and constraints from the language team.</li>
+<li><a href="https://go.dev/ref/spec#Type_parameter_declarations">The Go Programming Language Specification: Type parameters</a> — the normative rules for declarations, constraints, type sets, and inference.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/production-go-13-type-assertions-and-switches.html">Type Assertions, Type Switches, and Interface Internals</a>
+      <span class="related-date">Jul 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-02-types-values-zero-values.html">Types, Values, and Zero Values</a>
+      <span class="related-date">Jun 27</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
