@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Pointers and Addressability — Pratik Dhanave</title>
+<meta name="description" content="What a Go pointer actually is, why there&#x27;s no pointer arithmetic, `new(T)` versus `&amp;T{}`, the addressability rules that decide what `&amp;` will even...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Pointers and Addressability — Pratik Dhanave">
+<meta property="og:description" content="What a Go pointer actually is, why there&#x27;s no pointer arithmetic, `new(T)` versus `&amp;T{}`, the addressability rules that decide what `&amp;` will even compile against, and when reaching for a pointer helps...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-06-pointers-and-addressability.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-01T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Pointers">
+<meta property="article:tag" content="Memory">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Pointers and Addressability — Pratik Dhanave">
+<meta name="twitter:description" content="What a Go pointer actually is, why there&#x27;s no pointer arithmetic, `new(T)` versus `&amp;T{}`, the addressability rules that decide what `&amp;` will even compile against, and when reaching for a pointer helps...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-06-pointers-and-addressability.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Pointers and Addressability",
+  "description": "What a Go pointer actually is, why there's no pointer arithmetic, `new(T)` versus `&T{}`, the addressability rules that decide what `&` will even compile against, and when reaching for a pointer helps...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-01",
+  "dateModified": "2026-07-01",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Pointers, Memory",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-06-pointers-and-addressability.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-06-pointers-and-addressability.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Pointers and Addressability</h1>
+    <p class="post-subtitle">What a Go pointer actually is, why there&#x27;s no pointer arithmetic, `new(T)` versus `&amp;T{}`, the addressability rules that decide what `&amp;` will even compile against, and when reaching for a pointer helps versus when it just adds indirection and GC pressure.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-01">July 01, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/pointers/" class="tag-link"><span class="tag">#Pointers</span></a><a href="/blog/tags/memory/" class="tag-link"><span class="tag">#Memory</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 6 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-05-functions-closures-variadics.html" class="series-prev">&larr; Part 5: Functions, Closures, and Variadics</a>
+<a href="/blog/posts/production-go-07-strings-runes-bytes-utf8.html" class="series-next">Part 7: Strings, Runes, Bytes, and UTF-8 &rarr;</a></div>
+  </div>
+
+
+
+  <p>Engineers arriving in Go from C or C++ think they already know pointers; engineers arriving from Python or Java think pointers are the scary part. Both are half right. A Go pointer is a genuine memory address — <code>&amp;</code> takes one, <code>*</code> follows one — but the language deliberately strips away the two things that make pointers dangerous elsewhere: you cannot do arithmetic on them, and you cannot take the address of just anything. Those two restrictions are the whole story. Get them straight and the rest of Go&rsquo;s value-versus-pointer decisions stop being a matter of taste and start being a matter of mechanics.</p>
+<p>This post is about those mechanics. Method receivers get their own treatment later in the series — here I&rsquo;ll only forward-reference them where the addressability rules force your hand. The goal is a reliable answer to two questions: <em>can I even take the address of this thing?</em> and <em>should I be passing a pointer here at all?</em></p>
+<hr>
+<h2 id="a-pointer-is-an-address-and-thats-genuinely-all-it-is">A pointer is an address, and that&rsquo;s genuinely all it is</h2>
+<p>A pointer holds the memory address of a value. <code>&amp;x</code> produces the address of <code>x</code>; <code>*p</code> dereferences <code>p</code> to read or write the value it points at. The type <code>*T</code> is &ldquo;pointer to a <code>T</code>&rdquo;, and it is a distinct type from <code>T</code> — the compiler tracks the difference for you.</p>
+<pre><code class="language-go">count := 42
+p := &amp;count // p has type *int, holds the address of count
+*p = 43     // write through the pointer
+fmt.Println(count) // 43 — count and *p are the same storage
+</code></pre>
+<p>The zero value of any pointer type is <code>nil</code> — a pointer that points at nothing. That single fact drives a lot of Go&rsquo;s idioms, and it&rsquo;s where most pointer bugs live. We&rsquo;ll come back to it.</p>
+<p>What makes Go pointers <em>safe</em> relative to C is what you <strong>can&rsquo;t</strong> do with them. There is no <code>p++</code>, no <code>p + 1</code>, no casting an integer to a pointer in ordinary code. You cannot walk off the end of an array by nudging an address, because the language won&rsquo;t let you nudge an address at all.</p>
+<p><strong>The gotcha:</strong> the absence of pointer arithmetic is a design decision, not an oversight. Arithmetic on raw addresses is exactly what lets C code stride past the end of a buffer, and it&rsquo;s incompatible with a moving, compacting garbage collector — if the runtime relocates an object, any hand-computed address would silently point at garbage. Go keeps pointers as opaque handles the GC can track and rewrite. When you genuinely need address math (rare — think decoding a binary layout), it lives behind <code>unsafe.Pointer</code> and <code>unsafe.Add</code>, where the name is the warning label. If you find yourself reaching for <code>unsafe</code> to do ordinary work, step back; you almost certainly want a slice or a struct field instead.</p>
+<hr>
+<h2 id="newt-versus-t"><code>new(T)</code> versus <code>&amp;T{}</code></h2>
+<p>There are two ways to allocate a value and get a pointer to it, and new Go engineers routinely wonder which one is &ldquo;right&rdquo;.</p>
+<p><code>new(T)</code> allocates zeroed storage for a <code>T</code> and returns a <code>*T</code>. <code>&amp;T{...}</code> builds a composite literal and takes its address. For structs, <code>&amp;T{}</code> is the one you&rsquo;ll write ninety-nine times out of a hundred, because it lets you set fields at the same time.</p>
+<pre><code class="language-go">type Config struct {
+    Retries int
+    Verbose bool
+}
+
+a := new(Config)      // *Config → &amp;Config{Retries: 0, Verbose: false}
+b := &amp;Config{}        // *Config → identical zero value
+c := &amp;Config{Retries: 3} // *Config with a field set — new() can't do this
+</code></pre>
+<p>For a struct, <code>new(Config)</code> and <code>&amp;Config{}</code> produce exactly the same thing: a pointer to a fully zeroed value. <code>new</code> earns its place mainly with non-composite types where there&rsquo;s no literal syntax to take the address of — <code>new(int)</code> gives you an <code>*int</code> pointing at a zero, and there&rsquo;s no <code>&amp;int{}</code> to write instead.</p>
+<pre><code class="language-go">n := new(int) // *int pointing at 0
+*n = 5
+</code></pre>
+<p><strong>The gotcha:</strong> don&rsquo;t agonize over this choice. The community convention is <code>&amp;T{}</code> for structs (it reads as &ldquo;a pointer to this specific value&rdquo;) and <code>new(T)</code> for the occasional pointer-to-primitive. Neither is faster; the compiler&rsquo;s escape analysis decides stack-versus-heap placement regardless of which spelling you used — that&rsquo;s the <a href="/blog/posts/production-go-37-escape-analysis-allocations.html">escape analysis post</a> later in the series, not something the keyword controls.</p>
+<hr>
+<h2 id="addressability-what-will-actually-let-you-point-at">Addressability: what <code>&amp;</code> will actually let you point at</h2>
+<p>Here is the rule that trips up experienced engineers, because it&rsquo;s specific to Go and it surfaces as compile errors that look arbitrary until you know the principle. <strong>You can only take the address of something that is <em>addressable</em></strong> — something that occupies a stable, named storage location the compiler can name.</p>
+<p>Addressable, so <code>&amp;</code> works:</p>
+<ul>
+<li><strong>Variables:</strong> <code>&amp;x</code> where <code>x</code> is a local or package-level variable.</li>
+<li><strong>Slice elements:</strong> <code>&amp;s[i]</code> — a slice&rsquo;s backing array lives on the heap and the element has a real location.</li>
+<li><strong>Struct fields of an addressable struct:</strong> <code>&amp;cfg.Retries</code> when <code>cfg</code> is a variable.</li>
+<li><strong>Array elements of an addressable array</strong>, and the result of dereferencing a pointer (<code>&amp;*p</code>).</li>
+</ul>
+<p>Not addressable, so <code>&amp;</code> is a compile error:</p>
+<ul>
+<li><strong>Map elements:</strong> <code>&amp;m["key"]</code> does not compile.</li>
+<li><strong>The return value of a function or method</strong> called inline: <code>&amp;f()</code> does not compile.</li>
+<li><strong>Constants and literals:</strong> <code>&amp;42</code>, <code>&amp;"hi"</code>.</li>
+<li><strong>The result of most expressions:</strong> <code>&amp;(a + b)</code>.</li>
+</ul>
+<pre><code class="language-go">s := []int{1, 2, 3}
+p := &amp;s[0] // fine — slice element is addressable
+
+m := map[string]int{&quot;a&quot;: 1}
+// q := &amp;m[&quot;a&quot;]  // compile error: cannot take the address of m[&quot;a&quot;]
+</code></pre>
+<p>The map case is the one you&rsquo;ll hit in real code. Map elements are not addressable because Go&rsquo;s map implementation is free to move entries as the table grows and rehashes — an address into it could be invalidated at any insert. The consequence you feel every day is that you <strong>cannot mutate a struct field in place through a map</strong>:</p>
+<pre><code class="language-go">type Account struct{ Balance int }
+accounts := map[string]Account{&quot;alice&quot;: {Balance: 100}}
+
+// accounts[&quot;alice&quot;].Balance += 50 // compile error: not addressable
+
+// The two working shapes:
+a := accounts[&quot;alice&quot;] // copy out
+a.Balance += 50
+accounts[&quot;alice&quot;] = a  // copy back
+
+// or store pointers so the value itself is addressable heap storage:
+ptrs := map[string]*Account{&quot;alice&quot;: {Balance: 100}}
+ptrs[&quot;alice&quot;].Balance += 50 // fine — you're mutating through the pointer
+</code></pre>
+<p><strong>The gotcha:</strong> the error message &ldquo;cannot assign to struct field &hellip; in map&rdquo; is really the addressability rule wearing a different hat — assigning to <code>accounts["alice"].Balance</code> needs the field&rsquo;s address, and the map element has none. If a map&rsquo;s values are structs you intend to mutate, either copy-modify-store or make the value type <code>*Account</code> from the start. Choosing <code>map[K]*V</code> up front is the usual fix for anything mutated repeatedly.</p>
+<p>The function-return case is the other one worth internalizing. <code>&amp;getConfig()</code> won&rsquo;t compile because the return value is a temporary with no home. If you want a pointer to what a function produced, bind it to a variable first — <code>c := getConfig(); p := &amp;c</code> — and now <code>c</code> is addressable.</p>
+<hr>
+<h2 id="when-to-use-a-pointer">When to use a pointer</h2>
+<p>Three legitimate reasons, and it&rsquo;s worth being honest that only three carry their weight.</p>
+<p><strong>1. Mutation.</strong> If a function must change its caller&rsquo;s value, it needs the address. Passing a value passes a copy, and writes to the copy die at the return.</p>
+<pre><code class="language-go">func deposit(a *Account, amount int) { a.Balance += amount } // caller sees the change
+func brokenDeposit(a Account, amount int) { a.Balance += amount } // mutates a throwaway copy
+</code></pre>
+<p><strong>2. Avoiding an expensive copy.</strong> Go passes everything by value, so a big struct passed by value is copied in full on every call. Passing <code>*T</code> copies only the address (a machine word). This matters when the struct is genuinely large or the call is genuinely hot — measure before assuming it&rsquo;s either.</p>
+<p><strong>3. Signalling optional / absence.</strong> A <code>*T</code> can be <code>nil</code>, so a pointer distinguishes &ldquo;no value&rdquo; from &ldquo;the zero value&rdquo;. This is the honest way to model a field that may be absent — an <code>*int</code> field is &ldquo;unset (nil)&rdquo; versus &ldquo;explicitly zero (<code>*p == 0</code>)&rdquo;, a distinction a plain <code>int</code> can&rsquo;t make. It&rsquo;s the standard shape for optional JSON fields and nullable database columns.</p>
+<pre><code class="language-go">type UpdateUser struct {
+    Name *string // nil = &quot;leave unchanged&quot;; non-nil = &quot;set to this, even if empty&quot;
+}
+</code></pre>
+<hr>
+<h2 id="when-not-to-use-a-pointer">When <em>not</em> to use a pointer</h2>
+<p>The reflex to &ldquo;just use a pointer&rdquo; is where a lot of otherwise-fine Go picks up needless overhead.</p>
+<p><strong>Small, copyable structs.</strong> A <code>time.Time</code>, a <code>struct{ X, Y int }</code>, a handful of fields — copying these is cheaper than the indirection of chasing a pointer, and it keeps the value on the stack where the GC never has to think about it. The standard library returns <code>time.Time</code> by value for exactly this reason.</p>
+<p><strong>Immutable or read-only values.</strong> If nobody mutates it, a value communicates that intent and can&rsquo;t be <code>nil</code>. A value parameter is a small proof that the callee won&rsquo;t reach back and change your data.</p>
+<p><strong>Reflexive indirection.</strong> Every pointer you introduce is a potential <code>nil</code>, a potential heap allocation (if it escapes), and more work for the garbage collector. A <code>*string</code> field that is never nil and never shared is pure cost — it turned a value that could ride on the stack into heap storage the GC now has to trace. The performance module goes deep on escape analysis and GC pressure; the short version is that pointers aren&rsquo;t free, and &ldquo;pointer = fast&rdquo; is exactly backwards for small values.</p>
+<p>Here&rsquo;s the trade-off in one table:</p>
+<table><caption class="sr-only">When not to use a pointer</caption>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Prefer</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Callee must mutate caller&rsquo;s data</td>
+<td><code>*T</code></td>
+<td>Only an address lets writes escape the call</td>
+</tr>
+<tr>
+<td>Large struct on a hot path</td>
+<td><code>*T</code></td>
+<td>Copy one word, not the whole struct</td>
+</tr>
+<tr>
+<td>Field may be genuinely absent</td>
+<td><code>*T</code></td>
+<td><code>nil</code> distinguishes unset from zero</td>
+</tr>
+<tr>
+<td>Small struct, read-only</td>
+<td><code>T</code></td>
+<td>Cheaper copy, stack-friendly, never nil</td>
+</tr>
+<tr>
+<td>Value that&rsquo;s logically immutable</td>
+<td><code>T</code></td>
+<td>Communicates intent, removes a nil case</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="nil-pointers-and-handling-them-safely">nil pointers and handling them safely</h2>
+<p>A <code>nil</code> pointer points at nothing, and <strong>dereferencing it panics</strong> with <code>invalid memory address or nil pointer dereference</code>. This is Go&rsquo;s version of the null-pointer bug, and the whole game is making nil unreachable at the point of dereference.</p>
+<pre><code class="language-go">func total(a *Account) int {
+    if a == nil {
+        return 0 // guard before the deref
+    }
+    return a.Balance
+}
+</code></pre>
+<p>The subtle trap is nested access. <code>order.Customer.Address.City</code> panics the moment any link in that chain is nil, and the panic won&rsquo;t tell you which one. Guard the fields that can legitimately be absent, and — more importantly — design so that fewer of them can be. A value type can&rsquo;t be nil; a pointer field that&rsquo;s &ldquo;always set after construction&rdquo; is better modeled as a value, or enforced in a constructor, than defended at every read site.</p>
+<p><strong>The gotcha:</strong> a <code>nil</code> pointer is not always the same as a <code>nil</code> interface, and this is the single most notorious Go footgun. An interface holds <em>(type, value)</em>; a <code>(*T)(nil)</code> stored in an <code>error</code> interface is an interface whose type is <code>*T</code> and whose value is nil — and that interface is itself <strong>not</strong> <code>nil</code>. So <code>err != nil</code> is true even though the underlying pointer is nil.</p>
+<pre><code class="language-go">type MyErr struct{}
+func (*MyErr) Error() string { return &quot;boom&quot; }
+
+func doThing() error {
+    var e *MyErr = nil
+    return e // returns a NON-nil error interface wrapping a nil *MyErr!
+}
+
+if doThing() != nil {
+    // this branch runs — surprising almost everyone the first time
+}
+</code></pre>
+<p>The fix is to return a literal <code>nil</code> for the success case (<code>return nil</code>), never a typed nil pointer that gets boxed into the interface on the way out. Keep &ldquo;no error&rdquo; as an untyped <code>nil</code>, and the interface stays nil.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>A pointer is just an address</strong> — <code>&amp;</code> takes one, <code>*</code> follows one — and Go deliberately omits pointer arithmetic so the GC can move objects safely. Address math lives behind <code>unsafe</code>, where you rarely belong.</li>
+<li><strong><code>&amp;T{}</code> for structs, <code>new(T)</code> for the odd pointer-to-primitive.</strong> They produce identical results for structs; the choice is stylistic, and escape analysis — not the keyword — decides stack versus heap.</li>
+<li><strong>Addressability decides what <code>&amp;</code> compiles against.</strong> Variables, slice elements, and struct fields of addressable structs are addressable; map elements and inline function returns are not. That rule is why you can&rsquo;t mutate a struct field through a <code>map[K]V</code> — reach for <code>map[K]*V</code> instead.</li>
+<li><strong>Use a pointer for mutation, to dodge a large copy, or to signal absence — and value semantics otherwise.</strong> Reflexive pointers add nil cases and GC pressure for no gain on small values.</li>
+<li><strong>nil dereferences panic, and a typed nil pointer boxed in an interface is not a nil interface.</strong> Guard the pointers that can be absent, and return untyped <code>nil</code> for &ldquo;no error&rdquo;.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/ref/spec">The Go Programming Language Specification</a> — see &ldquo;Address operators&rdquo;, &ldquo;Composite literals&rdquo;, &ldquo;Allocation&rdquo;, and the definition of <em>addressable</em> operands for the precise rules behind everything above.</li>
+<li><a href="https://go.dev/doc/effective_go">Effective Go</a> — the &ldquo;Allocation with <code>new</code>&rdquo;, &ldquo;Allocation with <code>make</code>&rdquo;, and &ldquo;Pointers vs. Values&rdquo; sections cover the idiomatic choices in the language authors&rsquo; own words.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/maf-go-04-conversation-and-memory.html">Conversation and Memory — Microsoft Agent Framework in Go</a>
+      <span class="related-date">Jul 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/maf-go-26-foundry-memory.html">step22 · Foundry Memory</a>
+      <span class="related-date">May 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/gomemlimit-soft-gc-pacing.html">GOMEMLIMIT and the soft GC pacing change every Go...</a>
+      <span class="related-date">Feb 12</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

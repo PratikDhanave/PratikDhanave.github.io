@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Arrays and Slices — Pratik Dhanave</title>
+<meta name="description" content="Why an array is a value and a slice is a view — the three-word header, how `append` really grows, the aliasing trap that silently corrupts data, and...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Arrays and Slices — Pratik Dhanave">
+<meta property="og:description" content="Why an array is a value and a slice is a view — the three-word header, how `append` really grows, the aliasing trap that silently corrupts data, and the small habits (three-index slices, `copy`, pre-sizing)...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-08-arrays-and-slices.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-03T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Slices">
+<meta property="article:tag" content="Data Structures">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Arrays and Slices — Pratik Dhanave">
+<meta name="twitter:description" content="Why an array is a value and a slice is a view — the three-word header, how `append` really grows, the aliasing trap that silently corrupts data, and the small habits (three-index slices, `copy`, pre-sizing)...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-08-arrays-and-slices.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Arrays and Slices",
+  "description": "Why an array is a value and a slice is a view \u2014 the three-word header, how `append` really grows, the aliasing trap that silently corrupts data, and the small habits (three-index slices, `copy`, pre-sizing)...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-03",
+  "dateModified": "2026-07-03",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Slices, Data Structures",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-08-arrays-and-slices.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-08-arrays-and-slices.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Arrays and Slices</h1>
+    <p class="post-subtitle">Why an array is a value and a slice is a view — the three-word header, how `append` really grows, the aliasing trap that silently corrupts data, and the small habits (three-index slices, `copy`, pre-sizing) that keep it from biting you.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-03">July 03, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/slices/" class="tag-link"><span class="tag">#Slices</span></a><a href="/blog/tags/data-structures/" class="tag-link"><span class="tag">#Data Structures</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 8 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-07-strings-runes-bytes-utf8.html" class="series-prev">&larr; Part 7: Strings, Runes, Bytes, and UTF-8</a>
+<a href="/blog/posts/production-go-09-maps.html" class="series-next">Part 9: Maps &rarr;</a></div>
+  </div>
+
+
+
+  <p>Almost everyone reaching for Go already knows the <em>shape</em> of a slice: it grows, you <code>append</code> to it, you range over it. What separates code that merely works from code that behaves under load is understanding what a slice <strong>is</strong> — a small header pointing at a backing array it does not necessarily own. Get that wrong and you produce one of Go&rsquo;s nastier bug classes: two slices that look independent but share memory, where writing to one silently rewrites the other. This post builds the model from the bottom: fixed-size arrays first, then the slice header, then the growth and aliasing rules that follow directly from it.</p>
+<hr>
+<h2 id="1-arrays-are-values-and-values-get-copied">1. Arrays are values, and values get copied</h2>
+<p>An array&rsquo;s length is part of its type. <code>[3]int</code> and <code>[4]int</code> are as different as <code>int</code> and <code>string</code> — you cannot assign one to the other, and a function that takes <code>[3]int</code> will not accept <code>[4]int</code>. The length is fixed at compile time and can never change.</p>
+<p>The consequence that trips people is that <strong>an array is a value</strong>. Assigning it, or passing it to a function, copies every element.</p>
+<pre><code class="language-go">func zero(a [3]int) {
+    a[0] = 0 // mutates the copy, not the caller's array
+}
+
+func main() {
+    nums := [3]int{1, 2, 3}
+    clone := nums // full copy of all three elements
+    clone[0] = 99
+    fmt.Println(nums[0], clone[0]) // 1 99
+
+    zero(nums)
+    fmt.Println(nums[0]) // still 1
+}
+</code></pre>
+<p>This is occasionally what you want — a small, fixed-shape value like an RGBA pixel <code>[4]uint8</code> or a hash <code>[32]byte</code> that you <em>want</em> to pass by value cheaply and mutate locally without touching the original. But most day-to-day &ldquo;list of things&rdquo; work does not want copy-on-pass semantics, and that is exactly why slices exist.</p>
+<p><strong>The gotcha:</strong> because the length is part of the type, arrays don&rsquo;t compose with generic list-handling code. You almost never write array parameters directly. When you see <code>[N]T</code> in real code it&rsquo;s usually a deliberate fixed-width value (a key, a coordinate, a fixed lookup table) — not a collection you plan to grow. For everything else, reach for a slice.</p>
+<hr>
+<h2 id="2-the-slice-header-pointer-length-capacity">2. The slice header: pointer, length, capacity</h2>
+<p>A slice is not an array. It is a small three-word struct — the <em>slice header</em> — that <strong>describes a window into an array</strong>:</p>
+<ul>
+<li><strong>pointer</strong> — where the window starts in some backing array</li>
+<li><strong>length</strong> — how many elements the window currently exposes (<code>len(s)</code>)</li>
+<li><strong>capacity</strong> — how many elements exist from the pointer to the end of the backing array (<code>cap(s)</code>)</li>
+</ul>
+<p>That is the whole model. Everything else — growth, aliasing, <code>copy</code>, three-index slicing — is a consequence of these three fields.</p>
+<pre><code class="language-go">s := make([]int, 3, 8) // len 3, cap 8
+fmt.Println(len(s), cap(s)) // 3 8
+
+s = s[:5]                   // extend the window within existing capacity
+fmt.Println(len(s), cap(s)) // 5 8 — no allocation, same backing array
+</code></pre>
+<p>Because the header is small and fixed-size, <strong>passing a slice to a function is cheap</strong> — you copy three words, not the elements. But that copied header still points at the <em>same backing array</em>. So a function can mutate the elements the caller sees (writing through the shared pointer) even though it cannot change the caller&rsquo;s <code>len</code>/<code>cap</code> (those live in the caller&rsquo;s own copy of the header). That asymmetry is the source of most slice surprises, and the next sections are all downstream of it.</p>
+<pre><code class="language-go">func fill(s []int) {
+    for i := range s {
+        s[i] = i // visible to the caller — shared backing array
+    }
+    s = append(s, 999) // NOT visible to the caller — reassigns the local header
+}
+</code></pre>
+<hr>
+<h2 id="3-how-append-grows-mutate-in-place-or-reallocate">3. How <code>append</code> grows — mutate in place, or reallocate</h2>
+<p><code>append</code> is where the length/capacity distinction earns its keep. The rule:</p>
+<ul>
+<li>If the slice has <strong>spare capacity</strong> (<code>len &lt; cap</code>), <code>append</code> writes into the existing backing array in place and returns a header with a larger <code>len</code>. No allocation.</li>
+<li>If it is <strong>full</strong> (<code>len == cap</code>), <code>append</code> allocates a <em>new, larger</em> backing array, copies the existing elements over, writes the new one, and returns a header pointing at the new array. The old backing array is left behind.</li>
+</ul>
+<pre><code class="language-go">s := make([]int, 0, 4)
+fmt.Printf(&quot;%p cap=%d\n&quot;, s, cap(s)) // some address, cap 4
+
+s = append(s, 1, 2, 3, 4) // fills to len 4, still cap 4, same array
+fmt.Printf(&quot;%p cap=%d\n&quot;, s, cap(s)) // same address, cap 4
+
+s = append(s, 5) // full — reallocates
+fmt.Printf(&quot;%p cap=%d\n&quot;, s, cap(s)) // NEW address, larger cap
+</code></pre>
+<p>The growth is <strong>amortized</strong>: for small slices the runtime roughly doubles the capacity, which makes a sequence of <code>n</code> appends cost O(n) total rather than O(n²). For large slices Go switches to a smaller growth factor (closer to ~1.25×) so a huge slice doesn&rsquo;t jump from, say, 512 MB to 1 GB on a single append. The exact thresholds and factors are runtime implementation details and have changed across Go versions — don&rsquo;t hard-code assumptions about them. What is stable and worth internalizing is the <em>shape</em>: appends are cheap on average, but any individual <code>append</code> may reallocate and copy, and after it does, <strong>your slice points at different memory than it did a line earlier</strong>.</p>
+<p><strong>The gotcha:</strong> this is why the canonical form is always <code>s = append(s, x)</code> — you must capture the returned header, because it may point at a brand-new array. Ignoring the return value (<code>append(s, x)</code> with no assignment) is a bug: if a reallocation happened, your <code>s</code> still points at the old array and you&rsquo;ve lost the appended element. <code>go vet</code> flags this, but the habit should be automatic.</p>
+<hr>
+<h2 id="4-the-aliasing-trap-subslices-share-the-backing-array">4. The aliasing trap: subslices share the backing array</h2>
+<p>Slicing an existing slice — <code>s[low:high]</code> — does <strong>not</strong> copy anything. It produces a new header pointing into the <em>same</em> backing array. The subslice and its parent now alias overlapping memory. Writes through one are visible through the other, and this is where correct-looking code goes wrong.</p>
+<p>The dangerous case is <code>append</code> onto a subslice that still has spare capacity. Because <code>s[low:high]</code> inherits capacity all the way to the end of the parent&rsquo;s backing array, an <code>append</code> onto the subslice can land <strong>inside the parent&rsquo;s live region</strong> and silently overwrite it:</p>
+<pre><code class="language-go">parent := []int{1, 2, 3, 4, 5}
+head := parent[0:2] // len 2, but cap 5 — reaches the end of parent
+fmt.Println(len(head), cap(head)) // 2 5
+
+head = append(head, 99) // spare capacity exists, so this writes IN PLACE
+fmt.Println(head)       // [1 2 99]
+fmt.Println(parent)     // [1 2 99 4 5]  ← parent[2] was clobbered!
+</code></pre>
+<p>Nobody wrote to <code>parent[2]</code> directly, yet it changed. The <code>append</code> onto <code>head</code> had room in the shared backing array and used it. This is the bug behind a whole family of &ldquo;why did my other variable change?&rdquo; reports — a function returns a subslice of some buffer, the caller appends to it, and the append reaches back into memory the buffer still considers live.</p>
+<p>Worse, the behavior is <em>conditional on capacity</em>, so it&rsquo;s non-deterministic across inputs: if the subslice happens to be at full capacity, <code>append</code> reallocates and the parent is untouched; if it has spare room, the parent is corrupted. Code that passes every small test can fail once the data gets large enough (or small enough) to flip which branch runs.</p>
+<hr>
+<h2 id="5-fixing-aliasing-three-index-slices-and-copy">5. Fixing aliasing: three-index slices and <code>copy</code></h2>
+<p>There are two clean fixes, and which you want depends on whether you need a <em>view</em> or a <em>separate buffer</em>.</p>
+<p><strong>Three-index slicing</strong> — <code>s[low:high:max]</code> — sets the capacity explicitly: the resulting slice has <code>cap == max - low</code>. Cap it to the length and any future <code>append</code> is <em>forced</em> to reallocate rather than reach into the parent:</p>
+<pre><code class="language-go">parent := []int{1, 2, 3, 4, 5}
+head := parent[0:2:2] // len 2, cap 2 — the third index caps capacity
+fmt.Println(len(head), cap(head)) // 2 2
+
+head = append(head, 99) // no spare capacity, so append REALLOCATES
+fmt.Println(head)       // [1 2 99]
+fmt.Println(parent)     // [1 2 3 4 5] ← untouched
+</code></pre>
+<p>This is the idiomatic guard when you hand a subslice to code that might append to it — especially a library returning a slice of an internal buffer. Capping capacity makes accidental aliasing impossible: the next <code>append</code> is guaranteed to get its own array.</p>
+<p><strong><code>copy</code></strong> — when you want a genuinely independent slice from the start, allocate one and copy the elements over. <code>copy(dst, src)</code> copies <code>min(len(dst), len(src))</code> elements and returns that count; it never grows <code>dst</code>.</p>
+<pre><code class="language-go">src := []int{1, 2, 3, 4, 5}
+dst := make([]int, len(src)) // must be pre-sized — copy won't extend it
+n := copy(dst, src)
+fmt.Println(n, dst) // 5 [1 2 3 4 5] — fully independent backing array
+</code></pre>
+<p>A frequent mistake is <code>copy(dst, src)</code> where <code>dst</code> was made with <code>make([]int, 0, len(src))</code> — length zero, so <code>copy</code> copies <strong>zero</strong> elements and returns 0. <code>copy</code> is bounded by <code>len(dst)</code>, not <code>cap(dst)</code>. Size the destination by length.</p>
+<p><strong>The gotcha:</strong> returning <code>s[i:j]</code> of a buffer you keep reusing is the classic footgun — the caller now holds a window into memory you&rsquo;re about to overwrite, and if they append into its spare capacity they&rsquo;ll corrupt your buffer (or you&rsquo;ll corrupt their data next cycle). Either return <code>s[i:j:j]</code> to cap it, or return a <code>copy</code> if the caller needs to outlive your buffer. There is no runtime warning for this — it&rsquo;s on you to know which side owns the memory.</p>
+<hr>
+<h2 id="6-nil-vs-empty-and-pre-sizing-with-make">6. <code>nil</code> vs. empty, and pre-sizing with <code>make</code></h2>
+<p>A <code>nil</code> slice and an empty-but-non-nil slice are <em>almost</em> interchangeable, and knowing where they differ prevents a small class of bugs.</p>
+<p>A <code>nil</code> slice has no backing array: pointer nil, <code>len</code> 0, <code>cap</code> 0. An empty slice (<code>[]int{}</code> or <code>make([]int, 0)</code>) has <code>len</code> 0 but may hold a (possibly zero-length) backing array and is <strong>not</strong> <code>nil</code>. The good news is that the read-side operations treat them identically:</p>
+<pre><code class="language-go">var a []int          // nil
+b := []int{}         // empty, non-nil
+
+fmt.Println(a == nil, b == nil) // true false
+fmt.Println(len(a), len(b))     // 0 0
+
+a = append(a, 1) // appending to nil is perfectly fine
+b = append(b, 1) // same result
+</code></pre>
+<p><code>len</code>, <code>range</code>, and <code>append</code> all work on a <code>nil</code> slice — so <strong>prefer <code>nil</code> as your zero-value empty slice</strong> and don&rsquo;t reach for <code>[]int{}</code> reflexively. The distinction matters in exactly two places: an explicit <code>== nil</code> check, and serialization — <code>encoding/json</code> marshals a <code>nil</code> slice as <code>null</code> but an empty slice as <code>[]</code>. If your API contract says &ldquo;always emit an array,&rdquo; initialize with <code>[]T{}</code>.</p>
+<p><strong>Pre-sizing</strong> is the performance lever that falls out of the growth model. If you know (even approximately) how many elements you&rsquo;ll add, tell <code>make</code> up front so <code>append</code> never has to reallocate and copy:</p>
+<pre><code class="language-go">// Bad: starts at cap 0, reallocates and copies repeatedly as it grows.
+out := []Result{}
+for _, r := range rows {
+    out = append(out, transform(r))
+}
+
+// Good: one allocation, zero reallocations.
+out := make([]Result, 0, len(rows))
+for _, r := range rows {
+    out = append(out, transform(r))
+}
+</code></pre>
+<p>Note the <code>0</code> length with <code>len(rows)</code> capacity — you want an <em>empty</em> slice with room reserved, then <code>append</code> into the reserved space. A common slip is <code>make([]Result, len(rows))</code> (length, not capacity), which pre-fills the slice with zero values and then <code>append</code> adds <em>after</em> them, giving you a slice twice the size with garbage in front.</p>
+<p><strong>The gotcha:</strong> pre-sizing is not just fewer allocations — it also determines whether the slice can escape to the heap. A tight <code>append</code> loop on a growing slice creates repeated allocation churn the garbage collector must clean up; reserving capacity once collapses that to a single allocation. The interaction between slice growth, stack-vs-heap placement, and escape analysis is a topic in its own right — covered in the post on escape analysis and allocation — but the practical rule is simple: <strong>if you know the size, pass it to <code>make</code>.</strong></p>
+<hr>
+<h2 id="quick-reference">Quick reference</h2>
+<table><caption class="sr-only">Quick reference</caption>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Copies data?</th>
+<th>Shares backing array?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>b := a</code> where <code>a</code> is <code>[N]T</code></td>
+<td>Yes, all elements</td>
+<td>No</td>
+<td>Arrays are values</td>
+</tr>
+<tr>
+<td><code>b := a</code> where <code>a</code> is <code>[]T</code></td>
+<td>No</td>
+<td>Yes</td>
+<td>Copies the 3-word header only</td>
+</tr>
+<tr>
+<td><code>s[low:high]</code></td>
+<td>No</td>
+<td>Yes</td>
+<td>Inherits cap to end of parent — aliasing risk</td>
+</tr>
+<tr>
+<td><code>s[low:high:max]</code></td>
+<td>No</td>
+<td>Yes, but capped</td>
+<td><code>append</code> forced to reallocate past <code>max</code></td>
+</tr>
+<tr>
+<td><code>append</code> with <code>len &lt; cap</code></td>
+<td>No</td>
+<td>Yes</td>
+<td>In-place write, no allocation</td>
+</tr>
+<tr>
+<td><code>append</code> with <code>len == cap</code></td>
+<td>Yes</td>
+<td>No (new array)</td>
+<td>Reallocates and copies</td>
+</tr>
+<tr>
+<td><code>copy(dst, src)</code></td>
+<td>Yes</td>
+<td>No</td>
+<td>Bounded by <code>len(dst)</code>, not cap</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Arrays are values; slices are views.</strong> Assigning or passing an array copies every element; assigning or passing a slice copies a three-word header that still points at shared memory.</li>
+<li><strong>The header is everything.</strong> Pointer, length, capacity — growth, aliasing, <code>copy</code>, and three-index slicing all follow directly from those three fields.</li>
+<li><strong><code>append</code> may reallocate.</strong> Below capacity it mutates in place; at capacity it allocates a new array and copies. Always write <code>s = append(s, x)</code> to capture the possibly-new header.</li>
+<li><strong>Subslices alias their parent.</strong> <code>s[low:high]</code> shares the backing array <em>and</em> inherits capacity to the end, so an <code>append</code> onto the subslice can clobber the parent — non-deterministically, depending on spare capacity.</li>
+<li><strong>Cap capacity to break aliasing.</strong> Use <code>s[low:high:high]</code> when handing out a subslice, or <code>copy</code> into a fresh, length-sized slice when the caller needs independent memory.</li>
+<li><strong>Prefer <code>nil</code> for the empty slice</strong>, watch the <code>null</code>-vs-<code>[]</code> JSON difference, and <strong>pre-size with <code>make([]T, 0, n)</code></strong> whenever you know the count.</li>
+</ul>
+<p>The single mental model to carry away: a slice is a <em>description of a window</em>, not the data itself. Two windows can look at the same glass. Every slice bug is a moment where you forgot that.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/blog/slices-intro">Go Slices: usage and internals</a> — the canonical walk-through of the slice header, <code>append</code>, and <code>copy</code>.</li>
+<li><a href="https://go.dev/blog/slices">Arrays, slices (and strings): the mechanics of &lsquo;append&rsquo;</a> — a deeper dive into how <code>append</code> grows a backing array and why the return value matters.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/production-go-10-structs-embedding-tags.html">Structs, Embedding, and Tags</a>
+      <span class="related-date">Jul 05</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-09-maps.html">Maps</a>
+      <span class="related-date">Jul 04</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

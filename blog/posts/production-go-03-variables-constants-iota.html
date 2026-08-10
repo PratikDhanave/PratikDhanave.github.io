@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Variables, Constants, and iota — Pratik Dhanave</title>
+<meta name="description" content="How Go&#x27;s declaration forms, scope rules, and its unusual constant system fit together — including the untyped-constant model that makes numeric...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Variables, Constants, and iota — Pratik Dhanave">
+<meta property="og:description" content="How Go&#x27;s declaration forms, scope rules, and its unusual constant system fit together — including the untyped-constant model that makes numeric literals feel effortless, and the `iota` patterns that turn...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-03-variables-constants-iota.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-06-28T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Programming">
+<meta property="article:tag" content="Language Features">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Variables, Constants, and iota — Pratik Dhanave">
+<meta name="twitter:description" content="How Go&#x27;s declaration forms, scope rules, and its unusual constant system fit together — including the untyped-constant model that makes numeric literals feel effortless, and the `iota` patterns that turn...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-03-variables-constants-iota.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Variables, Constants, and iota",
+  "description": "How Go's declaration forms, scope rules, and its unusual constant system fit together \u2014 including the untyped-constant model that makes numeric literals feel effortless, and the `iota` patterns that turn...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-06-28",
+  "dateModified": "2026-06-28",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Programming, Language Features",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-03-variables-constants-iota.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-03-variables-constants-iota.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Variables, Constants, and iota</h1>
+    <p class="post-subtitle">How Go&#x27;s declaration forms, scope rules, and its unusual constant system fit together — including the untyped-constant model that makes numeric literals feel effortless, and the `iota` patterns that turn enums and bit-flags into a few tidy lines.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-06-28">June 28, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/programming/" class="tag-link"><span class="tag">#Programming</span></a><a href="/blog/tags/language-features/" class="tag-link"><span class="tag">#Language Features</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 3 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-02-types-values-zero-values.html" class="series-prev">&larr; Part 2: Types, Values, and Zero Values</a>
+<a href="/blog/posts/production-go-04-control-flow-and-defer.html" class="series-next">Part 4: Control Flow and defer &rarr;</a></div>
+  </div>
+
+
+
+  <p>After years in Go you stop thinking about <code>var</code> versus <code>:=</code> — the fingers just pick the right one. But the rules underneath those reflexes are worth making explicit, because two of them (the <code>:=</code> shadowing trap and Go&rsquo;s untyped-constant model) are where even seasoned engineers get bitten or, more often, never fully understand <em>why</em> the code compiles at all. This post walks the whole surface: declarations, scope, constants, and <code>iota</code>. The goal is not to teach you <code>var x int</code> — it&rsquo;s to make the mental model precise enough that the edge cases stop surprising you.</p>
+<hr>
+<h2 id="declarations-four-ways-to-introduce-a-name">Declarations: four ways to introduce a name</h2>
+<p>Go gives you several spellings for &ldquo;bind a value to a name,&rdquo; and they are not interchangeable stylistically even though they overlap functionally.</p>
+<pre><code class="language-go">var count int              // zero-valued: count == 0
+var name = &quot;pratik&quot;        // type inferred from the initializer
+var timeout = 5 * time.Second
+port := 8080               // short declaration: var + inference, function scope only
+</code></pre>
+<p>The <code>var name type</code> form gives you the <strong>zero value</strong> — <code>0</code>, <code>""</code>, <code>false</code>, <code>nil</code> — with no initializer. This is not &ldquo;uninitialized memory&rdquo; the way it is in C; Go guarantees the zero value, and a huge amount of idiomatic Go leans on it. A <code>var buf bytes.Buffer</code> is immediately usable. A <code>var mu sync.Mutex</code> is a ready-to-lock mutex. Designing your own types so the zero value is useful is one of the quiet marks of good Go.</p>
+<p>Short declaration with <code>:=</code> is <code>var</code> plus inference, but it only works <strong>inside a function</strong>. Package-level declarations must use <code>var</code> or <code>const</code>. That single restriction is why you&rsquo;ll see <code>var</code> at the top of files and <code>:=</code> almost everywhere inside functions.</p>
+<p><strong>The gotcha:</strong> <code>:=</code> requires that at least one variable on the left is <em>new</em>. <code>a, err := f()</code> followed by <code>b, err := g()</code> is legal — <code>err</code> is reused, <code>b</code> is new. But <code>a, err := f()</code> followed by <code>a, err := g()</code> in the <em>same scope</em> is a compile error (&ldquo;no new variables on left side&rdquo;). The moment you open a new block, though, <code>:=</code> will happily create a fresh <code>err</code> that shadows the outer one — which is the bug we&rsquo;re getting to.</p>
+<hr>
+<h2 id="grouped-declarations-and-the-var-block">Grouped declarations and the <code>var</code> block</h2>
+<p>Both <code>var</code> and <code>const</code> accept a parenthesized block. This is not just cosmetic grouping — it&rsquo;s the natural home for related package state.</p>
+<pre><code class="language-go">var (
+    ErrNotFound   = errors.New(&quot;record not found&quot;)
+    ErrPermission = errors.New(&quot;permission denied&quot;)
+
+    defaultTimeout = 30 * time.Second
+    maxRetries     = 3
+)
+</code></pre>
+<p>Package-level <code>var</code>s are initialized in <strong>dependency order</strong>, not source order — Go figures out that if <code>b = a + 1</code>, then <code>a</code> initializes first, regardless of where each line sits. Within one file, initialization respects those dependencies; <code>init()</code> functions then run after all package-level variables are set. Relying on this is fine; relying on <em>source order</em> between unrelated vars is not, because the spec only promises dependency ordering.</p>
+<p><strong>The gotcha:</strong> package-level <code>var</code>s with expensive or side-effecting initializers run at program startup, before <code>main</code>, in every build that imports the package — including test binaries. A <code>var db = mustConnect()</code> at package scope will try to connect during <code>go test</code> even for tests that never touch the database. Push that work into a constructor or <code>sync.Once</code> instead of a package-level initializer.</p>
+<hr>
+<h2 id="scope-and-shadowing">Scope and shadowing</h2>
+<p>Go is lexically (block) scoped: a name is visible from its declaration to the end of the enclosing <code>{ }</code> block. Every <code>if</code>, <code>for</code>, <code>switch</code>, and bare <code>{ }</code> opens a new scope. An inner declaration with the same name as an outer one <strong>shadows</strong> it — the inner name wins for the rest of the inner block, and the outer variable is untouched.</p>
+<pre><code class="language-go">limit := 100
+if debug {
+    limit := 10          // NEW variable, shadows the outer limit
+    log.Println(limit)   // prints 10
+}
+log.Println(limit)       // prints 100 — outer limit never changed
+</code></pre>
+<p>Sometimes shadowing is exactly what you want — a tightly-scoped temporary that can&rsquo;t leak. The problem is when you <em>meant</em> to assign to the outer variable and accidentally declared a new one.</p>
+<p><strong>The gotcha — the classic <code>:=</code> shadowing bug:</strong></p>
+<pre><code class="language-go">func loadConfig() (*Config, error) {
+    var cfg *Config
+    if useRemote {
+        cfg, err := fetchRemote()   // BUG: := declares a NEW cfg AND a new err
+        if err != nil {
+            return nil, err
+        }
+        _ = cfg                     // this inner cfg is discarded at block end
+    }
+    return cfg, nil                 // outer cfg is still nil!
+}
+</code></pre>
+<p>Because <code>err</code> didn&rsquo;t exist yet, <code>:=</code> was tempting — but it created a <em>new</em> <code>cfg</code> scoped to the <code>if</code> block, so the outer <code>cfg</code> the function returns is never set. The fix is to declare <code>err</code> up front and use plain <code>=</code> inside the block:</p>
+<pre><code class="language-go">var cfg *Config
+var err error
+if useRemote {
+    cfg, err = fetchRemote()        // assigns to the outer cfg and err
+    if err != nil {
+        return nil, err
+    }
+}
+return cfg, nil
+</code></pre>
+<p>This is common enough that the tooling catches it: install the <code>shadow</code> analyzer binary with <code>go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow@latest</code>, then run it via <code>go vet -vettool=$(which shadow)</code>; and every serious linter config (<code>golangci-lint</code>&rsquo;s <code>govet</code> shadow check) flags it. Turn it on in CI — it costs nothing and catches a genuinely nasty class of bug.</p>
+<hr>
+<h2 id="constants-values-fixed-at-compile-time">Constants: values fixed at compile time</h2>
+<p>A <code>const</code> in Go is a compile-time value. It has no address (you can&rsquo;t take <code>&amp;MaxInt</code>), it can never be reassigned, and it can only hold values the compiler can compute during compilation: booleans, runes, integers, floats, complex numbers, and strings. You cannot make <code>time.Now()</code> or a slice a constant — those need runtime.</p>
+<pre><code class="language-go">const (
+    maxUploadBytes = 10 &lt;&lt; 20      // 10 MiB, computed at compile time
+    apiVersion     = &quot;v2&quot;
+    pi             = 3.14159
+)
+</code></pre>
+<p>The genuinely interesting part of Go&rsquo;s constant system — the part that separates it from most languages — is the distinction between <strong>typed</strong> and <strong>untyped</strong> constants.</p>
+<hr>
+<h2 id="typed-vs-untyped-constants">Typed vs untyped constants</h2>
+<p>A constant declared with an explicit type is <strong>typed</strong>. One declared without is <strong>untyped</strong>, and it carries only a <em>default type</em> it falls back to when forced.</p>
+<pre><code class="language-go">const typedMax int = 9000          // typed: this is an int, full stop
+const untypedMax = 9000            // untyped integer constant
+</code></pre>
+<p>Untyped constants are Go&rsquo;s quiet superpower. Two properties make them worth understanding deeply:</p>
+<p><strong>1. Arbitrary precision.</strong> Untyped numeric constants are represented by the compiler with far more precision than any concrete type — the spec guarantees at least 256 bits for integers and generous mantissa/exponent for floats. So intermediate constant arithmetic doesn&rsquo;t overflow or lose precision until you assign the result to a typed variable:</p>
+<pre><code class="language-go">const huge = 1 &lt;&lt; 100              // fine as an untyped constant
+const usable = huge &gt;&gt; 92          // == 256, fits in an int
+// var overflow int = huge         // compile error: overflows int
+</code></pre>
+<p><strong>2. Implicit conversion at the point of use.</strong> An untyped constant adopts the type it&rsquo;s assigned to or combined with — no explicit cast needed. This is why numeric literals feel so frictionless in Go, a language that otherwise forbids implicit numeric conversion between variables.</p>
+<pre><code class="language-go">const two = 2                      // untyped
+var f float64 = two                // becomes float64, no cast
+var i int32 = two                  // becomes int32, no cast
+var d = two * time.Second          // becomes time.Duration
+
+var count int = 3
+// var bad = count * time.Second   // ERROR: int and Duration are distinct TYPES
+var ok = two * time.Second         // OK: untyped 2 adapts to Duration
+</code></pre>
+<p>Notice the asymmetry: <code>count</code> (a typed <code>int</code> variable) cannot multiply a <code>time.Duration</code>, but the untyped constant <code>two</code> can, because it isn&rsquo;t an <code>int</code> yet — it becomes whatever the context needs.</p>
+<p><strong>The gotcha:</strong> the moment you give a constant an explicit type, you throw away this flexibility. <code>const two int = 2</code> can no longer silently become a <code>float64</code> or <code>time.Duration</code> — you&rsquo;re back to needing explicit conversions. So prefer untyped constants unless you specifically need to pin the type (e.g. to control a struct field&rsquo;s type or an API&rsquo;s signature). Untyped is the more powerful default; type it only when you have a reason.</p>
+<hr>
+<h2 id="iota-the-constant-generator">iota: the constant generator</h2>
+<p><code>iota</code> is a predeclared identifier that acts as an auto-incrementing counter <em>within a single <code>const</code> block</em>. It starts at <code>0</code> on the first <code>ConstSpec</code> (line) of the block and increments by one for each subsequent line — whether or not that line mentions <code>iota</code>.</p>
+<pre><code class="language-go">const (
+    Sunday = iota   // 0
+    Monday          // 1  (expression repeats: = iota)
+    Tuesday         // 2
+    Wednesday       // 3
+)
+</code></pre>
+<p>The key mechanic that trips people up: when a <code>const</code> line omits its expression, it <strong>repeats the previous line&rsquo;s expression</strong> — and because <code>iota</code> has advanced, the repeated expression yields a new value. That&rsquo;s why <code>Monday</code> through <code>Wednesday</code> don&rsquo;t need <code>= iota</code> written out.</p>
+<p><strong>The gotcha:</strong> <code>iota</code> counts <strong>lines in the block</strong>, not the number of times you write <code>iota</code>. A blank line does <em>not</em> increment it, but a <code>const</code> line that hard-codes a value <em>does</em> still advance the counter for the next line. And <code>iota</code> resets to <code>0</code> in every new <code>const</code> block — it is not a global counter.</p>
+<hr>
+<h2 id="iota-patterns-youll-actually-use">iota patterns you&rsquo;ll actually use</h2>
+<p><strong>Enums with a typed base.</strong> Give the constants a named type so they&rsquo;re type-safe and get a <code>String()</code> method:</p>
+<pre><code class="language-go">type State int
+
+const (
+    StatePending State = iota   // 0
+    StateActive                 // 1
+    StateClosed                 // 2
+)
+</code></pre>
+<p><strong>Skipping values with <code>_</code>.</strong> Use the blank identifier to burn a value — commonly to make the zero value an invalid/unknown sentinel so a zero-valued <code>State</code> is distinguishable from a real one:</p>
+<pre><code class="language-go">type Priority int
+
+const (
+    _        Priority = iota   // 0 — reserved as &quot;unset&quot;
+    Low                        // 1
+    Medium                     // 2
+    High                       // 3
+)
+</code></pre>
+<p><strong>Scaling expressions.</strong> Because each line repeats the expression, you can build a formula off <code>iota</code> once and let it apply to every line. Say you&rsquo;re defining service plan tiers whose per-second burst allowance climbs geometrically:</p>
+<pre><code class="language-go">type BurstLimit int
+
+const (
+    _                     = iota            // skip tier 0
+    Basic     BurstLimit = 1 &lt;&lt; (4 * iota)  // 1 &lt;&lt; 4  = 16 req/s
+    Standard                                // 1 &lt;&lt; 8  = 256 req/s
+    Premium                                 // 1 &lt;&lt; 12 = 4096 req/s
+)
+</code></pre>
+<p>One expression, <code>1 &lt;&lt; (4 * iota)</code>, written once, expands correctly down the block because <code>iota</code> advances on each line — each tier lands four bit-positions above the one before it.</p>
+<p><strong>Bit-flag sets with <code>1 &lt;&lt; iota</code>.</strong> For flags you want to OR together, shift a single bit by <code>iota</code> so each constant occupies its own bit position:</p>
+<pre><code class="language-go">type Perm uint8
+
+const (
+    PermRead    Perm = 1 &lt;&lt; iota   // 1  (0b001)
+    PermWrite                      // 2  (0b010)
+    PermExecute                    // 4  (0b100)
+)
+
+// Combine and test:
+access := PermRead | PermWrite     // 0b011
+canWrite := access&amp;PermWrite != 0  // true
+</code></pre>
+<p><strong>The gotcha:</strong> bit-flags and sequential enums are not interchangeable. <code>1 &lt;&lt; iota</code> gives you <code>1, 2, 4, 8…</code> — distinct bits you can combine with <code>|</code>. Plain <code>iota</code> gives you <code>0, 1, 2, 3…</code> — mutually exclusive states you compare with <code>==</code>. Using <code>iota</code> (not <code>1 &lt;&lt; iota</code>) for something you intend to OR is a real bug: <code>Read=1, Write=2, Execute=3</code> means <code>Read|Write == Execute</code>, and your permission check silently misfires.</p>
+<hr>
+<h2 id="giving-enums-a-string-method">Giving enums a String() method</h2>
+<p>Integer enums print as integers, which is useless in logs. The convention is a <code>String()</code> method so the type satisfies <code>fmt.Stringer</code>. You can hand-write it, but the standard tool is <code>stringer</code> (<code>golang.org/x/tools/cmd/stringer</code>), driven by a <code>go:generate</code> directive:</p>
+<pre><code class="language-go">//go:generate stringer -type=State
+type State int
+
+const (
+    StatePending State = iota
+    StateActive
+    StateClosed
+)
+</code></pre>
+<p>Running <code>go generate ./...</code> produces a <code>state_string.go</code> with an efficient <code>String()</code> implementation. Two things to know: <code>stringer</code> reads the <em>source order</em> of your constants, so reordering them silently changes the generated names — regenerate after any edit. And it handles gaps and non-contiguous values just fine: it emits several contiguous runs (or falls back to a map) when your values jump around, so individual bit-flag values like <code>PermRead = 1</code>, <code>PermWrite = 2</code>, <code>PermExecute = 4</code> each map cleanly to their own name. The real limitation is <em>OR-combined</em> values: <code>PermRead | PermWrite == 3</code> has no constant of its own, so <code>stringer</code> has no name for it and it prints as <code>Perm(3)</code>. That&rsquo;s why bit-flag sets usually want a hand-written <code>String()</code> that decomposes the value into its set bits. (Note that <code>-linecomment</code> is unrelated to any of this — it lets you supply custom names via trailing <code>// comment</code> lines on each constant, not a remedy for non-contiguity.)</p>
+<hr>
+<h2 id="quick-reference">Quick reference</h2>
+<table><caption class="sr-only">Quick reference</caption>
+<thead>
+<tr>
+<th>Construct</th>
+<th>Where it works</th>
+<th>Gives you</th>
+<th>Watch out for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>var x T</code></td>
+<td>package or function</td>
+<td>zero value of <code>T</code></td>
+<td>expensive pkg-level initializers run at startup</td>
+</tr>
+<tr>
+<td><code>var x = v</code></td>
+<td>package or function</td>
+<td>inferred type</td>
+<td>dependency-ordered init, not source order</td>
+</tr>
+<tr>
+<td><code>x := v</code></td>
+<td>function only</td>
+<td>inferred type, one new name required</td>
+<td>shadowing across block boundaries</td>
+</tr>
+<tr>
+<td>untyped <code>const</code></td>
+<td>package or function</td>
+<td>arbitrary precision, adapts at use</td>
+<td>loses flexibility once you add a type</td>
+</tr>
+<tr>
+<td>typed <code>const</code></td>
+<td>package or function</td>
+<td>fixed type, type-safety</td>
+<td>no implicit conversion</td>
+</tr>
+<tr>
+<td><code>iota</code></td>
+<td>inside one <code>const</code> block</td>
+<td>line counter from 0</td>
+<td>counts lines, resets per block</td>
+</tr>
+<tr>
+<td><code>1 &lt;&lt; iota</code></td>
+<td>inside one <code>const</code> block</td>
+<td>distinct bit flags</td>
+<td>don&rsquo;t confuse with sequential enums</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Prefer the zero value.</strong> Design types so <code>var x T</code> is immediately usable; a lot of idiomatic Go depends on it.</li>
+<li><strong><code>:=</code> creates; <code>=</code> assigns.</strong> The shadowing bug is <code>:=</code> silently making a new variable in an inner block when you meant to assign outward. Turn on the vet shadow check.</li>
+<li><strong>Package-level <code>var</code> initializers run at startup</strong>, including in tests — keep expensive work out of them.</li>
+<li><strong>Untyped constants are the powerful default.</strong> Arbitrary precision plus implicit adaptation at the point of use is why literals feel seamless; only add a type when you truly need to pin one.</li>
+<li><strong><code>iota</code> counts lines in a block</strong>, repeating the previous expression. Use plain <code>iota</code> for exclusive enums, <code>1 &lt;&lt; iota</code> for combinable bit-flags, <code>_</code> to reserve or skip, and <code>stringer</code> to make them print sensibly.</li>
+</ul>
+<p>Constants and <code>iota</code> reward a precise mental model far out of proportion to how little syntax they involve. Once the untyped model clicks, a whole category of &ldquo;why does this cast work but not that one&rdquo; questions simply dissolves.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/blog/constants">Constants — The Go Blog</a> — the definitive explanation of the untyped-constant model and arbitrary precision.</li>
+<li><a href="https://go.dev/ref/spec">The Go Programming Language Specification — Constants, Declarations and scope, Iota</a> — the normative rules for everything above.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/production-go-05-functions-closures-variadics.html">Functions, Closures, and Variadics</a>
+      <span class="related-date">Jun 30</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-04-control-flow-and-defer.html">Control Flow and defer</a>
+      <span class="related-date">Jun 29</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-02-types-values-zero-values.html">Types, Values, and Zero Values</a>
+      <span class="related-date">Jun 27</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

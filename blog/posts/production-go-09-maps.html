@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Maps — Pratik Dhanave</title>
+<meta name="description" content="How Go&#x27;s built-in hash table really behaves — reference semantics, the nil-write panic, comma-ok, randomized iteration, why `&amp;m[k]` is illegal, and the...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Maps — Pratik Dhanave">
+<meta property="og:description" content="How Go&#x27;s built-in hash table really behaves — reference semantics, the nil-write panic, comma-ok, randomized iteration, why `&amp;m[k]` is illegal, and the presizing and concurrency rules that separate correct...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-09-maps.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-04T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Maps">
+<meta property="article:tag" content="Data Structures">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Maps — Pratik Dhanave">
+<meta name="twitter:description" content="How Go&#x27;s built-in hash table really behaves — reference semantics, the nil-write panic, comma-ok, randomized iteration, why `&amp;m[k]` is illegal, and the presizing and concurrency rules that separate correct...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-09-maps.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Maps",
+  "description": "How Go's built-in hash table really behaves \u2014 reference semantics, the nil-write panic, comma-ok, randomized iteration, why `&m[k]` is illegal, and the presizing and concurrency rules that separate correct...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-04",
+  "dateModified": "2026-07-04",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Maps, Data Structures",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-09-maps.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-09-maps.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Maps</h1>
+    <p class="post-subtitle">How Go&#x27;s built-in hash table really behaves — reference semantics, the nil-write panic, comma-ok, randomized iteration, why `&amp;m[k]` is illegal, and the presizing and concurrency rules that separate correct map code from the code that bites you at 2 a.m.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-04">July 04, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/maps/" class="tag-link"><span class="tag">#Maps</span></a><a href="/blog/tags/data-structures/" class="tag-link"><span class="tag">#Data Structures</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 9 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-08-arrays-and-slices.html" class="series-prev">&larr; Part 8: Arrays and Slices</a>
+<a href="/blog/posts/production-go-10-structs-embedding-tags.html" class="series-next">Part 10: Structs, Embedding, and Tags &rarr;</a></div>
+  </div>
+
+
+
+  <p>The map is the workhorse collection in Go. You reach for it dozens of times a day and it mostly does what you expect, which is exactly why its sharp edges are dangerous — they hide behind an interface that feels obvious. Most of the &ldquo;surprising&rdquo; map behavior is not surprising at all once you know one fact: a map is a <em>handle</em> to a hash table living somewhere else on the heap. Almost every gotcha in this guide falls out of that single idea.</p>
+<p>This is a teaching guide for engineers who already use maps fluently but want the model that explains <em>why</em> the compiler rejects <code>&amp;m[k]</code>, why your test passed a hundred times and then failed in CI, and why a map written from two goroutines crashes the whole process instead of just corrupting a value. We&rsquo;ll build that model, then walk each trap with code that gets it right.</p>
+<hr>
+<h2 id="a-map-is-a-header-not-the-table">A map is a header, not the table</h2>
+<p>When you write <code>m := map[string]int{}</code>, the variable <code>m</code> is not the hash table. It&rsquo;s a small header — a pointer, essentially — to a <code>runtime.hmap</code> structure that owns the buckets. That indirection is the root of map semantics.</p>
+<pre><code class="language-go">func addOne(m map[string]int) {
+    m[&quot;count&quot;]++ // mutates the caller's table
+}
+
+func main() {
+    counts := map[string]int{&quot;count&quot;: 0}
+    addOne(counts)
+    fmt.Println(counts[&quot;count&quot;]) // 1
+}
+</code></pre>
+<p>Passing a map to a function copies the header, not the table. Both copies point at the same buckets, so <code>addOne</code> mutates what <code>main</code> sees. People call maps a &ldquo;reference type&rdquo; for this reason. Be precise about what that means: the map value is still passed <em>by value</em> — you just copied a pointer-sized handle, so the copy and the original alias the same underlying data.</p>
+<p><strong>The gotcha:</strong> because the header is a value, reassigning the parameter inside the function is invisible to the caller. <code>m = make(map[string]int)</code> inside <code>addOne</code> rebinds the local copy of the header and the caller keeps the old map. You can mutate the <em>contents</em> through any copy of the header, but you cannot swap out <em>which table</em> the caller points at. If you need that, return the new map or take a <code>*map</code> (rarely worth it).</p>
+<hr>
+<h2 id="the-zero-value-is-nil-and-writing-to-it-panics">The zero value is nil, and writing to it panics</h2>
+<p>The zero value of a map type is <code>nil</code>, not an empty map. This is the single most common map bug in real code, because a <code>nil</code> map is <em>readable</em> — it just behaves like an empty one — so the mistake stays silent until the first write.</p>
+<pre><code class="language-go">var m map[string]int // nil
+
+fmt.Println(m[&quot;missing&quot;]) // 0 — reads are fine
+fmt.Println(len(m))       // 0 — fine
+for k := range m {        // fine, zero iterations
+    _ = k
+}
+
+m[&quot;key&quot;] = 1 // panic: assignment to entry in nil map
+</code></pre>
+<p>Reading a <code>nil</code> map returns the element type&rsquo;s zero value; ranging over it does nothing; <code>len</code> is zero; <code>delete</code> on it is a no-op. The moment you <em>assign</em>, the runtime panics because there are no buckets to write into.</p>
+<p><strong>The gotcha:</strong> the danger is that <code>nil</code> maps read like empty maps, so a struct field or a map returned from a function can be <code>nil</code> and pass every read path in your tests, then panic in production on the first write. Always initialize before writing:</p>
+<pre><code class="language-go">type Registry struct {
+    handlers map[string]func()
+}
+
+func NewRegistry() *Registry {
+    return &amp;Registry{handlers: make(map[string]func())} // never leave it nil
+}
+</code></pre>
+<p>Initialize map fields in your constructor. If a function returns a map that callers might write to, return <code>make(map[K]V)</code>, not <code>nil</code>. Returning <code>nil</code> for &ldquo;no results&rdquo; is fine <em>only</em> when you can guarantee callers will read but never write.</p>
+<hr>
+<h2 id="comma-ok-presence-versus-zero">Comma-ok: presence versus zero</h2>
+<p>Indexing a map always succeeds. <code>m[k]</code> for an absent key returns the zero value, which means you cannot distinguish &ldquo;the key is missing&rdquo; from &ldquo;the key is present with a zero value&rdquo; using the single-value form. The two-value <em>comma-ok</em> form is how you tell them apart.</p>
+<pre><code class="language-go">scores := map[string]int{&quot;alice&quot;: 0}
+
+v := scores[&quot;bob&quot;]      // 0 — but bob isn't here
+v = scores[&quot;alice&quot;]     // 0 — and alice IS here, with value 0
+
+v, ok := scores[&quot;bob&quot;]  // v == 0, ok == false
+v, ok = scores[&quot;alice&quot;] // v == 0, ok == true
+</code></pre>
+<p>Any time zero (or <code>""</code>, or <code>nil</code>, or <code>false</code>) is a legitimate stored value, you <em>must</em> use comma-ok to check presence. This matters for the set idiom too, where the value carries no information and presence is the whole point:</p>
+<pre><code class="language-go">seen := map[string]struct{}{}
+seen[&quot;x&quot;] = struct{}{}
+
+if _, ok := seen[&quot;x&quot;]; ok {
+    // x has been seen
+}
+</code></pre>
+<p><code>struct{}</code> occupies zero bytes, so <code>map[K]struct{}</code> is the idiomatic Go set — leaner than <code>map[K]bool</code> and it forces you to write the presence check explicitly, which reads more honestly than testing a boolean value.</p>
+<hr>
+<h2 id="delete-and-deleting-while-you-range">delete, and deleting while you range</h2>
+<p><code>delete(m, k)</code> removes a key. It&rsquo;s a no-op on a missing key and a no-op on a <code>nil</code> map — it never panics — so you don&rsquo;t need to guard it.</p>
+<p>Deleting during iteration is one of the few mutation-while-ranging operations Go explicitly permits and defines:</p>
+<pre><code class="language-go">for k, v := range cache {
+    if v.expired() {
+        delete(cache, k) // safe and defined
+    }
+}
+</code></pre>
+<p>The spec guarantees this: if you delete a key that hasn&rsquo;t been reached yet, it won&rsquo;t be produced; keys already produced are unaffected. So deleting the current or a not-yet-visited key during range is well-defined.</p>
+<p><strong>The gotcha:</strong> <em>adding</em> keys during iteration is a different story. If you insert during a range, the new entry &ldquo;may be produced during the iteration or may be skipped&rdquo; — it&rsquo;s implementation-defined, not a crash but not deterministic either. Never rely on visiting entries you add mid-range. If you must add while iterating, collect the additions in a slice and apply them after the loop.</p>
+<hr>
+<h2 id="iteration-order-is-randomized-on-purpose">Iteration order is randomized on purpose</h2>
+<p>Range over a map twice and you&rsquo;ll likely get two different orders. This is not &ldquo;unspecified, happens to be stable&rdquo; — the Go runtime <em>deliberately</em> randomizes the starting point of each range. It picks a random bucket and offset every time you start iterating.</p>
+<pre><code class="language-go">m := map[string]int{&quot;a&quot;: 1, &quot;b&quot;: 2, &quot;c&quot;: 3}
+for k := range m {
+    fmt.Print(k, &quot; &quot;) // order differs run to run: &quot;b c a&quot;, &quot;a c b&quot;, ...
+}
+</code></pre>
+<p>Why go out of the way to randomize? Because Go&rsquo;s authors wanted to kill the class of bug where code accidentally depends on hash-table order. A hash map has no meaningful order to begin with — the layout is an artifact of the hash function and insertion history. Had iteration happened to be stable in one Go version, people would have written code relying on it, and a future runtime change (or a different key set) would silently break them. Randomizing makes the non-determinism <em>loud</em>: you discover the dependency immediately, in development, instead of in a customer&rsquo;s edge case.</p>
+<p><strong>The gotcha:</strong> never rely on iteration order for anything — not test assertions, not output formatting, not hashing, not &ldquo;the first key wins&rdquo; logic. When you need order, extract the keys and sort them:</p>
+<pre><code class="language-go">keys := make([]string, 0, len(m))
+for k := range m {
+    keys = append(keys, k)
+}
+sort.Strings(keys)
+for _, k := range keys {
+    fmt.Printf(&quot;%s=%d\n&quot;, k, m[k])
+}
+</code></pre>
+<p>This is the canonical pattern for deterministic map output, and it&rsquo;s why <code>fmt</code> prints maps sorted by key — the standard library does the sort for you so <code>%v</code> output is reproducible, but a raw <code>range</code> does not.</p>
+<hr>
+<h2 id="you-cannot-take-the-address-of-a-map-element">You cannot take the address of a map element</h2>
+<p>This compiles for a slice but not for a map:</p>
+<pre><code class="language-go">s := []int{1, 2, 3}
+p := &amp;s[0] // fine
+
+m := map[string]int{&quot;a&quot;: 1}
+p := &amp;m[&quot;a&quot;] // compile error: cannot take the address of m[&quot;a&quot;]
+</code></pre>
+<p>The reason is mechanical, not arbitrary. A map grows by rehashing, which <em>moves</em> entries to new buckets. If the language handed you a pointer into a bucket, the next insert could relocate that entry and leave your pointer dangling. Rather than track and update every outstanding pointer, Go forbids taking the address at all. Map elements are not addressable.</p>
+<p>The practical consequence bites hardest with struct values. You cannot mutate a field of a struct stored directly in a map:</p>
+<pre><code class="language-go">type Point struct{ X, Y int }
+
+m := map[string]Point{&quot;origin&quot;: {0, 0}}
+m[&quot;origin&quot;].X = 5 // compile error: cannot assign to struct field m[&quot;origin&quot;].X
+</code></pre>
+<p>There are two correct fixes. Store pointers, so the map holds an addressable thing:</p>
+<pre><code class="language-go">m := map[string]*Point{&quot;origin&quot;: {0, 0}}
+m[&quot;origin&quot;].X = 5 // fine — you're dereferencing a pointer, not addressing a map slot
+</code></pre>
+<p>Or, if you want value semantics, read the whole struct out, modify the copy, and write it back:</p>
+<pre><code class="language-go">m := map[string]Point{&quot;origin&quot;: {0, 0}}
+p := m[&quot;origin&quot;] // copy out
+p.X = 5
+m[&quot;origin&quot;] = p // whole-value reassignment
+</code></pre>
+<p><strong>The gotcha:</strong> the read-modify-write pattern is safe but easy to get subtly wrong — if you forget the write-back, you&rsquo;ve mutated a throwaway copy and the map is unchanged, with no error. Choose deliberately: <code>map[K]*V</code> when entries are large or frequently mutated in place, <code>map[K]V</code> with copy-out/write-back when values are small and you want the safety of value semantics. Don&rsquo;t mix the two mental models in one map.</p>
+<hr>
+<h2 id="comparable-keys-structs-and-arrays-are-fair-game">Comparable keys: structs and arrays are fair game</h2>
+<p>A map key type must be <em>comparable</em> — it must support <code>==</code>. That rules out slices, maps, and functions as keys (they aren&rsquo;t comparable and the compiler will reject them). But it <em>includes</em> structs and arrays whose fields are all comparable, which is a genuinely useful tool.</p>
+<pre><code class="language-go">type Coord struct{ X, Y int }
+
+grid := map[Coord]string{}
+grid[Coord{1, 2}] = &quot;tree&quot;
+grid[Coord{3, 4}] = &quot;rock&quot;
+
+fmt.Println(grid[Coord{1, 2}]) // &quot;tree&quot;
+</code></pre>
+<p>A struct key gives you a clean composite key with no string concatenation and no delimiter-collision bugs (the classic <code>fmt.Sprintf("%d:%d", x, y)</code> approach breaks the moment a field can itself contain the delimiter). Arrays work as keys too — <code>[2]int{1, 2}</code> is comparable — while slices do not.</p>
+<p><strong>The gotcha:</strong> comparability is checked structurally. A struct containing a slice field is <em>not</em> comparable, so it can&rsquo;t be a key, and you&rsquo;ll only find out at compile time (or, worse, at runtime with <code>panic: runtime error: comparing uncomparable type</code> if the field is <code>interface{}</code> holding a slice). Also beware floating-point fields: <code>NaN != NaN</code>, so a struct key with a <code>NaN</code> float field can never be found again after insertion — you can store it but never read it back. Keep key types small and made of integers, strings, bools, and other clean comparables.</p>
+<hr>
+<h2 id="maps-are-not-safe-for-concurrent-use">Maps are not safe for concurrent use</h2>
+<p>A Go map is not safe for concurrent access when at least one goroutine is writing. This is not &ldquo;you might get a torn read&rdquo; — the runtime actively detects concurrent map writes and <em>crashes the program</em> with <code>fatal error: concurrent map writes</code>. It&rsquo;s a <code>fatal error</code>, not a <code>panic</code>, so you cannot <code>recover</code> from it; the whole process dies.</p>
+<pre><code class="language-go">m := map[int]int{}
+var wg sync.WaitGroup
+for i := 0; i &lt; 10; i++ {
+    wg.Add(1)
+    go func(i int) {
+        defer wg.Done()
+        m[i] = i // DATA RACE — may crash with fatal error
+    }(i)
+}
+wg.Wait()
+</code></pre>
+<p>The crash-on-detection is intentional: a silently corrupted hash table is far more dangerous than a loud, immediate failure. The fix is to serialize access. A <code>sync.RWMutex</code> is the general-purpose answer — many concurrent readers, exclusive writers:</p>
+<pre><code class="language-go">type Counter struct {
+    mu sync.RWMutex
+    m  map[string]int
+}
+
+func (c *Counter) Inc(k string) {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    c.m[k]++
+}
+
+func (c *Counter) Get(k string) int {
+    c.mu.RLock()
+    defer c.mu.RUnlock()
+    return c.m[k]
+}
+</code></pre>
+<p><strong>The gotcha:</strong> concurrent <em>reads</em> with no writer are fine — the crash only triggers when a write races with any other access. That&rsquo;s a trap, because a read-heavy map can run correctly for months and then crash the day someone adds a write path. Guard the map from the start if it will ever be written concurrently. The standard library also offers <code>sync.Map</code> for two narrow cases (append-only caches, and keys written once then read many times by disjoint goroutines); for the common read-modify-write counter, a plain map behind a mutex is faster and clearer. We cover the concurrency toolkit — mutexes, <code>sync.Map</code>, and when each wins — in the concurrency module.</p>
+<hr>
+<h2 id="presize-with-makemap-n-when-you-know-the-size">Presize with make(map, n) when you know the size</h2>
+<p><code>make(map[K]V, n)</code> gives the runtime a size hint. It&rsquo;s a <em>hint</em>, not a fixed capacity — the map still grows unbounded — but it lets the runtime allocate enough buckets up front to hold roughly <code>n</code> elements without rehashing.</p>
+<pre><code class="language-go">// Building a lookup from a known slice — presize it.
+byID := make(map[int]*User, len(users))
+for _, u := range users {
+    byID[u.ID] = u
+}
+</code></pre>
+<p>Without the hint, the map starts small and rehashes repeatedly as it grows, each rehash reallocating buckets and moving every entry. For a map you&rsquo;re about to fill with a known number of items, presizing eliminates that churn. It&rsquo;s a cheap, high-signal optimization on any hot path that builds a map from a collection of known size.</p>
+<p><strong>The gotcha:</strong> the hint only helps when you actually know the size and it&rsquo;s non-trivial. Don&rsquo;t cargo-cult <code>make(map[K]V, 0)</code> — that&rsquo;s identical to <code>make(map[K]V)</code>. And the hint doesn&rsquo;t cap growth or preallocate for a size you&rsquo;ll never reach, so wildly over-hinting just wastes memory. Match the hint to the real expected element count.</p>
+<hr>
+<h2 id="quick-reference">Quick reference</h2>
+<table><caption class="sr-only">Quick reference</caption>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Behavior</th>
+<th>Watch out for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>var m map[K]V</code></td>
+<td><code>nil</code> map</td>
+<td>Reads OK, <strong>write panics</strong></td>
+</tr>
+<tr>
+<td><code>m[k]</code> (absent)</td>
+<td>zero value</td>
+<td>Can&rsquo;t tell missing from zero — use comma-ok</td>
+</tr>
+<tr>
+<td><code>v, ok := m[k]</code></td>
+<td>value + presence</td>
+<td>The only way to check presence reliably</td>
+</tr>
+<tr>
+<td><code>delete(m, k)</code></td>
+<td>remove, no-op if absent</td>
+<td>Safe on nil; safe during range</td>
+</tr>
+<tr>
+<td><code>range m</code></td>
+<td>randomized order</td>
+<td>Never depend on order; sort keys for determinism</td>
+</tr>
+<tr>
+<td><code>&amp;m[k]</code></td>
+<td>compile error</td>
+<td>Elements not addressable — use <code>map[K]*V</code> or copy-out</td>
+</tr>
+<tr>
+<td>concurrent write</td>
+<td><code>fatal error</code>, process dies</td>
+<td>Guard with mutex; can&rsquo;t <code>recover</code></td>
+</tr>
+<tr>
+<td><code>make(map, n)</code></td>
+<td>size hint</td>
+<td>Only helps with a known non-trivial size</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>A map is a header over a heap table.</strong> Copies of the header alias the same table (mutations show through), but reassigning a copy doesn&rsquo;t reach the caller. Nearly every map rule follows from this.</li>
+<li><strong>The zero value is <code>nil</code> and writes to it panic.</strong> Reads on <code>nil</code> succeed, which hides the bug until the first write — initialize map fields and returned maps that callers might write.</li>
+<li><strong>Use comma-ok whenever zero is a valid value.</strong> Single-value indexing can&rsquo;t distinguish absent from zero.</li>
+<li><strong>Iteration order is deliberately randomized.</strong> Sort keys when you need determinism; never encode order dependence.</li>
+<li><strong>Map elements aren&rsquo;t addressable.</strong> Store <code>map[K]*V</code>, or read-modify-write the whole value — and don&rsquo;t forget the write-back.</li>
+<li><strong>Struct and array keys are comparable and useful</strong>, but a slice/map/func field makes the whole key uncomparable, and <code>NaN</code> float fields are unfindable.</li>
+<li><strong>Concurrent writes crash the process.</strong> Guard shared maps with a mutex from day one; read-only concurrency is the only exception.</li>
+<li><strong>Presize with <code>make(map, n)</code></strong> when the element count is known to skip repeated rehashing.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/blog/maps">Go maps in action</a> — the Go blog&rsquo;s tour of map semantics, the comma-ok idiom, and concurrency.</li>
+<li><a href="https://go.dev/ref/spec#Map_types">The Go Programming Language Specification — Map types</a> and <a href="https://go.dev/ref/spec#For_range">For statements with range clause</a> — the normative rules on nil maps, comparable key types, and iteration-order and delete-during-range guarantees.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/production-go-10-structs-embedding-tags.html">Structs, Embedding, and Tags</a>
+      <span class="related-date">Jul 05</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-08-arrays-and-slices.html">Arrays and Slices</a>
+      <span class="related-date">Jul 03</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

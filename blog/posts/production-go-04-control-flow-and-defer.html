@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Control Flow and defer — Pratik Dhanave</title>
+<meta name="description" content="Go&#x27;s control flow is deliberately small — one loop keyword, a switch that doesn&#x27;t fall through, an `if` that can scope its own variable — and then...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Control Flow and defer — Pratik Dhanave">
+<meta property="og:description" content="Go&#x27;s control flow is deliberately small — one loop keyword, a switch that doesn&#x27;t fall through, an `if` that can scope its own variable — and then there&#x27;s `defer`, the one construct that repays close...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-04-control-flow-and-defer.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-06-29T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Control Flow">
+<meta property="article:tag" content="Programming">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Control Flow and defer — Pratik Dhanave">
+<meta name="twitter:description" content="Go&#x27;s control flow is deliberately small — one loop keyword, a switch that doesn&#x27;t fall through, an `if` that can scope its own variable — and then there&#x27;s `defer`, the one construct that repays close...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-04-control-flow-and-defer.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Control Flow and defer",
+  "description": "Go's control flow is deliberately small \u2014 one loop keyword, a switch that doesn't fall through, an `if` that can scope its own variable \u2014 and then there's `defer`, the one construct that repays close...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-06-29",
+  "dateModified": "2026-06-29",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Control Flow, Programming",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-04-control-flow-and-defer.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-04-control-flow-and-defer.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Control Flow and defer</h1>
+    <p class="post-subtitle">Go&#x27;s control flow is deliberately small — one loop keyword, a switch that doesn&#x27;t fall through, an `if` that can scope its own variable — and then there&#x27;s `defer`, the one construct that repays close reading. A tour of the whole surface, with the sharp edges labelled.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-06-29">June 29, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/control-flow/" class="tag-link"><span class="tag">#Control Flow</span></a><a href="/blog/tags/programming/" class="tag-link"><span class="tag">#Programming</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 4 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-03-variables-constants-iota.html" class="series-prev">&larr; Part 3: Variables, Constants, and iota</a>
+<a href="/blog/posts/production-go-05-functions-closures-variadics.html" class="series-next">Part 5: Functions, Closures, and Variadics &rarr;</a></div>
+  </div>
+
+
+
+  <p>Coming from most languages, Go&rsquo;s control flow feels almost aggressively plain. There is exactly one loop keyword. <code>switch</code> refuses to fall through unless you beg it. There is no ternary, no <code>while</code>, no <code>do/while</code>, no comprehensions. That minimalism is a feature: it means there is very little to memorise and very little to argue about in review. The interesting depth is concentrated in two places — the way <code>if</code> and <code>switch</code> can bind and scope a variable, and the semantics of <code>defer</code>, which are subtle enough that even experienced engineers get burned by them. This is a tour of the whole surface, aimed at the details that actually cost you in production.</p>
+<hr>
+<h2 id="if-with-an-init-statement-and-the-scope-that-comes-with-it"><code>if</code> with an init statement, and the scope that comes with it</h2>
+<p>An <code>if</code> can run a short statement before its condition. The variables it declares are scoped to the <code>if</code> — including its <code>else</code> branches — and nowhere else. This is the canonical way to handle the &ldquo;call, check error, use result&rdquo; shape without leaking a variable into the surrounding function.</p>
+<pre><code class="language-go">func loadConfig(path string) (Config, error) {
+    if data, err := os.ReadFile(path); err != nil {
+        return Config{}, fmt.Errorf(&quot;read config: %w&quot;, err)
+    } else {
+        return parse(data)
+    }
+    // data and err do not exist here.
+}
+</code></pre>
+<p>Most Go engineers avoid the <code>else</code> and let the error path return, which keeps the happy path un-indented:</p>
+<pre><code class="language-go">data, err := os.ReadFile(path)
+if err != nil {
+    return Config{}, fmt.Errorf(&quot;read config: %w&quot;, err)
+}
+return parse(data) // data stays in scope for the rest of the function
+</code></pre>
+<p>Notice the trade-off. The init-statement form scopes <code>data</code> tightly to the branch; the flat form keeps it alive for the whole function. Reach for the init form when the value genuinely only matters inside the conditional — a lookup guard is the classic case:</p>
+<pre><code class="language-go">if user, ok := cache.Get(id); ok {
+    return user, nil
+}
+// fall through to the slow path; user and ok are gone
+</code></pre>
+<p><strong>The gotcha:</strong> the init statement uses <code>:=</code>, so it <em>shadows</em> any outer variable of the same name. Write <code>if err := doThing(); err != nil { ... }</code> inside a function that already has an <code>err</code>, and you have created a second <code>err</code> that vanishes at the closing brace. If a later line expects the outer <code>err</code> to have been set, it won&rsquo;t be. <code>go vet</code>&rsquo;s shadow analysis and most linters flag this, but it&rsquo;s an easy way to silently drop an error.</p>
+<hr>
+<h2 id="for-is-the-only-loop-in-four-dresses"><code>for</code> is the only loop, in four dresses</h2>
+<p>Go collapses every loop into one keyword. There are four shapes, and they are all just <code>for</code> with different pieces present or absent.</p>
+<p>The C-style three-clause form, when you genuinely need an index:</p>
+<pre><code class="language-go">for i := 0; i &lt; len(items); i++ {
+    process(i, items[i])
+}
+</code></pre>
+<p>The condition-only form — this is Go&rsquo;s <code>while</code>:</p>
+<pre><code class="language-go">for scanner.Scan() {
+    handleLine(scanner.Text())
+}
+</code></pre>
+<p>The bare infinite loop, which you exit with <code>break</code>, <code>return</code>, or a channel receive. This is the backbone of most long-lived workers:</p>
+<pre><code class="language-go">for {
+    select {
+    case job := &lt;-queue:
+        handle(job)
+    case &lt;-ctx.Done():
+        return ctx.Err()
+    }
+}
+</code></pre>
+<p>And <code>range</code>, which iterates over slices, arrays, maps, strings, channels, and (since Go 1.22/1.23) integers and iterator functions:</p>
+<pre><code class="language-go">for i, item := range items {
+    _ = i
+    process(item)
+}
+</code></pre>
+<p><code>range</code> has enough depth of its own — copy semantics of the loop value, rune-vs-byte iteration over strings, the per-iteration variable change in Go 1.22, and range-over-func iterators — that it gets its own treatment later in this series. For now the point is structural: there is one loop, and everything else is sugar you already know under a different name.</p>
+<p><strong>The gotcha:</strong> in the C-style form the condition is re-evaluated every iteration, so <code>for i := 0; i &lt; len(s); i++</code> calls <code>len(s)</code> each pass. That&rsquo;s free for a slice (length is a cheap field read), but if your condition calls something expensive — a function, a lock-guarded accessor — hoist it into a local before the loop. And a <code>for</code> with no condition and no <code>break</code>/<code>return</code> is an infinite loop; the compiler won&rsquo;t save you, but it will happily let a goroutine spin a core forever.</p>
+<hr>
+<h2 id="switch-no-implicit-fallthrough-and-the-tagless-form"><code>switch</code>: no implicit fallthrough, and the tagless form</h2>
+<p>Go&rsquo;s <code>switch</code> inverts C&rsquo;s default. Cases do <strong>not</strong> fall through — each case ends implicitly with a <code>break</code>, so you never write one. This kills an entire category of bug (the forgotten <code>break</code>) at the cost of one keyword when you actually want fall-through.</p>
+<pre><code class="language-go">switch status {
+case &quot;pending&quot;, &quot;queued&quot;:       // a case can list several values
+    return retryLater()
+case &quot;done&quot;:
+    return finalize()
+default:
+    return fmt.Errorf(&quot;unknown status %q&quot;, status)
+}
+</code></pre>
+<p>When you do want C-style continuation into the next case, ask for it explicitly with <code>fallthrough</code>. It is rare and worth a comment, because it transfers control to the next case <em>unconditionally</em> — it does not re-test that case&rsquo;s expression:</p>
+<pre><code class="language-go">switch tier {
+case &quot;enterprise&quot;:
+    enableAudit()
+    fallthrough      // enterprise also gets everything below
+case &quot;pro&quot;:
+    enablePriority()
+default:
+    enableBasic()
+}
+</code></pre>
+<p>The most idiomatic use of <code>switch</code> in Go is the <strong>tagless</strong> form — <code>switch</code> with no expression, which is just a clean chain of <code>if/else if</code>. Each case is a boolean condition, evaluated top to bottom:</p>
+<pre><code class="language-go">switch {
+case n &lt; 0:
+    return &quot;negative&quot;
+case n == 0:
+    return &quot;zero&quot;
+case n &lt; 10:
+    return &quot;small&quot;
+default:
+    return &quot;large&quot;
+}
+</code></pre>
+<p>This reads far better than a ladder of <code>else if</code> and is the preferred shape whenever you have three or more branches. <code>switch</code> also takes an init statement, exactly like <code>if</code>: <code>switch x := compute(); { ... }</code>.</p>
+<p>There is one more form — the <strong>type switch</strong> — which branches on the dynamic type of an interface value (<code>switch v := x.(type)</code>). It&rsquo;s the tool for handling a small closed set of concrete types behind an interface, and because it leans on interfaces and type assertions it belongs with that discussion later in the series. Just know the syntax exists and that it reuses the same <code>switch</code> you already understand.</p>
+<p><strong>The gotcha:</strong> because Go has no implicit fall-through, a <code>switch</code> on an enum-like value silently does nothing for cases you forgot to list — control just falls off the end. There&rsquo;s no compiler exhaustiveness check for a plain <code>switch</code>. If a value having no matching case is a bug, add a <code>default</code> that panics or returns an error, rather than letting it slip through as a no-op. (The <code>exhaustive</code> linter can enforce this for typed constants.)</p>
+<hr>
+<h2 id="break-continue-labels-and-the-honest-case-for-goto"><code>break</code>, <code>continue</code>, labels, and the honest case for <code>goto</code></h2>
+<p>Inside loops, <code>break</code> and <code>continue</code> do the obvious thing — but only for the <em>innermost</em> loop. When you&rsquo;re nested, or when a <code>select</code> sits inside a <code>for</code>, a bare <code>break</code> breaks the wrong thing. That&rsquo;s what <strong>labels</strong> are for:</p>
+<pre><code class="language-go">outer:
+    for _, row := range grid {
+        for _, cell := range row {
+            if cell == target {
+                found = true
+                break outer   // leaves both loops, not just the inner one
+            }
+        }
+    }
+</code></pre>
+<p>A subtle trap worth internalising: inside a <code>for { select { ... } }</code>, a <code>break</code> in a <code>select</code> case breaks the <code>select</code>, not the loop. To leave the loop you need a labelled <code>break</code> (or a <code>return</code>):</p>
+<pre><code class="language-go">loop:
+    for {
+        select {
+        case &lt;-tick.C:
+            work()
+        case &lt;-ctx.Done():
+            break loop   // a bare break here would only exit the select
+        }
+    }
+</code></pre>
+<p><code>continue label</code> works the same way, jumping to the next iteration of the labelled loop.</p>
+<p>Then there&rsquo;s <code>goto</code>, which Go keeps but almost nobody reaches for. It can only jump within a function and cannot jump over a variable declaration into that variable&rsquo;s scope, which defuses its worst historical abuses. The honest case for it is narrow: generated code, or a hand-written state machine where the alternatives are worse. Cleanup-on-error chains — the one place C programmers reach for <code>goto</code> — are better served by <code>defer</code> in Go, so that use effectively disappears. Treat <code>goto</code> as a tool you recognise in someone else&rsquo;s parser or codegen output, not one you introduce into ordinary business logic.</p>
+<hr>
+<h2 id="defer-the-construct-that-repays-close-reading"><code>defer</code>: the construct that repays close reading</h2>
+<p><code>defer</code> schedules a function call to run when the <em>surrounding function</em> returns — whether it returns normally, hits an error path, or panics. It&rsquo;s Go&rsquo;s answer to &ldquo;make sure this cleanup happens no matter how we leave.&rdquo; The mechanics are simple to state and easy to get wrong under pressure, so let&rsquo;s be precise.</p>
+<p><strong>Arguments are evaluated when <code>defer</code> runs, not when the deferred call runs.</strong> This is the single most misunderstood point. The deferred <em>call</em> is delayed; its <em>arguments</em> are snapshotted immediately.</p>
+<pre><code class="language-go">func trace() {
+    x := 1
+    defer fmt.Println(&quot;deferred saw x =&quot;, x) // captures 1 right now
+    x = 2
+    fmt.Println(&quot;normal saw x =&quot;, x)         // prints 2
+}
+// Output:
+// normal saw x = 2
+// deferred saw x = 1
+</code></pre>
+<p>If you want the deferred call to see the <em>final</em> value, defer a closure instead — a closure captures the variable by reference, so it reads whatever the value is at return time:</p>
+<pre><code class="language-go">defer func() { fmt.Println(&quot;deferred saw x =&quot;, x) }() // reads x when the func runs
+</code></pre>
+<p><strong>Deferred calls run in LIFO order.</strong> The last one deferred runs first. This matters when cleanups have ordering constraints — you release resources in the reverse of the order you acquired them, which is exactly what nested acquisition wants:</p>
+<pre><code class="language-go">mu.Lock()
+defer mu.Unlock()          // runs last
+
+f, err := os.Open(path)
+if err != nil {
+    return err
+}
+defer f.Close()            // runs first (LIFO), before the unlock
+</code></pre>
+<p>The most common day-to-day use is unlocking and closing right next to the acquisition, so the reader can see both in one glance and no early return can leak the resource:</p>
+<pre><code class="language-go">func (s *Store) Update(id string, fn func(*Row)) error {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+
+    row, ok := s.rows[id]
+    if !ok {
+        return ErrNotFound   // unlock still happens
+    }
+    fn(row)
+    return nil               // unlock still happens
+}
+</code></pre>
+<p><strong>The gotcha — defer in a loop:</strong> a deferred call runs at <em>function</em> return, not at the end of the loop iteration. So this leaks every file handle until the function finally returns, and can exhaust file descriptors on a large directory:</p>
+<pre><code class="language-go">for _, path := range paths {
+    f, err := os.Open(path)
+    if err != nil {
+        return err
+    }
+    defer f.Close() // BUG: all N files stay open until the function returns
+    scan(f)
+}
+</code></pre>
+<p>The fix is to give each iteration its own function scope, so the defer fires per iteration:</p>
+<pre><code class="language-go">for _, path := range paths {
+    if err := func() error {
+        f, err := os.Open(path)
+        if err != nil {
+            return err
+        }
+        defer f.Close() // runs when this closure returns, each iteration
+        return scan(f)
+    }(); err != nil {
+        return err
+    }
+}
+</code></pre>
+<p>There is also a real (if usually small) cost to deferring in a hot loop; when a cleanup is trivial and the iteration count is huge, calling <code>f.Close()</code> explicitly can be the right call. Measure before you contort the code for it.</p>
+<hr>
+<h2 id="defer-and-named-return-values"><code>defer</code> and named return values</h2>
+<p>The one place <code>defer</code> reaches back and changes behaviour rather than just running cleanup is with <strong>named return values</strong>. A deferred closure can read <em>and modify</em> named returns after the <code>return</code> statement has set them but before control actually leaves the function. This is the mechanism behind almost every &ldquo;wrap the error on the way out&rdquo; and <code>recover</code> pattern in Go.</p>
+<pre><code class="language-go">func doWork() (err error) {
+    defer func() {
+        if err != nil {
+            err = fmt.Errorf(&quot;doWork: %w&quot;, err) // rewrites the named return
+        }
+    }()
+
+    if err = step1(); err != nil {
+        return err
+    }
+    return step2()
+}
+</code></pre>
+<p>The same hook is how you turn a panic into an error at a package boundary:</p>
+<pre><code class="language-go">func safeParse(input string) (result Node, err error) {
+    defer func() {
+        if r := recover(); r != nil {
+            err = fmt.Errorf(&quot;parse panicked: %v&quot;, r) // sets the named return
+        }
+    }()
+    return parse(input), nil // parse may panic deep inside
+}
+</code></pre>
+<p><code>recover</code> only does anything inside a deferred function, and it only stops a panic that is unwinding through <em>that</em> function. That&rsquo;s the whole contract, and it&rsquo;s why <code>defer</code> and panic recovery are inseparable.</p>
+<p><strong>The gotcha:</strong> this trick only works when the return value is <em>named</em>. With an anonymous return signature — <code>func doWork() error</code> — the deferred closure has nothing to assign to; it can observe a local <code>err</code> but its changes never reach the caller, because the return value was already copied out. If you intend a defer to alter what the caller sees, the return must be named. Conversely, if you <em>don&rsquo;t</em> want that coupling, avoid named returns precisely so a defer can&rsquo;t silently rewrite your result.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong><code>if</code>/<code>switch</code> init statements scope tightly — and shadow.</strong> Use them to keep a guard variable local, but remember <code>:=</code> creates a new variable; a stray shadowed <code>err</code> is a silently dropped error.</li>
+<li><strong>One loop, four shapes.</strong> C-style, condition-only (<code>while</code>), infinite, and <code>range</code> are all <code>for</code>. Hoist expensive loop conditions out; <code>range</code>&rsquo;s copy and per-iteration semantics deserve their own study.</li>
+<li><strong><code>switch</code> doesn&rsquo;t fall through, and that&rsquo;s the point.</strong> Prefer the tagless form over <code>else if</code> ladders; add a <code>default</code> that fails loudly when an unmatched value is actually a bug, because there&rsquo;s no built-in exhaustiveness check.</li>
+<li><strong>Labels beat clever flags for nested exits</strong> — and a bare <code>break</code> inside a <code>select</code> breaks the <code>select</code>, not the loop. <code>goto</code> is legitimate only in generated code and hand-rolled state machines.</li>
+<li><strong><code>defer</code> snapshots its arguments immediately, runs LIFO at function return.</strong> That makes the loop-defer leak the trap to watch for, and named returns the hook that lets a defer wrap errors or recover from panics.</li>
+</ul>
+<p>Control flow in Go is small enough to hold in your head entirely — which is exactly why the few sharp edges (shadowing, loop defers, argument evaluation timing, named-return coupling) are worth knowing cold. They&rsquo;re not exotic; they&rsquo;re the ones that show up in incident reviews.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><em>Effective Go</em> — the canonical treatment of Go&rsquo;s control structures and idioms, including the rationale for a single <code>for</code> and a non-falling-through <code>switch</code>. https://go.dev/doc/effective_go</li>
+<li>The Go Blog, <em>Defer, Panic, and Recover</em> — the definitive explanation of defer&rsquo;s evaluation and ordering rules and how they combine with panic/recover. https://go.dev/blog/defer-panic-and-recover</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/production-go-05-functions-closures-variadics.html">Functions, Closures, and Variadics</a>
+      <span class="related-date">Jun 30</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-03-variables-constants-iota.html">Variables, Constants, and iota</a>
+      <span class="related-date">Jun 28</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-02-types-values-zero-values.html">Types, Values, and Zero Values</a>
+      <span class="related-date">Jun 27</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

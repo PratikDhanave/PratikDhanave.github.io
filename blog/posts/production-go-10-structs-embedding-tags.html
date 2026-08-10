@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Structs, Embedding, and Tags — Pratik Dhanave</title>
+<meta name="description" content="How Go builds aggregate types from value semantics up — why a struct is a copy, when it stops being comparable, what embedding actually promotes (and...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Structs, Embedding, and Tags — Pratik Dhanave">
+<meta property="og:description" content="How Go builds aggregate types from value semantics up — why a struct is a copy, when it stops being comparable, what embedding actually promotes (and what it deliberately doesn&#x27;t), and how a backtick string...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-10-structs-embedding-tags.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-05T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Structs">
+<meta property="article:tag" content="Data Structures">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Structs, Embedding, and Tags — Pratik Dhanave">
+<meta name="twitter:description" content="How Go builds aggregate types from value semantics up — why a struct is a copy, when it stops being comparable, what embedding actually promotes (and what it deliberately doesn&#x27;t), and how a backtick string...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-10-structs-embedding-tags.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Structs, Embedding, and Tags",
+  "description": "How Go builds aggregate types from value semantics up \u2014 why a struct is a copy, when it stops being comparable, what embedding actually promotes (and what it deliberately doesn't), and how a backtick string...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-05",
+  "dateModified": "2026-07-05",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Structs, Data Structures",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-10-structs-embedding-tags.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-10-structs-embedding-tags.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Structs, Embedding, and Tags</h1>
+    <p class="post-subtitle">How Go builds aggregate types from value semantics up — why a struct is a copy, when it stops being comparable, what embedding actually promotes (and what it deliberately doesn&#x27;t), and how a backtick string in a field definition ends up steering `encoding/json`.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-05">July 05, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/structs/" class="tag-link"><span class="tag">#Structs</span></a><a href="/blog/tags/data-structures/" class="tag-link"><span class="tag">#Data Structures</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 10 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-09-maps.html" class="series-prev">&larr; Part 9: Maps</a></div>
+  </div>
+
+
+
+  <p>Structs are the workhorse of Go&rsquo;s type system. There are no classes, no inheritance hierarchies, no attribute dictionaries — just named collections of fields with value semantics, and a small set of composition rules layered on top. That minimalism is deceptive. The behavior of a struct is governed by three things that trip up experienced engineers coming from other languages: it is copied by value, its comparability is derived from its fields, and its &ldquo;inheritance&rdquo; is actually delegation dressed up with syntactic sugar.</p>
+<p>This guide walks each of those, plus the two features people reach for constantly without fully understanding — struct tags and the empty struct.</p>
+<hr>
+<h2 id="1-definitions-and-composite-literals">1. Definitions and composite literals</h2>
+<p>A struct is a fixed layout of named fields. You declare the type once and instantiate it with a composite literal.</p>
+<pre><code class="language-go">type Point struct {
+    X, Y int
+}
+
+type Rectangle struct {
+    Min, Max Point
+    Label    string
+}
+
+r := Rectangle{
+    Min:   Point{X: 0, Y: 0},
+    Max:   Point{X: 10, Y: 5},
+    Label: &quot;viewport&quot;,
+}
+</code></pre>
+<p>Prefer the <strong>keyed</strong> form (<code>Min: ...</code>) over the positional form (<code>Rectangle{Point{0,0}, Point{10,5}, "viewport"}</code>). Keyed literals survive field reordering and new-field additions without silently shifting values into the wrong slots, and they let you omit fields you want zero-valued. The zero value of a struct is every field at its own zero — no constructor runs, no field is left undefined. <code>var r Rectangle</code> gives you a fully usable value with empty points and an empty label.</p>
+<p><strong>The gotcha:</strong> the positional literal requires <em>every</em> field, in order, and breaks the moment someone adds a field to the struct. Worse, it compiles fine if two adjacent fields share a type — the values just land in the wrong fields. Reserve positional literals for tiny, stable types like <code>Point{0, 0}</code> where the field order is self-evident.</p>
+<hr>
+<h2 id="2-value-semantics-a-struct-is-a-copy">2. Value semantics: a struct is a copy</h2>
+<p>This is the single most consequential fact about structs in Go. Assigning a struct, passing it to a function, or ranging over a slice of them <strong>copies the whole value</strong>. Mutations to the copy do not touch the original.</p>
+<pre><code class="language-go">func moveRight(r Rectangle, dx int) {
+    r.Min.X += dx // mutates the local copy only
+    r.Max.X += dx
+}
+
+r := Rectangle{Min: Point{0, 0}, Max: Point{10, 5}}
+moveRight(r, 3)
+// r.Min.X is still 0 — the function mutated a copy
+</code></pre>
+<p>To mutate the caller&rsquo;s value, pass a pointer:</p>
+<pre><code class="language-go">func moveRightP(r *Rectangle, dx int) {
+    r.Min.X += dx
+    r.Max.X += dx
+}
+
+moveRightP(&amp;r, 3) // now r.Min.X == 3
+</code></pre>
+<p>The same trap hides in <code>for range</code>. The loop variable is a copy of each element, so writing to it changes nothing on the backing array:</p>
+<pre><code class="language-go">rects := []Rectangle{{Label: &quot;a&quot;}, {Label: &quot;b&quot;}}
+for _, rc := range rects {
+    rc.Label = &quot;changed&quot; // writes to a copy, discarded each iteration
+}
+// rects is unchanged; index with rects[i].Label to mutate in place
+</code></pre>
+<p><strong>The gotcha:</strong> copying is <em>shallow</em>. A struct that contains a slice, map, or pointer copies the header or pointer, not the data behind it. Two copies of such a struct share the same backing array or map — mutating an element through one copy is visible through the other, even though reassigning the field itself is not. Value semantics protect the struct&rsquo;s own fields, never the memory those fields point at.</p>
+<hr>
+<h2 id="3-comparability-derived-from-the-fields">3. Comparability: derived from the fields</h2>
+<p>Structs are comparable with <code>==</code> <strong>if and only if all of their fields are comparable</strong>. When they are, <code>==</code> does a field-by-field comparison, recursing into nested structs. This is what lets a comparable struct serve as a map key.</p>
+<pre><code class="language-go">type Coord struct {
+    Lat, Lng float64
+}
+
+seen := map[Coord]bool{}
+seen[Coord{12.97, 77.59}] = true
+fmt.Println(seen[Coord{12.97, 77.59}]) // true — struct keys compared by value
+</code></pre>
+<p>The pitfall arrives the moment a field&rsquo;s type is <em>not</em> comparable. Slices, maps, and functions are not comparable in Go (only against <code>nil</code>), so any struct containing one of them is itself uncomparable — and the failure is a <strong>compile error</strong> the instant you try <code>==</code> or use it as a map key.</p>
+<pre><code class="language-go">type Record struct {
+    ID   int
+    Tags []string // slice — not comparable
+}
+
+// a, b := Record{}, Record{}
+// _ = a == b            // compile error: struct containing []string cannot be compared
+// m := map[Record]bool{} // compile error: invalid map key type
+</code></pre>
+<p><strong>The gotcha:</strong> adding a slice, map, or func field to a previously comparable struct silently strips its comparability, and downstream code that used <code>==</code> or a <code>map[T]...</code> breaks at compile time — sometimes far from the change. If you need value equality on such a type, provide an explicit <code>Equal</code> method, or reach for <code>reflect.DeepEqual</code> (slower, and it compares unexported fields too). When the type must be a map key, restructure so the key portion is a separate comparable struct.</p>
+<hr>
+<h2 id="4-embedding-composition-with-promotion">4. Embedding: composition with promotion</h2>
+<p>Embedding is Go&rsquo;s composition mechanism. Declare a field with a type but <strong>no field name</strong> — an <em>anonymous field</em> — and its exported fields and methods are <em>promoted</em> to the outer struct, callable as if they were declared there.</p>
+<pre><code class="language-go">type Logger struct {
+    Prefix string
+}
+
+func (l Logger) Logf(format string, args ...any) {
+    fmt.Printf(l.Prefix+&quot;: &quot;+format+&quot;\n&quot;, args...)
+}
+
+type Service struct {
+    Logger // embedded — no field name
+    Name   string
+}
+
+s := Service{Logger: Logger{Prefix: &quot;svc&quot;}, Name: &quot;billing&quot;}
+s.Logf(&quot;started %s&quot;, s.Name) // promoted: really s.Logger.Logf(...)
+fmt.Println(s.Prefix)        // promoted field access: really s.Logger.Prefix
+</code></pre>
+<p><code>s.Logf(...)</code> is pure syntactic sugar for <code>s.Logger.Logf(...)</code>. The embedded value still exists as a field named after its type (<code>s.Logger</code>), and you can always address it explicitly.</p>
+<p>The critical thing to internalize is what promotion is <em>not</em>. It is <strong>not inheritance</strong>, and there is <strong>no subtype polymorphism</strong>. A <code>Service</code> is not a <code>Logger</code>; you cannot pass a <code>Service</code> where a <code>Logger</code> is expected, and a method on <code>Logger</code> that calls another <code>Logger</code> method will never dispatch &ldquo;up&rdquo; into <code>Service</code>. Promotion resolves at compile time against the embedded type&rsquo;s own method set — there is no virtual table, no overriding in the OOP sense. Go composes behavior by <em>delegation</em>, and the promotion syntax just spares you writing the forwarding methods by hand.</p>
+<p><strong>The gotcha:</strong> embedding a struct <strong>by value</strong> copies it (Section 2 applies) — mutating methods on the embedded value operate on the outer struct&rsquo;s copy, which is usually what you want. But embedding a type whose methods have pointer receivers means those methods are promoted only when the outer value is addressable; embed <code>*Logger</code> (a pointer) instead if you need to share the embedded state or call pointer-receiver methods on non-addressable outer values.</p>
+<hr>
+<h2 id="5-name-collisions-and-shadowing">5. Name collisions and shadowing</h2>
+<p>Promotion follows a depth rule: a name at a <strong>shallower</strong> depth wins over the same name deeper in the embedding tree. A field or method declared directly on the outer struct shadows anything promoted from an embedded type at the same or greater depth.</p>
+<pre><code class="language-go">type Base struct {
+    ID int
+}
+
+func (Base) Kind() string { return &quot;base&quot; }
+
+type Widget struct {
+    Base
+    ID   string // shadows Base.ID
+}
+
+w := Widget{Base: Base{ID: 42}, ID: &quot;w-1&quot;}
+fmt.Println(w.ID)      // &quot;w-1&quot;  — the outer field wins
+fmt.Println(w.Base.ID) // 42     — the embedded field is still reachable
+</code></pre>
+<p>When two embedded types sit at the <strong>same depth</strong> and expose the same name, neither is promoted. Accessing the ambiguous name directly is a compile error; you must qualify it.</p>
+<pre><code class="language-go">type A struct{ Name string }
+type B struct{ Name string }
+
+type C struct {
+    A
+    B
+}
+
+c := C{}
+// _ = c.Name // compile error: ambiguous selector c.Name
+c.A.Name = &quot;from A&quot; // must qualify — no promotion of the collided name
+</code></pre>
+<p><strong>The gotcha:</strong> shadowing is silent by design — no warning when an outer field hides a promoted one, which is exactly how you deliberately &ldquo;override&rdquo; behavior. But it also means adding a field to an embedded type can silently shadow, or newly collide with, a name the outer type relied on. Same-depth collisions are the safer failure: they refuse to promote and surface as a compile error only <em>when the ambiguous name is used</em>, so an unused collision can lurk unnoticed.</p>
+<hr>
+<h2 id="6-embedding-interfaces-in-structs">6. Embedding interfaces in structs</h2>
+<p>You can embed an <strong>interface</strong> in a struct, not just a concrete type. The struct then satisfies that interface by delegating to whatever concrete value is stored in the embedded field — and it does so even if the outer struct implements none of the methods itself.</p>
+<pre><code class="language-go">type Reader interface {
+    Read(p []byte) (int, error)
+}
+
+type CountingReader struct {
+    Reader // embedded interface
+    N      int
+}
+
+func (c *CountingReader) Read(p []byte) (int, error) {
+    n, err := c.Reader.Read(p) // delegate to the wrapped Reader
+    c.N += n
+    return n, err
+}
+</code></pre>
+<p>This is the standard decorator pattern: embed the interface, override the one method you care about, and every <em>other</em> method of the interface is promoted straight through to the wrapped value. A common variant embeds an interface you only partially implement — the compiler is satisfied that the type has the full method set (they&rsquo;re promoted), and any unimplemented method that actually gets called panics with a nil dereference if the embedded interface is nil.</p>
+<p><strong>The gotcha:</strong> an embedded interface field is <code>nil</code> until you assign a concrete value into it. Calling a <em>promoted</em> (not overridden) method on a struct whose embedded interface is nil panics at runtime, not compile time — the method set looks complete to the type checker. This is a deliberate, useful trick for test stubs (embed an interface, implement only the methods your test exercises), but ship it to production and the first call to an unimplemented method is a nil-pointer panic.</p>
+<hr>
+<h2 id="7-struct-tags-metadata-the-stdlib-reads-via-reflection">7. Struct tags: metadata the stdlib reads via reflection</h2>
+<p>A struct tag is a <strong>string literal</strong> following a field declaration. Go itself assigns it no meaning — it is opaque metadata that libraries read at runtime via reflection. The conventional format is space-separated <code>key:"value"</code> pairs, and by convention the value is a comma-separated list where the first element is the name and the rest are options.</p>
+<pre><code class="language-go">type User struct {
+    ID        int       `json:&quot;id&quot;`
+    Name      string    `json:&quot;name&quot;`
+    Email     string    `json:&quot;email,omitempty&quot;`
+    passwordH string    `json:&quot;-&quot;`         // unexported: never marshaled anyway
+    Created   time.Time `json:&quot;created_at&quot;`
+}
+</code></pre>
+<p>When you call <code>json.Marshal(user)</code>, <code>encoding/json</code> uses reflection to walk the fields and read each <code>json:"..."</code> tag: it renames <code>ID</code> to <code>id</code> in the output, drops <code>Email</code> entirely when it&rsquo;s empty (that&rsquo;s <code>omitempty</code>), and skips any field tagged <code>json:"-"</code>. None of this is compiler magic — it is <code>encoding/json</code> interpreting strings at runtime.</p>
+<p>You can read tags yourself with the same machinery the standard library uses, which makes concrete that a tag is just a parsed string:</p>
+<pre><code class="language-go">t := reflect.TypeOf(User{})
+f, _ := t.FieldByName(&quot;Email&quot;)
+fmt.Println(f.Tag)              // json:&quot;email,omitempty&quot;
+fmt.Println(f.Tag.Get(&quot;json&quot;)) // email,omitempty
+</code></pre>
+<p>Because tags are namespaced by key, one field can carry directions for several libraries at once — <code>json</code>, a database mapper, and a validator, each reading its own key and ignoring the others:</p>
+<pre><code class="language-go">type Product struct {
+    SKU   string  `json:&quot;sku&quot; db:&quot;sku&quot; validate:&quot;required&quot;`
+    Price float64 `json:&quot;price&quot; db:&quot;price&quot; validate:&quot;gte=0&quot;`
+}
+</code></pre>
+<p><strong>The gotcha:</strong> the tag grammar is enforced only by convention, not the compiler. Use straight double quotes around the value and a single space between pairs — <code>json:"name" db:"name"</code>, never a comma between the two keys. <code>reflect.StructTag.Get</code> returns an empty string for a malformed or missing key rather than erroring, so a typo like <code>json;"name"</code> (semicolon instead of colon) fails <strong>silently</strong>: the field marshals under its Go name and nothing tells you why. <code>go vet</code> catches many malformed tags, so run it. And tags only apply to what reflection can reach — an <strong>unexported</strong> field is invisible to <code>encoding/json</code> regardless of its tag.</p>
+<hr>
+<h2 id="8-the-empty-struct-struct">8. The empty struct: <code>struct{}</code></h2>
+<p><code>struct{}</code> is a struct with no fields. It occupies <strong>zero bytes</strong> of memory, and every value of the type is identical. That &ldquo;carries no data&rdquo; property is precisely its value — it&rsquo;s how you say &ldquo;I need a type here, but no information.&rdquo;</p>
+<p>The canonical use is a <strong>set</strong>. A <code>map[T]struct{}</code> stores keys with a value type that costs nothing, communicating &ldquo;membership only, no payload&rdquo; more honestly than <code>map[T]bool</code>:</p>
+<pre><code class="language-go">seen := make(map[string]struct{})
+seen[&quot;alpha&quot;] = struct{}{}          // the value literal is struct{}{}
+_, ok := seen[&quot;alpha&quot;]              // ok == true → member
+</code></pre>
+<p>The second major use is a <strong>signal channel</strong>, where only the <em>timing</em> of a send matters, never the value carried:</p>
+<pre><code class="language-go">done := make(chan struct{})
+
+go func() {
+    // ... work ...
+    close(done) // or: done &lt;- struct{}{}
+}()
+
+&lt;-done // block until the goroutine signals; the value is irrelevant
+</code></pre>
+<p>Closing the channel (rather than sending) is the idiom for broadcasting &ldquo;done&rdquo; to many waiters at once, since a closed channel yields the zero value to every receiver immediately.</p>
+<p><strong>The gotcha:</strong> the empty <strong>value literal</strong> is <code>struct{}{}</code> — the first braces are the type <code>struct{}</code>, the second construct a value of it. It reads oddly the first time. Note the payoff over <code>map[T]bool</code>: the set version can&rsquo;t be misused by checking a truthiness that was never meant to carry meaning, and a huge set stores no per-entry value bytes. For channels, prefer <code>chan struct{}</code> for pure signals so readers of the code know no data is meant to flow — reserve typed channels for when the value actually matters.</p>
+<hr>
+<h2 id="choosing-the-right-tool">Choosing the right tool</h2>
+<table><caption class="sr-only">Choosing the right tool</caption>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Reach for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pass a small value, no mutation needed</td>
+<td>Struct by value (copy is cheap and safe)</td>
+</tr>
+<tr>
+<td>Function must mutate the caller&rsquo;s struct</td>
+<td>Pointer receiver / <code>*T</code> parameter</td>
+</tr>
+<tr>
+<td>Struct must be a map key</td>
+<td>All fields comparable — no slice/map/func fields</td>
+</tr>
+<tr>
+<td>Value equality on a type with slice/map fields</td>
+<td>An explicit <code>Equal</code> method (or <code>reflect.DeepEqual</code>)</td>
+</tr>
+<tr>
+<td>Reuse behavior without rewriting forwarders</td>
+<td>Embed the concrete type</td>
+</tr>
+<tr>
+<td>Wrap/decorate an interface, override one method</td>
+<td>Embed the interface, implement the one method</td>
+</tr>
+<tr>
+<td>Attach library metadata to fields</td>
+<td>Struct tags (<code>json:"..."</code>, etc.)</td>
+</tr>
+<tr>
+<td>Set membership, or a pure signal channel</td>
+<td><code>map[T]struct{}</code> / <code>chan struct{}</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Structs are values, and values are copied.</strong> Assignment, function arguments, and <code>for range</code> all copy the whole struct; use pointers to mutate the original. The copy is shallow — slice/map/pointer fields still share their backing memory.</li>
+<li><strong>Comparability is inherited from the fields.</strong> All fields comparable ⇒ the struct is comparable and usable as a map key. One slice, map, or func field makes the whole struct uncomparable, and <code>==</code> becomes a compile error.</li>
+<li><strong>Embedding is delegation, not inheritance.</strong> Promotion is compile-time sugar for forwarding; there is no subtype polymorphism, and shallower names shadow deeper ones while same-depth collisions refuse to promote.</li>
+<li><strong>An embedded interface delegates to its stored value</strong> — powerful for decorators and stubs, but a promoted method on a nil embedded interface panics at runtime.</li>
+<li><strong>Struct tags are just strings</strong> that libraries interpret via reflection. Mind the grammar (quotes, spaces), run <code>go vet</code>, and remember unexported fields are invisible to <code>encoding/json</code> regardless of tag.</li>
+<li><strong><code>struct{}</code> is the zero-cost placeholder</strong> — <code>map[T]struct{}</code> for sets, <code>chan struct{}</code> for signals; the value literal is <code>struct{}{}</code>.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><em>Effective Go</em> — the &ldquo;Embedding&rdquo; section, for the canonical treatment of anonymous fields and method promotion.</li>
+<li>The Go blog, <em>JSON and Go</em> — how <code>encoding/json</code> reads struct tags, and the <code>omitempty</code> / <code>-</code> conventions.</li>
+<li><code>go doc reflect.StructTag</code> — the exact tag grammar and the <code>Get</code> / <code>Lookup</code> methods the standard library uses to parse tags at runtime.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/production-go-09-maps.html">Maps</a>
+      <span class="related-date">Jul 04</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-08-arrays-and-slices.html">Arrays and Slices</a>
+      <span class="related-date">Jul 03</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

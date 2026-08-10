@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Strings, Runes, Bytes, and UTF-8 — Pratik Dhanave</title>
+<meta name="description" content="What a Go string actually is under the hood — an immutable read-only slice of bytes, not a sequence of characters — and how bytes, runes, and code...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Strings, Runes, Bytes, and UTF-8 — Pratik Dhanave">
+<meta property="og:description" content="What a Go string actually is under the hood — an immutable read-only slice of bytes, not a sequence of characters — and how bytes, runes, and code points relate, so you stop shipping the classic multibyte bugs.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-07-strings-runes-bytes-utf8.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-02T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Strings">
+<meta property="article:tag" content="Unicode">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Strings, Runes, Bytes, and UTF-8 — Pratik Dhanave">
+<meta name="twitter:description" content="What a Go string actually is under the hood — an immutable read-only slice of bytes, not a sequence of characters — and how bytes, runes, and code points relate, so you stop shipping the classic multibyte bugs.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-07-strings-runes-bytes-utf8.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Strings, Runes, Bytes, and UTF-8",
+  "description": "What a Go string actually is under the hood \u2014 an immutable read-only slice of bytes, not a sequence of characters \u2014 and how bytes, runes, and code points relate, so you stop shipping the classic multibyte bugs.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-02",
+  "dateModified": "2026-07-02",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Strings, Unicode",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-07-strings-runes-bytes-utf8.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-07-strings-runes-bytes-utf8.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Strings, Runes, Bytes, and UTF-8</h1>
+    <p class="post-subtitle">What a Go string actually is under the hood — an immutable read-only slice of bytes, not a sequence of characters — and how bytes, runes, and code points relate, so you stop shipping the classic multibyte bugs.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-02">July 02, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/strings/" class="tag-link"><span class="tag">#Strings</span></a><a href="/blog/tags/unicode/" class="tag-link"><span class="tag">#Unicode</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 7 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-06-pointers-and-addressability.html" class="series-prev">&larr; Part 6: Pointers and Addressability</a>
+<a href="/blog/posts/production-go-08-arrays-and-slices.html" class="series-next">Part 8: Arrays and Slices &rarr;</a></div>
+  </div>
+
+
+
+  <p>Almost everyone who writes Go carries an unexamined assumption from other languages: that a string is a sequence of characters and that <code>s[0]</code> gives you the first character. In Go, both are wrong, and the gap between what you assume and what&rsquo;s true is where a whole family of production bugs lives — truncated user names, mangled emoji, <code>substring</code> calls that split a character down the middle, &ldquo;uppercase&rdquo; functions that quietly ignore half the world&rsquo;s alphabets.</p>
+<p>The fix isn&rsquo;t a library. It&rsquo;s a precise mental model of four things — <strong>bytes</strong>, <strong>runes</strong>, <strong>code points</strong>, and <strong>characters</strong> — and the knowledge that Go conflates none of them by accident. Once the model clicks, the standard library (<code>strings</code>, <code>bytes</code>, <code>unicode</code>, <code>unicode/utf8</code>) stops feeling like a grab bag and starts feeling like a coherent toolkit. This guide builds that model from the byte up.</p>
+<hr>
+<h2 id="1-a-string-is-an-immutable-slice-of-bytes">1. A string is an immutable slice of bytes</h2>
+<p>Start with the definition, because everything follows from it. A Go string is a read-only sequence of bytes. Not characters — bytes. The runtime represents it as a two-word header: a pointer to the backing array and a length. That&rsquo;s it.</p>
+<pre><code class="language-go">s := &quot;héllo&quot;
+fmt.Println(len(s)) // 6, not 5 — the é is two bytes
+
+for i := 0; i &lt; len(s); i++ {
+    fmt.Printf(&quot;%d &quot;, s[i]) // prints byte values: 104 195 169 108 108 111
+}
+</code></pre>
+<p>Two consequences fall out of &ldquo;read-only slice of bytes&rdquo; immediately. First, <code>len(s)</code> is the <strong>byte count</strong>, and for any non-ASCII text it will not equal what a human calls the length. Second, strings are immutable — you cannot assign to <code>s[i]</code>. The compiler rejects it:</p>
+<pre><code class="language-go">s := &quot;hello&quot;
+s[0] = 'H' // compile error: cannot assign to s[0]
+</code></pre>
+<p>Immutability is a feature, not a limitation. It&rsquo;s why strings are safe to share across goroutines without copying, why they work as map keys, and why slicing a string is cheap — <code>s[1:4]</code> creates a new header pointing into the <em>same</em> backing array, no allocation, no copy.</p>
+<p><strong>The gotcha:</strong> because a slice of a string shares the backing array, holding a tiny substring of a huge string keeps the <em>entire</em> original alive in memory. <code>header := hugeString[:20]</code> pins all of <code>hugeString</code> until <code>header</code> is collected. When you slice a small piece out of a large string and expect to hold it long-term, force a copy with <code>strings.Clone(header)</code> (Go 1.18+) so the GC can free the original.</p>
+<hr>
+<h2 id="2-source-is-utf-8-and-so-is-everything-else">2. Source is UTF-8, and so is everything else</h2>
+<p>Go source files are defined to be UTF-8. That single decision cascades: a string literal in your source is stored as the UTF-8 encoding of the text you typed. When you write <code>"café"</code>, the bytes in the compiled binary are the UTF-8 bytes for those four characters — the <code>é</code> becomes the two-byte sequence <code>0xC3 0xA9</code>.</p>
+<p>UTF-8 is a variable-width encoding. A code point takes one to four bytes:</p>
+<ul>
+<li>ASCII (U+0000–U+007F) → 1 byte, identical to plain ASCII</li>
+<li>Most Latin-with-accents, Greek, Cyrillic, Hebrew, Arabic → 2 bytes</li>
+<li>The rest of the Basic Multilingual Plane, including most CJK → 3 bytes</li>
+<li>Emoji, rare CJK, and everything above U+FFFF → 4 bytes</li>
+</ul>
+<p>The elegance is backward compatibility: valid ASCII is valid UTF-8 with no change, so any ASCII-only string behaves exactly the way your intuition expects. The bugs only appear the moment real user data — a name, an address, a message — steps outside ASCII.</p>
+<pre><code class="language-go">s := &quot;Go💙&quot;
+fmt.Println(len(s)) // 6: 'G'(1) + 'o'(1) + '💙'(4) — the heart is a 4-byte code point
+</code></pre>
+<p>Nothing in the string header tells you where one character ends and the next begins. That boundary information is encoded <em>in the bytes themselves</em>, per the UTF-8 rules, and decoding it is what the rune-aware tools do for you.</p>
+<hr>
+<h2 id="3-runes-are-code-points-characters-are-something-else-again">3. Runes are code points; characters are something else again</h2>
+<p>A <strong>rune</strong> is Go&rsquo;s name for a Unicode code point. It&rsquo;s an alias for <code>int32</code>, and a rune literal uses single quotes:</p>
+<pre><code class="language-go">var r rune = '💙'
+fmt.Println(r)          // 128153 — the numeric code point
+fmt.Printf(&quot;%U\n&quot;, r)   // U+1F499 — the standard notation
+fmt.Printf(&quot;%c\n&quot;, r)   // 💙 — rendered
+</code></pre>
+<p>So we have a three-level hierarchy, and it pays to keep the terms straight:</p>
+<ul>
+<li><strong>Byte</strong> — a <code>uint8</code>; the unit of storage. UTF-8 encodes code points into one or more bytes.</li>
+<li><strong>Rune / code point</strong> — an <code>int32</code>; a single Unicode scalar value. <code>'A'</code>, <code>'é'</code>, <code>'💙'</code> are each one rune.</li>
+<li><strong>Character</strong> — a human-perceived symbol (a <em>grapheme cluster</em>). This is <strong>not</strong> the same as a rune.</li>
+</ul>
+<p>That last distinction trips up even experienced engineers. A &ldquo;character&rdquo; as a person sees it can be built from several code points. <code>é</code> might be one code point (U+00E9) or two (<code>e</code> + a combining accent, U+0065 U+0301). A flag emoji is two code points. A skin-toned emoji is a base plus a modifier. So even after you correctly count runes, you may still not have counted &ldquo;characters&rdquo; the way a user would. The standard library gives you bytes and runes for free; grapheme-cluster segmentation requires an external package (e.g. <code>golang.org/x/text/...</code>). For most backend work, runes are the right unit — just know the ceiling.</p>
+<hr>
+<h2 id="4-indexing-gives-a-byte-ranging-decodes-runes">4. Indexing gives a byte; ranging decodes runes</h2>
+<p>This is the single most important operational fact in the whole topic. <strong>Indexing a string returns a byte. Ranging over a string returns runes.</strong> They are different operations with different types.</p>
+<pre><code class="language-go">s := &quot;héllo&quot;
+
+b := s[1]              // b is a byte (uint8) = 195, the FIRST byte of é — garbage on its own
+fmt.Printf(&quot;%T\n&quot;, b)  // uint8
+
+for i, r := range s {
+    fmt.Printf(&quot;index=%d rune=%c (%d)\n&quot;, i, r, r)
+}
+// index=0 rune=h
+// index=1 rune=é   &lt;- the range loop decoded both bytes of é
+// index=3 rune=l   &lt;- note the index JUMPED from 1 to 3
+// index=4 rune=l
+// index=5 rune=o
+</code></pre>
+<p>Study the indices in that loop. The <code>i</code> is a <strong>byte offset into the string</strong>, not a rune counter — it jumps from 1 to 3 because <code>é</code> occupied bytes 1 and 2. This is exactly right and exactly the thing people misread: <code>for i, r := range s</code> decodes one UTF-8 sequence per iteration, hands you the decoded rune in <code>r</code>, and reports where that rune <em>started</em> in <code>i</code>.</p>
+<p><strong>The gotcha:</strong> <code>s[i]</code> is a byte, so <code>string(s[i])</code> does not &ldquo;get the character at position i&rdquo; — it converts a single byte to a string, and for any multibyte character that byte is only a fragment. <code>string("héllo"[1])</code> yields <code>"Ã"</code> (the replacement of one stray byte), not <code>"é"</code>. If you find yourself writing <code>string(s[i])</code> to pull out a character, that&rsquo;s the tell you should be ranging, or converting to <code>[]rune</code> first.</p>
+<hr>
+<h2 id="5-converting-to-byte-and-rune-and-what-it-costs">5. Converting to []byte and []rune — and what it costs</h2>
+<p>Go gives you two conversions, and their cost profiles differ sharply.</p>
+<pre><code class="language-go">s := &quot;héllo&quot;
+
+bs := []byte(s)   // copies the bytes; len(bs) == len(s) == 6
+rs := []rune(s)   // DECODES the UTF-8 and allocates an int32 per code point; len(rs) == 5
+back := string(rs) // re-encodes to UTF-8
+</code></pre>
+<p><code>[]byte(s)</code> is a straight copy of the storage — same length as the string, one allocation. It&rsquo;s what you reach for when handing data to an API that mutates bytes or that speaks in <code>[]byte</code> (most of <code>io</code>, <code>bytes</code>, <code>encoding/*</code>). Note that Go optimizes several common patterns to avoid the copy — <code>for range []byte(s)</code> decodes without allocating, and <code>string(b)</code> used directly as a map-lookup key (<code>m[string(b)]</code>) skips the allocation — but semantically assume a copy.</p>
+<p><code>[]rune(s)</code> is heavier: it walks the whole string, decodes every UTF-8 sequence, and allocates a fresh <code>int32</code> slice — four bytes per code point regardless of the original encoding. You do this when you genuinely need <strong>random access by character position</strong> or need to reverse, count, or index text in a way that must respect character boundaries.</p>
+<pre><code class="language-go">// Correctly reversing a string of runes (ASCII-only naive byte reversal would corrupt UTF-8)
+func reverse(s string) string {
+    rs := []rune(s)
+    for i, j := 0, len(rs)-1; i &lt; j; i, j = i+1, j-1 {
+        rs[i], rs[j] = rs[j], rs[i]
+    }
+    return string(rs)
+}
+</code></pre>
+<p><strong>The gotcha:</strong> don&rsquo;t reach for <code>[]rune</code> reflexively. If all you need is to <em>count</em> runes, <code>utf8.RuneCountInString(s)</code> does it without allocating the whole slice. If all you need is to <em>iterate</em>, <code>for range</code> decodes without allocating anything. The <code>[]rune</code> conversion earns its allocation only when you need indexed, mutable, character-level access — reversing, or grabbing &ldquo;the 5th character.&rdquo; For streaming or large inputs, prefer the allocation-free paths.</p>
+<hr>
+<h2 id="6-counting-lens-is-bytes-runecountinstring-is-characters-ish">6. Counting: len(s) is bytes, RuneCountInString is characters-ish</h2>
+<p>Because <code>len</code> counts bytes, any &ldquo;how long is this string to a human&rdquo; question needs <code>utf8</code>:</p>
+<pre><code class="language-go">import &quot;unicode/utf8&quot;
+
+s := &quot;café&quot;
+fmt.Println(len(s))                    // 5 (é is 2 bytes)
+fmt.Println(utf8.RuneCountInString(s)) // 4 (code points)
+</code></pre>
+<p>Use <code>len(s)</code> when you care about storage, buffer sizes, or byte offsets. Use <code>utf8.RuneCountInString(s)</code> when you care about &ldquo;how many code points&rdquo; — validating a max-length field the way a user perceives it, for instance. And remember from section 3 that even the rune count isn&rsquo;t the grapheme count; a length limit expressed in &ldquo;characters&rdquo; against emoji or combining marks needs grapheme segmentation to match user expectations exactly.</p>
+<p><code>utf8</code> also gives you the low-level decode primitives when you want to walk bytes manually: <code>utf8.DecodeRuneInString</code> returns the first rune and its byte width, <code>utf8.ValidString</code> checks whether a byte sequence is well-formed UTF-8 (worth doing at trust boundaries before you assume the encoding), and <code>utf8.RuneLen(r)</code> tells you how many bytes a rune will occupy when encoded.</p>
+<hr>
+<h2 id="7-the-package-toolkit-strings-bytes-unicode-utf8">7. The package toolkit: strings, bytes, unicode, utf8</h2>
+<p>Four packages cover the vast majority of text work, and knowing which is which saves a lot of searching.</p>
+<table><caption class="sr-only">7. The package toolkit: strings, bytes, unicode, utf8</caption>
+<thead>
+<tr>
+<th>Package</th>
+<th>Operates on</th>
+<th>Use it for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>strings</code></td>
+<td><code>string</code></td>
+<td>Split, Join, Contains, Replace, ToUpper, TrimSpace, Fields, and <code>strings.Builder</code></td>
+</tr>
+<tr>
+<td><code>bytes</code></td>
+<td><code>[]byte</code></td>
+<td>The exact same API as <code>strings</code>, but for byte slices — avoids a <code>string</code> copy in hot paths</td>
+</tr>
+<tr>
+<td><code>unicode</code></td>
+<td><code>rune</code></td>
+<td>Per-rune classification: <code>IsLetter</code>, <code>IsDigit</code>, <code>IsSpace</code>, <code>ToUpper</code>, <code>ToLower</code></td>
+</tr>
+<tr>
+<td><code>unicode/utf8</code></td>
+<td>bytes ↔ runes</td>
+<td>Encode/decode, count, and validate UTF-8</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>strings</code>/<code>bytes</code> symmetry is deliberate: if you already have a <code>[]byte</code> (say, from an <code>io.Reader</code>), reach for <code>bytes.Contains</code> rather than converting to a string first — the conversion is a copy you don&rsquo;t need. And <code>unicode</code> is the package that actually knows about the Unicode tables, so per-character logic (&ldquo;is this a letter, in any language?&rdquo;) belongs there, not in hand-rolled ASCII range checks like <code>c &gt;= 'a' &amp;&amp; c &lt;= 'z'</code>.</p>
+<p><strong>The gotcha:</strong> <code>strings.ToUpper</code> and <code>unicode.ToUpper</code> are Unicode-aware and handle accented Latin, Greek, and Cyrillic correctly — but they use <em>default</em> case mapping, which is locale-independent. The famous trap is Turkish: the uppercase of <code>i</code> is a dotted <code>İ</code> in Turkish locale, but <code>strings.ToUpper</code> gives the default <code>I</code>. If your product is locale-sensitive, <code>golang.org/x/text/cases</code> with a language tag is the correct tool, not the standard library. For locale-neutral work (identifiers, protocol tokens), the standard <code>ToUpper</code>/<code>ToLower</code> are exactly right.</p>
+<hr>
+<h2 id="8-stringsbuilder-concatenation-without-the-quadratic-blowup">8. strings.Builder: concatenation without the quadratic blowup</h2>
+<p>Because strings are immutable, <code>s += piece</code> in a loop allocates a brand-new string every iteration and copies everything so far — classic O(n²) behavior that looks innocent in review and melts under load.</p>
+<pre><code class="language-go">// Bad: allocates and copies on every iteration
+var s string
+for _, p := range parts {
+    s += p
+}
+
+// Good: one growing buffer, amortized O(n)
+var b strings.Builder
+for _, p := range parts {
+    b.WriteString(p)
+}
+s := b.String()
+</code></pre>
+<p><code>strings.Builder</code> writes into an internal <code>[]byte</code> that grows geometrically, then hands you the finished string with <code>b.String()</code> — and crucially, <code>String()</code> does <strong>not</strong> copy the buffer (it uses an unsafe conversion internally), so the final result is free. If you know the approximate final size, <code>b.Grow(n)</code> pre-sizes the buffer and eliminates the intermediate growth allocations entirely. (This forward-references the broader allocation story — the same &ldquo;don&rsquo;t reallocate in a loop&rdquo; instinct applies to slices and maps, which a later post covers in depth.)</p>
+<p><strong>The gotcha:</strong> never copy a <code>strings.Builder</code> after you&rsquo;ve written to it — the type embeds a check that panics if a copied Builder is used, because copying would share the same backing array in a way that breaks the no-copy <code>String()</code> guarantee. Pass a <code>*strings.Builder</code> if you need to hand it to a function, never a <code>strings.Builder</code> by value.</p>
+<hr>
+<h2 id="9-where-these-bugs-actually-bite">9. Where these bugs actually bite</h2>
+<p>Three real patterns account for most string bugs in production Go:</p>
+<ul>
+<li><strong>Slicing multibyte strings by byte offset.</strong> <code>s[:maxLen]</code> to truncate a user field looks fine in tests full of ASCII and corrupts the last character the moment a two-byte accent straddles the boundary — you get an invalid UTF-8 sequence and a <code>�</code> in the UI. Truncate on rune boundaries: convert to <code>[]rune</code>, slice, convert back, or walk with <code>utf8.DecodeRuneInString</code> until you hit the byte budget.</li>
+<li><strong><code>string(intValue)</code> when you meant a number.</strong> <code>string(65)</code> is <code>"A"</code>, not <code>"65"</code> — it&rsquo;s interpreted as a code point. This is such a common mistake that <code>go vet</code> flags it; use <code>strconv.Itoa</code> or <code>fmt.Sprint</code> to stringify a number.</li>
+<li><strong>ASCII-only case and classification.</strong> Hand-rolled <code>c &gt;= 'a' &amp;&amp; c &lt;= 'z'</code> checks silently exclude every non-English letter. Use <code>unicode.IsLetter</code>, <code>unicode.ToUpper</code>, and friends so your validation and normalization work for the whole user base, not just the ASCII subset.</li>
+</ul>
+<p>The common thread: bugs hide in test suites written entirely in English ASCII and surface the first time a real name, address, or emoji arrives. Test with genuinely multibyte input — accented Latin, CJK, and at least one 4-byte emoji — and these defects show up before your users find them.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>A string is an immutable, read-only slice of bytes.</strong> <code>len(s)</code> is bytes; slicing shares the backing array (and can pin a large original — <code>strings.Clone</code> to break the link).</li>
+<li><strong>Source is UTF-8</strong>, so string literals store variable-width encoded bytes: 1–4 per code point.</li>
+<li><strong>Byte ≠ rune ≠ character.</strong> A byte is storage, a rune is a code point (<code>int32</code>), and a user-perceived character can span several runes.</li>
+<li><strong><code>s[i]</code> is a byte; <code>for i, r := range s</code> decodes runes</strong> and reports byte offsets. <code>string(s[i])</code> on multibyte text gives you a fragment, not a character.</li>
+<li><strong><code>[]byte(s)</code> copies bytes cheaply; <code>[]rune(s)</code> decodes and allocates per code point</strong> — use the allocation-free paths (<code>for range</code>, <code>utf8.RuneCountInString</code>) unless you truly need indexed character access.</li>
+<li><strong>Know the toolkit:</strong> <code>strings</code>/<code>bytes</code> (same API, different type), <code>unicode</code> (per-rune classification), <code>unicode/utf8</code> (encode/decode/count/validate).</li>
+<li><strong><code>strings.Builder</code> turns O(n²) concatenation into amortized O(n)</strong> — never copy it after writing.</li>
+</ul>
+<p>Get the byte-vs-rune model right and most &ldquo;unicode bugs&rdquo; simply stop happening, because you&rsquo;re no longer treating storage as if it were meaning.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/blog/strings">Strings, bytes, runes and characters in Go</a> — the canonical Go blog piece on exactly this model, and the source to reach for when a teammate needs convincing.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-07-hierarchical-supervision.html">Hierarchical Supervision: Bounded Fan-Out, Ordered Fan-In, Fault Isolation</a>
+      <span class="related-date">Jul 24</span>
+    </li>
+    <li>
+      <a href="/blog/posts/harness-engineering-go-06-orchestration-handoff.html">Orchestration and Handoff: Routing Intent to a Specialist</a>
+      <span class="related-date">Jul 23</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

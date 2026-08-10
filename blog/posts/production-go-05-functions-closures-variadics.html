@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Functions, Closures, and Variadics — Pratik Dhanave</title>
+<meta name="description" content="How Go treats functions as ordinary values — and what that buys you: the (result, error) idiom, variadic APIs, closures over shared state, and the...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Functions, Closures, and Variadics — Pratik Dhanave">
+<meta property="og:description" content="How Go treats functions as ordinary values — and what that buys you: the (result, error) idiom, variadic APIs, closures over shared state, and the decorator/middleware/option patterns that fall out of...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-05-functions-closures-variadics.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-06-30T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Functions">
+<meta property="article:tag" content="Programming">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Functions, Closures, and Variadics — Pratik Dhanave">
+<meta name="twitter:description" content="How Go treats functions as ordinary values — and what that buys you: the (result, error) idiom, variadic APIs, closures over shared state, and the decorator/middleware/option patterns that fall out of...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-05-functions-closures-variadics.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Functions, Closures, and Variadics",
+  "description": "How Go treats functions as ordinary values \u2014 and what that buys you: the (result, error) idiom, variadic APIs, closures over shared state, and the decorator/middleware/option patterns that fall out of...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-06-30",
+  "dateModified": "2026-06-30",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Functions, Programming",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-05-functions-closures-variadics.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-05-functions-closures-variadics.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Functions, Closures, and Variadics</h1>
+    <p class="post-subtitle">How Go treats functions as ordinary values — and what that buys you: the (result, error) idiom, variadic APIs, closures over shared state, and the decorator/middleware/option patterns that fall out of passing functions around.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-06-30">June 30, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/functions/" class="tag-link"><span class="tag">#Functions</span></a><a href="/blog/tags/programming/" class="tag-link"><span class="tag">#Programming</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 5 of 45</span>
+    <span class="series-title">Road Go Ever On</span>
+    <div class="series-nav"><a href="/blog/posts/production-go-04-control-flow-and-defer.html" class="series-prev">&larr; Part 4: Control Flow and defer</a>
+<a href="/blog/posts/production-go-06-pointers-and-addressability.html" class="series-next">Part 6: Pointers and Addressability &rarr;</a></div>
+  </div>
+
+
+
+  <p>Most languages let you <em>call</em> functions. Go lets you <em>hold</em> them — pass them as arguments, return them, stash them in structs and maps, and close over the variables around them. Once a function is just another value, a surprising amount of idiomatic Go stops looking like a special feature and starts looking like the same small rule applied over and over: HTTP middleware, retry wrappers, functional options, the <code>sort.Slice</code> comparator, <code>defer</code>, <code>http.HandlerFunc</code>. This post walks the mechanics an experienced engineer needs in their head — multiple returns, named results, variadics, closures, and the higher-order patterns — with an eye on where Go&rsquo;s semantics bite.</p>
+<p>Everything here is standard-library-only Go. Assume Go 1.22 or newer unless noted.</p>
+<hr>
+<h2 id="functions-are-values">Functions are values</h2>
+<p>A function type in Go is written by its signature: <code>func(int, int) int</code>. Any function or method with that shape is assignable to a variable of that type, storable in a slice, and passable as an argument. There is nothing special about a &ldquo;top-level&rdquo; function — it is a value that happens to have a name at package scope.</p>
+<pre><code class="language-go">type binOp func(a, b int) int
+
+func add(a, b int) int { return a + b }
+func mul(a, b int) int { return a * b }
+
+func main() {
+    ops := map[string]binOp{&quot;add&quot;: add, &quot;mul&quot;: mul}
+    fmt.Println(ops[&quot;add&quot;](3, 4)) // 7
+    fmt.Println(ops[&quot;mul&quot;](3, 4)) // 12
+}
+</code></pre>
+<p>Two things fall out of this. First, a named function type like <code>binOp</code> is worth defining once you pass the shape around more than once — it documents intent and shortens signatures. Second, the zero value of a function type is <code>nil</code>, and calling a <code>nil</code> function panics.</p>
+<p><strong>The gotcha:</strong> a function-typed struct field or map entry that was never assigned is <code>nil</code>, not a no-op. <code>ops["divide"](3, 4)</code> panics with &ldquo;invalid memory address or nil pointer dereference&rdquo; because the map returns the zero value for a missing key. Guard optional callbacks with <code>if fn != nil</code> before calling, and check <code>map</code> membership with the comma-ok form when a missing key is legitimate.</p>
+<hr>
+<h2 id="multiple-return-values-and-the-result-error-idiom">Multiple return values and the (result, error) idiom</h2>
+<p>Go functions return any number of values, and the language leans on this hard: the universal convention is <code>(result, error)</code>, with <code>error</code> last. The caller inspects the error before trusting the result.</p>
+<pre><code class="language-go">func parsePort(s string) (int, error) {
+    n, err := strconv.Atoi(s)
+    if err != nil {
+        return 0, fmt.Errorf(&quot;parse port %q: %w&quot;, s, err)
+    }
+    if n &lt; 1 || n &gt; 65535 {
+        return 0, fmt.Errorf(&quot;port %d out of range&quot;, n)
+    }
+    return n, nil
+}
+</code></pre>
+<p>The contract that makes this work: <strong>when <code>error</code> is non-nil, treat every other return value as invalid.</strong> On the failure path above we return <code>0</code> for the port, but the caller must not read it — the error is the signal, the zero is just filler. Some functions deliberately return a partially useful result alongside an error (<code>io.Reader.Read</code> returns bytes <em>and</em> a possible error in the same call), but those are documented exceptions, not the default.</p>
+<p>Wrapping with <code>%w</code> (as above) preserves the underlying error so callers can <code>errors.Is</code> / <code>errors.As</code> against it. Use <code>%v</code> when you deliberately want to <em>sever</em> that chain and not leak an implementation detail.</p>
+<p><strong>The gotcha:</strong> the comma-ok forms — <code>v, ok := m[k]</code>, <code>v, ok := &lt;-ch</code>, <code>x, ok := i.(T)</code> — look like the error idiom but are not it. <code>ok</code> is a <code>bool</code>, and there is no error to unwrap. Reaching for <code>err</code> where the language gives you <code>ok</code> (or vice versa) is a common slip; the second value&rsquo;s <em>type</em> tells you which protocol you&rsquo;re in.</p>
+<hr>
+<h2 id="named-return-values-and-when-they-hurt">Named return values — and when they hurt</h2>
+<p>Go lets you name the return values in the signature. Named results are pre-declared as zero-valued variables you can assign to, and a bare <code>return</code> sends their current values back.</p>
+<p>Where they genuinely help is in cooperation with <code>defer</code> — a deferred closure can read and modify named results <em>after</em> the <code>return</code> statement has set them but <em>before</em> the function actually returns to the caller. This is the standard way to decorate an error or recover from a panic:</p>
+<pre><code class="language-go">func doWork() (err error) {
+    defer func() {
+        if r := recover(); r != nil {
+            err = fmt.Errorf(&quot;recovered from panic: %v&quot;, r)
+        }
+    }()
+    // ... code that might panic ...
+    return nil
+}
+</code></pre>
+<p>Here <code>err</code> must be named — the deferred function has no other way to reach the value the function is about to return. Same trick for wrapping: <code>defer func() { if err != nil { err = fmt.Errorf("doWork: %w", err) } }()</code>.</p>
+<p>Where named results <em>hurt</em> is bare <code>return</code> in any function longer than a few lines. A naked <code>return</code> forces the reader to scroll up to the signature to learn what is actually being returned, and it makes it easy to return a stale or half-assigned value by accident.</p>
+<p><strong>The gotcha:</strong> a named result is a real variable, so it silently shadows. Write <code>err := doSomething()</code> with <code>:=</code> inside a function that already has a named <code>err</code> result <em>in a nested block</em>, and you create a new <code>err</code> that never reaches the deferred wrapper — <code>go vet</code>&rsquo;s shadow analysis and tools like <code>staticcheck</code> catch some of these, but not all. Prefer named results for the <code>defer</code>-decorates-error pattern and short helpers; assign explicitly and avoid naked <code>return</code> everywhere else.</p>
+<hr>
+<h2 id="variadic-parameters-and-slice-spreading">Variadic parameters and <code>slice...</code> spreading</h2>
+<p>A trailing <code>...T</code> parameter accepts zero or more arguments; inside the function it is a <code>[]T</code>.</p>
+<pre><code class="language-go">func sum(nums ...int) int {
+    total := 0
+    for _, n := range nums {
+        total += n
+    }
+    return total
+}
+
+sum()            // 0   — nums is nil (length 0, so range over it is still safe)
+sum(1, 2, 3)     // 6
+xs := []int{4, 5, 6}
+sum(xs...)       // 15  — spread an existing slice
+</code></pre>
+<p><code>fmt.Printf(format string, args ...any)</code> is the canonical example: the variadic tail is what lets you pass any number of format arguments. The spread form <code>sum(xs...)</code> passes an existing slice without re-listing its elements.</p>
+<p><strong>The gotcha:</strong> <code>f(xs...)</code> does <strong>not</strong> copy <code>xs</code> — the function receives a slice header pointing at the <em>same backing array</em>. If the function reassigns elements (<code>nums[0] = 99</code>), the caller&rsquo;s slice sees the change. And you cannot mix the two calling forms: <code>sum(1, xs...)</code> is a compile error — it&rsquo;s either individual arguments or a single spread, never both. Also note <code>append(dst, src...)</code> is this same spread syntax, and passing <code>nil...</code> is legal and yields a <code>nil</code> slice inside the callee (length 0, so <code>range</code> over it is safe).</p>
+<hr>
+<h2 id="closures-capture-by-reference">Closures: capture by reference</h2>
+<p>A function literal (an anonymous <code>func</code>) captures the variables it references from the enclosing scope — <strong>by reference, not by value.</strong> The closure and the surrounding code share the <em>same</em> variable, so mutations flow both ways and the variable outlives the scope that declared it as long as the closure is reachable.</p>
+<pre><code class="language-go">func counter() func() int {
+    count := 0
+    return func() int {
+        count++
+        return count
+    }
+}
+
+c := counter()
+fmt.Println(c(), c(), c()) // 1 2 3
+</code></pre>
+<p><code>count</code> is a local of <code>counter</code>, yet it survives after <code>counter</code> returns because the returned closure still references it. Each call to <code>counter()</code> produces a fresh, independent <code>count</code> — closures capture variables, not values, and each activation has its own.</p>
+<p>This is the mechanism behind memoization, lazy initialization, and stateful iterators. It is also the mechanism behind the single most-hit bug in Go&rsquo;s history.</p>
+<hr>
+<h2 id="the-loop-variable-capture-trap-and-the-go-122-fix">The loop-variable capture trap (and the Go 1.22 fix)</h2>
+<p>For over a decade, this code did not do what almost everyone expected:</p>
+<pre><code class="language-go">funcs := make([]func(), 0, 3)
+for _, v := range []string{&quot;a&quot;, &quot;b&quot;, &quot;c&quot;} {
+    funcs = append(funcs, func() { fmt.Print(v) })
+}
+for _, f := range funcs {
+    f()
+}
+</code></pre>
+<p>Under Go 1.21 and earlier, the loop variable <code>v</code> was <strong>one variable reused across all iterations.</strong> All three closures captured that same <code>v</code>, and by the time they ran the loop had finished with <code>v == "c"</code> — so the output was <code>ccc</code>, not <code>abc</code>. The canonical fix was to shadow the variable per iteration: <code>v := v</code> inside the loop body, creating a fresh binding for each closure to capture.</p>
+<p><strong>The gotcha:</strong> as of <strong>Go 1.22, the loop variable&rsquo;s scope changed</strong> — <code>for</code> loops now create a new instance of the loop variable each iteration, so the snippet above prints <code>abc</code> with no <code>v := v</code> workaround. This is gated by the <code>go</code> directive in <code>go.mod</code>: a module declaring <code>go 1.22</code>+ gets the new semantics; one declaring <code>go 1.21</code> or earlier keeps the old ones even on a newer toolchain — so the <em>same source</em> can behave differently depending on <code>go.mod</code>. Two takeaways: know which semantics your module is on, and remember the trap still exists for <em>any</em> closure over a mutable variable that isn&rsquo;t a loop variable — a <code>defer func(){ ... }()</code> over a variable you reassign later, or a goroutine capturing a shared accumulator, will still surprise you.</p>
+<hr>
+<h2 id="passing-functions-in-strategy-and-callbacks">Passing functions in: strategy and callbacks</h2>
+<p>Once functions are values, &ldquo;inject the varying behavior as a function&rdquo; replaces a lot of interface ceremony. The standard library does this everywhere — <code>sort.Slice</code> takes a <code>less func(i, j int) bool</code>; <code>filepath.WalkDir</code> takes a visitor.</p>
+<pre><code class="language-go">func Map[T, U any](in []T, f func(T) U) []U {
+    out := make([]U, len(in))
+    for i, v := range in {
+        out[i] = f(v)
+    }
+    return out
+}
+
+lengths := Map([]string{&quot;go&quot;, &quot;rust&quot;}, func(s string) int { return len(s) })
+// []int{2, 4}
+</code></pre>
+<p>The callback is the extension point: <code>Map</code> knows nothing about <code>int</code> or <code>string</code>, only that some <code>f</code> turns a <code>T</code> into a <code>U</code>. This is Go&rsquo;s answer to a lot of what other languages reach for inheritance to do.</p>
+<hr>
+<h2 id="returning-functions-decorators-middleware-and-options">Returning functions: decorators, middleware, and options</h2>
+<p>Returning a function is how you build behavior that wraps other behavior. Three patterns dominate real Go code.</p>
+<p><strong>Decorators</strong> wrap a function in cross-cutting behavior. A retry wrapper takes a function and returns one with the same signature:</p>
+<pre><code class="language-go">func withRetry(attempts int, fn func() error) func() error {
+    return func() error {
+        var err error
+        for i := 0; i &lt; attempts; i++ {
+            if err = fn(); err == nil {
+                return nil
+            }
+        }
+        return fmt.Errorf(&quot;after %d attempts: %w&quot;, attempts, err)
+    }
+}
+</code></pre>
+<p><strong>Middleware</strong> is the same idea applied to HTTP handlers. Because <code>http.HandlerFunc</code> is a function type, a middleware is &ldquo;a function that takes a handler and returns a handler&rdquo;:</p>
+<pre><code class="language-go">func logging(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        start := time.Now()
+        next.ServeHTTP(w, r)
+        log.Printf(&quot;%s %s took %s&quot;, r.Method, r.URL.Path, time.Since(start))
+    })
+}
+// wrap: handler = logging(auth(mux))
+</code></pre>
+<p><strong>Functional options</strong> solve the &ldquo;constructor with many optional settings&rdquo; problem without a giant config struct or a dozen <code>NewXxx</code> variants. Each option is a closure that mutates the thing being built:</p>
+<pre><code class="language-go">type Server struct {
+    port    int
+    timeout time.Duration
+}
+
+type Option func(*Server)
+
+func WithPort(p int) Option        { return func(s *Server) { s.port = p } }
+func WithTimeout(d time.Duration) Option { return func(s *Server) { s.timeout = d } }
+
+func NewServer(opts ...Option) *Server {
+    s := &amp;Server{port: 8080, timeout: 30 * time.Second} // defaults
+    for _, opt := range opts {
+        opt(s)
+    }
+    return s
+}
+
+srv := NewServer(WithPort(9000), WithTimeout(5*time.Second))
+</code></pre>
+<p>Note how this braids together three things from this post: variadic parameters (<code>opts ...Option</code>), functions as values (<code>Option</code> is a function type), and closures (<code>WithPort</code> closes over <code>p</code>). The pattern is verbose to define but reads beautifully at the call site, defaults are explicit, and adding a new option never breaks an existing caller.</p>
+<p><strong>The gotcha:</strong> decorators and middleware compose by <strong>nesting</strong>, and the order is easy to get backwards. <code>logging(auth(mux))</code> runs <em>logging&rsquo;s</em> pre-work first, then <em>auth&rsquo;s</em>, then the mux — because <code>logging</code> is the outermost wrapper. If you build the chain in a loop, decide deliberately whether you&rsquo;re wrapping outermost-first or innermost-first; reversing the slice is often what you actually want.</p>
+<hr>
+<h2 id="method-values-vs-method-expressions">Method values vs method expressions</h2>
+<p>Methods can become function values two ways, and the distinction is worth knowing precisely.</p>
+<p>A <strong>method value</strong> binds the receiver <em>now</em> and gives you a function that no longer takes a receiver:</p>
+<pre><code class="language-go">var buf bytes.Buffer
+write := buf.WriteString          // method value: receiver &amp;buf is captured
+write(&quot;hello&quot;)                    // func(string) (int, error)
+</code></pre>
+<p>A <strong>method expression</strong> leaves the receiver unbound — it becomes an explicit first parameter:</p>
+<pre><code class="language-go">write := (*bytes.Buffer).WriteString // method expression
+write(&amp;buf, &quot;hello&quot;)                 // func(*bytes.Buffer, string) (int, error)
+</code></pre>
+<p>The method value is the everyday one: <code>buf.WriteString</code> captures <code>buf</code> and is exactly the kind of value you&rsquo;d pass as a callback. The method expression is rarer but useful when you want to apply the same method across many receivers (e.g. as the <code>f</code> argument to a <code>Map</code>-style helper).</p>
+<p><strong>The gotcha:</strong> a method value on a <em>value receiver</em> snapshots the receiver at the moment you take it. <code>t := time.Now(); f := t.Add; ...; t = time.Now()</code> — <code>f</code> still adds to the <em>old</em> <code>t</code>, because value-receiver method values copy the receiver when bound. If you need the binding to track later mutations, use a pointer receiver (or a pointer to the value).</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>A function is a value.</strong> That single fact underpins callbacks, middleware, functional options, <code>defer</code>, and the standard library&rsquo;s higher-order helpers — learn to see them as one pattern.</li>
+<li><strong><code>(result, error)</code> is a convention, not a language feature.</strong> When <code>error != nil</code>, the other results are filler. Don&rsquo;t confuse it with the comma-<code>ok</code> forms, which speak a different protocol.</li>
+<li><strong>Name return values for the <code>defer</code>-decorates-error pattern</strong>, not as a default; avoid naked <code>return</code> in anything but the shortest helpers.</li>
+<li><strong>Variadics spread without copying</strong> — <code>f(xs...)</code> shares the backing array, and you can&rsquo;t mix spread with individual args.</li>
+<li><strong>Closures capture by reference.</strong> Go 1.22 fixed the loop-variable trap at the language level (gated by your <code>go.mod</code> version), but any closure over a variable you later reassign is still a hazard.</li>
+<li><strong>Method values bind the receiver eagerly</strong> — value receivers snapshot, pointer receivers track.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://go.dev/doc/effective_go">Effective Go</a> — the &ldquo;Functions&rdquo; and &ldquo;Defer&rdquo; sections, and the multiple-return-value discussion.</li>
+<li><a href="https://go.dev/blog/loopvar-preview">The Go Blog: &ldquo;Fixing For Loops in Go 1.22&rdquo;</a> — the loop-variable scoping change and why it was safe to make.</li>
+<li><a href="https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis">Dave Cheney: &ldquo;Functional options for friendly APIs&rdquo;</a> — Dave Cheney&rsquo;s write-up of the options pattern.</li>
+<li><a href="https://go.dev/blog/error-handling-and-go">The Go Blog: &ldquo;Error handling and Go&rdquo;</a> — the <code>(result, error)</code> idiom and wrapping with <code>%w</code>.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/production-go-04-control-flow-and-defer.html">Control Flow and defer</a>
+      <span class="related-date">Jun 29</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-03-variables-constants-iota.html">Variables, Constants, and iota</a>
+      <span class="related-date">Jun 28</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-02-types-values-zero-values.html">Types, Values, and Zero Values</a>
+      <span class="related-date">Jun 27</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
