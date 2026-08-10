@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Trajectory Evaluation in Go — Pratik Dhanave</title>
+<meta name="description" content="How to score what an agent *did*, not just what it *said* — building trajectory metrics in Go from an exact-match baseline up to arg-aware,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Trajectory Evaluation in Go — Pratik Dhanave">
+<meta property="og:description" content="How to score what an agent *did*, not just what it *said* — building trajectory metrics in Go from an exact-match baseline up to arg-aware, order-tolerant scoring, with a human-readable diff of expected vs....">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/eval-agents-go-04-trajectory-evaluation.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-06T00:00:00Z">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Evaluation">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Trajectory Evaluation in Go — Pratik Dhanave">
+<meta name="twitter:description" content="How to score what an agent *did*, not just what it *said* — building trajectory metrics in Go from an exact-match baseline up to arg-aware, order-tolerant scoring, with a human-readable diff of expected vs....">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/eval-agents-go-04-trajectory-evaluation.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Trajectory Evaluation in Go",
+  "description": "How to score what an agent *did*, not just what it *said* \u2014 building trajectory metrics in Go from an exact-match baseline up to arg-aware, order-tolerant scoring, with a human-readable diff of expected vs....",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-06",
+  "dateModified": "2026-08-06",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Agents, Evaluation, Go",
+  "url": "https://pratikdhanave.com/blog/posts/eval-agents-go-04-trajectory-evaluation.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/eval-agents-go-04-trajectory-evaluation.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Trajectory Evaluation in Go</h1>
+    <p class="post-subtitle"></p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-06">August 06, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/evaluation/" class="tag-link"><span class="tag">#Evaluation</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 4 of 8</span>
+    <span class="series-title">Evaluating Agents in Go</span>
+    <div class="series-nav"><a href="/blog/posts/eval-agents-go-03-eval-harness-in-go.html" class="series-prev">&larr; Part 3: Building an Evaluation Harness in Go</a>
+<a href="/blog/posts/eval-agents-go-05-response-evaluation.html" class="series-next">Part 5: Response Evaluation: Match, ROUGE, and LLM-as-Judge &rarr;</a></div>
+  </div>
+
+
+
+  <p><em>How to score what an agent </em>did<em>, not just what it </em>said<em> — building trajectory metrics in Go from an exact-match baseline up to arg-aware, order-tolerant scoring, with a human-readable diff of expected vs. actual.</em></p>
+<hr>
+<p>When you evaluate an agent, the final answer is only half the story. Two agents can both reply &ldquo;Your order ships Thursday&rdquo; — one after cleanly calling <code>lookup_order</code> then <code>get_shipping_estimate</code>, the other after calling <code>refund_order</code> by mistake, catching the error, and stumbling into the right answer. Same text, very different behaviour. <strong>Trajectory evaluation</strong> scores the <em>path</em>: the ordered sequence of tool calls the agent made on its way to the answer.</p>
+<p>Google&rsquo;s Agent Development Kit (ADK) formalizes this with a metric it calls <code>tool_trajectory_avg_score</code> — an exact-match comparison of the actual tool-call sequence against an expected one, defaulting to a perfect score of <code>1.0</code> when they match. ADK ships that for Python. The Go SDK (<code>google.golang.org/adk/v2</code>) has no evaluation package, so if you are building agents in Go, you build the scorer yourself. This post does exactly that: an original, dependency-free <code>TrajectoryScore</code> in Go, from the strict baseline outward to the metrics you actually want in a test suite.</p>
+<hr>
+<h2 id="1-what-a-trajectory-is">1. What a trajectory is</h2>
+<p>A trajectory is the ordered list of tool invocations an agent emitted during a run. Strip away the prose and the intermediate model tokens and you are left with something like:</p>
+<pre><code>lookup_order(id=&quot;A-1029&quot;)
+get_shipping_estimate(zip=&quot;94016&quot;)
+</code></pre>
+<p>Two things vary in how much you capture:</p>
+<ul>
+<li><strong>Tool names only</strong> — the sequence <code>[lookup_order, get_shipping_estimate]</code>. Coarse, but often enough to catch the agent taking a wrong turn.</li>
+<li><strong>Names plus arguments</strong> — did it look up the <em>right</em> order id? Arguments are where an agent quietly goes wrong while looking superficially correct.</li>
+</ul>
+<p>We model a single step as a struct and a trajectory as a slice:</p>
+<pre><code class="language-go">package trajectory
+
+// ToolCall is one tool invocation in a trajectory.
+type ToolCall struct {
+    Name string
+    Args map[string]any
+}
+
+// Trajectory is the ordered sequence of tool calls from one agent run.
+type Trajectory []ToolCall
+</code></pre>
+<p>The evaluation question is: given an <strong>expected</strong> trajectory (what a correct agent should do) and the <strong>actual</strong> trajectory (what this run did), produce a score in <code>0..1</code> and enough detail for a human to see <em>where</em> it diverged.</p>
+<hr>
+<h2 id="2-exact-match-scoring-the-adk-baseline">2. Exact-match scoring: the ADK baseline</h2>
+<p>The strictest metric asks a yes/no question: is the actual sequence of tool calls identical to the expected one? ADK&rsquo;s <code>tool_trajectory_avg_score</code> is built on exactly this comparison — each step must match, and the run scores <code>1.0</code> only when the whole sequence lines up.</p>
+<p>Here it is as an original Go function. Two calls match when their names are equal and their argument maps are deeply equal:</p>
+<pre><code class="language-go">import &quot;reflect&quot;
+
+// callsEqual reports whether two tool calls match on name and arguments.
+func callsEqual(a, b ToolCall) bool {
+    if a.Name != b.Name {
+        return false
+    }
+    return reflect.DeepEqual(canonArgs(a.Args), canonArgs(b.Args))
+}
+
+// ExactMatch returns 1.0 iff actual equals expected step-for-step, else 0.0.
+func ExactMatch(expected, actual Trajectory) float64 {
+    if len(expected) != len(actual) {
+        return 0
+    }
+    for i := range expected {
+        if !callsEqual(expected[i], actual[i]) {
+            return 0
+        }
+    }
+    return 1
+}
+</code></pre>
+<p>(<code>canonArgs</code> normalizes arguments before comparison — we define it in section 5.)</p>
+<p>The ADK metric is the <strong>average</strong> of this per-case score across an eval set. If nine of ten cases match exactly, the trajectory score is <code>0.9</code>. That averaging is the &ldquo;avg&rdquo; in the name; the per-case verdict is binary.</p>
+<p><strong>Why start here:</strong> exact match is unambiguous, cheap, and a great regression tripwire. If a refactor changes which tools your agent calls, an exact-match suite goes red immediately. Use it as a gate on trajectories you consider <em>fully specified</em>.</p>
+<hr>
+<h2 id="3-why-exact-match-is-brittle">3. Why exact match is brittle</h2>
+<p>The trouble with a binary all-or-nothing score is that it punishes harmless variation as harshly as real errors:</p>
+<ul>
+<li><strong>A single extra call tanks the score.</strong> An agent that calls <code>lookup_order</code>, then redundantly calls it again, then answers correctly scores <code>0.0</code> — identical to one that called <code>delete_account</code>.</li>
+<li><strong>Order that doesn&rsquo;t matter is treated as if it does.</strong> If a task needs <code>get_weather("SF")</code> and <code>get_weather("NYC")</code> and the order between them is irrelevant, exact match still fails when the agent picks the other order.</li>
+<li><strong>It gives no partial credit.</strong> A trajectory that gets four of five steps right is indistinguishable from one that got zero right. During development that hides whether you are getting warmer or colder.</li>
+<li><strong>Argument nitpicks become failures.</strong> <code>{"zip": "94016"}</code> vs. <code>{"zip": 94016}</code> (string vs. number) fails a naive deep-equal even though both are the same postcode.</li>
+</ul>
+<p>Exact match answers &ldquo;is this perfect?&rdquo; You usually also want &ldquo;how close is this?&rdquo; and &ldquo;<em>where</em> did it go wrong?&rdquo; That calls for softer metrics you compose alongside the strict one.</p>
+<hr>
+<h2 id="4-softer-metrics-you-can-build">4. Softer metrics you can build</h2>
+<h3 id="in-order-subset-did-it-do-the-required-steps-in-order">In-order subset (did it do the required steps, in order?)</h3>
+<p>Sometimes the expected trajectory lists the <em>mandatory</em> steps, and extra calls are tolerable as long as the required ones appear in the right relative order. That is the classic subsequence check: walk both slices with two pointers, advancing the expected pointer only on a match.</p>
+<pre><code class="language-go">// InOrderSubset returns the fraction of expected calls that appear in actual,
+// in the same relative order (extra actual calls are ignored).
+func InOrderSubset(expected, actual Trajectory) float64 {
+    if len(expected) == 0 {
+        return 1
+    }
+    matched, e := 0, 0
+    for a := 0; a &lt; len(actual) &amp;&amp; e &lt; len(expected); a++ {
+        if callsEqual(expected[e], actual[a]) {
+            matched++
+            e++
+        }
+    }
+    return float64(matched) / float64(len(expected))
+}
+</code></pre>
+<p>This gives partial credit and forgives extra work, while still enforcing that (say) <code>authenticate</code> happens before <code>transfer_funds</code>.</p>
+<h3 id="set-overlap-precision-and-recall-over-tool-calls">Set overlap: precision and recall over tool calls</h3>
+<p>When order genuinely doesn&rsquo;t matter, treat the trajectories as <em>bags</em> of calls and borrow precision/recall from information retrieval:</p>
+<ul>
+<li><strong>Recall</strong> — of the calls the agent <em>should</em> have made, how many did it? (Missing steps hurt recall.)</li>
+<li><strong>Precision</strong> — of the calls the agent <em>did</em> make, how many were expected? (Spurious steps hurt precision.)</li>
+<li><strong>F1</strong> — the harmonic mean, a single 0..1 number balancing both.</li>
+</ul>
+<p>We match calls as an unordered multiset so duplicates count correctly:</p>
+<pre><code class="language-go">// setScores returns precision, recall, and F1 over tool calls, ignoring order
+// but respecting multiplicity (a call expected twice must occur twice).
+func setScores(expected, actual Trajectory) (precision, recall, f1 float64) {
+    remaining := make([]bool, len(actual)) // false = still available to match
+    tp := 0
+    for _, want := range expected {
+        for i, got := range actual {
+            if !remaining[i] &amp;&amp; callsEqual(want, got) {
+                remaining[i] = true
+                tp++
+                break
+            }
+        }
+    }
+    if len(actual) &gt; 0 {
+        precision = float64(tp) / float64(len(actual))
+    } else if len(expected) == 0 {
+        precision = 1
+    }
+    if len(expected) &gt; 0 {
+        recall = float64(tp) / float64(len(expected))
+    } else {
+        recall = 1
+    }
+    if precision+recall &gt; 0 {
+        f1 = 2 * precision * recall / (precision + recall)
+    }
+    return
+}
+</code></pre>
+<p>Precision/recall tells a richer story than a single number: low recall means the agent is <em>skipping</em> work; low precision means it is <em>thrashing</em>.</p>
+<h3 id="arg-aware-comparison">Arg-aware comparison</h3>
+<p>All three metrics above route through <code>callsEqual</code>, so argument comparison is a knob, not a rewrite. You choose how strict to be:</p>
+<ul>
+<li><strong>Names only</strong> — ignore <code>Args</code> entirely; useful when arguments are noisy or generated.</li>
+<li><strong>Exact args</strong> — deep-equal on canonicalized argument maps (what we use by default).</li>
+<li><strong>Subset args</strong> — the expected call names only the arguments that matter, and the actual call may carry extras. Handy when the model pads calls with optional fields.</li>
+</ul>
+<p>A subset variant is a small change:</p>
+<pre><code class="language-go">// callArgsSubset matches when names are equal and every expected arg is present
+// in actual with an equal (canonicalized) value; extra actual args are allowed.
+func callArgsSubset(want, got ToolCall) bool {
+    if want.Name != got.Name {
+        return false
+    }
+    w, g := canonArgs(want.Args), canonArgs(got.Args)
+    for k, wv := range w {
+        gv, ok := g[k]
+        if !ok || !reflect.DeepEqual(wv, gv) {
+            return false
+        }
+    }
+    return true
+}
+</code></pre>
+<hr>
+<h2 id="5-normalizing-trajectories">5. Normalizing trajectories</h2>
+<p>Soft metrics are only fair if two <em>semantically identical</em> calls compare equal. Two normalizations do most of the work.</p>
+<p><strong>Canonicalize arguments.</strong> JSON round-trips turn <code>94016</code> into a <code>float64</code>, config turns it into a string, and nested maps arrive with keys in arbitrary order. <code>canonArgs</code> coerces values into a comparable shape so <code>reflect.DeepEqual</code> behaves. Here we normalize numbers-as-strings and recurse into nested maps:</p>
+<pre><code class="language-go">import (
+    &quot;strconv&quot;
+    &quot;strings&quot;
+)
+
+// canonArgs returns a normalized copy of an argument map so that
+// semantically-equal values compare equal under reflect.DeepEqual.
+func canonArgs(in map[string]any) map[string]any {
+    if in == nil {
+        return map[string]any{}
+    }
+    out := make(map[string]any, len(in))
+    for k, v := range in {
+        out[k] = canonValue(v)
+    }
+    return out
+}
+
+func canonValue(v any) any {
+    switch t := v.(type) {
+    case string:
+        s := strings.TrimSpace(t)
+        if f, err := strconv.ParseFloat(s, 64); err == nil {
+            return f // &quot;94016&quot; and 94016 both become float64(94016)
+        }
+        return s
+    case int:
+        return float64(t)
+    case int64:
+        return float64(t)
+    case float64:
+        return t
+    case map[string]any:
+        return canonArgs(t)
+    default:
+        return v
+    }
+}
+</code></pre>
+<p>Tune this to your domain — you might lowercase enum strings, drop a volatile <code>request_id</code>, or round floats. The point is that normalization is <em>policy</em>: encode what &ldquo;the same call&rdquo; means for your agent, once, in one place.</p>
+<p><strong>Ignore ordering where it is legitimate.</strong> Order matters between <code>authenticate</code> and <code>transfer_funds</code>; it does not between two independent <code>get_weather</code> lookups. Rather than hard-code that, pick the metric that matches the task: order-sensitive tasks use <code>ExactMatch</code> or <code>InOrderSubset</code>; order-free tasks use the set-based <code>setScores</code>. Trajectory scoring is not one number — it is a small family of them, and part of authoring an eval case is declaring which invariant the case cares about.</p>
+<hr>
+<h2 id="6-bringing-it-together-a-scored-result-with-a-diff">6. Bringing it together: a scored result with a diff</h2>
+<p>A score of <code>0.6</code> on its own doesn&rsquo;t help you fix anything. The scorer should return the number <em>and</em> a human-readable diff of expected vs. actual, so a failing test points straight at the divergence.</p>
+<pre><code class="language-go">import (
+    &quot;fmt&quot;
+    &quot;strings&quot;
+)
+
+// Mode selects how strictly a trajectory is scored.
+type Mode int
+
+const (
+    ModeExact       Mode = iota // 1.0 iff identical step-for-step
+    ModeInOrder                 // fraction of expected calls found in order
+    ModeSet                     // F1 over tool calls, order-independent
+)
+
+// Result is a scored trajectory comparison.
+type Result struct {
+    Score     float64 // 0..1
+    Mode      Mode
+    Precision float64 // populated for ModeSet
+    Recall    float64 // populated for ModeSet
+    Diff      string  // human-readable expected vs. actual
+}
+
+// TrajectoryScore compares actual against expected under the given mode.
+func TrajectoryScore(expected, actual Trajectory, mode Mode) Result {
+    r := Result{Mode: mode, Diff: renderDiff(expected, actual)}
+    switch mode {
+    case ModeInOrder:
+        r.Score = InOrderSubset(expected, actual)
+    case ModeSet:
+        r.Precision, r.Recall, r.Score = setScores(expected, actual)
+    default:
+        r.Score = ExactMatch(expected, actual)
+    }
+    return r
+}
+
+func formatCall(c ToolCall) string {
+    parts := make([]string, 0, len(c.Args))
+    for k, v := range canonArgs(c.Args) {
+        parts = append(parts, fmt.Sprintf(&quot;%s=%v&quot;, k, v))
+    }
+    sort.Strings(parts) // stable output regardless of map iteration order
+    return fmt.Sprintf(&quot;%s(%s)&quot;, c.Name, strings.Join(parts, &quot;, &quot;))
+}
+
+// renderDiff produces a side-by-side, step-aligned view of the two trajectories.
+func renderDiff(expected, actual Trajectory) string {
+    var b strings.Builder
+    n := len(expected)
+    if len(actual) &gt; n {
+        n = len(actual)
+    }
+    for i := 0; i &lt; n; i++ {
+        var e, a string
+        if i &lt; len(expected) {
+            e = formatCall(expected[i])
+        } else {
+            e = &quot;(none)&quot;
+        }
+        if i &lt; len(actual) {
+            a = formatCall(actual[i])
+        } else {
+            a = &quot;(none)&quot;
+        }
+        marker := &quot;  &quot;
+        if e != a {
+            marker = &quot;!!&quot;
+        }
+        fmt.Fprintf(&amp;b, &quot;%s step %d: expected %-40s actual %s\n&quot;, marker, i, e, a)
+    }
+    return b.String()
+}
+</code></pre>
+<p><code>formatCall</code> sorts its argument parts so the diff is deterministic — map iteration order in Go is randomized, and a non-deterministic diff is useless in CI logs. (This needs <code>import "sort"</code> alongside the others.)</p>
+<hr>
+<h2 id="7-tests">7. Tests</h2>
+<p>Trajectory scoring is exactly the kind of pure, deterministic logic that deserves table tests. These are original and cover the sharp edges: extra calls, reordering, and argument coercion.</p>
+<pre><code class="language-go">package trajectory
+
+import &quot;testing&quot;
+
+func mk(name string, kv ...any) ToolCall {
+    args := map[string]any{}
+    for i := 0; i+1 &lt; len(kv); i += 2 {
+        args[kv[i].(string)] = kv[i+1]
+    }
+    return ToolCall{Name: name, Args: args}
+}
+
+func TestExactMatch(t *testing.T) {
+    exp := Trajectory{mk(&quot;lookup_order&quot;, &quot;id&quot;, &quot;A-1029&quot;), mk(&quot;get_shipping_estimate&quot;, &quot;zip&quot;, &quot;94016&quot;)}
+    act := Trajectory{mk(&quot;lookup_order&quot;, &quot;id&quot;, &quot;A-1029&quot;), mk(&quot;get_shipping_estimate&quot;, &quot;zip&quot;, 94016)}
+    if got := ExactMatch(exp, act); got != 1 {
+        t.Fatalf(&quot;string vs numeric zip should canonicalize to a match, got %v&quot;, got)
+    }
+    extra := append(Trajectory{}, act...)
+    extra = append(extra, mk(&quot;lookup_order&quot;, &quot;id&quot;, &quot;A-1029&quot;))
+    if got := ExactMatch(exp, extra); got != 0 {
+        t.Fatalf(&quot;a spurious extra call must fail exact match, got %v&quot;, got)
+    }
+}
+
+func TestInOrderSubset(t *testing.T) {
+    exp := Trajectory{mk(&quot;authenticate&quot;), mk(&quot;transfer_funds&quot;, &quot;amt&quot;, 50)}
+    act := Trajectory{mk(&quot;authenticate&quot;), mk(&quot;check_balance&quot;), mk(&quot;transfer_funds&quot;, &quot;amt&quot;, 50)}
+    if got := InOrderSubset(exp, act); got != 1 {
+        t.Fatalf(&quot;required steps present in order should score 1.0, got %v&quot;, got)
+    }
+    wrong := Trajectory{mk(&quot;transfer_funds&quot;, &quot;amt&quot;, 50), mk(&quot;authenticate&quot;)}
+    if got := InOrderSubset(exp, wrong); got != 0.5 {
+        t.Fatalf(&quot;out-of-order transfer should only match authenticate (0.5), got %v&quot;, got)
+    }
+}
+
+func TestSetScores(t *testing.T) {
+    exp := Trajectory{mk(&quot;get_weather&quot;, &quot;city&quot;, &quot;SF&quot;), mk(&quot;get_weather&quot;, &quot;city&quot;, &quot;NYC&quot;)}
+    act := Trajectory{mk(&quot;get_weather&quot;, &quot;city&quot;, &quot;NYC&quot;), mk(&quot;get_weather&quot;, &quot;city&quot;, &quot;SF&quot;)}
+    if _, _, f1 := setScores(exp, act); f1 != 1 {
+        t.Fatalf(&quot;reordered independent calls should score F1=1.0, got %v&quot;, f1)
+    }
+    missing := Trajectory{mk(&quot;get_weather&quot;, &quot;city&quot;, &quot;SF&quot;)}
+    p, r, _ := setScores(exp, missing)
+    if p != 1 || r != 0.5 {
+        t.Fatalf(&quot;one of two calls made: want precision 1.0 recall 0.5, got %v/%v&quot;, p, r)
+    }
+}
+
+func TestDiffFlagsDivergence(t *testing.T) {
+    exp := Trajectory{mk(&quot;lookup_order&quot;, &quot;id&quot;, &quot;A-1029&quot;)}
+    act := Trajectory{mk(&quot;refund_order&quot;, &quot;id&quot;, &quot;A-1029&quot;)}
+    res := TrajectoryScore(exp, act, ModeExact)
+    if res.Score != 0 {
+        t.Fatalf(&quot;wrong tool should score 0, got %v&quot;, res.Score)
+    }
+    if !strings.Contains(res.Diff, &quot;!!&quot;) {
+        t.Fatalf(&quot;diff should mark the diverging step, got:\n%s&quot;, res.Diff)
+    }
+}
+</code></pre>
+<p>Run them with <code>go test ./...</code>. Each test pins one design decision: canonicalization makes the string/number zip match, exact match rejects an extra call, in-order scoring gives half credit for a reordered required step, set scoring forgives reordering but not omission, and the diff marks divergence with <code>!!</code>.</p>
+<hr>
+<h2 id="8-choosing-a-mode">8. Choosing a mode</h2>
+<table><caption class="sr-only">8. Choosing a mode</caption>
+<thead>
+<tr>
+<th>Task shape</th>
+<th>Mode</th>
+<th>What it rewards</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fully specified, order-critical (e.g. auth before write)</td>
+<td><code>ModeExact</code></td>
+<td>Exactly the right steps, exactly in order</td>
+</tr>
+<tr>
+<td>Mandatory steps + tolerable extras, order matters</td>
+<td><code>ModeInOrder</code></td>
+<td>Required steps present, correct relative order</td>
+</tr>
+<tr>
+<td>Independent calls, order irrelevant</td>
+<td><code>ModeSet</code></td>
+<td>Coverage (recall) and restraint (precision)</td>
+</tr>
+<tr>
+<td>Noisy or model-generated arguments</td>
+<td>any + names-only <code>callsEqual</code></td>
+<td>The right <em>tools</em>, ignoring arg churn</td>
+</tr>
+<tr>
+<td>Optional args the model may pad</td>
+<td>any + <code>callArgsSubset</code></td>
+<td>The arguments that matter, extras allowed</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Trajectory evaluation scores the path, not the answer</strong> — the ordered tool calls an agent made, optionally with arguments.</li>
+<li><strong>Exact match is ADK&rsquo;s <code>tool_trajectory_avg_score</code> idea</strong>: a binary per-case verdict (<code>1.0</code> on identical sequences) averaged across the set. It is a superb regression gate and a poor development signal.</li>
+<li><strong>Soften deliberately.</strong> In-order subset gives partial credit and forgives extra work; set-based precision/recall/F1 drops the order constraint and tells you whether the agent is skipping or thrashing.</li>
+<li><strong>Normalization is policy.</strong> Canonicalize arguments so semantically-equal calls compare equal, and pick an order-sensitive vs. order-free metric per case — trajectory scoring is a small family of metrics, not one number.</li>
+<li><strong>Always return a diff.</strong> A score tells you <em>whether</em>; a step-aligned, deterministic diff tells you <em>where</em>, which is what turns a red test into a fix.</li>
+</ul>
+<p>The Go ADK gives you agents but no eval package, so this scorer is yours to own and shape. Start with exact match as a tripwire, add in-order and set-based modes as your eval set grows, and keep the diff in every failure — it is the difference between a number and a lead.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li>ADK evaluation concepts and the <code>tool_trajectory_avg_score</code> metric: <a href="https://adk.dev/evaluate/">adk.dev/evaluate</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/eval-agents-go-08-multi-turn-multi-agent.html">Evaluating Multi-Turn and Multi-Agent Systems</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/eval-agents-go-07-ci-regression-gating.html">Agent Evaluation in CI: Regression Gating</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/eval-agents-go-06-eval-datasets.html">Building Eval Datasets from Real Traces</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

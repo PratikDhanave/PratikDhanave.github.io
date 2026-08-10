@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Response Evaluation: Match, ROUGE, and LLM-as-Judge</title>
+<meta name="description" content="How to score an agent&#x27;s final answer against a reference — from exact string match, through ROUGE-1 unigram overlap, to an LLM judge — with original Go...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Response Evaluation: Match, ROUGE, and LLM-as-Judge">
+<meta property="og:description" content="How to score an agent&#x27;s final answer against a reference — from exact string match, through ROUGE-1 unigram overlap, to an LLM judge — with original Go you can drop into a test suite. Part 5 of Evaluating...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/eval-agents-go-05-response-evaluation.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-07T00:00:00Z">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Evaluation">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="LLM">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Response Evaluation: Match, ROUGE, and LLM-as-Judge">
+<meta name="twitter:description" content="How to score an agent&#x27;s final answer against a reference — from exact string match, through ROUGE-1 unigram overlap, to an LLM judge — with original Go you can drop into a test suite. Part 5 of Evaluating...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/eval-agents-go-05-response-evaluation.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Response Evaluation: Match, ROUGE, and LLM-as-Judge",
+  "description": "How to score an agent's final answer against a reference \u2014 from exact string match, through ROUGE-1 unigram overlap, to an LLM judge \u2014 with original Go you can drop into a test suite. Part 5 of Evaluating...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-07",
+  "dateModified": "2026-08-07",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Agents, Evaluation, Go, LLM",
+  "url": "https://pratikdhanave.com/blog/posts/eval-agents-go-05-response-evaluation.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/eval-agents-go-05-response-evaluation.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Response Evaluation: Match, ROUGE, and LLM-as-Judge</h1>
+    <p class="post-subtitle">How to score an agent&#x27;s final answer against a reference — from exact string match, through ROUGE-1 unigram overlap, to an LLM judge — with original Go you can drop into a test suite. Part 5 of Evaluating Agents in Go.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-07">August 07, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/evaluation/" class="tag-link"><span class="tag">#Evaluation</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/llm/" class="tag-link"><span class="tag">#LLM</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 5 of 8</span>
+    <span class="series-title">Evaluating Agents in Go</span>
+    <div class="series-nav"><a href="/blog/posts/eval-agents-go-04-trajectory-evaluation.html" class="series-prev">&larr; Part 4: Trajectory Evaluation in Go</a>
+<a href="/blog/posts/eval-agents-go-06-eval-datasets.html" class="series-next">Part 6: Building Eval Datasets from Real Traces &rarr;</a></div>
+  </div>
+
+
+
+  <p>The earlier parts of this series measured how an agent <em>behaves</em> — which tools it called, in what order, whether it stayed on the rails. This one measures the thing users actually see: the <strong>final response</strong>. Given a question, a reference (gold) answer, and whatever the agent produced, how good was it?</p>
+<p>The Go SDK for Google&rsquo;s Agent Development Kit — <code>google.golang.org/adk/v2</code> — gives you the runner, agents, and tools, but it ships <strong>no evaluation package</strong>. So we build one. The good news is that response scoring is a small, self-contained problem, and the ADK Python evaluators describe exactly the shape worth reproducing:</p>
+<ul>
+<li><strong><code>response_match_score</code></strong> — ROUGE-1 similarity between candidate and reference, passing above a threshold (0.8 by default).</li>
+<li><strong><code>final_response_match_v2</code></strong> — an LLM judge deciding whether the candidate is <em>semantically equivalent</em> to the reference.</li>
+<li><strong><code>rubric_based_final_response_quality_v1</code></strong> — an LLM scoring the response against an explicit rubric.</li>
+</ul>
+<p>Three metrics, three levels of leniency. We&rsquo;ll implement the first two from scratch in Go and sketch the third, then combine them into a single pass/fail gate.</p>
+<hr>
+<h2 id="1-exact-and-normalized-match-cheap-deterministic-and-too-strict">1. Exact and normalized match: cheap, deterministic, and too strict</h2>
+<p>The simplest metric is string equality. It has one virtue — it never lies about <em>what</em> it measured — and one fatal flaw: natural language has many correct surfaces for one meaning. <code>"42"</code> and <code>"The answer is 42."</code> are the same answer and an exact comparison calls them different.</p>
+<p>Normalizing before comparing recovers some of that. Lowercase, collapse whitespace, strip punctuation:</p>
+<pre><code class="language-go">package respeval
+
+import (
+    &quot;regexp&quot;
+    &quot;strings&quot;
+)
+
+var punct = regexp.MustCompile(`[^\p{L}\p{N}\s]+`)
+var spaces = regexp.MustCompile(`\s+`)
+
+// Normalize lowercases, strips punctuation, and collapses whitespace.
+func Normalize(s string) string {
+    s = strings.ToLower(s)
+    s = punct.ReplaceAllString(s, &quot; &quot;)
+    s = spaces.ReplaceAllString(strings.TrimSpace(s), &quot; &quot;)
+    return s
+}
+
+// ExactMatch is true only if the raw strings are identical.
+func ExactMatch(candidate, reference string) bool {
+    return candidate == reference
+}
+
+// NormalizedMatch compares after Normalize.
+func NormalizedMatch(candidate, reference string) bool {
+    return Normalize(candidate) == Normalize(reference)
+}
+</code></pre>
+<p><code>NormalizedMatch</code> now accepts <code>"The answer is 42"</code> and <code>"the answer is 42."</code> as equal. But it still fails the moment the wording drifts: <code>"forty-two"</code> vs <code>"42"</code>, or a correct answer that adds a clause the reference omitted. Exact match is a good gate for <strong>closed-form</strong> answers — a currency code, a boolean, an ID — and a bad one for prose. For prose you need a metric that rewards <em>overlap</em> rather than demanding identity. That is ROUGE.</p>
+<hr>
+<h2 id="2-rouge-1-scoring-unigram-overlap">2. ROUGE-1: scoring unigram overlap</h2>
+<p>ROUGE-1 measures how many individual words (unigrams) the candidate and reference share. It reports three numbers:</p>
+<ul>
+<li><strong>Precision</strong> — of the words the candidate produced, what fraction appear in the reference? (Penalizes padding.)</li>
+<li><strong>Recall</strong> — of the words the reference contains, what fraction did the candidate produce? (Penalizes omissions.)</li>
+<li><strong>F1</strong> — the harmonic mean, which is what ADK&rsquo;s <code>response_match_score</code> thresholds on.</li>
+</ul>
+<p>The one subtlety that separates a correct implementation from a naive one is <strong>clipping</strong>: if the reference says &ldquo;the&rdquo; twice and the candidate says &ldquo;the&rdquo; five times, the overlap for &ldquo;the&rdquo; is 2, not 5. You count the <em>minimum</em> of the two counts per word. Here is the whole thing:</p>
+<pre><code class="language-go">package respeval
+
+// Rouge1Score holds unigram precision, recall, and F1.
+type Rouge1Score struct {
+    Precision float64
+    Recall    float64
+    F1        float64
+}
+
+func tokenize(s string) []string {
+    n := Normalize(s)
+    if n == &quot;&quot; {
+        return nil
+    }
+    return strings.Fields(n)
+}
+
+func counts(tokens []string) map[string]int {
+    m := make(map[string]int, len(tokens))
+    for _, t := range tokens {
+        m[t]++
+    }
+    return m
+}
+
+// Rouge1 computes clipped unigram overlap between candidate and reference.
+func Rouge1(candidate, reference string) Rouge1Score {
+    cand := tokenize(candidate)
+    ref := tokenize(reference)
+    if len(cand) == 0 || len(ref) == 0 {
+        return Rouge1Score{} // no overlap is definable
+    }
+
+    candCounts := counts(cand)
+    refCounts := counts(ref)
+
+    overlap := 0
+    for tok, c := range candCounts {
+        if r, ok := refCounts[tok]; ok {
+            overlap += min(c, r) // clip to the smaller count
+        }
+    }
+
+    precision := float64(overlap) / float64(len(cand))
+    recall := float64(overlap) / float64(len(ref))
+    f1 := 0.0
+    if precision+recall &gt; 0 {
+        f1 = 2 * precision * recall / (precision + recall)
+    }
+    return Rouge1Score{Precision: precision, Recall: recall, F1: f1}
+}
+
+func min(a, b int) int {
+    if a &lt; b {
+        return a
+    }
+    return b
+}
+</code></pre>
+<p>(On Go 1.21+ the built-in <code>min</code> exists and you can drop the helper.)</p>
+<h3 id="a-worked-example">A worked example</h3>
+<p>Take a reference and a near-miss candidate:</p>
+<ul>
+<li><strong>reference:</strong> <code>"the cat sat on the mat"</code> → tokens <code>[the, cat, sat, on, the, mat]</code>, counts <code>{the:2, cat:1, sat:1, on:1, mat:1}</code>, length 6.</li>
+<li><strong>candidate:</strong> <code>"the cat sat on a mat"</code> → tokens <code>[the, cat, sat, on, a, mat]</code>, counts <code>{the:1, cat:1, sat:1, on:1, a:1, mat:1}</code>, length 6.</li>
+</ul>
+<p>Clipped overlap, word by word: <code>the</code> = min(1, 2) = 1, <code>cat</code> = 1, <code>sat</code> = 1, <code>on</code> = 1, <code>mat</code> = 1, <code>a</code> = 0 (not in reference). Total overlap = <strong>5</strong>.</p>
+<ul>
+<li>precision = 5 / 6 ≈ <strong>0.833</strong></li>
+<li>recall = 5 / 6 ≈ <strong>0.833</strong></li>
+<li>F1 ≈ <strong>0.833</strong></li>
+</ul>
+<p>At an F1 threshold of 0.8 this candidate <strong>passes</strong> — a one-word substitution barely dents the score, which is exactly the leniency we wanted over exact match. The clipping mattered: without it, the double-counted <code>"the"</code> in the reference could have inflated the overlap and pushed the score past 1.0.</p>
+<h3 id="where-rouge-1-breaks">Where ROUGE-1 breaks</h3>
+<p>ROUGE only sees surface words. Two failure modes follow directly:</p>
+<ol>
+<li><strong>Paraphrase looks wrong.</strong> Reference <code>"The capital of France is Paris."</code> vs candidate <code>"Paris is the capital city of France."</code> share most words and score well — but reference <code>"You should restart the service."</code> vs candidate <code>"Try rebooting the daemon."</code> mean the same thing and share almost nothing. ROUGE-1 F1 ≈ 0.</li>
+<li><strong>Word-salad looks right.</strong> A candidate that lists the reference&rsquo;s keywords in a meaningless order can post a high unigram overlap while saying nothing coherent, because ROUGE-1 ignores order entirely.</li>
+</ol>
+<p>When meaning and wording diverge, lexical overlap is the wrong tool. You need something that reads for <em>meaning</em>.</p>
+<hr>
+<h2 id="3-llm-as-judge-scoring-meaning-not-words">3. LLM-as-judge: scoring meaning, not words</h2>
+<p>The idea behind ADK&rsquo;s <code>final_response_match_v2</code> is to hand the question, the reference, and the candidate to a language model and ask it: <em>are these two answers equivalent?</em> The model reads past the wording and judges the semantics — catching the paraphrase ROUGE missed, and rejecting the word-salad ROUGE accepted.</p>
+<p>We keep the model call <strong>generic</strong>. The adk-go model clients evolve, and this series is about the evaluation logic, not a particular client signature. So we depend on a tiny interface any client (an adk-go model, a raw HTTP call, a fake for tests) can satisfy:</p>
+<pre><code class="language-go">package respeval
+
+import (
+    &quot;context&quot;
+    &quot;encoding/json&quot;
+    &quot;fmt&quot;
+    &quot;strings&quot;
+)
+
+// Model is the minimal surface a judge needs: text in, text out.
+// Back it with an adk-go model client, a direct API call, or a fake.
+type Model interface {
+    Generate(ctx context.Context, prompt string, temperature float64) (string, error)
+}
+
+// Verdict is the structured result we ask the judge to return.
+type Verdict struct {
+    Score     float64 `json:&quot;score&quot;`     // 0.0–1.0
+    Pass      bool    `json:&quot;pass&quot;`      // judge's own call
+    Reasoning string  `json:&quot;reasoning&quot;` // one sentence
+}
+</code></pre>
+<p>The prompt is where reliability is won or lost. A good judge prompt (a) states the task narrowly, (b) supplies an explicit rubric so &ldquo;equivalent&rdquo; isn&rsquo;t left to the model&rsquo;s mood, (c) demands structured output, and (d) tells the model to ignore style, length, and phrasing:</p>
+<pre><code class="language-go">const judgeTemplate = `You are a strict evaluator. Decide whether the CANDIDATE
+answer is semantically equivalent to the REFERENCE answer for the given QUESTION.
+
+Rubric:
+- Score 1.0: candidate conveys the same key facts as the reference; wording may differ.
+- Score 0.5: candidate is partially correct or omits a material fact.
+- Score 0.0: candidate is wrong, contradicts the reference, or is off-topic.
+Ignore differences in style, length, and phrasing. Judge only meaning.
+Do not reward a candidate for merely repeating words from the reference.
+
+QUESTION: %s
+REFERENCE: %s
+CANDIDATE: %s
+
+Respond with ONLY a JSON object, no prose, no code fences:
+{&quot;score&quot;: &lt;number 0.0-1.0&gt;, &quot;pass&quot;: &lt;true|false&gt;, &quot;reasoning&quot;: &quot;&lt;one sentence&gt;&quot;}`
+
+// LLMJudge asks the model whether candidate matches reference.
+func LLMJudge(ctx context.Context, m Model, question, reference, candidate string) (Verdict, error) {
+    prompt := fmt.Sprintf(judgeTemplate, question, reference, candidate)
+
+    // Low temperature: we want a repeatable verdict, not creativity.
+    raw, err := m.Generate(ctx, prompt, 0.0)
+    if err != nil {
+        return Verdict{}, fmt.Errorf(&quot;judge generate: %w&quot;, err)
+    }
+
+    v, err := parseVerdict(raw)
+    if err != nil {
+        return Verdict{}, fmt.Errorf(&quot;judge parse: %w&quot;, err)
+    }
+    return v, nil
+}
+
+// parseVerdict extracts the JSON object even if the model wraps it in prose.
+func parseVerdict(raw string) (Verdict, error) {
+    s := strings.TrimSpace(raw)
+    // Trim a stray ```json ... ``` fence if the model added one.
+    s = strings.TrimPrefix(s, &quot;```json&quot;)
+    s = strings.TrimPrefix(s, &quot;```&quot;)
+    s = strings.TrimSuffix(s, &quot;```&quot;)
+    // Slice to the outermost braces to survive leading/trailing chatter.
+    if i, j := strings.Index(s, &quot;{&quot;), strings.LastIndex(s, &quot;}&quot;); i &gt;= 0 &amp;&amp; j &gt; i {
+        s = s[i : j+1]
+    }
+    var v Verdict
+    if err := json.Unmarshal([]byte(strings.TrimSpace(s)), &amp;v); err != nil {
+        return Verdict{}, fmt.Errorf(&quot;not valid JSON: %q: %w&quot;, raw, err)
+    }
+    if v.Score &lt; 0 || v.Score &gt; 1 {
+        return Verdict{}, fmt.Errorf(&quot;score out of range: %v&quot;, v.Score)
+    }
+    return v, nil
+}
+</code></pre>
+<h3 id="making-the-judge-reliable">Making the judge reliable</h3>
+<p>An LLM judge is itself a nondeterministic system, so treat it like one you&rsquo;re trying to control:</p>
+<ul>
+<li><strong>Temperature 0.</strong> You want the same input to yield the same verdict run to run. Creativity is a liability here.</li>
+<li><strong>A written rubric, not a vibe.</strong> &ldquo;Equivalent&rdquo; is underspecified; the three-band rubric above turns a fuzzy question into a near-classification. Tighten the bands to your domain.</li>
+<li><strong>Structured output.</strong> Parsing free-form prose for a verdict is brittle. Ask for JSON and parse it — and make the parser defensive, because models still occasionally wrap JSON in a code fence or a sentence, which <code>parseVerdict</code> strips.</li>
+<li><strong>Guard against judge bias.</strong> Models tend to reward longer, more confident, or more familiar-sounding answers, and can favor a candidate that echoes the reference&rsquo;s words (the very thing we told it to ignore). Keep the reference and candidate clearly labeled and symmetric, tell the judge to ignore length and phrasing, and — for anything high-stakes — spot-check a sample of verdicts against human judgment before trusting the metric at scale.</li>
+<li><strong>Fail loud on unparseable output.</strong> A judge that can&rsquo;t be parsed is a <em>test infrastructure</em> failure, not a passing grade. Return an error; never silently score it as a pass.</li>
+</ul>
+<p>The <code>rubric_based_final_response_quality_v1</code> metric is the same machinery with a different question — instead of &ldquo;is this equivalent to the reference?&rdquo; you ask &ldquo;does this satisfy each criterion in this rubric?&rdquo; and average the per-criterion scores. Swap the template, keep the client, keep the parser.</p>
+<hr>
+<h2 id="4-combining-metrics-into-a-passfail-gate">4. Combining metrics into a pass/fail gate</h2>
+<p>No single metric is right for every case, so combine them with a cheap-to-expensive strategy: try lexical match first (free, deterministic), and only spend an LLM call when overlap is inconclusive.</p>
+<pre><code class="language-go">// Thresholds configures the gate.
+type Thresholds struct {
+    RougeF1  float64 // e.g. 0.8, matching ADK's response_match_score default
+    Judge    float64 // e.g. 0.8, minimum acceptable judge score
+    UseJudge bool    // fall back to the LLM judge when ROUGE is low
+}
+
+// Result is the combined outcome for one (question, reference, candidate).
+type Result struct {
+    Pass    bool
+    Rouge   Rouge1Score
+    Verdict *Verdict // nil if the judge was not consulted
+    Method  string   // &quot;exact&quot;, &quot;rouge&quot;, or &quot;judge&quot;
+}
+
+// Grade runs the escalation: exact/normalized → ROUGE → judge.
+func Grade(ctx context.Context, m Model, t Thresholds, question, reference, candidate string) (Result, error) {
+    if NormalizedMatch(candidate, reference) {
+        return Result{Pass: true, Method: &quot;exact&quot;}, nil
+    }
+
+    r := Rouge1(candidate, reference)
+    if r.F1 &gt;= t.RougeF1 {
+        return Result{Pass: true, Rouge: r, Method: &quot;rouge&quot;}, nil
+    }
+
+    // Lexical overlap was low. That is either a real miss or a paraphrase.
+    if !t.UseJudge {
+        return Result{Pass: false, Rouge: r, Method: &quot;rouge&quot;}, nil
+    }
+    v, err := LLMJudge(ctx, m, question, reference, candidate)
+    if err != nil {
+        return Result{Rouge: r, Method: &quot;judge&quot;}, err
+    }
+    return Result{Pass: v.Pass &amp;&amp; v.Score &gt;= t.Judge, Rouge: r, Verdict: &amp;v, Method: &quot;judge&quot;}, nil
+}
+</code></pre>
+<p>This ordering is deliberate. Exact match is free and unambiguous; ROUGE is free and catches near-misses; the judge is the only step that costs a model call and introduces nondeterminism, so it runs <strong>last and only when needed</strong> — when lexical overlap is low, which is precisely the paraphrase case ROUGE can&rsquo;t resolve. In a large eval suite this keeps the bill and the flakiness proportional to the number of genuinely ambiguous answers.</p>
+<hr>
+<h2 id="5-tests">5. Tests</h2>
+<p>Response scoring is math and prompt-plumbing, both testable without a live model. Use a fake <code>Model</code> for the judge path:</p>
+<pre><code class="language-go">package respeval
+
+import (
+    &quot;context&quot;
+    &quot;math&quot;
+    &quot;testing&quot;
+)
+
+func TestRouge1WorkedExample(t *testing.T) {
+    got := Rouge1(&quot;the cat sat on a mat&quot;, &quot;the cat sat on the mat&quot;)
+    if math.Abs(got.F1-0.8333) &gt; 0.001 {
+        t.Fatalf(&quot;F1 = %.4f, want ~0.8333&quot;, got.F1)
+    }
+}
+
+func TestRouge1Clipping(t *testing.T) {
+    // Reference has &quot;the&quot; once; a candidate spamming &quot;the&quot; must not
+    // score overlap above the reference's count.
+    got := Rouge1(&quot;the the the the&quot;, &quot;the mat&quot;)
+    if got.Precision &gt; 0.26 { // 1 clipped overlap / 4 candidate tokens
+        t.Fatalf(&quot;precision = %.4f, clipping failed&quot;, got.Precision)
+    }
+}
+
+func TestNormalizedMatch(t *testing.T) {
+    if !NormalizedMatch(&quot;The answer is 42.&quot;, &quot;the answer is 42&quot;) {
+        t.Fatal(&quot;normalized match should ignore case and punctuation&quot;)
+    }
+    if NormalizedMatch(&quot;forty-two&quot;, &quot;42&quot;) {
+        t.Fatal(&quot;normalized match is lexical; it cannot equate these&quot;)
+    }
+}
+
+// fakeModel returns a canned response and records the prompt it saw.
+type fakeModel struct {
+    reply      string
+    lastPrompt string
+    lastTemp   float64
+}
+
+func (f *fakeModel) Generate(_ context.Context, prompt string, temp float64) (string, error) {
+    f.lastPrompt, f.lastTemp = prompt, temp
+    return f.reply, nil
+}
+
+func TestLLMJudgeParsesFencedJSON(t *testing.T) {
+    m := &amp;fakeModel{reply: &quot;```json\n{\&quot;score\&quot;:1.0,\&quot;pass\&quot;:true,\&quot;reasoning\&quot;:\&quot;same fact\&quot;}\n```&quot;}
+    v, err := LLMJudge(context.Background(), m, &quot;capital of France?&quot;, &quot;Paris&quot;, &quot;The capital is Paris.&quot;)
+    if err != nil {
+        t.Fatalf(&quot;unexpected error: %v&quot;, err)
+    }
+    if !v.Pass || v.Score != 1.0 {
+        t.Fatalf(&quot;verdict = %+v, want pass with score 1.0&quot;, v)
+    }
+    if f := m.lastTemp; f != 0.0 {
+        t.Fatalf(&quot;judge temperature = %v, want 0.0&quot;, f)
+    }
+}
+
+func TestGradeEscalatesToJudge(t *testing.T) {
+    // A paraphrase with near-zero lexical overlap must reach the judge.
+    m := &amp;fakeModel{reply: `{&quot;score&quot;:1.0,&quot;pass&quot;:true,&quot;reasoning&quot;:&quot;equivalent&quot;}`}
+    res, err := Grade(context.Background(), m,
+        Thresholds{RougeF1: 0.8, Judge: 0.8, UseJudge: true},
+        &quot;How do I fix it?&quot;, &quot;You should restart the service.&quot;, &quot;Try rebooting the daemon.&quot;)
+    if err != nil {
+        t.Fatalf(&quot;unexpected error: %v&quot;, err)
+    }
+    if !res.Pass || res.Method != &quot;judge&quot; {
+        t.Fatalf(&quot;result = %+v, want pass via judge&quot;, res)
+    }
+}
+</code></pre>
+<p><code>go test ./...</code> runs the whole thing offline. The judge path is exercised with a fake, so it&rsquo;s deterministic in CI; you only reach for a real adk-go model client when you deliberately run the live evaluation.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Exact/normalized match</strong> is right for closed-form answers and too strict for prose — one paraphrase and it fails a correct answer.</li>
+<li><strong>ROUGE-1</strong> scores clipped unigram overlap (precision, recall, F1); it&rsquo;s free and deterministic, and F1 ≥ 0.8 mirrors ADK&rsquo;s <code>response_match_score</code>. It rewards near-misses but is blind to paraphrase and to word order.</li>
+<li><strong>LLM-as-judge</strong> reads for meaning, catching the paraphrases ROUGE misses — but it&rsquo;s nondeterministic, so pin temperature to 0, give it a written rubric, demand structured JSON, and guard against length and echo bias.</li>
+<li><strong>Combine them cheap-to-expensive:</strong> exact → ROUGE → judge, so the model call only fires on genuinely ambiguous answers.</li>
+<li><strong>adk-go has no eval package</strong> — but response scoring is small enough to own, test offline with a fake model, and wire to a real client only for live runs.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://adk.dev/evaluate/">ADK evaluation guide</a> — the response and rubric metrics this post reimplements in Go.</li>
+<li><a href="https://github.com/google/adk-go">google/adk-go</a> — the Go SDK (<code>google.golang.org/adk/v2</code>) whose model clients back the judge.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/eval-agents-go-08-multi-turn-multi-agent.html">Evaluating Multi-Turn and Multi-Agent Systems</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/eval-agents-go-07-ci-regression-gating.html">Agent Evaluation in CI: Regression Gating</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/eval-agents-go-06-eval-datasets.html">Building Eval Datasets from Real Traces</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

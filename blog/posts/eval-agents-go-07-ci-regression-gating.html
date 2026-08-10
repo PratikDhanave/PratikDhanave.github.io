@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Agent Evaluation in CI: Regression Gating — Pratik Dhanave</title>
+<meta name="description" content="How to wire agent evaluations into continuous integration in Go — running a slow, model-calling eval harness under `go test`, setting per-metric...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Agent Evaluation in CI: Regression Gating — Pratik Dhanave">
+<meta property="og:description" content="How to wire agent evaluations into continuous integration in Go — running a slow, model-calling eval harness under `go test`, setting per-metric thresholds that fail the build on a regression, and living...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/eval-agents-go-07-ci-regression-gating.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-09T00:00:00Z">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Evaluation">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="CI/CD">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Agent Evaluation in CI: Regression Gating — Pratik Dhanave">
+<meta name="twitter:description" content="How to wire agent evaluations into continuous integration in Go — running a slow, model-calling eval harness under `go test`, setting per-metric thresholds that fail the build on a regression, and living...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/eval-agents-go-07-ci-regression-gating.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Agent Evaluation in CI: Regression Gating",
+  "description": "How to wire agent evaluations into continuous integration in Go \u2014 running a slow, model-calling eval harness under `go test`, setting per-metric thresholds that fail the build on a regression, and living...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-09",
+  "dateModified": "2026-08-09",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Agents, Evaluation, Go, CI/CD",
+  "url": "https://pratikdhanave.com/blog/posts/eval-agents-go-07-ci-regression-gating.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/eval-agents-go-07-ci-regression-gating.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Agent Evaluation in CI: Regression Gating</h1>
+    <p class="post-subtitle">How to wire agent evaluations into continuous integration in Go — running a slow, model-calling eval harness under `go test`, setting per-metric thresholds that fail the build on a regression, and living honestly with the fact that these gates are softer than unit tests.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-09">August 09, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/evaluation/" class="tag-link"><span class="tag">#Evaluation</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ci/cd/" class="tag-link"><span class="tag">#CI/CD</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 7 of 8</span>
+    <span class="series-title">Evaluating Agents in Go</span>
+    <div class="series-nav"><a href="/blog/posts/eval-agents-go-06-eval-datasets.html" class="series-prev">&larr; Part 6: Building Eval Datasets from Real Traces</a>
+<a href="/blog/posts/eval-agents-go-08-multi-turn-multi-agent.html" class="series-next">Part 8: Evaluating Multi-Turn and Multi-Agent Systems &rarr;</a></div>
+  </div>
+
+
+
+  <p>A unit test is a contract: given this input, the function must return exactly that output, forever. Agent evaluations are not contracts — they are measurements. An eval run tells you <em>how well</em> an agent did on a dataset, expressed as a score between 0 and 1, and that score wobbles from run to run because a language model sits in the middle of it. The job of CI is to catch the moment a change makes the agent measurably <em>worse</em> — a regression — without drowning you in false alarms every time the model phrases an answer differently.</p>
+<p>This post is about that wiring. We are building on the <a href="https://adk.dev/">Agent Development Kit for Go</a> (<code>google.golang.org/adk/v2</code>), which gives us agents and runners but, unlike its Python sibling, ships <strong>no evaluation package</strong> — so we build the harness ourselves and run it under <code>go test</code>. The Python ADK docs describe <a href="https://adk.dev/evaluate/">running evals in CI</a> with pytest and configurable thresholds; the shape of that idea ports cleanly to Go, and Go&rsquo;s build tags and testing tooling make some of it nicer.</p>
+<hr>
+<h2 id="1-two-kinds-of-tests-one-command">1. Two kinds of tests, one command</h2>
+<p>The first design decision is separation. Your unit tests are fast, deterministic, and offline. Your eval tests are slow, non-deterministic, and call a real model over the network. You do <strong>not</strong> want <code>go test ./...</code> on every save to spend two minutes and real API credits scoring an agent. But you also want the eval harness to be <em>real Go tests</em> so they run under the same tooling, produce the same output, and gate the same pipeline.</p>
+<p>Go&rsquo;s build tags give a clean split. Put eval tests behind a tag so they compile only when asked:</p>
+<pre><code class="language-go">//go:build eval
+
+package eval
+
+import (
+    &quot;os&quot;
+    &quot;testing&quot;
+)
+
+// requireLive skips unless the eval environment is actually configured,
+// so `go test -tags eval` degrades gracefully on a machine without creds.
+func requireLive(t *testing.T) {
+    t.Helper()
+    if os.Getenv(&quot;ADK_EVAL_LIVE&quot;) == &quot;&quot; {
+        t.Skip(&quot;set ADK_EVAL_LIVE=1 and model credentials to run eval tests&quot;)
+    }
+}
+</code></pre>
+<p>Now the two worlds never collide:</p>
+<pre><code class="language-bash">go test ./...              # unit tests only — the //go:build eval files don't compile
+go test -tags eval ./eval  # eval harness — slow, calls the model
+</code></pre>
+<p>I use a build tag <em>and</em> an env-var guard on purpose. The tag keeps eval code out of the normal compile so a missing model dependency never breaks <code>go test ./...</code>. The env flag lets the same tagged binary run in &ldquo;collect but skip&rdquo; mode on a laptop without credentials — the test is discovered, reported as skipped, and never charges you. This mirrors the ADK convention where live-model tests skip by default unless credentials and a flag are present.</p>
+<hr>
+<h2 id="2-a-minimal-eval-harness">2. A minimal eval harness</h2>
+<p>Since there is no ADK eval package, define the shapes you need. A <strong>case</strong> is an input plus whatever you assert about the agent&rsquo;s behavior; a <strong>metric</strong> turns one agent run into a score in <code>[0,1]</code>; a <strong>result</strong> carries the score back for gating.</p>
+<pre><code class="language-go">//go:build eval
+
+package eval
+
+import &quot;context&quot;
+
+// Case is one row of the eval dataset.
+type Case struct {
+    Name          string
+    Prompt        string
+    ExpectedTools []string // trajectory: tools we expect to be invoked, in order
+    Reference     string   // reference answer for response-quality scoring
+}
+
+// Trace is what one agent run produced, captured by the runner.
+type Trace struct {
+    FinalText  string
+    ToolCalls  []string
+}
+
+// Metric scores a single trace against its case. 1.0 is perfect, 0.0 is failure.
+type Metric interface {
+    Name() string
+    Score(ctx context.Context, c Case, tr Trace) (float64, error)
+}
+</code></pre>
+<p>Two metrics carry most of the weight in practice. <strong>Trajectory match</strong> checks <em>which tools the agent called</em> — this is stable because it doesn&rsquo;t depend on prose. <strong>Response quality</strong> scores the final answer against a reference, which is inherently fuzzier.</p>
+<pre><code class="language-go">//go:build eval
+
+package eval
+
+import (
+    &quot;context&quot;
+    &quot;strings&quot;
+)
+
+// ToolTrajectory scores the fraction of expected tool calls that appear
+// in the right order. Order-preserving, so a reversed call sequence scores low.
+type ToolTrajectory struct{}
+
+func (ToolTrajectory) Name() string { return &quot;tool_trajectory&quot; }
+
+func (ToolTrajectory) Score(_ context.Context, c Case, tr Trace) (float64, error) {
+    if len(c.ExpectedTools) == 0 {
+        return 1.0, nil // nothing expected, nothing to miss
+    }
+    matched, j := 0, 0
+    for _, want := range c.ExpectedTools {
+        for j &lt; len(tr.ToolCalls) {
+            if tr.ToolCalls[j] == want {
+                matched++
+                j++
+                break
+            }
+            j++
+        }
+    }
+    return float64(matched) / float64(len(c.ExpectedTools)), nil
+}
+
+// ResponseContains is a cheap deterministic quality proxy: does the answer
+// mention every required token? A stand-in for a heavier LLM-judge metric.
+type ResponseContains struct{}
+
+func (ResponseContains) Name() string { return &quot;response_match&quot; }
+
+func (ResponseContains) Score(_ context.Context, c Case, tr Trace) (float64, error) {
+    need := strings.Fields(strings.ToLower(c.Reference))
+    if len(need) == 0 {
+        return 1.0, nil
+    }
+    got := strings.ToLower(tr.FinalText)
+    hit := 0
+    for _, w := range need {
+        if strings.Contains(got, w) {
+            hit++
+        }
+    }
+    return float64(hit) / float64(need), nil
+}
+</code></pre>
+<p>A real deployment would swap <code>ResponseContains</code> for an LLM-as-judge metric. The interface is the point: the harness gates on numbers, and it does not care whether a number came from string matching or from a judge model.</p>
+<hr>
+<h2 id="3-the-regression-gate-thresholds-that-fail-the-build">3. The regression gate: thresholds that fail the build</h2>
+<p>A gate is just a table of per-metric floors and a test that fails when the <em>aggregate</em> score for a metric drops below its floor. Keeping thresholds in one place — not scattered across assertions — means you tune the strictness of the whole suite by editing one map.</p>
+<pre><code class="language-go">//go:build eval
+
+package eval
+
+// Thresholds are the per-metric floors the aggregate score must clear.
+// Trajectory is held to a higher bar because it's more stable than prose.
+var Thresholds = map[string]float64{
+    &quot;tool_trajectory&quot;: 0.90,
+    &quot;response_match&quot;:  0.70,
+}
+</code></pre>
+<p>The gating test loads the dataset, runs every case through the agent, averages each metric across the dataset, and compares against the floor:</p>
+<pre><code class="language-go">//go:build eval
+
+package eval
+
+import (
+    &quot;context&quot;
+    &quot;testing&quot;
+)
+
+func TestEvalGate(t *testing.T) {
+    requireLive(t)
+
+    cases := LoadDataset(t) // reads testdata/*.json; sampled on PRs (see §5)
+    metrics := []Metric{ToolTrajectory{}, ResponseContains{}}
+    ctx := context.Background()
+
+    // sums[metric] accumulates scores across the dataset.
+    sums := map[string]float64{}
+
+    for _, c := range cases {
+        tr := RunAgent(ctx, t, c.Prompt) // one live agent invocation → Trace
+        for _, m := range metrics {
+            s, err := m.Score(ctx, c, tr)
+            if err != nil {
+                t.Fatalf(&quot;metric %s on case %q: %v&quot;, m.Name(), c.Name, err)
+            }
+            sums[m.Name()] += s
+        }
+    }
+
+    n := float64(len(cases))
+    for _, m := range metrics {
+        avg := sums[m.Name()] / n
+        floor := Thresholds[m.Name()]
+        delta := avg - floor
+        t.Logf(&quot;%-16s avg=%.3f floor=%.3f delta=%+.3f&quot;, m.Name(), avg, floor, delta)
+        if avg &lt; floor {
+            t.Errorf(&quot;REGRESSION: %s scored %.3f, below floor %.3f&quot;, m.Name(), avg, floor)
+        }
+    }
+}
+</code></pre>
+<p>That <code>t.Errorf</code> is the whole game: a non-zero exit code from <code>go test</code> fails the CI job. No special reporting infrastructure required — the same mechanism that fails a unit test fails an eval regression.</p>
+<hr>
+<h2 id="4-the-non-determinism-problem">4. The non-determinism problem</h2>
+<p>Here is where agent evals stop resembling unit tests. Run the suite twice and the scores differ, because the model samples differently each time. If your floor sits right at the average score, a normal run-to-run wobble will flip the build red for no real reason. Flaky gates get ignored, and an ignored gate is worse than no gate. Four mitigations, roughly in order of how much I reach for them:</p>
+<p><strong>Pin what you can.</strong> Set temperature to 0 and a fixed seed if the provider honors one. This removes sampling variance for the parts of the pipeline that support it. It does not make the model fully deterministic — providers rarely guarantee bit-identical output — but it collapses most of the noise.</p>
+<pre><code class="language-go">// When constructing the model/agent for evals, kill sampling variance.
+cfg := ModelConfig{Temperature: 0, Seed: 42}
+</code></pre>
+<p><strong>Run each case a few times and average.</strong> Scoring a case three times and taking the mean shrinks the variance of the <em>reported</em> number, so the floor comparison is against a steadier signal. It costs 3× the calls, which is why you reserve it for the nightly full run, not PRs.</p>
+<pre><code class="language-go">func meanScore(runs int, score func() float64) float64 {
+    total := 0.0
+    for i := 0; i &lt; runs; i++ {
+        total += score()
+    }
+    return total / float64(runs)
+}
+</code></pre>
+<p><strong>Gate with tolerance bands, not knife-edges.</strong> Instead of failing the instant the average dips below the floor, fail only when it drops <strong>more than a tolerance</strong> below a stored <em>baseline</em> from the last known-good run. Small dips are noise; a drop past the band is a signal.</p>
+<pre><code class="language-go">// baseline[&quot;tool_trajectory&quot;] = 0.94 from the last green main build.
+const tolerance = 0.03
+if avg &lt; baseline[name]-tolerance {
+    t.Errorf(&quot;REGRESSION: %s fell from baseline %.3f to %.3f (&gt;%.2f band)&quot;,
+        name, baseline[name], avg, tolerance)
+}
+</code></pre>
+<p><strong>Prefer trajectory over prose for hard gates.</strong> Trajectory metrics — did the agent call the right tools, in the right order — barely move between runs, because tool selection is far more stable than free-text wording. That is why the threshold table holds trajectory to <code>0.90</code> but response quality to <code>0.70</code>. When you want a gate strict enough to <em>block a merge</em>, gate on trajectory; treat response-quality scores as a trend you watch, not a wall you enforce.</p>
+<p>Caching is the fifth lever and the sharpest double-edged one: record model responses for a fixed dataset and replay them, and the eval becomes deterministic and free. But a cached eval no longer tests the live model — it tests your recording. Use caching for the <em>plumbing</em> tests (does the harness parse tool calls correctly?) and keep at least one un-cached live run so a real model regression can&rsquo;t hide behind a stale cassette.</p>
+<hr>
+<h2 id="5-cost-and-time-sample-on-prs-full-suite-nightly">5. Cost and time: sample on PRs, full suite nightly</h2>
+<p>Live evals cost money and minutes. A 200-case dataset scored three times each is 600 model calls per run — fine once a night, painful on every push to a busy PR. Split the schedule by how much signal you need versus how fast you need it.</p>
+<p>On a pull request, run a <strong>deterministic sample</strong> of the dataset — enough to catch an obvious regression quickly and cheaply. Nightly (or on merge to <code>main</code>), run the <strong>full</strong> dataset with multi-run averaging for a trustworthy baseline.</p>
+<pre><code class="language-go">//go:build eval
+
+package eval
+
+import (
+    &quot;os&quot;
+    &quot;sort&quot;
+    &quot;strconv&quot;
+    &quot;testing&quot;
+)
+
+// LoadDataset returns the full set, or a stable sample when ADK_EVAL_SAMPLE is set.
+// Sampling is deterministic (sort then stride) so the same cases run every PR —
+// a random sample would make PR scores jitter for a second, avoidable reason.
+func LoadDataset(t *testing.T) []Case {
+    all := readAllCases(t) // your testdata loader
+    sample := os.Getenv(&quot;ADK_EVAL_SAMPLE&quot;)
+    if sample == &quot;&quot; {
+        return all
+    }
+    k, err := strconv.Atoi(sample)
+    if err != nil || k &lt;= 0 || k &gt;= len(all) {
+        return all
+    }
+    sort.Slice(all, func(i, j int) bool { return all[i].Name &lt; all[j].Name })
+    stride := len(all) / k
+    out := make([]Case, 0, k)
+    for i := 0; i &lt; len(all) &amp;&amp; len(out) &lt; k; i += stride {
+        out = append(out, all[i])
+    }
+    return out
+}
+</code></pre>
+<p>The knob — <code>ADK_EVAL_SAMPLE=20</code> on PRs, unset nightly — keeps one code path for both schedules. Cheap, fast feedback on every PR; the expensive, authoritative measurement runs while you sleep.</p>
+<hr>
+<h2 id="6-reporting-deltas-and-artifacts">6. Reporting: deltas and artifacts</h2>
+<p>A red build that just says &ldquo;response_match scored 0.62&rdquo; sends someone digging. Report the <em>delta against baseline</em> and save the per-case scores as a build artifact so the failure explains itself. The gating test already logs deltas via <code>t.Logf</code>; write the machine-readable version too:</p>
+<pre><code class="language-go">//go:build eval
+
+package eval
+
+import (
+    &quot;encoding/json&quot;
+    &quot;os&quot;
+)
+
+type Report struct {
+    Metric   string  `json:&quot;metric&quot;`
+    Average  float64 `json:&quot;average&quot;`
+    Baseline float64 `json:&quot;baseline&quot;`
+    Delta    float64 `json:&quot;delta&quot;`
+    Floor    float64 `json:&quot;floor&quot;`
+    Passed   bool    `json:&quot;passed&quot;`
+}
+
+func WriteReport(path string, rows []Report) error {
+    b, err := json.MarshalIndent(rows, &quot;&quot;, &quot;  &quot;)
+    if err != nil {
+        return err
+    }
+    return os.WriteFile(path, b, 0o644)
+}
+</code></pre>
+<p>Upload <code>eval-report.json</code> from the job and the reviewer sees exactly which metric moved, by how much, and against what baseline — without re-running anything.</p>
+<hr>
+<h2 id="7-wiring-it-into-github-actions">7. Wiring it into GitHub Actions</h2>
+<p>Two triggers, one workflow. The PR job runs a sampled, fast gate; the nightly job runs the full suite and refreshes the baseline. Secrets carry the model credentials so <code>requireLive</code> doesn&rsquo;t skip.</p>
+<pre><code class="language-yaml">name: agent-eval
+
+on:
+  pull_request:
+  schedule:
+    - cron: &quot;0 3 * * *&quot;   # 03:00 UTC nightly, full suite
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: &quot;1.23&quot;
+
+      # Fast, sampled gate on PRs; full suite on the nightly schedule.
+      - name: Run agent evals
+        env:
+          ADK_EVAL_LIVE: &quot;1&quot;
+          MODEL_API_KEY: ${{ secrets.MODEL_API_KEY }}
+          ADK_EVAL_SAMPLE: ${{ github.event_name == 'pull_request' &amp;&amp; '20' || '' }}
+        run: go test -tags eval -timeout 20m ./eval -run TestEvalGate
+
+      - name: Upload eval report
+        if: always()   # keep the artifact even when the gate fails
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval-report.json
+</code></pre>
+<p><code>if: always()</code> on the upload matters: the artifact is most useful precisely when the gate failed. The <code>-timeout 20m</code> guards against a hung model call turning into a stuck runner.</p>
+<hr>
+<h2 id="8-the-honest-caveat">8. The honest caveat</h2>
+<p>Agent eval gates are softer than unit tests, and pretending otherwise will burn you. A unit test that goes red means the code is wrong. An eval gate that goes red means the <em>measured behavior moved past a threshold you chose</em> — which might be a real regression, or a noisy sample, or a model provider quietly changing a checkpoint under you, or a reference answer that was always a little too strict. Treat a red eval as <em>a reason to look</em>, not proof of a bug.</p>
+<p>That has practical consequences for how you run these gates:</p>
+<ul>
+<li><strong>Make eval failures reviewable, not merge-blocking on day one.</strong> Start with the gate reporting a status and requiring a human glance; promote it to a hard block only for the metrics you trust — usually trajectory, rarely raw prose quality.</li>
+<li><strong>Version your baselines and thresholds in the repo.</strong> When you deliberately change the agent and scores shift, you <em>update the baseline in the same PR</em>, so the diff records that the bar moved on purpose.</li>
+<li><strong>Watch trends, not single runs.</strong> One dip is noise; three runs sliding the same direction is a regression. The nightly report is where you see the trend.</li>
+</ul>
+<p>The payoff is real despite the softness: a change that drops tool-trajectory accuracy from 0.94 to 0.71 will light up the gate immediately, and that is exactly the class of regression that silently ships without one. You are not trying to freeze the agent&rsquo;s behavior — you are trying to notice when it gets worse before your users do.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Separate eval tests from unit tests</strong> with a <code>//go:build eval</code> tag plus an env-flag guard, so <code>go test ./...</code> stays fast and free while <code>go test -tags eval</code> runs the live harness.</li>
+<li><strong>Build the harness yourself</strong> — adk-go ships no eval package. A <code>Metric</code> interface scoring a <code>Trace</code> into <code>[0,1]</code> is enough to gate on.</li>
+<li><strong>Gate on aggregate scores against per-metric floors</strong>; a <code>t.Errorf</code> fails the build like any other test.</li>
+<li><strong>Tame non-determinism</strong> with temperature 0 / fixed seeds, multi-run averaging, tolerance bands against a baseline, and by holding hard gates to <em>trajectory</em> rather than prose.</li>
+<li><strong>Split the schedule:</strong> a deterministic sample on PRs for speed, the full dataset nightly for an authoritative baseline — one env knob, one code path.</li>
+<li><strong>Report deltas and save artifacts</strong> so a red build explains itself.</li>
+<li><strong>Accept that eval gates are softer than unit tests.</strong> Start advisory, promote the metrics you trust to blocking, version baselines and thresholds in the repo, and watch trends over single runs.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/eval-agents-go-08-multi-turn-multi-agent.html">Evaluating Multi-Turn and Multi-Agent Systems</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/eval-agents-go-06-eval-datasets.html">Building Eval Datasets from Real Traces</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/eval-agents-go-05-response-evaluation.html">Response Evaluation: Match, ROUGE, and LLM-as-Judge</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

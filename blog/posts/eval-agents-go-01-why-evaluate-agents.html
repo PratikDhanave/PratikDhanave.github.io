@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Why Evaluating AI Agents Is Hard — Pratik Dhanave</title>
+<meta name="description" content="The opener to a series on evaluating agents in Go: why an agent isn&#x27;t a function you can unit-test, why &quot;it worked in the demo&quot; doesn&#x27;t survive contact...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Why Evaluating AI Agents Is Hard — Pratik Dhanave">
+<meta property="og:description" content="The opener to a series on evaluating agents in Go: why an agent isn&#x27;t a function you can unit-test, why &quot;it worked in the demo&quot; doesn&#x27;t survive contact with production, and the two things actually worth...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/eval-agents-go-01-why-evaluate-agents.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-03T00:00:00Z">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Evaluation">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Google ADK">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Why Evaluating AI Agents Is Hard — Pratik Dhanave">
+<meta name="twitter:description" content="The opener to a series on evaluating agents in Go: why an agent isn&#x27;t a function you can unit-test, why &quot;it worked in the demo&quot; doesn&#x27;t survive contact with production, and the two things actually worth...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/eval-agents-go-01-why-evaluate-agents.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Why Evaluating AI Agents Is Hard",
+  "description": "The opener to a series on evaluating agents in Go: why an agent isn't a function you can unit-test, why \"it worked in the demo\" doesn't survive contact with production, and the two things actually worth...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-03",
+  "dateModified": "2026-08-03",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Agents, Evaluation, Go, Google ADK",
+  "url": "https://pratikdhanave.com/blog/posts/eval-agents-go-01-why-evaluate-agents.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/eval-agents-go-01-why-evaluate-agents.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Why Evaluating AI Agents Is Hard</h1>
+    <p class="post-subtitle">The opener to a series on evaluating agents in Go: why an agent isn&#x27;t a function you can unit-test, why &quot;it worked in the demo&quot; doesn&#x27;t survive contact with production, and the two things actually worth measuring — the steps it took and the answer it gave.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-03">August 03, 2026</time>
+      <span>·</span>
+      <span>10 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/evaluation/" class="tag-link"><span class="tag">#Evaluation</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/google-adk/" class="tag-link"><span class="tag">#Google ADK</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 1 of 8</span>
+    <span class="series-title">Evaluating Agents in Go</span>
+    <div class="series-nav"><a href="/blog/posts/eval-agents-go-02-the-adk-eval-model.html" class="series-next">Part 2: The ADK Evaluation Model &rarr;</a></div>
+  </div>
+
+
+
+  <p>A function is a contract. Give it the same inputs and it returns the same output, forever, until someone edits the code. That property is the quiet foundation of every test you have ever written: assert that <code>Add(2, 3)</code> returns <code>5</code>, and if it ever doesn&rsquo;t, something changed and the test tells you where.</p>
+<p>An agent breaks that contract on purpose. It wraps a language model in a loop — the model reads a request, decides whether to call a tool, reads the tool&rsquo;s result, decides again, and eventually answers. The same request can produce a different tool sequence and a different sentence on two consecutive runs, and <em>both can be correct</em>. This is not a bug you can fix; it is the mechanism you are paying for. The whole reason you reached for an agent instead of a switch statement is that you wanted it to handle inputs you didn&rsquo;t enumerate.</p>
+<p>So the first honest thing to say about evaluating agents is that your existing testing instincts will fight you. <code>assert output == expected</code> is the wrong shape. This series is about the right shape — and because Google&rsquo;s Agent Development Kit ships its evaluation tooling only in Python, doing it in Go means building the harness yourself. That&rsquo;s the work. Let&rsquo;s start with why it&rsquo;s necessary.</p>
+<hr>
+<h2 id="an-agent-is-not-a-function">An agent is not a function</h2>
+<p>Here is the smallest agent that still behaves like one — a model, a loop, a tool. The Go type is deliberately vague about what happens inside <code>Run</code>, because that vagueness is the point.</p>
+<pre><code class="language-go">// Agent runs a model-driven loop and returns a final answer plus the
+// trajectory it took to get there. Two calls with the same query may
+// return different Trajectory and different Answer — both may be valid.
+type Agent interface {
+    Run(ctx context.Context, query string) (Result, error)
+}
+
+type Result struct {
+    Answer     string     // the final natural-language response
+    Trajectory []ToolCall // the ordered tool calls made along the way
+}
+
+type ToolCall struct {
+    Name string            // e.g. &quot;search_flights&quot;
+    Args map[string]any    // the arguments the model chose
+}
+</code></pre>
+<p>Now try to test it the way you&rsquo;d test <code>Add</code>:</p>
+<pre><code class="language-go">func TestBookFlight(t *testing.T) {
+    got, _ := agent.Run(ctx, &quot;cheapest flight BLR to SFO next Friday&quot;)
+    if got.Answer != &quot;The cheapest flight is UA 869 at $612.&quot; {
+        t.Fatalf(&quot;unexpected answer: %q&quot;, got.Answer)
+    }
+}
+</code></pre>
+<p>This test is worse than useless — it is <em>confidently</em> useless. It fails when the price changes, when the model rephrases the same fact (&ldquo;Your cheapest option is United 869, $612&rdquo;), when the flight number updates, or when the model helpfully adds a caveat about baggage fees. None of those are regressions. Yet it <em>passes</em> if the agent invents a flight that doesn&rsquo;t exist, as long as it happens to print that exact string. You are asserting on the one thing that is allowed to vary while ignoring the thing that actually matters: whether the agent did the right work and told the truth.</p>
+<p><strong>The gotcha:</strong> string equality on an agent&rsquo;s answer measures phrasing, not correctness. It produces false failures on valid rewordings and false passes on confident hallucinations — the exact inversion of what a test is for. Every instinct that served you on pure functions has to be re-derived here.</p>
+<hr>
+<h2 id="why-it-worked-in-the-demo-isnt-enough">Why &ldquo;it worked in the demo&rdquo; isn&rsquo;t enough</h2>
+<p>Demos are single draws from a distribution. You typed a query, the stars aligned, the agent nailed it, and you shipped. Production is thousands of draws from a <em>shifting</em> distribution, and three forces conspire against the version that impressed you in the demo.</p>
+<p><strong>Non-determinism within a fixed setup.</strong> Even with the same model, same prompt, and temperature pinned low, decoding is sampled and tool results arrive in varying order. The agent that took three clean tool calls in the demo might take a redundant fifth one at 2 a.m., or skip a lookup and guess. You cannot see this from one run; you see it from the <em>rate</em> across many runs.</p>
+<p><strong>Prompt and model drift.</strong> You will edit the system prompt to fix one awkward reply, and silently change behavior on twenty inputs you didn&rsquo;t retest. Worse, the model itself moves underneath you: a provider ships a new checkpoint behind the same version string, deprecates the one you validated on, or nudges tool-calling behavior in a minor update. Your code didn&rsquo;t change; your agent did.</p>
+<p><strong>Silent regressions.</strong> This is the dangerous one. When a function regresses, it throws or returns the wrong type and something downstream crashes loudly. When an agent regresses, it keeps producing fluent, confident, well-formatted prose — that is now subtly wrong. There is no stack trace for &ldquo;started hallucinating refund policies.&rdquo; The output looks exactly as trustworthy as it did yesterday. Without measurement, the failure mode of an agent is not a crash; it is a lie delivered in a calm voice.</p>
+<p>The takeaway isn&rsquo;t &ldquo;demos are bad.&rdquo; It&rsquo;s that a demo answers &ldquo;can it work?&rdquo; and production requires &ldquo;how often does it work, and will I notice when that changes?&rdquo; Those are statistical questions, and statistical questions need a harness that runs many cases and reports rates — not a green checkmark from one lucky run.</p>
+<hr>
+<h2 id="the-two-things-worth-measuring">The two things worth measuring</h2>
+<p>Google&rsquo;s ADK documentation frames agent evaluation around two axes, and they map cleanly onto the two ways an agent can disappoint you. Keep them separate; they fail independently and you debug them differently.</p>
+<h3 id="1-trajectory-did-it-take-the-right-steps">1. Trajectory — did it take the right steps?</h3>
+<p>The trajectory is the ordered sequence of tool calls the agent made. Evaluating it asks: given this query, did the agent reach for the right tools, with sane arguments, in a reasonable order? An agent can produce a correct-sounding final answer while having taken a reckless path to get there — skipping a required authorization check, calling a write tool before the read that should gate it, or hitting a paid API five times where one would do. Trajectory evaluation is what catches that.</p>
+<p>The relevant idea from ADK&rsquo;s model is <code>tool_trajectory_avg_score</code>: compare the actual tool sequence against an expected one and score how well they match. In Go you build the comparison yourself. A first, deliberately simple version:</p>
+<pre><code class="language-go">// TrajectoryScore returns the fraction of steps where the actual tool
+// call matches the expected one, position by position. 1.0 is a perfect
+// match; 0.0 is no overlap. This is exact-match — a real harness layers
+// in argument tolerance and order-insensitivity where the task allows.
+func TrajectoryScore(expected, actual []ToolCall) float64 {
+    if len(expected) == 0 {
+        return 1.0
+    }
+    matches := 0
+    for i := range expected {
+        if i &lt; len(actual) &amp;&amp; sameCall(expected[i], actual[i]) {
+            matches++
+        }
+    }
+    return float64(matches) / float64(len(expected))
+}
+
+func sameCall(a, b ToolCall) bool {
+    return a.Name == b.Name &amp;&amp; argsEqual(a.Args, b.Args)
+}
+</code></pre>
+<p>This is intentionally strict, and later posts loosen it — because &ldquo;took the right steps&rdquo; is rarely a single canonical path. Sometimes order doesn&rsquo;t matter, sometimes an extra tool call is fine, sometimes the argument just has to be <em>close enough</em>. Encoding that judgment is most of the real work, and we&rsquo;ll build it up honestly rather than pretend one score fits every task.</p>
+<h3 id="2-final-response-did-it-give-the-right-answer">2. Final response — did it give the right answer?</h3>
+<p>The second axis judges the answer itself, independent of how it was reached. ADK&rsquo;s model offers a ladder of increasingly capable metrics, and the honest framing is that each one buys more nuance at a higher cost:</p>
+<ul>
+<li><strong><code>response_match_score</code></strong> — lexical overlap against a reference answer (ROUGE-1 style, n-gram overlap). Cheap, deterministic, and blind to meaning: it rewards shared words and can&rsquo;t tell that &ldquo;United 869&rdquo; and &ldquo;UA869&rdquo; are the same flight, or that a fluent paraphrase is correct.</li>
+<li><strong><code>final_response_match_v2</code></strong> — an LLM-as-judge scores the answer against the reference for <em>semantic</em> correctness, tolerating rewording. More faithful to how a human would grade, but now your evaluator is itself a non-deterministic model with its own cost and biases.</li>
+<li><strong><code>rubric_based_*</code></strong> — score against an explicit checklist of criteria you write (&ldquo;cites a real flight number&rdquo;, &ldquo;states the price&rdquo;, &ldquo;mentions baggage caveats&rdquo;) rather than one golden string.</li>
+<li><strong><code>hallucinations_v1</code></strong> — check whether claims in the answer are grounded in the tool results and context, rather than invented.</li>
+<li><strong><code>safety_v1</code></strong> and <strong><code>multi_turn_*</code></strong> — safety of the response, and the harder case of quality sustained across a whole conversation rather than a single turn.</li>
+</ul>
+<p><strong>The gotcha:</strong> there is no free lunch on the response axis. Lexical scores are cheap, reproducible, and semantically blind; LLM-judge scores are semantically aware but slower, costlier, and non-deterministic — you are now evaluating a model <em>with</em> a model, so you have to validate the judge too. The right choice depends on how much a wrong answer costs you, not on which metric sounds most sophisticated. A blog code sample can live with ROUGE; a refund agent cannot.</p>
+<hr>
+<h2 id="where-go-stands-and-what-this-series-builds">Where Go stands, and what this series builds</h2>
+<p>Here is the part the Go ecosystem doesn&rsquo;t advertise. The <code>google.golang.org/adk/v2</code> module gives you real, first-class packages for <em>building</em> agents — <code>agent</code>, <code>runner</code>, <code>tool</code>, <code>session</code>, <code>model</code>, <code>memory</code>, <code>workflow</code>, <code>artifact</code>, <code>telemetry</code>. What it does <strong>not</strong> give you is an evaluation package. The <code>AgentEvaluator</code>, the <code>adk eval</code> command-line runner, and the evalset file format all live in ADK&rsquo;s Python distribution. There is no drop-in Go equivalent, and inventing an API that looks like one would just mislead you.</p>
+<p>So the Go position is: the <em>conceptual</em> model is language-agnostic and well-documented — two axes, the metric families above — but the <em>tooling</em> to apply it is yours to build. That is not a gap to apologize for; it&rsquo;s the premise of this series. We&rsquo;ll build a small, honest evaluation harness in Go, piece by piece, grounded in ADK&rsquo;s documented model rather than in any one course&rsquo;s code.</p>
+<p>The rough map from here:</p>
+<table><caption class="sr-only">Where Go stands, and what this series builds</caption>
+<thead>
+<tr>
+<th>Post</th>
+<th>What we build</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 — this one</td>
+<td>Why agents resist unit testing; the two axes to measure</td>
+</tr>
+<tr>
+<td>2</td>
+<td>An evalset format in Go — cases with a query, expected trajectory, and reference answer</td>
+</tr>
+<tr>
+<td>3</td>
+<td>A <code>runner</code> that executes cases and captures the real trajectory + answer</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Trajectory scoring: exact match, then order- and argument-tolerant variants</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Response scoring: ROUGE-style overlap, then an LLM-as-judge with a validated rubric</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Grounding and hallucination checks against tool outputs</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Wiring evaluation into CI so regressions fail the build, not production</td>
+</tr>
+</tbody>
+</table>
+<p>Each post ships runnable Go and is upfront about what the metric can and cannot tell you. No metric here is a verdict on its own; together they turn &ldquo;it felt fine in the demo&rdquo; into a number you can watch move.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>An agent is not a function.</strong> Same input, different valid output — string equality on the answer gives you false failures on rewordings and false passes on confident hallucinations.</li>
+<li><strong>Demos answer the wrong question.</strong> &ldquo;Can it work?&rdquo; is one lucky draw; production needs &ldquo;how often, and will I notice when it drifts?&rdquo; Those are statistical questions that need a harness, not a checkmark.</li>
+<li><strong>Measure two things separately.</strong> Trajectory (did it take the right steps?) and final response (did it give the right answer?) fail independently and are debugged differently.</li>
+<li><strong>Response metrics trade cost for nuance.</strong> Lexical overlap is cheap and semantically blind; LLM-judge is faithful but non-deterministic and needs validating itself. Pick by what a wrong answer costs.</li>
+<li><strong>In Go, you build the harness.</strong> ADK defines a solid, language-agnostic eval model but ships the tooling only in Python. <code>adk-go</code> has no evaluation package — so this series builds one, grounded in the docs.</li>
+</ul>
+<p>The goal of everything that follows isn&rsquo;t a perfect grade. It&rsquo;s the ability to catch a silent regression before your users do — to replace a calm, confident, wrong answer with a red number in CI.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://adk.dev/evaluate/">Google ADK — Evaluate agents</a> — the primary conceptual source for the two-axis model and the metric families (<code>tool_trajectory_avg_score</code>, <code>response_match_score</code>, <code>final_response_match_v2</code>, rubric-based, hallucination, and safety metrics) referenced throughout this post.</li>
+<li>The topic of evaluating ADK agents is also covered by a LinkedIn Learning course, which inspired this series&rsquo; subject; the code and framing here are original and derived from Google&rsquo;s public ADK documentation rather than that course.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/eval-agents-go-02-the-adk-eval-model.html">The ADK Evaluation Model</a>
+      <span class="related-date">Aug 04</span>
+    </li>
+    <li>
+      <a href="/blog/posts/eval-agents-go-08-multi-turn-multi-agent.html">Evaluating Multi-Turn and Multi-Agent Systems</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/eval-agents-go-07-ci-regression-gating.html">Agent Evaluation in CI: Regression Gating</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

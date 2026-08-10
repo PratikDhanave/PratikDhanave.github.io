@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>The ADK Evaluation Model — Pratik Dhanave</title>
+<meta name="description" content="Before you can evaluate an agent in Go, you need a mental model of what &quot;evaluating an agent&quot; even means. This post unpacks the conceptual core of...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="The ADK Evaluation Model — Pratik Dhanave">
+<meta property="og:description" content="Before you can evaluate an agent in Go, you need a mental model of what &quot;evaluating an agent&quot; even means. This post unpacks the conceptual core of Google&#x27;s Agent Development Kit eval framework — cases,...">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/eval-agents-go-02-the-adk-eval-model.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-04T00:00:00Z">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Evaluation">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Google ADK">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The ADK Evaluation Model — Pratik Dhanave">
+<meta name="twitter:description" content="Before you can evaluate an agent in Go, you need a mental model of what &quot;evaluating an agent&quot; even means. This post unpacks the conceptual core of Google&#x27;s Agent Development Kit eval framework — cases,...">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/eval-agents-go-02-the-adk-eval-model.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The ADK Evaluation Model",
+  "description": "Before you can evaluate an agent in Go, you need a mental model of what \"evaluating an agent\" even means. This post unpacks the conceptual core of Google's Agent Development Kit eval framework \u2014 cases,...",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-04",
+  "dateModified": "2026-08-04",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Agents, Evaluation, Go, Google ADK",
+  "url": "https://pratikdhanave.com/blog/posts/eval-agents-go-02-the-adk-eval-model.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/eval-agents-go-02-the-adk-eval-model.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>The ADK Evaluation Model</h1>
+    <p class="post-subtitle">Before you can evaluate an agent in Go, you need a mental model of what &quot;evaluating an agent&quot; even means. This post unpacks the conceptual core of Google&#x27;s Agent Development Kit eval framework — cases, trajectories, metrics, thresholds — the parts that are language-agnostic, so the rest of this series can implement them as plain Go types and functions.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-04">August 04, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/evaluation/" class="tag-link"><span class="tag">#Evaluation</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/google-adk/" class="tag-link"><span class="tag">#Google ADK</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 2 of 8</span>
+    <span class="series-title">Evaluating Agents in Go</span>
+    <div class="series-nav"><a href="/blog/posts/eval-agents-go-01-why-evaluate-agents.html" class="series-prev">&larr; Part 1: Why Evaluating AI Agents Is Hard</a>
+<a href="/blog/posts/eval-agents-go-03-eval-harness-in-go.html" class="series-next">Part 3: Building an Evaluation Harness in Go &rarr;</a></div>
+  </div>
+
+
+
+  <p>Testing a deterministic function is easy: feed it an input, assert on the output. Agents break that comfort in two ways. First, the same prompt can yield different wording every run, so exact string equality is the wrong assertion. Second, an agent doesn&rsquo;t just <em>answer</em> — it <em>acts</em>: it decides which tools to call, in what order, with what arguments. A reply that reads perfectly can still be wrong if the agent reached it by calling the wrong tool, or right by luck after calling nothing at all.</p>
+<p>Google&rsquo;s Agent Development Kit (ADK) answers this with an evaluation model that scores two different things: <strong>what the agent did</strong> (its trajectory of tool calls) and <strong>what the agent said</strong> (its final response). Everything else — file formats, metrics, thresholds — hangs off that split.</p>
+<p>A note on the terrain. ADK&rsquo;s <em>eval tooling</em> is Python-only today: the <code>AgentEvaluator</code> class, the <code>adk eval</code> CLI, and the <code>.test.json</code> / <code>.evalset.json</code> file formats all live in the Python SDK. The Go module (<code>google.golang.org/adk/v2</code>) ships <code>agent</code>, <code>runner</code>, <code>tool</code>, <code>session</code>, <code>telemetry</code>, and friends — but <strong>no eval package</strong>. That&rsquo;s fine. The eval <em>model</em> is conceptual and portable; only its Python <em>implementation</em> is missing from Go. This post teaches the model. The rest of the series builds it in Go from scratch.</p>
+<hr>
+<h2 id="1-the-unit-of-evaluation-an-eval-case">1. The unit of evaluation: an eval case</h2>
+<p>The atom of ADK evaluation is a single <strong>eval case</strong> — one interaction you want to hold the agent accountable for. Conceptually it bundles three things:</p>
+<ol>
+<li><strong>The input</strong> — what the user said (and, for multi-turn cases, the conversation leading up to it).</li>
+<li><strong>The expected tool trajectory</strong> — the sequence of tool calls you believe a correct agent would make, each with a name and arguments.</li>
+<li><strong>The reference final response</strong> — a known-good answer to compare the agent&rsquo;s actual reply against.</li>
+</ol>
+<p>That triple is the whole idea. You&rsquo;re asserting <em>both</em> on the path and on the destination. An eval case with an empty expected trajectory says &ldquo;a correct agent should answer this without calling any tools&rdquo; — which is itself a meaningful assertion, since a chatty agent that gratuitously calls a search tool for <code>2 + 2</code> is misbehaving.</p>
+<p>Here&rsquo;s that concept as an original Go schema — not a translation of ADK&rsquo;s Python types, but a Go-native modeling of the same idea:</p>
+<pre><code class="language-go">package eval
+
+// ToolCall is one expected (or observed) invocation in a trajectory.
+type ToolCall struct {
+    Name string         `json:&quot;name&quot;`
+    Args map[string]any `json:&quot;args,omitempty&quot;`
+}
+
+// Turn is a single user input paired with what a correct agent should do.
+type Turn struct {
+    UserInput    string     `json:&quot;user_input&quot;`
+    WantTools    []ToolCall `json:&quot;want_tools,omitempty&quot;`    // expected trajectory
+    WantResponse string     `json:&quot;want_response,omitempty&quot;` // reference answer
+}
+
+// EvalCase is one scenario: one or more turns that belong to a single session.
+type EvalCase struct {
+    ID    string `json:&quot;id&quot;`
+    Turns []Turn `json:&quot;turns&quot;`
+}
+</code></pre>
+<p>Note the deliberate choices: <code>Args</code> is <code>map[string]any</code> because tool arguments are arbitrary JSON; <code>WantTools</code> is a slice because trajectory is <em>ordered</em>; and a <code>Turn</code> carries both the expected path and the expected answer, keeping the two assertions side by side.</p>
+<p><strong>The gotcha:</strong> an eval case is <em>not</em> a unit test with one assertion — it&rsquo;s two assertions with independent pass/fail. An agent can nail the trajectory and botch the wording, or produce a beautiful answer via the wrong path. Keeping them separate is the point; collapsing them into a single &ldquo;did it pass&rdquo; boolean throws away exactly the diagnostic signal you built the case to capture.</p>
+<hr>
+<h2 id="2-test-files-vs-evalsets-single-turn-vs-multi-turn">2. Test files vs. evalsets: single-turn vs. multi-turn</h2>
+<p>ADK stores cases in two file shapes, and the distinction is a <strong>data-modeling decision</strong> worth understanding before you invent Go equivalents.</p>
+<ul>
+<li>A <strong>test file</strong> (<code>.test.json</code> in Python) holds a <em>single session</em> — one conversation, often one turn. It&rsquo;s the lightweight format for quick, focused checks: &ldquo;given this input, did the agent call the weather tool and report the temperature?&rdquo; You keep these next to your code and run them like unit tests.</li>
+<li>An <strong>evalset</strong> (<code>.evalset.json</code> in Python) holds <em>multiple sessions</em>, each potentially multi-turn, under one file. It&rsquo;s the format for realistic, stateful scenarios — a booking flow where turn 3 depends on what the agent remembered from turn 1. Evalsets are what you graduate to for regression suites and integration-style coverage.</li>
+</ul>
+<p>The difference isn&rsquo;t cosmetic. A single-turn check can be stateless; a multi-turn evalset must preserve <strong>session state</strong> between turns, because the agent&rsquo;s behavior on turn <em>N</em> legitimately depends on turns <em>1..N-1</em>. That&rsquo;s why the <code>EvalCase</code> above nests <code>Turns</code> inside a case: one case <em>is</em> one session, and a session can have many turns.</p>
+<p>Modeling the two shapes in Go is just two container types over the same <code>EvalCase</code>:</p>
+<pre><code class="language-go">// TestFile is the lightweight shape: a handful of quick, mostly single-turn cases.
+type TestFile struct {
+    Cases []EvalCase `json:&quot;cases&quot;`
+}
+
+// EvalSet is the heavyweight shape: many named, multi-turn sessions plus
+// shared setup the whole suite runs against.
+type EvalSet struct {
+    Name        string            `json:&quot;name&quot;`
+    Cases       []EvalCase        `json:&quot;cases&quot;`
+    InitialState map[string]any   `json:&quot;initial_state,omitempty&quot;` // seed session state
+}
+</code></pre>
+<p><strong>The gotcha:</strong> don&rsquo;t reach for the evalset shape first. Multi-turn cases are dramatically harder to author correctly — every turn&rsquo;s expected trajectory has to account for state the previous turns established, and a single wrong assumption early cascades into false failures downstream. Start with single-turn test files, prove the metrics work, and only build evalsets once you actually need stateful coverage.</p>
+<hr>
+<h2 id="3-the-metric-families">3. The metric families</h2>
+<p>A metric is a function that takes (expected, actual) and returns a score, usually in <code>[0, 1]</code>. ADK groups them into families, and each answers a different question. Understanding <em>what each measures</em> is what lets you pick the right one instead of scoring everything the same blunt way.</p>
+<h3 id="trajectory-did-the-agent-call-the-right-tools">Trajectory: did the agent call the right tools?</h3>
+<p>The trajectory metric — ADK names it <strong><code>tool_trajectory_avg_score</code></strong> — compares the agent&rsquo;s actual sequence of tool calls against the expected one. In its strict form it&rsquo;s an <strong>exact match</strong>: same tools, same order, same arguments, scored per step and averaged. A perfect trajectory scores <code>1.0</code>; one wrong call in a four-step plan drags the average down proportionally.</p>
+<pre><code class="language-go">// TrajectoryScore returns the fraction of steps where the actual tool call
+// exactly matches the expected one (name + args), position by position.
+func TrajectoryScore(want, got []ToolCall) float64 {
+    if len(want) == 0 &amp;&amp; len(got) == 0 {
+        return 1.0 // correctly called nothing
+    }
+    n := len(want)
+    if len(got) &gt; n {
+        n = len(got) // length mismatch is itself a penalty
+    }
+    matches := 0
+    for i := 0; i &lt; len(want) &amp;&amp; i &lt; len(got); i++ {
+        if want[i].Name == got[i].Name &amp;&amp; sameArgs(want[i].Args, got[i].Args) {
+            matches++
+        }
+    }
+    return float64(matches) / float64(n)
+}
+</code></pre>
+<p>Exact match is strict on purpose — it catches an agent that calls tools out of order or fabricates arguments. Its weakness is rigidity: if two orderings are equally valid, exact match unfairly fails one. That&rsquo;s a signal to relax the metric deliberately (say, order-insensitive matching), not to abandon trajectory scoring.</p>
+<h3 id="response-lexical-does-the-wording-overlap-the-reference">Response, lexical: does the wording overlap the reference?</h3>
+<p><strong><code>response_match_score</code></strong> compares the final response to the reference using <strong>ROUGE-1</strong> — the overlap of individual words (unigrams) between the two texts, expressed as an F-measure. It&rsquo;s cheap, deterministic, and needs no model to compute. It rewards answers that reuse the reference&rsquo;s key terms.</p>
+<p>Its blind spot is meaning: ROUGE-1 can&rsquo;t tell that &ldquo;the capital is Paris&rdquo; and &ldquo;Paris is the capital&rdquo; say the same thing with different overlap, nor that two paraphrases with low word overlap are equally correct. Use it as a fast, free first pass, not a verdict on correctness.</p>
+<h3 id="response-semantic-does-an-llm-judge-think-it-matches">Response, semantic: does an LLM judge think it matches?</h3>
+<p><strong><code>final_response_match_v2</code></strong> hands the (reference, actual) pair to an <strong>LLM judge</strong> and asks whether the actual response is correct given the reference. This catches paraphrase and semantic equivalence that ROUGE-1 misses. The cost is that the judge is itself a probabilistic model — non-deterministic, priced per call, and only as reliable as its prompt.</p>
+<h3 id="rubric-based-does-it-satisfy-explicit-criteria">Rubric-based: does it satisfy explicit criteria?</h3>
+<p>The <strong><code>rubric_based_*</code></strong> metrics score a response (or a whole trajectory) against a written <strong>rubric</strong> — a list of criteria like &ldquo;cites a source,&rdquo; &ldquo;declines politely if out of scope,&rdquo; &ldquo;gives the number to two decimals.&rdquo; An LLM judge checks each criterion and you get a per-criterion breakdown. This is how you evaluate qualities that no single reference answer captures.</p>
+<h3 id="safety-and-hallucination-is-it-grounded-and-harmless">Safety and hallucination: is it grounded and harmless?</h3>
+<ul>
+<li><strong><code>hallucinations_v1</code></strong> checks whether the response is <em>grounded</em> — supported by the tool outputs and context the agent actually had — rather than confidently invented.</li>
+<li><strong><code>safety_v1</code></strong> checks whether the response is harmless per a safety policy.</li>
+</ul>
+<p>Both are judged, both are about the <em>content&rsquo;s trustworthiness</em> rather than its match to a reference, and both matter most for agents that surface information to real users.</p>
+<h3 id="multi-turn-does-it-hold-up-across-a-conversation">Multi-turn: does it hold up across a conversation?</h3>
+<p>The <strong><code>multi_turn_*</code></strong> family applies the above ideas across an entire session rather than a single exchange — scoring the agent&rsquo;s coherence, memory, and task completion over multiple turns. These are the metrics you run against evalsets, and they&rsquo;re where stateful bugs (forgetting an earlier answer, contradicting itself) show up.</p>
+<p>Here&rsquo;s how the families slot together as a Go interface — one contract, many implementations:</p>
+<pre><code class="language-go">// Metric scores an agent's behavior on a turn. Score is normalized to [0, 1].
+type Metric interface {
+    Name() string
+    Evaluate(want Turn, gotTools []ToolCall, gotResponse string) (score float64, err error)
+}
+</code></pre>
+<p>The interface deliberately hands each metric <em>both</em> the trajectory and the response, so a trajectory metric ignores the text, a ROUGE metric ignores the tools, and a rubric or multi-turn metric can use whatever it needs.</p>
+<hr>
+<h2 id="4-thresholds-and-passfail">4. Thresholds and pass/fail</h2>
+<p>A raw score isn&rsquo;t a verdict. <code>0.82</code> means nothing until you decide what&rsquo;s good enough — and &ldquo;good enough&rdquo; differs per metric. Exact trajectory match might demand <code>1.0</code> (any deviation is a bug), while a ROUGE response match might pass at <code>0.5</code> (partial overlap is acceptable), and an LLM-judged match at <code>0.8</code>.</p>
+<p>ADK externalizes this: thresholds live in a <strong><code>test_config.json</code></strong> so you can tune the bar without touching cases or code. The pattern is worth keeping in Go — a config of per-metric thresholds, evaluated against the scores:</p>
+<pre><code class="language-go">// Config maps a metric name to the minimum score that counts as a pass.
+type Config struct {
+    Thresholds map[string]float64 `json:&quot;thresholds&quot;`
+}
+
+// Passes reports whether every scored metric met its configured threshold.
+// A metric with no configured threshold is treated as informational (not gating).
+func (c Config) Passes(scores map[string]float64) bool {
+    for name, min := range c.Thresholds {
+        got, ok := scores[name]
+        if !ok || got &lt; min {
+            return false
+        }
+    }
+    return true
+}
+</code></pre>
+<p><strong>The gotcha:</strong> thresholds are policy, not truth — set them too high and every noisy run fails the suite until the team stops trusting it; too low and real regressions sail through green. Judge-based metrics especially need headroom, because the judge itself varies run to run. Externalizing thresholds (rather than hard-coding <code>&gt;= 0.9</code> in an assertion) is what lets you tune that bar as you learn how noisy each metric really is.</p>
+<hr>
+<h2 id="5-the-honest-gap-between-python-and-go">5. The honest gap between Python and Go</h2>
+<p>To be direct about what exists where:</p>
+<table><caption class="sr-only">5. The honest gap between Python and Go</caption>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Python ADK</th>
+<th>Go ADK (<code>google.golang.org/adk/v2</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Build and run agents</td>
+<td>Yes</td>
+<td>Yes (<code>agent</code>, <code>runner</code>, <code>tool</code>, <code>session</code>)</td>
+</tr>
+<tr>
+<td>Observe tool calls</td>
+<td>Yes</td>
+<td>Yes (via <code>telemetry</code> / session events)</td>
+</tr>
+<tr>
+<td><code>.test.json</code> / <code>.evalset.json</code> formats</td>
+<td>Yes</td>
+<td>No — you define your own schema</td>
+</tr>
+<tr>
+<td><code>AgentEvaluator</code> + <code>adk eval</code> CLI</td>
+<td>Yes</td>
+<td>No equivalent</td>
+</tr>
+<tr>
+<td>Built-in metrics (<code>response_match_score</code>, …)</td>
+<td>Yes</td>
+<td>No — you implement them</td>
+</tr>
+</tbody>
+</table>
+<p>The good news is that the two capabilities Go <em>does</em> have — running the agent and observing its tool calls through the <code>telemetry</code> and <code>session</code> packages — are exactly the raw material an evaluator needs. You run a case, capture the trajectory and final response from the session, and score them with functions you write. The eval &ldquo;framework&rdquo; that&rsquo;s missing is, in the end, a loop over cases, a set of metric functions, and a threshold check — all of which the structs above already sketch.</p>
+<p>So the plan for this series is not to wait for a Go eval package. It&rsquo;s to <em>build the model directly</em>: <code>EvalCase</code> and <code>EvalSet</code> as our data schema, <code>Metric</code> implementations for the families that matter (trajectory exact-match first, then ROUGE, then an LLM judge), and a <code>Config</code> of thresholds to turn scores into pass/fail. The concepts port cleanly; only the code is ours to write.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>An eval case asserts on two things independently:</strong> the tool <em>trajectory</em> (what the agent did) and the <em>final response</em> (what it said). Never collapse them into one boolean — the split is the diagnostic value.</li>
+<li><strong>Test files vs. evalsets is single-turn vs. multi-turn.</strong> Start with lightweight single-session cases; graduate to stateful, multi-turn evalsets only when you need them, because they&rsquo;re far harder to author correctly.</li>
+<li><strong>Metrics answer different questions.</strong> Exact trajectory match is strict and deterministic; ROUGE response match is cheap but blind to meaning; LLM-judged match catches paraphrase at the cost of non-determinism; rubric, safety, and hallucination metrics score qualities no single reference captures.</li>
+<li><strong>Thresholds are tunable policy, not truth.</strong> Externalize them so you can raise or lower the bar per metric as you learn each one&rsquo;s noise floor.</li>
+<li><strong>The eval model is portable; only Python&rsquo;s tooling is not.</strong> Go can run agents and observe trajectories today — the missing evaluator is a loop over cases, a handful of metric functions, and a threshold check, which the rest of this series builds in Go.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://adk.dev/evaluate/">ADK evaluation documentation</a> — the primary reference for the concepts modeled here (eval cases, trajectory vs. final response, metrics, and thresholds).</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/eval-agents-go-01-why-evaluate-agents.html">Why Evaluating AI Agents Is Hard</a>
+      <span class="related-date">Aug 03</span>
+    </li>
+    <li>
+      <a href="/blog/posts/eval-agents-go-08-multi-turn-multi-agent.html">Evaluating Multi-Turn and Multi-Agent Systems</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/eval-agents-go-07-ci-regression-gating.html">Agent Evaluation in CI: Regression Gating</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
