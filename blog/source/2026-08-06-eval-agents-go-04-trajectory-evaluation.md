@@ -1,6 +1,6 @@
 # Trajectory Evaluation in Go
 
-*How to score what an agent *did*, not just what it *said* — building trajectory metrics in Go from an exact-match baseline up to arg-aware, order-tolerant scoring, with a human-readable diff of expected vs. actual.*
+*How to score what an agent did, not just what it said — building trajectory metrics in Go from an exact-match baseline up to arg-aware, order-tolerant scoring, with a readable diff of expected vs. actual.*
 
 ---
 
@@ -241,6 +241,8 @@ func canonValue(v any) any {
 	}
 }
 ```
+
+One caution: blanket string→float coercion is unsafe for ID-like arguments — order numbers, account IDs, or anything with leading zeros can be silently mangled (`"00742"` and `742` should not compare equal) — so scope this coercion to fields you know are genuinely numeric rather than applying it to every string.
 
 Tune this to your domain — you might lowercase enum strings, drop a volatile `request_id`, or round floats. The point is that normalization is *policy*: encode what "the same call" means for your agent, once, in one place.
 

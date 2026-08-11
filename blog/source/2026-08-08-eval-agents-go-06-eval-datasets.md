@@ -71,6 +71,7 @@ Nothing exotic — JSON on disk, one file per dataset. The only opinions worth e
 package eval
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -86,7 +87,7 @@ func Load(path string) (*Dataset, error) {
 		return nil, fmt.Errorf("read dataset: %w", err)
 	}
 	var ds Dataset
-	dec := json.NewDecoder(bytesReader(raw))
+	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields() // a typo'd field is a bug, not a shrug
 	if err := dec.Decode(&ds); err != nil {
 		return nil, fmt.Errorf("decode dataset: %w", err)

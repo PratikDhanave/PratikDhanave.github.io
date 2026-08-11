@@ -1,6 +1,6 @@
 # Python's Philosophy and Toolchain
 
-*What actually makes Python *Python* — the design values that shape the language, how it runs, and the everyday tools you'll live in. The first post in a series that treats readability and correctness as features, not afterthoughts.*
+*What actually makes Python distinctive — the design values that shape the language, how it runs, and the everyday tools you'll live in. The first post in a series that treats readability and correctness as features, not afterthoughts.*
 
 ---
 
@@ -68,7 +68,7 @@ CPython works by compiling your source into an intermediate **bytecode** (those 
 
 Because the language and the implementation are decoupled, others exist:
 
-- **PyPy** — a Python written with a just-in-time compiler that can run pure-Python workloads dramatically faster than CPython for the right code.
+- **PyPy** — a Python implementation (written in RPython) that includes a just-in-time compiler that can run pure-Python workloads dramatically faster than CPython for the right code.
 - **Others** exist for niches (embedding, alternative runtimes), but for the overwhelming majority of work, CPython is the correct default and the one every tool and library targets first.
 
 **The gotcha:** the `python` command on your machine may not be the interpreter you think. On many systems `python` and `python3` differ, and inside a project the right interpreter is usually a project-local one, not the system one. When in doubt, `python --version` and `which python` (or `where python` on Windows) tell you exactly what you're running — a two-second check that resolves a surprising share of "it works on my machine" confusion.

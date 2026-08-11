@@ -206,7 +206,7 @@ case <-time.After(2 * time.Second):
 
 Whichever fires first wins. If `work` produces within two seconds you take the result; otherwise the timer's channel becomes ready and you bail out. For a deadline shared across many operations, prefer a `context.Context` with `context.WithTimeout` and select on `ctx.Done()` — but `time.After` is the right tool for a single, local wait.
 
-**The gotcha:** in a long-running loop, `time.After(d)` allocates a fresh timer *every iteration*, and the old timer isn't collected until it fires. For a hot loop, create one `time.NewTimer` (or `time.NewTicker`) outside the loop and reset it, so you're not leaking timers under the covers.
+**The gotcha:** in a long-running loop, `time.After(d)` allocates a fresh timer *every iteration*. Before Go 1.23 the old timer lived until it fired, so an unread `time.After` in a hot loop pinned memory until the duration elapsed; Go 1.23 changed timer GC so an unreferenced timer is collectible immediately. Even now, the per-iteration *allocation* remains — for a hot loop, create one `time.NewTimer` (or `time.NewTicker`) outside the loop and reset it, so you're not churning timers under the covers.
 
 ---
 

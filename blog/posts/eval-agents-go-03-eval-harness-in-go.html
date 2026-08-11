@@ -122,7 +122,7 @@
 
 
   <p>The first two posts in this series set up the <em>why</em> and the <em>what</em>. Post one argued that an agent&rsquo;s answer is a measurement, not an assertion — a plausible final response can hide a completely wrong sequence of actions, so you score two axes: the <strong>trajectory</strong> (did it call the right tools, in the right order?) and the <strong>final response</strong> (is the answer close enough to a reference?). Post two turned that into data structures — an <code>EvalCase</code> that pins a query to its expected tool path and reference answer.</p>
-<p>This post builds the machine that runs those cases. Google&rsquo;s <a href="https://google.github.io/adk-docs/">ADK</a> ships a full evaluation package for Python; the Go SDK, <code>google.golang.org/adk/v2</code>, does <strong>not</strong> — there is <code>agent</code>, <code>runner</code>, <code>tool</code>, <code>session</code>, and <code>telemetry</code>, but no <code>eval</code>. That gap is the whole reason this post exists. We are going to build the harness ourselves, and the interesting engineering is not the scoring math (that&rsquo;s a dozen lines) — it&rsquo;s the <strong>seam</strong> that keeps our scoring code from ever importing an adk-go type. Get that seam right and the harness outlives any SDK churn.</p>
+<p>This post builds the machine that runs those cases. Google&rsquo;s <a href="https://adk.dev/">ADK</a> ships a full evaluation package for Python; the Go SDK, <code>google.golang.org/adk/v2</code>, does <strong>not</strong> — there is <code>agent</code>, <code>runner</code>, <code>tool</code>, <code>session</code>, and <code>telemetry</code>, but no <code>eval</code>. That gap is the whole reason this post exists. We are going to build the harness ourselves, and the interesting engineering is not the scoring math (that&rsquo;s a dozen lines) — it&rsquo;s the <strong>seam</strong> that keeps our scoring code from ever importing an adk-go type. Get that seam right and the harness outlives any SDK churn.</p>
 <h2 id="the-one-design-decision-that-matters">The one design decision that matters</h2>
 <p>An agent run, mechanically, is a stream of events. adk-go&rsquo;s runner executes an agent and yields those events — tool calls the model requested, tool results, intermediate messages, and eventually a final response. To score a run we need exactly two things out of that stream: the <strong>ordered list of tool names</strong> the agent called, and the <strong>text of its final answer</strong>. Nothing else.</p>
 <p>So the design writes itself. Define a tiny value type holding those two things, define an interface that produces it, and make the scorer depend only on the value type. Everything that knows about adk-go&rsquo;s event shapes lives behind the interface. The scorer never sees a <code>runner</code>, an <code>Event</code>, or a <code>Session</code>.</p>
@@ -174,16 +174,16 @@ func (a *adkAgent) Run(ctx context.Context, query string) (Capture, error) {
     if err != nil {
         return Capture{}, fmt.Errorf(&quot;agent run: %w&quot;, err)
     }
-    var cap Capture
+    var capture Capture
     for _, ev := range events {
         if name, ok := toolCallName(ev); ok {
-            cap.ToolCalls = append(cap.ToolCalls, name)
+            capture.ToolCalls = append(capture.ToolCalls, name)
         }
         if text, ok := finalText(ev); ok {
-            cap.FinalText = text // last final-response event wins
+            capture.FinalText = text // last final-response event wins
         }
     }
-    return cap, nil
+    return capture, nil
 }
 </code></pre>
 <p>Two helpers, <code>toolCallName</code> and <code>finalText</code>, do the actual translation from an adk-go event to our terms. They are the entire coupling to the SDK&rsquo;s event shapes:</p>
@@ -262,7 +262,7 @@ func tokenize(s string) []string {
     })
 }
 </code></pre>
-<p>The trajectory metric is the strict one — a single wrong tool call is a real defect even when the answer reads fine, so in practice you gate it at an exact <code>1.0</code>. The response metric is deliberately forgiving; unigram recall around <code>0.7</code> catches &ldquo;the answer drifted off-topic&rdquo; without failing on paraphrase. Both are simple enough to reason about at a glance, which matters: a scoring function nobody understands is a scoring function nobody trusts.</p>
+<p>The trajectory metric is the strict one — a single wrong tool call is a real defect even when the answer reads fine, so in practice you gate it at an exact <code>1.0</code>. The response metric is deliberately forgiving; unigram recall around <code>0.7</code> catches &ldquo;the answer drifted off-topic&rdquo; without failing on paraphrase. Note that <code>responseMatchScore</code> here is a deliberately simplified recall-only stand-in for ADK&rsquo;s <code>response_match_score</code>, which is ROUGE-1 F1 (balancing precision and recall) — post 5 implements that fully. Both are simple enough to reason about at a glance, which matters: a scoring function nobody understands is a scoring function nobody trusts.</p>
 <h2 id="a-result-type-and-the-evaluate-step">A Result type and the evaluate step</h2>
 <p>One case in, one <code>Result</code> out. The <code>Result</code> carries both raw scores plus a pass/fail verdict against thresholds, and it never throws away the numbers — you want the scores in the report even when a case passes, so you can watch a metric erode <em>before</em> it crosses the line.</p>
 <pre><code class="language-go">// Thresholds is the bar each axis must clear for a case to pass.
@@ -284,12 +284,12 @@ type Result struct {
 // captured on the Result (Passed stays false) rather than panicking, so one
 // flaky case can't sink the whole suite report.
 func Evaluate(ctx context.Context, agent AgentUnderTest, c EvalCase, th Thresholds) Result {
-    cap, err := agent.Run(ctx, c.Query)
+    capture, err := agent.Run(ctx, c.Query)
     if err != nil {
         return Result{Case: c.Name, Err: err}
     }
-    ts := trajectoryScore(c.ExpectedTools, cap.ToolCalls)
-    rs := responseMatchScore(c.Reference, cap.FinalText)
+    ts := trajectoryScore(c.ExpectedTools, capture.ToolCalls)
+    rs := responseMatchScore(c.Reference, capture.FinalText)
     return Result{
         Case:            c.Name,
         TrajectoryScore: ts,

@@ -125,20 +125,21 @@
 <hr>
 <h2 id="a-method-is-a-function-with-a-receiver">A method is a function with a receiver</h2>
 <p>Here is a method and the free function it is equivalent to:</p>
-<pre><code class="language-go">type Celsius float64
+<pre><code class="language-go">type Meters float64
+type Feet float64
 
-// Method: receiver (c) sits before the name.
-func (c Celsius) Fahrenheit() Celsius {
-    return c*9/5 + 32
+// Method: receiver (m) sits before the name.
+func (m Meters) Feet() Feet {
+    return Feet(m * 3.28084)
 }
 
 // The same logic as an ordinary function.
-func fahrenheit(c Celsius) Celsius {
-    return c*9/5 + 32
+func toFeet(m Meters) Feet {
+    return Feet(m * 3.28084)
 }
 </code></pre>
-<p><code>Celsius(100).Fahrenheit()</code> and <code>fahrenheit(100)</code> compute the same thing. The receiver is a parameter that happens to be written on the left of the method name so the call can be written with dot notation. That framing matters because it explains why the receiver obeys the same value-copy semantics as any other parameter: a value receiver gets a <em>copy</em> of the argument, exactly as <code>fahrenheit</code> would.</p>
-<p>Note also <code>Celsius</code> is not a struct. It&rsquo;s a defined type whose underlying type is <code>float64</code>. Which brings us to the first thing most people under-use.</p>
+<p><code>Meters(100).Feet()</code> and <code>toFeet(100)</code> compute the same thing. The receiver is a parameter that happens to be written on the left of the method name so the call can be written with dot notation. That framing matters because it explains why the receiver obeys the same value-copy semantics as any other parameter: a value receiver gets a <em>copy</em> of the argument, exactly as <code>toFeet</code> would. (Note the method returns <code>Feet</code>, a distinct type from the <code>Meters</code> receiver — the units stay honest.)</p>
+<p>Note also <code>Meters</code> is not a struct. It&rsquo;s a defined type whose underlying type is <code>float64</code>. Which brings us to the first thing most people under-use.</p>
 <hr>
 <h2 id="you-can-define-methods-on-any-type-you-own">You can define methods on any type you own</h2>
 <p>Methods are not a struct feature. You can attach a method to <strong>any named (defined) type whose definition lives in your package</strong> — a named slice, a named map, a named function type, a named integer. The only rule is that the receiver&rsquo;s base type must be defined in the same package (so you cannot bolt methods onto <code>int</code> or onto <code>time.Time</code>, but you can define your own type over them).</p>
@@ -193,7 +194,7 @@ func (c *Counter) Inc() {
 <li><strong>Is the struct large, or does copying it have a cost you care about?</strong> A pointer receiver avoids copying the value on every call. For a small struct (a few words) the copy is free and irrelevant; for a big one, or one on a hot path, the pointer saves work.</li>
 <li><strong>Consistency.</strong> If any method of the type needs a pointer receiver, prefer giving <em>all</em> of them pointer receivers, so the type presents one coherent method set. Mixing value and pointer receivers on the same type is a smell that causes real confusion (and, as we&rsquo;ll see, subtle method-set differences).</li>
 </ol>
-<p>There are secondary signals. Types that wrap something you must not copy — a <code>sync.Mutex</code>, a <code>sync.WaitGroup</code>, anything embedding one — must use pointer receivers, because copying the value copies the lock. Conversely, small immutable value types (a <code>time.Time</code>, a 2D point, our <code>Celsius</code>) read naturally with value receivers and are safe to pass around.</p>
+<p>There are secondary signals. Types that wrap something you must not copy — a <code>sync.Mutex</code>, a <code>sync.WaitGroup</code>, anything embedding one — must use pointer receivers, because copying the value copies the lock. Conversely, small immutable value types (a <code>time.Time</code>, a 2D point, our <code>Meters</code>) read naturally with value receivers and are safe to pass around.</p>
 <p><strong>The gotcha:</strong> &ldquo;value receiver = no mutation&rdquo; is not merely a convention; the compiler enforces it. But it&rsquo;s easy to <em>think</em> you mutated something. <code>IncBroken</code> above compiles cleanly and does nothing — the copy is incremented and thrown away. There&rsquo;s no warning. If a mutating method isn&rsquo;t sticking, check the receiver is a pointer first.</p>
 <hr>
 <h2 id="pick-one-receiver-kind-per-type">Pick one receiver kind per type</h2>
@@ -218,8 +219,8 @@ p.Inc()   // already a pointer, called directly
 _ = p.n
 
 // Value-receiver method through a pointer:
-cel := &amp;Celsius{} // silly but legal
-_ = cel.Fahrenheit() // Go rewrites as (*cel).Fahrenheit()
+m := new(Meters)  // new(T) yields a *Meters
+_ = m.Feet()      // Go rewrites as (*m).Feet()
 </code></pre>
 <p>The load-bearing word is <strong>addressable</strong>. Go can only take the address of something that has a home in memory it can point at — a local variable, a struct field of an addressable struct, a slice element, a dereferenced pointer. It <em>cannot</em> take the address of a value that has no such home, and that&rsquo;s where the real trap lives.</p>
 <p><strong>The gotcha:</strong> a value stored in a <strong>map</strong>, or a value <strong>returned directly from a function call</strong>, is <em>not addressable</em>. You therefore cannot call a pointer-receiver method on it, and the compiler rejects it:</p>

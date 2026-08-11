@@ -73,9 +73,9 @@ type TestFile struct {
 // EvalSet is the heavyweight shape: many named, multi-turn sessions plus
 // shared setup the whole suite runs against.
 type EvalSet struct {
-	Name        string            `json:"name"`
-	Cases       []EvalCase        `json:"cases"`
-	InitialState map[string]any   `json:"initial_state,omitempty"` // seed session state
+	Name         string         `json:"name"`
+	Cases        []EvalCase     `json:"cases"`
+	InitialState map[string]any `json:"initial_state,omitempty"` // seed session state
 }
 ```
 

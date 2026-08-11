@@ -106,7 +106,7 @@
       <span>·</span>
       <time datetime="2026-06-27">June 27, 2026</time>
       <span>·</span>
-      <span>11 min read</span>
+      <span>12 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a><a href="/blog/tags/data-model/" class="tag-link"><span class="tag">#Data Model</span></a><a href="/blog/tags/programming/" class="tag-link"><span class="tag">#Programming</span></a></div>
   </header>
@@ -183,7 +183,7 @@ print(a is c)    # True  — same object, two names
     ...
 </code></pre>
 <p>Use <code>is None</code>, never <code>== None</code>. <code>None</code> is a true singleton, so identity is the precise test — and it can&rsquo;t be fooled by a class that defines a misleading <code>__eq__</code>. The linters (<code>flake8</code>, <code>pylint</code>) will flag <code>== None</code> for exactly this reason.</p>
-<p><strong>The gotcha:</strong> never use <code>is</code> to compare values — numbers, strings, or freshly built collections. <code>x is 256</code> may print <code>True</code> on your machine and <code>False</code> for the same-looking value elsewhere, because whether two equal values are the <em>same object</em> depends on interning, which is an implementation detail (see below). If you want &ldquo;same value,&rdquo; you want <code>==</code>. If you find yourself writing <code>is</code> against anything other than <code>None</code>/<code>True</code>/<code>False</code> (or a sentinel object you created on purpose), stop and reconsider.</p>
+<p><strong>The gotcha:</strong> never use <code>is</code> to compare values — numbers, strings, or freshly built collections. <code>x is 256</code> may print <code>True</code> on your machine and <code>False</code> for the same-looking value elsewhere, because whether two equal values are the <em>same object</em> depends on interning, which is an implementation detail (see below). (Python 3.8+ even emits a <code>SyntaxWarning</code> when you write <code>is</code> against a literal like <code>x is 256</code>, precisely because the result is unreliable.) If you want &ldquo;same value,&rdquo; you want <code>==</code>. If you find yourself writing <code>is</code> against anything other than <code>None</code>/<code>True</code>/<code>False</code> (or a sentinel object you created on purpose), stop and reconsider.</p>
 <hr>
 <h2 id="interning-why-is-on-small-numbers-sometimes-works">Interning: why <code>is</code> on small numbers &ldquo;sometimes works&rdquo;</h2>
 <p>You may discover by experiment that <code>is</code> <em>appears</em> to work on small integers, and conclude it&rsquo;s fine. It isn&rsquo;t — you&rsquo;ve just stumbled onto an optimization.</p>
@@ -191,10 +191,12 @@ print(a is c)    # True  — same object, two names
 y = 256
 print(x is y)    # True  — but only because of interning
 
-x = 257
-y = 257
-print(x is y)    # often False — two distinct int objects with equal value
+# Build the ints at runtime so the compiler can't fold them into one constant:
+x = int(&quot;257&quot;)
+y = int(&quot;257&quot;)
+print(x is y)    # False in a script or function — two distinct int objects
 </code></pre>
+<p>Beware that this second result is not even stable across <em>how</em> you run the code: at an interactive REPL prompt, <code>x = 257</code> / <code>y = 257</code> on separate lines often prints <code>False</code>, but the identical lines inside a script or a function print <code>True</code>, because the compiler dedups equal literal constants within a single code block. That inconsistency is the whole point — the lesson is <strong>never rely on interning</strong>, and building the values at runtime (as above with <code>int("257")</code>) makes the demo behave the same everywhere.</p>
 <p>CPython pre-creates and caches the integers from <code>-5</code> to <code>256</code> at startup, so every reference to <code>256</code> reuses one shared object. Ask for <code>257</code> twice and you may get two different objects. A similar caching happens for some short strings that look like identifiers (&ldquo;string interning&rdquo;):</p>
 <pre><code class="language-python">a = &quot;hello&quot;
 b = &quot;hello&quot;

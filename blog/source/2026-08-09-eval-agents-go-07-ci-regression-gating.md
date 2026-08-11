@@ -133,7 +133,7 @@ func (ResponseContains) Score(_ context.Context, c Case, tr Trace) (float64, err
 			hit++
 		}
 	}
-	return float64(hit) / float64(need), nil
+	return float64(hit) / float64(len(need)), nil
 }
 ```
 

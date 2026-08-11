@@ -164,7 +164,7 @@ func RecordMax(max *atomic.Int64, v int64) {
 }
 ```
 
-The shape is the canonical CAS loop and worth internalizing: read the current value, compute the new value from it, then attempt to swap *only if nothing changed in between*. If the `CompareAndSwap` fails, some other goroutine moved the value, so your computed update is stale — you loop, re-read, and try again. The loop is not busy-waiting on a lock; each iteration either succeeds or means real contention that another goroutine resolved. This is exactly how `Add` is implemented under the hood, and it generalizes to any single-word update you can express as "compute from old, install if unchanged."
+The shape is the canonical CAS loop and worth internalizing: read the current value, compute the new value from it, then attempt to swap *only if nothing changed in between*. If the `CompareAndSwap` fails, some other goroutine moved the value, so your computed update is stale — you loop, re-read, and try again. The loop is not busy-waiting on a lock; each iteration either succeeds or means real contention that another goroutine resolved. This is how atomic read-modify-writes are built on hardware lacking a native atomic-add — on amd64/arm64 `Add` compiles to a single hardware fetch-and-add (`LOCK XADD` / `LDADDAL`), and the CAS retry loop is the fallback where the ISA has no such instruction — and it generalizes to any single-word update you can express as "compute from old, install if unchanged."
 
 ---
 

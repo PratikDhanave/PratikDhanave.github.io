@@ -100,7 +100,7 @@
 <article>
   <header>
     <h1>Trajectory Evaluation in Go</h1>
-    <p class="post-subtitle"></p>
+    <p class="post-subtitle">How to score what an agent did, not just what it said — building trajectory metrics in Go from an exact-match baseline up to arg-aware, order-tolerant scoring, with a readable diff of expected vs. actual.</p>
     <div class="post-meta">
       <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
       <span>·</span>
@@ -120,9 +120,7 @@
 
 
 
-  <p><em>How to score what an agent </em>did<em>, not just what it </em>said<em> — building trajectory metrics in Go from an exact-match baseline up to arg-aware, order-tolerant scoring, with a human-readable diff of expected vs. actual.</em></p>
-<hr>
-<p>When you evaluate an agent, the final answer is only half the story. Two agents can both reply &ldquo;Your order ships Thursday&rdquo; — one after cleanly calling <code>lookup_order</code> then <code>get_shipping_estimate</code>, the other after calling <code>refund_order</code> by mistake, catching the error, and stumbling into the right answer. Same text, very different behaviour. <strong>Trajectory evaluation</strong> scores the <em>path</em>: the ordered sequence of tool calls the agent made on its way to the answer.</p>
+  <p>When you evaluate an agent, the final answer is only half the story. Two agents can both reply &ldquo;Your order ships Thursday&rdquo; — one after cleanly calling <code>lookup_order</code> then <code>get_shipping_estimate</code>, the other after calling <code>refund_order</code> by mistake, catching the error, and stumbling into the right answer. Same text, very different behaviour. <strong>Trajectory evaluation</strong> scores the <em>path</em>: the ordered sequence of tool calls the agent made on its way to the answer.</p>
 <p>Google&rsquo;s Agent Development Kit (ADK) formalizes this with a metric it calls <code>tool_trajectory_avg_score</code> — an exact-match comparison of the actual tool-call sequence against an expected one, defaulting to a perfect score of <code>1.0</code> when they match. ADK ships that for Python. The Go SDK (<code>google.golang.org/adk/v2</code>) has no evaluation package, so if you are building agents in Go, you build the scorer yourself. This post does exactly that: an original, dependency-free <code>TrajectoryScore</code> in Go, from the strict baseline outward to the metrics you actually want in a test suite.</p>
 <hr>
 <h2 id="1-what-a-trajectory-is">1. What a trajectory is</h2>
@@ -315,6 +313,7 @@ func canonValue(v any) any {
     }
 }
 </code></pre>
+<p>One caution: blanket string→float coercion is unsafe for ID-like arguments — order numbers, account IDs, or anything with leading zeros can be silently mangled (<code>"00742"</code> and <code>742</code> should not compare equal) — so scope this coercion to fields you know are genuinely numeric rather than applying it to every string.</p>
 <p>Tune this to your domain — you might lowercase enum strings, drop a volatile <code>request_id</code>, or round floats. The point is that normalization is <em>policy</em>: encode what &ldquo;the same call&rdquo; means for your agent, once, in one place.</p>
 <p><strong>Ignore ordering where it is legitimate.</strong> Order matters between <code>authenticate</code> and <code>transfer_funds</code>; it does not between two independent <code>get_weather</code> lookups. Rather than hard-code that, pick the metric that matches the task: order-sensitive tasks use <code>ExactMatch</code> or <code>InOrderSubset</code>; order-free tasks use the set-based <code>setScores</code>. Trajectory scoring is not one number — it is a small family of them, and part of authoring an eval case is declaring which invariant the case cares about.</p>
 <hr>

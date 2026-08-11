@@ -14,7 +14,7 @@ We will build up from what a goroutine is at runtime, through the semantics of `
 
 A goroutine is a function that runs concurrently with the rest of your program, scheduled by the Go runtime rather than the operating system. That last part is the whole trick. When you start a goroutine, you are not asking the OS for a thread — you are handing a function to Go's scheduler, which multiplexes many goroutines onto a small pool of OS threads.
 
-The practical consequence is cost. An OS thread reserves a large fixed stack (commonly a megabyte or more) and every context switch goes through the kernel. A goroutine starts with a tiny stack — a couple of kilobytes — that **grows and shrinks on demand** as the call stack deepens. The runtime allocates a bigger stack and copies the goroutine's frames over when it needs more room, and reclaims the space when it doesn't. Because switching between goroutines happens in user space, it is far cheaper than a kernel thread switch.
+The practical consequence is cost. An OS thread reserves a large fixed stack (commonly a megabyte or more) and every context switch goes through the kernel. A goroutine starts with a small, growable stack (8 KB today) that **grows and shrinks on demand** as the call stack deepens. The runtime allocates a bigger stack and copies the goroutine's frames over when it needs more room, and reclaims the space when it doesn't. Because switching between goroutines happens in user space, it is far cheaper than a kernel thread switch.
 
 This is why "just start a goroutine" is idiomatic in Go in situations where "just start a thread" would be reckless in other languages. Tens of thousands of live goroutines is normal; the same count of OS threads would exhaust memory.
 

@@ -24,7 +24,7 @@ print(math.factorial(50))   # 65-digit integer, no overflow, no rounding
 
 There is no `MAX_INT` to guard against. A loop counter, a hash, a running total of integers — all exact, always.
 
-**The gotcha:** the freedom is real for `int`, but the moment a value passes through `float` it inherits float's limits. `10**23` is an exact integer; `float(10**23)` is not, because it no longer fits in a double. Integer *division* with `/` also drops you into float land (see below). So arbitrary precision is a property of the `int` type, not a property of "numbers in Python" — keep the value an `int` and it stays exact.
+**The gotcha:** the freedom is real for `int`, but the moment a value passes through `float` it inherits float's limits. `10**23` is an exact integer; `float(10**23)` is not, because it can no longer be represented exactly in a double (it exceeds 2^53), even though it's well within the range. Integer *division* with `/` also drops you into float land (see below). So arbitrary precision is a property of the `int` type, not a property of "numbers in Python" — keep the value an `int` and it stays exact.
 
 ---
 

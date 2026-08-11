@@ -96,7 +96,7 @@ if result is None:      # correct: there is exactly one None object
 
 Use `is None`, never `== None`. `None` is a true singleton, so identity is the precise test — and it can't be fooled by a class that defines a misleading `__eq__`. The linters (`flake8`, `pylint`) will flag `== None` for exactly this reason.
 
-**The gotcha:** never use `is` to compare values — numbers, strings, or freshly built collections. `x is 256` may print `True` on your machine and `False` for the same-looking value elsewhere, because whether two equal values are the *same object* depends on interning, which is an implementation detail (see below). If you want "same value," you want `==`. If you find yourself writing `is` against anything other than `None`/`True`/`False` (or a sentinel object you created on purpose), stop and reconsider.
+**The gotcha:** never use `is` to compare values — numbers, strings, or freshly built collections. `x is 256` may print `True` on your machine and `False` for the same-looking value elsewhere, because whether two equal values are the *same object* depends on interning, which is an implementation detail (see below). (Python 3.8+ even emits a `SyntaxWarning` when you write `is` against a literal like `x is 256`, precisely because the result is unreliable.) If you want "same value," you want `==`. If you find yourself writing `is` against anything other than `None`/`True`/`False` (or a sentinel object you created on purpose), stop and reconsider.
 
 ---
 
@@ -109,10 +109,13 @@ x = 256
 y = 256
 print(x is y)    # True  — but only because of interning
 
-x = 257
-y = 257
-print(x is y)    # often False — two distinct int objects with equal value
+# Build the ints at runtime so the compiler can't fold them into one constant:
+x = int("257")
+y = int("257")
+print(x is y)    # False in a script or function — two distinct int objects
 ```
+
+Beware that this second result is not even stable across *how* you run the code: at an interactive REPL prompt, `x = 257` / `y = 257` on separate lines often prints `False`, but the identical lines inside a script or a function print `True`, because the compiler dedups equal literal constants within a single code block. That inconsistency is the whole point — the lesson is **never rely on interning**, and building the values at runtime (as above with `int("257")`) makes the demo behave the same everywhere.
 
 CPython pre-creates and caches the integers from `-5` to `256` at startup, so every reference to `256` reuses one shared object. Ask for `257` twice and you may get two different objects. A similar caching happens for some short strings that look like identifiers ("string interning"):
 

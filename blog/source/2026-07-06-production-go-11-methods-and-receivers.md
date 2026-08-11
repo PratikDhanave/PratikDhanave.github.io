@@ -15,22 +15,23 @@ This post is about those consequences. It assumes you've written Go for years an
 Here is a method and the free function it is equivalent to:
 
 ```go
-type Celsius float64
+type Meters float64
+type Feet float64
 
-// Method: receiver (c) sits before the name.
-func (c Celsius) Fahrenheit() Celsius {
-	return c*9/5 + 32
+// Method: receiver (m) sits before the name.
+func (m Meters) Feet() Feet {
+	return Feet(m * 3.28084)
 }
 
 // The same logic as an ordinary function.
-func fahrenheit(c Celsius) Celsius {
-	return c*9/5 + 32
+func toFeet(m Meters) Feet {
+	return Feet(m * 3.28084)
 }
 ```
 
-`Celsius(100).Fahrenheit()` and `fahrenheit(100)` compute the same thing. The receiver is a parameter that happens to be written on the left of the method name so the call can be written with dot notation. That framing matters because it explains why the receiver obeys the same value-copy semantics as any other parameter: a value receiver gets a *copy* of the argument, exactly as `fahrenheit` would.
+`Meters(100).Feet()` and `toFeet(100)` compute the same thing. The receiver is a parameter that happens to be written on the left of the method name so the call can be written with dot notation. That framing matters because it explains why the receiver obeys the same value-copy semantics as any other parameter: a value receiver gets a *copy* of the argument, exactly as `toFeet` would. (Note the method returns `Feet`, a distinct type from the `Meters` receiver — the units stay honest.)
 
-Note also `Celsius` is not a struct. It's a defined type whose underlying type is `float64`. Which brings us to the first thing most people under-use.
+Note also `Meters` is not a struct. It's a defined type whose underlying type is `float64`. Which brings us to the first thing most people under-use.
 
 ---
 
@@ -99,7 +100,7 @@ Three questions decide it, in order:
 2. **Is the struct large, or does copying it have a cost you care about?** A pointer receiver avoids copying the value on every call. For a small struct (a few words) the copy is free and irrelevant; for a big one, or one on a hot path, the pointer saves work.
 3. **Consistency.** If any method of the type needs a pointer receiver, prefer giving *all* of them pointer receivers, so the type presents one coherent method set. Mixing value and pointer receivers on the same type is a smell that causes real confusion (and, as we'll see, subtle method-set differences).
 
-There are secondary signals. Types that wrap something you must not copy — a `sync.Mutex`, a `sync.WaitGroup`, anything embedding one — must use pointer receivers, because copying the value copies the lock. Conversely, small immutable value types (a `time.Time`, a 2D point, our `Celsius`) read naturally with value receivers and are safe to pass around.
+There are secondary signals. Types that wrap something you must not copy — a `sync.Mutex`, a `sync.WaitGroup`, anything embedding one — must use pointer receivers, because copying the value copies the lock. Conversely, small immutable value types (a `time.Time`, a 2D point, our `Meters`) read naturally with value receivers and are safe to pass around.
 
 **The gotcha:** "value receiver = no mutation" is not merely a convention; the compiler enforces it. But it's easy to *think* you mutated something. `IncBroken` above compiles cleanly and does nothing — the copy is incremented and thrown away. There's no warning. If a mutating method isn't sticking, check the receiver is a pointer first.
 
@@ -136,8 +137,8 @@ p.Inc()   // already a pointer, called directly
 _ = p.n
 
 // Value-receiver method through a pointer:
-cel := &Celsius{} // silly but legal
-_ = cel.Fahrenheit() // Go rewrites as (*cel).Fahrenheit()
+m := new(Meters)  // new(T) yields a *Meters
+_ = m.Feet()      // Go rewrites as (*m).Feet()
 ```
 
 The load-bearing word is **addressable**. Go can only take the address of something that has a home in memory it can point at — a local variable, a struct field of an addressable struct, a slice element, a dereferenced pointer. It *cannot* take the address of a value that has no such home, and that's where the real trap lives.

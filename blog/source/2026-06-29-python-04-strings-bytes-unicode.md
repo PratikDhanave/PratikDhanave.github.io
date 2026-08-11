@@ -251,6 +251,8 @@ Regex has its own backslash grammar (`\d`, `\w`, `\b`), and a raw string hands t
 
 Python's hard line between text and bytes is the feature that makes text handling boring in the best way: encoding decisions live at two thin edges, and everything in between is clean Unicode text.
 
+---
+
 ## Further reading
 
 - [Unicode HOWTO](https://docs.python.org/3/howto/unicode.html) — the official, thorough guide to how Python handles text, encodings, and the `str`/`bytes` boundary.

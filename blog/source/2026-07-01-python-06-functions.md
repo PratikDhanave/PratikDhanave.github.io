@@ -1,6 +1,6 @@
 # Functions: Arguments, *args, **kwargs, and Defaults
 
-*A working guide to Python's function signatures — positional and keyword arguments, default values and the mutable-default trap, packing with *args/**kwargs, unpacking at call sites, keyword-only and positional-only parameters, and treating functions as first-class values.*
+*A working guide to Python's function signatures — positional and keyword arguments, default values and the mutable-default trap, arbitrary-argument packing and call-site unpacking, keyword-only and positional-only parameters, and treating functions as first-class values.*
 
 ---
 

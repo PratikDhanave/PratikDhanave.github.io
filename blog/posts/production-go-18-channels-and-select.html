@@ -106,7 +106,7 @@
       <span>·</span>
       <time datetime="2026-07-13">July 13, 2026</time>
       <span>·</span>
-      <span>11 min read</span>
+      <span>12 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/concurrency/" class="tag-link"><span class="tag">#Concurrency</span></a><a href="/blog/tags/channels/" class="tag-link"><span class="tag">#Channels</span></a></div>
   </header>
@@ -263,7 +263,7 @@ case &lt;-time.After(2 * time.Second):
 }
 </code></pre>
 <p>Whichever fires first wins. If <code>work</code> produces within two seconds you take the result; otherwise the timer&rsquo;s channel becomes ready and you bail out. For a deadline shared across many operations, prefer a <code>context.Context</code> with <code>context.WithTimeout</code> and select on <code>ctx.Done()</code> — but <code>time.After</code> is the right tool for a single, local wait.</p>
-<p><strong>The gotcha:</strong> in a long-running loop, <code>time.After(d)</code> allocates a fresh timer <em>every iteration</em>, and the old timer isn&rsquo;t collected until it fires. For a hot loop, create one <code>time.NewTimer</code> (or <code>time.NewTicker</code>) outside the loop and reset it, so you&rsquo;re not leaking timers under the covers.</p>
+<p><strong>The gotcha:</strong> in a long-running loop, <code>time.After(d)</code> allocates a fresh timer <em>every iteration</em>. Before Go 1.23 the old timer lived until it fired, so an unread <code>time.After</code> in a hot loop pinned memory until the duration elapsed; Go 1.23 changed timer GC so an unreferenced timer is collectible immediately. Even now, the per-iteration <em>allocation</em> remains — for a hot loop, create one <code>time.NewTimer</code> (or <code>time.NewTicker</code>) outside the loop and reset it, so you&rsquo;re not churning timers under the covers.</p>
 <hr>
 <h2 id="nil-channels-block-forever-the-disable-a-case-trick">nil channels block forever — the disable-a-case trick</h2>
 <p>A receive or send on a <code>nil</code> channel blocks <em>forever</em>. That sounds like a pure hazard, but it&rsquo;s the cleanest way to <strong>disable a case</strong> in a <code>select</code>: a <code>nil</code> channel case can never be selected, so setting a channel variable to <code>nil</code> removes its arm from consideration on the next loop iteration.</p>
