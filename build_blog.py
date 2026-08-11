@@ -159,6 +159,39 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+    "2026-07-28-ai-eng-go-01-what-is-ai-engineering.md": {
+        "slug": "ai-eng-go-01-what-is-ai-engineering",
+        "date": "2026-07-28",
+        "tags": ["AI Engineering", "LLMs", "Go"],
+        "audience": "Go engineers building applications on top of LLMs",
+        "excerpt": "The opener to a from-scratch AI-engineering-in-Go series: what AI engineering actually is, how building on foundation models differs from traditional ML and from ordinary software, and why Go is a serious language for the systems around the model.",
+        "series": "AI Engineering in Go", "series_position": 1, "series_total": 15,
+        "featured": True,
+    },
+    "2026-07-29-ai-eng-go-02-how-llms-work.md": {
+        "slug": "ai-eng-go-02-how-llms-work",
+        "date": "2026-07-29",
+        "tags": ["AI Engineering", "LLMs", "Go"],
+        "audience": "Go engineers building applications on top of LLMs",
+        "excerpt": "The working mental model an AI engineer needs — next-token prediction, attention at an intuition level, pretraining vs post-training, and sampling — with every fact tied back to a concrete decision you make in code.",
+        "series": "AI Engineering in Go", "series_position": 2, "series_total": 15,
+    },
+    "2026-07-30-ai-eng-go-03-tokens-and-tokenization.md": {
+        "slug": "ai-eng-go-03-tokens-and-tokenization",
+        "date": "2026-07-30",
+        "tags": ["AI Engineering", "LLMs", "Tokenization", "Go"],
+        "audience": "Go engineers building applications on top of LLMs",
+        "excerpt": "The unit a language model actually reads is neither a word nor a character but a token. How byte-pair encoding builds a vocabulary, why tokenization explains half of an LLM's strange behavior, and how to count tokens exactly in Go.",
+        "series": "AI Engineering in Go", "series_position": 3, "series_total": 15,
+    },
+    "2026-07-31-ai-eng-go-04-calling-an-llm-from-go.md": {
+        "slug": "ai-eng-go-04-calling-an-llm-from-go",
+        "date": "2026-07-31",
+        "tags": ["AI Engineering", "LLMs", "Go", "APIs"],
+        "audience": "Go engineers building applications on top of LLMs",
+        "excerpt": "Make your first model call from scratch with net/http and encoding/json — the chat/messages API shape, a typed client with a Bearer key and context timeout, robust error handling, and server-sent-event streaming.",
+        "series": "AI Engineering in Go", "series_position": 4, "series_total": 15,
+    },
     "2026-08-03-eval-agents-go-01-why-evaluate-agents.md": {
         "slug": "eval-agents-go-01-why-evaluate-agents",
         "date": "2026-08-03",

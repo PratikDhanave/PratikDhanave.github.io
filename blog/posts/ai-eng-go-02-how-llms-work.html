@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>How LLMs Work, Enough to Build With Them — Pratik Dhanave</title>
+<meta name="description" content="The working mental model an AI engineer needs — next-token prediction, attention at an intuition level, pretraining vs post-training, and sampling —...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="How LLMs Work, Enough to Build With Them — Pratik Dhanave">
+<meta property="og:description" content="The working mental model an AI engineer needs — next-token prediction, attention at an intuition level, pretraining vs post-training, and sampling — with every fact tied back to a concrete decision you make in code.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-eng-go-02-how-llms-work.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-29T00:00:00Z">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="LLMs">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How LLMs Work, Enough to Build With Them — Pratik Dhanave">
+<meta name="twitter:description" content="The working mental model an AI engineer needs — next-token prediction, attention at an intuition level, pretraining vs post-training, and sampling — with every fact tied back to a concrete decision you make in code.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-eng-go-02-how-llms-work.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "How LLMs Work, Enough to Build With Them",
+  "description": "The working mental model an AI engineer needs \u2014 next-token prediction, attention at an intuition level, pretraining vs post-training, and sampling \u2014 with every fact tied back to a concrete decision you make in code.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-29",
+  "dateModified": "2026-07-29",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Engineering, LLMs, Go",
+  "url": "https://pratikdhanave.com/blog/posts/ai-eng-go-02-how-llms-work.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-eng-go-02-how-llms-work.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>How LLMs Work, Enough to Build With Them</h1>
+    <p class="post-subtitle">The working mental model an AI engineer needs — next-token prediction, attention, training, and sampling — without the transformer math, and with every fact tied back to a decision you make in code.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-29">July 29, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 2 of 15</span>
+    <span class="series-title">AI Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/ai-eng-go-01-what-is-ai-engineering.html" class="series-prev">&larr; Part 1: What AI Engineering Is</a>
+<a href="/blog/posts/ai-eng-go-03-tokens-and-tokenization.html" class="series-next">Part 3: Tokens and Tokenization &rarr;</a></div>
+  </div>
+
+
+
+  <p>You do not need to derive backpropagation to build reliable software on top of a language model. But you do need a mental model that predicts how the model will behave — why it invents a plausible-sounding API that does not exist, why the same prompt gives two different answers, why rephrasing a question fixes it. Almost every strange behavior an AI engineer hits traces back to a handful of facts about what the model actually is and how it was made. This post is that mental model: enough of how large language models work to make good engineering decisions, and nothing you would only need for a research exam.</p>
+<p>We will stay concrete. Each idea comes with a &ldquo;so as an engineer you should…&rdquo; because the whole point is to change what you build, not just what you know.</p>
+<hr>
+<h2 id="an-llm-is-a-next-token-predictor">An LLM is a next-token predictor</h2>
+<p>Strip away the marketing and a large language model does exactly one thing: given a sequence of text, it predicts what comes next. Not the next word, exactly — the next <em>token</em>, a chunk that might be a whole word (<code>banana</code>), a word fragment (<code>ban</code> + <code>ana</code>), a space-prefixed word (<code>the</code>), or a punctuation mark. The model reads your text as a list of token IDs and outputs a probability for every token in its vocabulary being the next one.</p>
+<p>That is the entire core loop. To generate a sentence, the model predicts one token, appends it to the input, and predicts again — over and over, feeding its own output back in. What looks like reasoning or conversation is this one operation repeated hundreds of times.</p>
+<p>Here is the shape of a single prediction step, as plain text rather than real API output:</p>
+<pre><code class="language-text">Prompt: &quot;The capital of France is&quot;
+
+Model's predicted next-token probabilities:
+  &quot; Paris&quot;     0.91
+  &quot; a&quot;         0.03
+  &quot; located&quot;   0.02
+  &quot; the&quot;       0.01
+  ... (thousands more, each tiny)
+</code></pre>
+<p>The model learned these probabilities from an enormous amount of text — books, code, web pages, documentation. Nobody wrote a rule that Paris follows &ldquo;the capital of France is.&rdquo; The model saw that pattern, and countless others, often enough to encode it in its weights as a probability.</p>
+<p><strong>The gotcha:</strong> the model outputs <em>probabilities</em>, never facts. &ldquo;Paris&rdquo; scores 0.91 because that continuation was overwhelmingly common in training text, not because the model looked anything up. This one fact explains most of what follows — hold onto it.</p>
+<p><strong>So as an engineer you should:</strong> treat every model output as a statistically likely continuation, not a retrieved answer. When you need ground truth — a real customer record, today&rsquo;s price, an exact calculation — get it from a tool or database and put it <em>in the prompt</em>, rather than trusting the model to recall it.</p>
+<hr>
+<h2 id="attention-at-the-level-you-actually-need">Attention, at the level you actually need</h2>
+<p>If a model only predicts the next token, how does it keep track of context across a long passage — knowing that &ldquo;it&rdquo; refers to the invoice mentioned three sentences ago? The answer is the mechanism at the heart of the <em>transformer</em> architecture that modern LLMs are built on: <strong>self-attention</strong>, introduced in the 2017 paper &ldquo;Attention Is All You Need.&rdquo;</p>
+<p>Here is the intuition, no equations. When the model processes each token, it looks at all the other tokens in the input and decides how much each one matters for understanding the current one. Every token gets to &ldquo;attend to&rdquo; every other token and pull in the context that is relevant. Processing &ldquo;it&rdquo; in &ldquo;the invoice was overdue so I flagged it,&rdquo; the model can weigh &ldquo;invoice&rdquo; heavily and &ldquo;so&rdquo; barely, effectively resolving what &ldquo;it&rdquo; points at.</p>
+<p>That weighing happens in parallel across the whole input, in many layers stacked on top of each other, with multiple independent attention patterns (&ldquo;heads&rdquo;) per layer. Early layers might track grammar; later layers track meaning and long-range references. You do not need the linear algebra — you need the consequence: the model builds a rich, context-sensitive representation of your entire input before it predicts the next token, and <em>which</em> tokens you include changes how every other token is understood.</p>
+<p><strong>So as an engineer you should:</strong> understand that context is not a passive backdrop — the model actively reweighs the whole input on every call. Irrelevant or contradictory text in your prompt does not get politely ignored; it competes for attention and can pull the answer off course. Keep prompts focused, and put the most important instructions where they will not be drowned out.</p>
+<hr>
+<h2 id="two-phases-of-training-pretraining-and-post-training">Two phases of training: pretraining and post-training</h2>
+<p>The raw next-token predictor and the helpful assistant you actually call are the same network at two different stages of training.</p>
+<p><strong>Pretraining</strong> is the expensive part. The model reads a vast corpus of text and learns to predict the next token across all of it. This is where it absorbs grammar, facts, coding patterns, reasoning-shaped structure, and a rough model of the world — purely as a side effect of getting good at prediction. The output of pretraining is a <em>base model</em>: fluent, knowledgeable, but not particularly cooperative. Ask a base model a question and it might continue with more questions, because in its training data a question was often followed by more questions.</p>
+<p><strong>Post-training</strong> turns that base model into an assistant. Two ideas matter here:</p>
+<ul>
+<li><strong>Instruction tuning:</strong> the model is further trained on examples of instructions paired with good responses, teaching it to treat your input as a task to complete rather than a passage to continue.</li>
+<li><strong>Preference tuning (RLHF and its relatives):</strong> humans (or a model trained to mimic their judgments) rank alternative responses, and the model is nudged toward the preferred ones. This is how models learn to be helpful, to refuse harmful requests, and to match a house style and tone.</li>
+</ul>
+<p>Preference tuning shapes behavior, not knowledge. It changes <em>how</em> the model responds, not <em>what</em> it fundamentally knows — the facts came from pretraining.</p>
+<p><strong>So as an engineer you should:</strong> remember you are talking to a post-trained assistant with a particular &ldquo;personality&rdquo; baked in by its provider. Its willingness to answer, its default verbosity, its caution — these are training artifacts, not laws of nature, and they differ between providers and model versions. When you swap models, re-test your prompts; the same words can land differently.</p>
+<hr>
+<h2 id="why-real-behaviors-happen-and-what-to-do-about-each">Why real behaviors happen (and what to do about each)</h2>
+<p>Now the payoff. Four behaviors that surprise people all fall straight out of &ldquo;it is a next-token predictor trained on fixed text.&rdquo;</p>
+<h3 id="hallucination">Hallucination</h3>
+<p>When a model states something false with total confidence, it is not lying or malfunctioning — it is doing exactly its job. It predicted the most plausible continuation. If your prompt looks like it should be followed by a citation, a function name, or a statistic, the model will produce something that <em>looks</em> like one, whether or not it corresponds to reality. Plausibility and truth are correlated in the training data but they are not the same thing, and the model only optimizes for the first.</p>
+<p><strong>So as an engineer you should:</strong> never rely on the model for facts you cannot verify. Ground it with retrieved documents, give it tools to look things up, and validate anything consequential — especially code, URLs, and numbers — against a real source before acting on it.</p>
+<h3 id="knowledge-cutoff">Knowledge cutoff</h3>
+<p>A model&rsquo;s pretraining data was collected up to some date. It knows nothing that happened after — a library released last month, a news event, your internal systems. It may still answer confidently, because it will happily predict plausible tokens about things it has no information on.</p>
+<p><strong>So as an engineer you should:</strong> provide current information in the prompt rather than assuming the model has it. For anything time-sensitive or private to your domain, retrieval or a tool call is not optional.</p>
+<h3 id="sensitivity-to-phrasing">Sensitivity to phrasing</h3>
+<p>Because the input reshapes the whole attention computation, small wording changes can produce meaningfully different outputs. &ldquo;Summarize this&rdquo; and &ldquo;Extract the three key decisions from this&rdquo; walk down different probability paths from the very first token.</p>
+<p><strong>So as an engineer you should:</strong> treat prompts as code worth iterating on and testing. Pin down the wording that works, keep a small suite of example inputs to check against when you change a prompt, and do not assume a phrasing that works on one model transfers to another.</p>
+<h3 id="non-determinism">Non-determinism</h3>
+<p>Ask the same question twice and you may get two different answers. Part of this is the sampling step (next section); part is that at production scale the exact numerical computation can vary slightly run to run. Either way, identical input does not guarantee identical output.</p>
+<p><strong>So as an engineer you should:</strong> design for variation. Do not hard-code assertions that expect one exact string. If you need reproducibility, lower the randomness (below) and, where a provider offers a <code>seed</code> parameter, use it — but treat even that as best-effort, not a contract.</p>
+<hr>
+<h2 id="sampling-how-the-next-token-is-actually-chosen">Sampling: how the next token is actually chosen</h2>
+<p>The model hands you a probability for every possible next token. Something still has to <em>pick one</em>. That picking step is <strong>sampling</strong>, and it is where you have direct, dial-turning control over the model&rsquo;s behavior.</p>
+<p>If you always picked the single highest-probability token (&ldquo;greedy&rdquo; decoding), output would be repetitive and often dull. Instead, providers expose knobs that let you introduce controlled randomness:</p>
+<ul>
+<li><strong>Temperature</strong> rescales the probabilities before choosing. Low temperature (near 0) sharpens the distribution so the top token almost always wins — focused, predictable, repeatable. High temperature (say 0.8–1.2) flattens it so less-likely tokens get a real chance — more varied and creative, more prone to wandering.</li>
+<li><strong>Top-p (nucleus sampling)</strong> restricts the choice to the smallest set of tokens whose probabilities add up to <code>p</code> (e.g. 0.9), then samples among those. It adapts to how confident the model is: a peaked distribution yields few candidates, a flat one yields many.</li>
+<li><strong>Top-k</strong> simply restricts the choice to the <code>k</code> most likely tokens before sampling.</li>
+</ul>
+<p>You typically tune one or two of these, not all three. Here is the intuition of what temperature does to the same prediction from earlier:</p>
+<pre><code class="language-text">Prediction with temperature 0.0 (greedy):
+  &quot; Paris&quot;  -&gt; chosen every time
+
+Prediction with temperature 1.0 (flatter):
+  &quot; Paris&quot;     0.72
+  &quot; a&quot;         0.09
+  &quot; located&quot;   0.07   &lt;- these now stand a real chance
+  &quot; the&quot;       0.05
+</code></pre>
+<p><strong>The gotcha:</strong> &ldquo;temperature 0&rdquo; is often described as deterministic, and it does make the sampling step pick the top token every time — but it does not guarantee byte-identical output across calls, because of the run-to-run numerical variation mentioned above. Treat temperature 0 as &ldquo;as repeatable as this model gets,&rdquo; not &ldquo;guaranteed identical.&rdquo;</p>
+<p><strong>So as an engineer you should:</strong> match the dial to the job. For extraction, classification, structured output, or anything where you want the same answer every time, use temperature 0 (or very low). For brainstorming, drafting, or varied phrasing, raise it. Change one knob at a time and observe — do not set temperature <em>and</em> top-p to extremes at once and wonder why output turned to noise.</p>
+<hr>
+<h2 id="the-context-window-everything-the-model-sees-and-nothing-else">The context window: everything the model sees, and nothing else</h2>
+<p>Every call to a model includes a <strong>context window</strong> — the full block of tokens the model reads before predicting: your system instructions, the conversation history, retrieved documents, tool outputs, and the user&rsquo;s latest message. The window has a fixed maximum size (measured in tokens), and it is the model&rsquo;s <em>entire</em> world for that call.</p>
+<p>The consequence that trips up newcomers most: <strong>the model has no memory between calls.</strong> It does not remember your previous question unless you send that question again as part of the new input. A &ldquo;conversation&rdquo; is an illusion your code maintains by resending the accumulating history on every turn. The model is stateless; you supply the state.</p>
+<p>This reframes a lot of engineering:</p>
+<table><caption class="sr-only">The context window: everything the model sees, and nothing else</caption>
+<thead>
+<tr>
+<th>If you want…</th>
+<th>You must…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The model to recall earlier turns</td>
+<td>Resend the conversation history each call</td>
+</tr>
+<tr>
+<td>The model to use a document</td>
+<td>Put its text in the context window</td>
+</tr>
+<tr>
+<td>The model to know a fact from your database</td>
+<td>Retrieve it and include it in the prompt</td>
+</tr>
+<tr>
+<td>A long chat to keep working</td>
+<td>Trim or summarize old turns before you exceed the window</td>
+</tr>
+</tbody>
+</table>
+<p>Because the window is finite, long conversations and large documents eventually overflow it. And because attention reweighs everything, stuffing the window with marginally relevant text is not free — it costs tokens (money and latency) and can dilute the signal.</p>
+<p><strong>So as an engineer you should:</strong> treat the context window as a budget you actively manage. Decide deliberately what goes in each call, keep the important material prominent, summarize or drop stale history before you hit the limit, and never assume the model &ldquo;remembers&rdquo; anything you did not resend.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>It predicts tokens, not truth.</strong> Every output is a statistically likely continuation. Ground facts with tools and retrieval; verify anything consequential.</li>
+<li><strong>Attention makes context active.</strong> The model reweighs your whole input on every call, so irrelevant text competes with the signal — keep prompts focused.</li>
+<li><strong>Training explains personality, not knowledge.</strong> Pretraining supplies the facts; post-training shapes helpfulness and tone. Re-test prompts when you switch models.</li>
+<li><strong>The weird behaviors are the mechanism, not bugs.</strong> Hallucination, knowledge cutoff, phrasing sensitivity, and non-determinism all fall out of next-token prediction over fixed data.</li>
+<li><strong>Sampling is your control dial.</strong> Temperature and top-p decide how the next token is chosen; use temperature 0 for repeatable, structured tasks and raise it for creative ones.</li>
+<li><strong>The model is stateless.</strong> The context window is all it sees, it has no memory between calls, and managing that budget is your job, not the model&rsquo;s.</li>
+</ul>
+<p>Hold these six facts and most &ldquo;why did it do that?&rdquo; moments become predictable. In the next posts in this series we start putting them to work in Go — making calls, controlling sampling, and managing the context window in code.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li>Vaswani et al., &ldquo;Attention Is All You Need&rdquo; (2017) — the paper that introduced the transformer and self-attention: <a href="https://arxiv.org/abs/1706.03762">arxiv.org/abs/1706.03762</a></li>
+<li>Your provider&rsquo;s model documentation — the authoritative reference for context-window sizes, supported sampling parameters (temperature, top-p, top-k, seed), knowledge cutoffs, and per-model behavior. Always check the docs for the specific model you are calling; these details differ between models and change over time.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-04-calling-an-llm-from-go.html">Calling an LLM from Go</a>
+      <span class="related-date">Jul 31</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-03-tokens-and-tokenization.html">Tokens and Tokenization</a>
+      <span class="related-date">Jul 30</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-01-what-is-ai-engineering.html">What AI Engineering Is</a>
+      <span class="related-date">Jul 28</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

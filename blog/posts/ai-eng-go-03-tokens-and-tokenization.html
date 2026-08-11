@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Tokens and Tokenization — Pratik Dhanave</title>
+<meta name="description" content="The unit a language model actually reads is neither a word nor a character but a token. How byte-pair encoding builds a vocabulary, why tokenization...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Tokens and Tokenization — Pratik Dhanave">
+<meta property="og:description" content="The unit a language model actually reads is neither a word nor a character but a token. How byte-pair encoding builds a vocabulary, why tokenization explains half of an LLM&#x27;s strange behavior, and how to count tokens exactly in Go.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-eng-go-03-tokens-and-tokenization.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-30T00:00:00Z">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="LLMs">
+<meta property="article:tag" content="Tokenization">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tokens and Tokenization — Pratik Dhanave">
+<meta name="twitter:description" content="The unit a language model actually reads is neither a word nor a character but a token. How byte-pair encoding builds a vocabulary, why tokenization explains half of an LLM&#x27;s strange behavior, and how to count tokens exactly in Go.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-eng-go-03-tokens-and-tokenization.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Tokens and Tokenization",
+  "description": "The unit a language model actually reads is neither a word nor a character but a token. How byte-pair encoding builds a vocabulary, why tokenization explains half of an LLM's strange behavior, and how to count tokens exactly in Go.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-30",
+  "dateModified": "2026-07-30",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Engineering, LLMs, Tokenization, Go",
+  "url": "https://pratikdhanave.com/blog/posts/ai-eng-go-03-tokens-and-tokenization.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-eng-go-03-tokens-and-tokenization.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Tokens and Tokenization</h1>
+    <p class="post-subtitle">The unit a language model actually reads is neither a word nor a character — it is a token, and once you see the world the way the model does, half of its strange behavior stops being strange.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-30">July 30, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a><a href="/blog/tags/tokenization/" class="tag-link"><span class="tag">#Tokenization</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 3 of 15</span>
+    <span class="series-title">AI Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/ai-eng-go-02-how-llms-work.html" class="series-prev">&larr; Part 2: How LLMs Work, Enough to Build With Them</a>
+<a href="/blog/posts/ai-eng-go-04-calling-an-llm-from-go.html" class="series-next">Part 4: Calling an LLM from Go &rarr;</a></div>
+  </div>
+
+
+
+  <p>Ask a large language model to count the letters in &ldquo;strawberry&rdquo; and it may well tell you there are two. Ask it to reverse a string and it fumbles. Bill it for a paragraph of English and it costs a fraction of the same paragraph in Hindi or Japanese. None of these are bugs — they are all the same fact wearing different clothes. A model does not read text the way you do. Before a single layer of the network runs, your text is chopped into <strong>tokens</strong>, and everything downstream — pricing, context limits, spelling, arithmetic — is a consequence of where those cuts fall.</p>
+<p>This post is about that first, invisible step. We will build the intuition for what a token is, how the byte-pair encoding that produces them actually works, and why it explains behavior you have already seen. Then we will count tokens in Go — both the exact way, against a real OpenAI encoding, and a rough way you can carry anywhere.</p>
+<hr>
+<h2 id="a-token-is-a-subword-unit">A token is a subword unit</h2>
+<p>The first instinct is that a model reads words. It does not. The second instinct is that it reads characters. It does not do that either. A token sits in between: it is a chunk of text, usually a few characters long, drawn from a fixed <strong>vocabulary</strong> the model was trained with. A vocabulary might hold 50,000 or 100,000 or 200,000 distinct tokens.</p>
+<p>Common words often become a single token. Rare words get split into several. A word like <code>tokenization</code> might arrive as <code>token</code> + <code>ization</code>; a name the model has never seen, like <code>Dhanave</code>, might fracture into three or four pieces. Punctuation, spaces, and even the <em>leading space</em> of a word are part of the token — <code>cat</code> (with a space) and <code>cat</code> (without) are usually two different tokens.</p>
+<p>Here is the mental model to hold onto: <strong>the model never sees your letters.</strong> It sees a sequence of integer IDs, one per token. When it generates, it emits one token ID at a time and the IDs are mapped back to text. The letters are on your side of the fence, not the model&rsquo;s.</p>
+<pre><code class="language-text">Text:    &quot;Tokenization is subword.&quot;
+Tokens:  [&quot;Token&quot;, &quot;ization&quot;, &quot; is&quot;, &quot; sub&quot;, &quot;word&quot;, &quot;.&quot;]
+IDs:     [3404, 2065, 374, 1207, 1178, 13]
+</code></pre>
+<p>(The exact split and IDs depend on which encoding you use — the ones above are illustrative, not a promise about any specific model.)</p>
+<p><strong>The gotcha:</strong> &ldquo;one token ≈ one word&rdquo; is a rule of thumb, not a law. For ordinary English prose it lands near ~0.75 words per token, but the moment you feed a model code, JSON, non-Latin script, or a wall of rare proper nouns, the ratio swings hard. Treat any word-based estimate as an approximation and count real tokens when money or limits are on the line.</p>
+<hr>
+<h2 id="how-byte-pair-encoding-builds-a-vocabulary">How byte-pair encoding builds a vocabulary</h2>
+<p>The dominant way to produce that vocabulary is <strong>byte-pair encoding</strong> (BPE). The name sounds intimidating; the idea is almost embarrassingly simple, and you can hold the whole algorithm in your head.</p>
+<p>Start with the smallest possible units — individual bytes (or characters). At this point your &ldquo;vocabulary&rdquo; is just the raw alphabet, and every word is spelled out one symbol at a time. Then you repeat one move:</p>
+<ol>
+<li>Scan a large training corpus and count every <strong>adjacent pair</strong> of symbols.</li>
+<li>Find the pair that occurs most often.</li>
+<li>Merge that pair into a single new symbol and add it to the vocabulary.</li>
+<li>Go back to step 1.</li>
+</ol>
+<p>Each merge makes the most common pairing in your data into its own token. Do this thousands of times and frequent sequences — <code>th</code>, then <code>the</code>, then <code>the</code> — get promoted into single tokens, while rare sequences stay fragmented. The vocabulary you ship is just the starting alphabet plus the ordered list of merges you learned.</p>
+<p>Walk it through by hand. Suppose your corpus is the words <code>low</code>, <code>lower</code>, <code>lowest</code>, repeated many times. Starting from characters, the pair <code>l o</code> is everywhere, so it merges into <code>lo</code>. Now <code>lo w</code> is everywhere, so it merges into <code>low</code>. Suddenly the common stem <code>low</code> is one token, and the endings <code>er</code> and <code>est</code> — themselves frequent across the whole language — become their own tokens too. The model ends up with reusable pieces: a stem plus a suffix, assembled on demand.</p>
+<pre><code class="language-text">Round 0:  l o w   l o w e r   l o w e s t
+merge lo: lo w    lo w e r    lo w e s t
+merge low:low     low e r     low e s t
+merge er: low     low er      low e s t
+...
+Vocabulary grows: [l,o,w,e,r,s,t, lo, low, er, ...]
+</code></pre>
+<p>The elegance is that BPE learns <em>where words tend to break</em> purely from frequency, with no dictionary and no grammar. Because it can always fall back to individual bytes, it can encode literally any input — a brand-new word, an emoji, a snippet of a language it barely saw — without ever hitting an &ldquo;unknown token.&rdquo; Worst case, it spells the thing out one byte at a time, which is exactly why obscure inputs cost more tokens.</p>
+<p><strong>The gotcha:</strong> the merge list is <em>ordered and fixed at training time</em>. Tokenization is deterministic but greedy — it applies learned merges in order, it does not search for the shortest possible split. Two visually similar strings can tokenize very differently, and you cannot reason about token counts from the letters alone. You have to run the actual encoder.</p>
+<hr>
+<h2 id="why-tokenization-explains-real-behavior">Why tokenization explains real behavior</h2>
+<p>Once you accept that the model reads token IDs and not characters, a pile of otherwise-mysterious behavior becomes obvious.</p>
+<p><strong>Pricing is per token.</strong> Providers bill input and output in tokens, not words or characters. This is why a request in a token-dense language costs more for the &ldquo;same&rdquo; content, and why trimming a verbose system prompt saves real money.</p>
+<p><strong>Context limits are counted in tokens.</strong> When a model advertises a 128,000-token context window, that budget is spent in tokens. A document that looks short by character count can be surprisingly expensive if it is full of rare words, code, or non-Latin script, and it can overflow a window sooner than you expect.</p>
+<p><strong>Spelling, reversing, and counting characters are hard.</strong> Ask the model how many <code>r</code>s are in &ldquo;strawberry&rdquo; and it struggles because it never saw the letters — it saw something like <code>straw</code> + <code>berry</code>, two opaque IDs. Counting characters inside a token means reasoning about a symbol whose internal spelling was thrown away at the door. Reversing a string is the same problem: the model would have to unpack each token into characters it does not have direct access to.</p>
+<p><strong>Arithmetic is shaky for the same reason.</strong> Numbers tokenize in awkward, inconsistent chunks — <code>1234</code> might be one token while <code>12345</code> splits as <code>123</code> + <code>45</code>. The model is not manipulating digits in place values; it is pattern-matching over token sequences, which is why long multiplication drifts. (This is exactly the kind of task you hand to a tool or a code interpreter instead of trusting the raw model.)</p>
+<p><strong>Whitespace, casing, and language shift the count.</strong> <code>The</code>, <code>The</code>, and <code>THE</code> can be three different tokens. Extra spaces and newlines are tokens too. And because BPE merges were learned mostly on English-heavy corpora, English packs more characters per token than most other languages — so the identical meaning, translated, can cost noticeably more tokens.</p>
+<table><caption class="sr-only">Why tokenization explains real behavior</caption>
+<thead>
+<tr>
+<th>Behavior you observe</th>
+<th>Root cause in tokenization</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&ldquo;Same&rdquo; text costs more in another language</td>
+<td>Fewer learned merges → more tokens per character</td>
+</tr>
+<tr>
+<td>Model miscounts letters in a word</td>
+<td>It sees token IDs, not the characters inside them</td>
+</tr>
+<tr>
+<td>Reversing a string goes wrong</td>
+<td>Characters are hidden behind opaque tokens</td>
+</tr>
+<tr>
+<td>Long arithmetic drifts</td>
+<td>Digits split into inconsistent token chunks</td>
+</tr>
+<tr>
+<td>A short-looking doc blows the context window</td>
+<td>Rare words / code fragment into many tokens</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="counting-tokens-exactly-in-go">Counting tokens exactly in Go</h2>
+<p>Estimates are fine for a gut check, but when you are enforcing a context budget or reconciling a bill you want the real number. For OpenAI&rsquo;s encodings there is a well-maintained Go port of the reference tokenizer: <a href="https://github.com/pkoukk/tiktoken-go"><code>github.com/pkoukk/tiktoken-go</code></a>. It ships the actual merge tables, so its counts match the encodings the models use.</p>
+<p>The pattern is: load an encoding by name, encode your text into token IDs, and take the length.</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;fmt&quot;
+    &quot;log&quot;
+
+    &quot;github.com/pkoukk/tiktoken-go&quot;
+)
+
+func main() {
+    // cl100k_base is the encoding used by several OpenAI chat models.
+    // Load it once and reuse the encoder — it is safe to keep around.
+    enc, err := tiktoken.GetEncoding(&quot;cl100k_base&quot;)
+    if err != nil {
+        log.Fatalf(&quot;load encoding: %v&quot;, err)
+    }
+
+    text := &quot;Tokenization is subword, not words or characters.&quot;
+
+    // Encode returns the token IDs. The extra arguments are the sets of
+    // allowed/disallowed special tokens; nil means &quot;use the defaults&quot;.
+    // (If a version of the library uses a different signature, check its API.)
+    ids := enc.Encode(text, nil, nil)
+
+    fmt.Printf(&quot;text:   %q\n&quot;, text)
+    fmt.Printf(&quot;tokens: %d\n&quot;, len(ids))
+    fmt.Printf(&quot;ids:    %v\n&quot;, ids)
+}
+</code></pre>
+<p><code>GetEncoding</code> takes the encoding name directly (<code>"cl100k_base"</code> here). Some versions also expose a model-oriented helper that maps a model name to its encoding for you — if you would rather name the model than the encoding, check the library&rsquo;s API for that variant. Either way, the shape is the same: get an encoder, call <code>Encode</code>, measure the slice.</p>
+<p><strong>The gotcha:</strong> an encoding is not a model. <code>cl100k_base</code> is one specific tokenizer; a different model family may use a different encoding (and therefore a different count) for the exact same string. Pick the encoding that matches the model you are actually calling, and do not assume a token count transfers across providers or model generations. When in doubt, count against the encoding the model documents.</p>
+<hr>
+<h2 id="a-rough-approximation-with-no-dependencies">A rough approximation with no dependencies</h2>
+<p>Sometimes you cannot pull in the encoding tables — you are in a hot path, a size-constrained binary, or you just want a fast pre-flight guess before making the real call. A crude heuristic is genuinely useful here, as long as you <em>treat it as a lower-confidence estimate</em> and pad your budget.</p>
+<p>The simplest rule that holds up for English prose: roughly <strong>four characters per token</strong>. Slightly better is to count words and punctuation and nudge upward, since punctuation and spaces carry their own tokens.</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;fmt&quot;
+    &quot;strings&quot;
+    &quot;unicode&quot;
+)
+
+// estimateTokensByChars: the classic &quot;~4 characters per token&quot; rule.
+// Fast, dependency-free, and only a ballpark — bias it high for safety.
+func estimateTokensByChars(text string) int {
+    n := len([]rune(text))
+    est := n / 4
+    if est &lt; 1 &amp;&amp; n &gt; 0 {
+        est = 1
+    }
+    return est
+}
+
+// estimateTokensByWords: count word-ish runs plus standalone punctuation.
+// Tends to track English a little better than raw character division.
+func estimateTokensByWords(text string) int {
+    words := strings.Fields(text) // splits on any whitespace
+    punct := 0
+    for _, r := range text {
+        if unicode.IsPunct(r) {
+            punct++
+        }
+    }
+    // Each word is ~1.3 tokens on average for English; add punctuation.
+    return int(float64(len(words))*1.3) + punct
+}
+
+func main() {
+    text := &quot;Tokenization is subword, not words or characters.&quot;
+    fmt.Printf(&quot;char-based estimate: %d\n&quot;, estimateTokensByChars(text))
+    fmt.Printf(&quot;word-based estimate: %d\n&quot;, estimateTokensByWords(text))
+}
+</code></pre>
+<p>Neither number is exact, and both drift badly on code or non-English text — but for &ldquo;will this prompt roughly fit?&rdquo; they earn their keep. The discipline is to know which one you are holding: an estimate for a quick check, the real encoder for anything that touches money or a hard limit.</p>
+<p><strong>The gotcha:</strong> the ~4-chars rule is calibrated on English. On code, dense punctuation, or non-Latin scripts it can under-count by a wide margin — precisely the inputs that fragment into many tokens. If your estimate feeds a safety margin, round <em>up</em> and leave headroom; never let a heuristic be the thing standing between you and a context-window overflow.</p>
+<hr>
+<h2 id="from-tokens-to-a-bill">From tokens to a bill</h2>
+<p>Because pricing is per token, a cost estimate is just arithmetic once you have counts. Providers quote a price per million tokens, usually with different rates for input (prompt) and output (completion). Keep the rates in one place and the calculation stays honest.</p>
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+// Prices are per 1,000,000 tokens, in your currency of choice.
+// These are placeholders — read the current numbers from the provider's
+// pricing page; do not trust hard-coded rates to stay correct.
+type Pricing struct {
+    InputPerMillion  float64
+    OutputPerMillion float64
+}
+
+func estimateCost(inputTokens, outputTokens int, p Pricing) float64 {
+    in := float64(inputTokens) / 1_000_000 * p.InputPerMillion
+    out := float64(outputTokens) / 1_000_000 * p.OutputPerMillion
+    return in + out
+}
+
+func main() {
+    // Suppose you counted these with tiktoken-go.
+    inputTokens, outputTokens := 1_200, 800
+
+    // Fill in with the real, current published rates.
+    price := Pricing{InputPerMillion: 3.00, OutputPerMillion: 15.00}
+
+    cost := estimateCost(inputTokens, outputTokens, price)
+    fmt.Printf(&quot;input:  %d tokens\n&quot;, inputTokens)
+    fmt.Printf(&quot;output: %d tokens\n&quot;, outputTokens)
+    fmt.Printf(&quot;est. cost: $%.5f\n&quot;, cost)
+}
+</code></pre>
+<p>The numbers in that example are stand-ins so the code runs — the point is the <em>shape</em>. Output tokens are usually priced higher than input tokens, so a chatty completion can dominate the bill even when the prompt is long. Count both separately.</p>
+<p><strong>The gotcha:</strong> never hard-code prices as if they are permanent. Rates change, and they differ per model. Put them in config, refresh them from the provider&rsquo;s published pricing, and treat the number your calculator prints as an estimate — the authoritative charge is whatever the provider&rsquo;s usage metering reports back after the call.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>A token is a subword unit</strong>, not a word and not a character. The model reads integer IDs from a fixed vocabulary; your letters never cross the fence.</li>
+<li><strong>BPE builds the vocabulary by merging the most frequent adjacent pairs</strong>, starting from bytes. Frequent sequences become single tokens; rare ones stay fragmented, which is why obscure input costs more.</li>
+<li><strong>Tokenization explains the weird behavior.</strong> Per-token pricing, token-counted context limits, bad spelling/reversing/char-counting, shaky arithmetic, and language-dependent cost are all downstream of where the cuts fall.</li>
+<li><strong>Count exactly with <code>tiktoken-go</code></strong> against the encoding your model uses (<code>GetEncoding("cl100k_base")</code> → <code>Encode</code> → <code>len</code>). An encoding is not a model — match them.</li>
+<li><strong>Estimate cheaply with ~4 chars/token or a word+punctuation heuristic</strong>, but bias high and never let a guess guard a hard limit or a bill.</li>
+</ul>
+<p>Tokenization is the layer everyone skips and then trips over. Spend an afternoon watching real text turn into real token IDs and the model&rsquo;s quirks stop looking like magic — they look like the direct, predictable consequence of reading the world in subword chunks.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://platform.openai.com/tokenizer">OpenAI — Understanding tokens / the tokenizer tool</a> — paste text and watch it split into tokens interactively.</li>
+<li><a href="https://github.com/openai/tiktoken">openai/tiktoken</a> — the reference BPE tokenizer that the encodings above come from.</li>
+<li><a href="https://github.com/pkoukk/tiktoken-go">pkoukk/tiktoken-go</a> — the Go port used in this post for exact counts against OpenAI encodings.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-04-calling-an-llm-from-go.html">Calling an LLM from Go</a>
+      <span class="related-date">Jul 31</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-02-how-llms-work.html">How LLMs Work, Enough to Build With Them</a>
+      <span class="related-date">Jul 29</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-01-what-is-ai-engineering.html">What AI Engineering Is</a>
+      <span class="related-date">Jul 28</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

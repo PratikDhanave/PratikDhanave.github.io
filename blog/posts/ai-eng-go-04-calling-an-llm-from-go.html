@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Calling an LLM from Go — Pratik Dhanave</title>
+<meta name="description" content="Make your first model call from scratch with net/http and encoding/json — the chat/messages API shape, a typed client with a Bearer key and context...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Calling an LLM from Go — Pratik Dhanave">
+<meta property="og:description" content="Make your first model call from scratch with net/http and encoding/json — the chat/messages API shape, a typed client with a Bearer key and context timeout, robust error handling, and server-sent-event streaming.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-eng-go-04-calling-an-llm-from-go.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-31T00:00:00Z">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="LLMs">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="APIs">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Calling an LLM from Go — Pratik Dhanave">
+<meta name="twitter:description" content="Make your first model call from scratch with net/http and encoding/json — the chat/messages API shape, a typed client with a Bearer key and context timeout, robust error handling, and server-sent-event streaming.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-eng-go-04-calling-an-llm-from-go.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Calling an LLM from Go",
+  "description": "Make your first model call from scratch with net/http and encoding/json \u2014 the chat/messages API shape, a typed client with a Bearer key and context timeout, robust error handling, and server-sent-event streaming.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-31",
+  "dateModified": "2026-07-31",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Engineering, LLMs, Go, APIs",
+  "url": "https://pratikdhanave.com/blog/posts/ai-eng-go-04-calling-an-llm-from-go.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-eng-go-04-calling-an-llm-from-go.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Calling an LLM from Go</h1>
+    <p class="post-subtitle">Make your first model call from scratch with net/http and encoding/json — the chat/messages API shape, a typed client with a Bearer key and context timeout, robust error handling, and server-sent-event streaming — no framework required.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-31">July 31, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/apis/" class="tag-link"><span class="tag">#APIs</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 4 of 15</span>
+    <span class="series-title">AI Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/ai-eng-go-03-tokens-and-tokenization.html" class="series-prev">&larr; Part 3: Tokens and Tokenization</a></div>
+  </div>
+
+
+
+  <p>Most &ldquo;get started&rdquo; guides hand you an SDK and a one-liner. That is fine until something breaks — a 429 you don&rsquo;t understand, a streamed response that never terminates, a timeout that hangs a request forever. This post takes the opposite route: we call a large language model from Go using nothing but the standard library. By the end you will have a typed client you understand top to bottom, because you built every layer of it. Once you know the shape of the request and response, adopting an official SDK is a convenience, not a mystery.</p>
+<p>We target an <strong>OpenAI-compatible chat completions endpoint</strong>, because that request/response shape is the closest thing the industry has to a lingua franca — dozens of providers and local runtimes (llama.cpp, vLLM, Ollama&rsquo;s compatibility layer, Together, Groq, and OpenAI itself) speak it. The field names below are the real, generic ones; point the base URL and model at whatever provider you use.</p>
+<hr>
+<h2 id="the-chat-api-is-a-list-of-messages-with-roles">The chat API is a list of messages with roles</h2>
+<p>Before any Go, understand the data model. A chat request is not a single prompt string — it is an ordered <strong>list of messages</strong>, each tagged with a <code>role</code>:</p>
+<ul>
+<li><strong><code>system</code></strong> — standing instructions that set behavior and tone. Usually one, first.</li>
+<li><strong><code>user</code></strong> — what the human said.</li>
+<li><strong><code>assistant</code></strong> — what the model said on previous turns.</li>
+</ul>
+<p>To hold a conversation you resend the whole list every call — the endpoint is stateless, so <em>you</em> own the history. A three-turn chat looks like this on the wire:</p>
+<pre><code class="language-json">{
+  &quot;model&quot;: &quot;gpt-4o-mini&quot;,
+  &quot;messages&quot;: [
+    {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;You are a terse Go tutor.&quot;},
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;What does a nil map do on write?&quot;},
+    {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: &quot;It panics. Reads return the zero value.&quot;},
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;And on read?&quot;}
+  ],
+  &quot;temperature&quot;: 0.7,
+  &quot;max_tokens&quot;: 512
+}
+</code></pre>
+<p>The knobs that matter most: <strong><code>temperature</code></strong> (0 = deterministic-ish and focused, higher = more varied), <strong><code>max_tokens</code></strong> (a ceiling on the <em>response</em> length, not the whole conversation), and <strong><code>model</code></strong> (which model to run). The response comes back as a list of <strong><code>choices</code></strong> — usually one — each carrying a <code>message</code> with the assistant&rsquo;s <code>role</code> and <code>content</code>, plus a <code>finish_reason</code> and a top-level <strong><code>usage</code></strong> block counting tokens:</p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;chatcmpl-abc123&quot;,
+  &quot;choices&quot;: [
+    {
+      &quot;index&quot;: 0,
+      &quot;message&quot;: {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: &quot;It returns the value type's zero value.&quot;},
+      &quot;finish_reason&quot;: &quot;stop&quot;
+    }
+  ],
+  &quot;usage&quot;: {&quot;prompt_tokens&quot;: 42, &quot;completion_tokens&quot;: 9, &quot;total_tokens&quot;: 51}
+}
+</code></pre>
+<p><code>finish_reason</code> is worth reading: <code>stop</code> means the model finished naturally, <code>length</code> means it hit <code>max_tokens</code> and got cut off mid-thought. Token counts in <code>usage</code> are what you are billed on and what you budget against a context window.</p>
+<hr>
+<h2 id="modeling-the-request-and-response-as-go-structs">Modeling the request and response as Go structs</h2>
+<p>Now the Go. We mirror that JSON with typed structs and let <code>encoding/json</code> do the marshaling. The struct tags carry the wire names; Go field names stay idiomatic.</p>
+<pre><code class="language-go">package llm
+
+type Message struct {
+    Role    string `json:&quot;role&quot;`
+    Content string `json:&quot;content&quot;`
+}
+
+type ChatRequest struct {
+    Model       string    `json:&quot;model&quot;`
+    Messages    []Message `json:&quot;messages&quot;`
+    Temperature float64   `json:&quot;temperature,omitempty&quot;`
+    MaxTokens   int       `json:&quot;max_tokens,omitempty&quot;`
+    Stream      bool      `json:&quot;stream,omitempty&quot;`
+}
+
+type Usage struct {
+    PromptTokens     int `json:&quot;prompt_tokens&quot;`
+    CompletionTokens int `json:&quot;completion_tokens&quot;`
+    TotalTokens      int `json:&quot;total_tokens&quot;`
+}
+
+type Choice struct {
+    Index        int     `json:&quot;index&quot;`
+    Message      Message `json:&quot;message&quot;`
+    FinishReason string  `json:&quot;finish_reason&quot;`
+}
+
+type ChatResponse struct {
+    ID      string   `json:&quot;id&quot;`
+    Choices []Choice `json:&quot;choices&quot;`
+    Usage   Usage    `json:&quot;usage&quot;`
+}
+</code></pre>
+<p><strong>The gotcha:</strong> the <code>,omitempty</code> on <code>Temperature</code> is subtle. A <code>float64</code> zero value is <code>0.0</code>, which <code>omitempty</code> treats as empty and <em>drops from the JSON</em> — so you can never send <code>temperature: 0</code> this way. If deterministic output matters, make the field a <code>*float64</code> (a nil pointer omits, a pointer to <code>0</code> sends <code>0</code>) or drop <code>omitempty</code> and always send an explicit value. The same trap applies to any numeric knob whose meaningful value is zero.</p>
+<hr>
+<h2 id="a-typed-client-bearer-key-context-decode">A typed client: Bearer key, context, decode</h2>
+<p>The client holds a base URL, an API key read from the environment, and — importantly — a <em>shared</em> <code>*http.Client</code> so connections get reused across calls rather than leaking a new transport each time.</p>
+<pre><code class="language-go">package llm
+
+import (
+    &quot;bytes&quot;
+    &quot;context&quot;
+    &quot;encoding/json&quot;
+    &quot;fmt&quot;
+    &quot;io&quot;
+    &quot;net/http&quot;
+    &quot;os&quot;
+    &quot;time&quot;
+)
+
+type Client struct {
+    BaseURL    string
+    APIKey     string
+    Model      string
+    HTTPClient *http.Client
+}
+
+func NewClient() (*Client, error) {
+    key := os.Getenv(&quot;LLM_API_KEY&quot;)
+    if key == &quot;&quot; {
+        return nil, fmt.Errorf(&quot;LLM_API_KEY is not set&quot;)
+    }
+    return &amp;Client{
+        BaseURL:    &quot;https://api.openai.com/v1&quot;,
+        APIKey:     key,
+        Model:      &quot;gpt-4o-mini&quot;,
+        HTTPClient: &amp;http.Client{Timeout: 60 * time.Second},
+    }, nil
+}
+</code></pre>
+<p>Reading the key from an environment variable — never a string literal — keeps credentials out of source control and CI logs. Now the call itself. Note that we take a <code>context.Context</code> as the first argument: that is the Go convention for anything that does I/O, and it lets the caller cancel a slow request or bound it with a deadline.</p>
+<pre><code class="language-go">func (c *Client) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
+    reqBody := ChatRequest{
+        Model:       c.Model,
+        Messages:    messages,
+        Temperature: 0.7,
+        MaxTokens:   512,
+    }
+    payload, err := json.Marshal(reqBody)
+    if err != nil {
+        return nil, fmt.Errorf(&quot;marshal request: %w&quot;, err)
+    }
+
+    req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+        c.BaseURL+&quot;/chat/completions&quot;, bytes.NewReader(payload))
+    if err != nil {
+        return nil, fmt.Errorf(&quot;build request: %w&quot;, err)
+    }
+    req.Header.Set(&quot;Content-Type&quot;, &quot;application/json&quot;)
+    req.Header.Set(&quot;Authorization&quot;, &quot;Bearer &quot;+c.APIKey)
+
+    resp, err := c.HTTPClient.Do(req)
+    if err != nil {
+        return nil, fmt.Errorf(&quot;send request: %w&quot;, err)
+    }
+    defer resp.Body.Close()
+
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, fmt.Errorf(&quot;read body: %w&quot;, err)
+    }
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf(&quot;api error %d: %s&quot;, resp.StatusCode, body)
+    }
+
+    var out ChatResponse
+    if err := json.Unmarshal(body, &amp;out); err != nil {
+        return nil, fmt.Errorf(&quot;decode response: %w&quot;, err)
+    }
+    return &amp;out, nil
+}
+</code></pre>
+<p>Two details earn their place. <code>http.NewRequestWithContext</code> is what actually wires cancellation into the transport — a plain <code>http.NewRequest</code> ignores your context entirely. And reading the full body <em>before</em> checking the status lets us surface the provider&rsquo;s error JSON (which explains <em>why</em> it failed) instead of a bare status code. A tiny caller ties it together:</p>
+<pre><code class="language-go">func main() {
+    c, err := llm.NewClient()
+    if err != nil {
+        log.Fatal(err)
+    }
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+
+    resp, err := c.Chat(ctx, []llm.Message{
+        {Role: &quot;system&quot;, Content: &quot;You are a terse Go tutor.&quot;},
+        {Role: &quot;user&quot;, Content: &quot;Explain a nil channel in one sentence.&quot;},
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println(resp.Choices[0].Message.Content)
+    fmt.Printf(&quot;tokens: %d in, %d out\n&quot;,
+        resp.Usage.PromptTokens, resp.Usage.CompletionTokens)
+}
+</code></pre>
+<p><strong>The gotcha:</strong> the <code>context.WithTimeout</code> on the caller and the <code>Timeout</code> on the <code>http.Client</code> are <em>different</em> clocks. The client timeout is a blunt per-call cap; the context deadline can be tighter or shared across several operations, and it is the only one that lets you cancel <em>early</em> from elsewhere. When both are set the shorter one wins — set the context deadline to what the caller actually needs and keep the client timeout as a generous backstop. Always <code>defer resp.Body.Close()</code>, and always drain or close the body even on the error path, or you leak connections from the pool.</p>
+<hr>
+<h2 id="errors-rate-limits-and-retries-with-backoff">Errors, rate limits, and retries with backoff</h2>
+<p>Real endpoints fail in ways worth distinguishing. A <code>400</code> means your request is malformed — retrying is pointless. A <code>401</code> means a bad key — also terminal. A <code>429</code> means rate-limited, and a <code>500</code>/<code>502</code>/<code>503</code> means the provider hiccuped — both are worth retrying <em>after a delay</em>. The delay is the important part: hammering a rate-limited endpoint immediately just extends the throttle.</p>
+<p>The right strategy is <strong>exponential backoff with jitter</strong> — wait longer after each failure, plus a small random offset so a fleet of clients doesn&rsquo;t retry in lockstep. On a <code>429</code> the provider often sends a <code>Retry-After</code> header telling you exactly how long to wait; honor it when present. Sketching the retry decision (keeping the transport code from above):</p>
+<pre><code class="language-go">func retryable(status int) bool {
+    return status == http.StatusTooManyRequests || // 429
+        status &gt;= 500 // provider-side failures
+}
+
+func backoff(attempt int) time.Duration {
+    base := time.Duration(1&lt;&lt;attempt) * time.Second        // 1s, 2s, 4s, ...
+    jitter := time.Duration(rand.Int63n(int64(250 * time.Millisecond)))
+    return base + jitter
+}
+</code></pre>
+<p>You would wrap <code>Chat</code> in a loop that tries a few times, sleeps <code>backoff(attempt)</code> between retryable failures (or the <code>Retry-After</code> value), and returns immediately on success or a non-retryable status. Two rules keep it honest: <strong>cap the attempts</strong> (three or four — infinite retries turn a blip into an outage), and <strong>respect the context</strong> by selecting on <code>ctx.Done()</code> while you sleep, so a cancelled request stops waiting instead of finishing its backoff.</p>
+<hr>
+<h2 id="streaming-with-server-sent-events">Streaming with server-sent events</h2>
+<p>For anything a human reads, waiting for the full completion feels sluggish. Streaming fixes that: set <code>"stream": true</code> and the model pushes tokens as it generates them. The transport is <strong>server-sent events (SSE)</strong> — a long-lived HTTP response where the body is a text stream of lines, each event prefixed with <code>data:</code>. A streamed chat response is a sequence of these:</p>
+<pre><code>data: {&quot;choices&quot;:[{&quot;delta&quot;:{&quot;role&quot;:&quot;assistant&quot;},&quot;index&quot;:0}]}
+
+data: {&quot;choices&quot;:[{&quot;delta&quot;:{&quot;content&quot;:&quot;It &quot;},&quot;index&quot;:0}]}
+
+data: {&quot;choices&quot;:[{&quot;delta&quot;:{&quot;content&quot;:&quot;panics.&quot;},&quot;index&quot;:0}]}
+
+data: [DONE]
+</code></pre>
+<p>Three things differ from the non-streaming shape. The payload carries a <strong><code>delta</code></strong> (the <em>incremental</em> piece) instead of a full <code>message</code>; events are separated by blank lines; and the stream ends with a literal sentinel line, <code>data: [DONE]</code>, which is <strong>not JSON</strong> — you must special-case it before decoding.</p>
+<p>Go&rsquo;s <code>bufio.Scanner</code> reads the body line by line without buffering the whole response, which is exactly what streaming demands. We strip the <code>data:</code> prefix, stop at the sentinel, decode each remaining line as a delta chunk, and hand each token to a callback.</p>
+<pre><code class="language-go">type streamChunk struct {
+    Choices []struct {
+        Delta struct {
+            Content string `json:&quot;content&quot;`
+        } `json:&quot;delta&quot;`
+        FinishReason string `json:&quot;finish_reason&quot;`
+    } `json:&quot;choices&quot;`
+}
+
+func (c *Client) ChatStream(ctx context.Context, messages []Message, onToken func(string)) error {
+    reqBody := ChatRequest{Model: c.Model, Messages: messages, Stream: true}
+    payload, err := json.Marshal(reqBody)
+    if err != nil {
+        return fmt.Errorf(&quot;marshal request: %w&quot;, err)
+    }
+
+    req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+        c.BaseURL+&quot;/chat/completions&quot;, bytes.NewReader(payload))
+    if err != nil {
+        return fmt.Errorf(&quot;build request: %w&quot;, err)
+    }
+    req.Header.Set(&quot;Content-Type&quot;, &quot;application/json&quot;)
+    req.Header.Set(&quot;Authorization&quot;, &quot;Bearer &quot;+c.APIKey)
+    req.Header.Set(&quot;Accept&quot;, &quot;text/event-stream&quot;)
+
+    resp, err := c.HTTPClient.Do(req)
+    if err != nil {
+        return fmt.Errorf(&quot;send request: %w&quot;, err)
+    }
+    defer resp.Body.Close()
+    if resp.StatusCode != http.StatusOK {
+        body, _ := io.ReadAll(resp.Body)
+        return fmt.Errorf(&quot;api error %d: %s&quot;, resp.StatusCode, body)
+    }
+
+    scanner := bufio.NewScanner(resp.Body)
+    scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024) // room for long lines
+    for scanner.Scan() {
+        line := scanner.Text()
+        if !strings.HasPrefix(line, &quot;data: &quot;) {
+            continue // skip blank separators and any comment/keepalive lines
+        }
+        data := strings.TrimPrefix(line, &quot;data: &quot;)
+        if data == &quot;[DONE]&quot; {
+            break
+        }
+        var chunk streamChunk
+        if err := json.Unmarshal([]byte(data), &amp;chunk); err != nil {
+            return fmt.Errorf(&quot;decode chunk: %w&quot;, err)
+        }
+        if len(chunk.Choices) &gt; 0 {
+            onToken(chunk.Choices[0].Delta.Content)
+        }
+    }
+    return scanner.Err()
+}
+</code></pre>
+<p>Printing tokens as they land is now a two-liner:</p>
+<pre><code class="language-go">err := c.ChatStream(ctx, msgs, func(tok string) {
+    fmt.Print(tok)
+    os.Stdout.Sync()
+})
+</code></pre>
+<p><strong>The gotcha:</strong> <code>bufio.Scanner</code> has a default maximum token size of 64 KB per line and returns <code>bufio.ErrTooLong</code> if a single SSE <code>data:</code> line exceeds it — which large chunks can. The <code>scanner.Buffer(...)</code> call above raises that ceiling; without it a long line silently ends your loop with an error you must check via <code>scanner.Err()</code>. Also note the sentinel check <em>must</em> come before <code>json.Unmarshal</code> — <code>[DONE]</code> is not valid JSON and will error every time if you try to decode it. Finally, don&rsquo;t forget to accumulate the deltas yourself if you need the full text; the stream never resends the complete message.</p>
+<hr>
+<h2 id="when-to-reach-for-an-official-sdk">When to reach for an official SDK</h2>
+<p>Everything above is deliberately hand-rolled so the mechanics are visible. In production you&rsquo;ll often prefer a maintained SDK that tracks provider changes, handles retries and streaming, and gives you typed helpers for tool calls and structured output. Well-known Go options include <strong><code>openai-go</code></strong> for OpenAI-compatible endpoints, <strong><code>anthropic-sdk-go</code></strong> for the Anthropic Messages API, and <strong><code>google.golang.org/genai</code></strong> for Gemini. Their exact method names and option types differ, so check each project&rsquo;s own docs and examples rather than assuming — but the request/response shape you now understand maps cleanly onto all of them.</p>
+<table><caption class="sr-only">When to reach for an official SDK</caption>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Standard library approach</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Transport</td>
+<td><code>net/http</code> with a shared <code>*http.Client</code></td>
+</tr>
+<tr>
+<td>Auth</td>
+<td><code>Authorization: Bearer &lt;key&gt;</code> header from an env var</td>
+</tr>
+<tr>
+<td>Cancellation</td>
+<td><code>http.NewRequestWithContext</code> + <code>context.WithTimeout</code></td>
+</tr>
+<tr>
+<td>Encoding</td>
+<td><code>encoding/json</code> structs with wire-name tags</td>
+</tr>
+<tr>
+<td>Zero-valued knobs</td>
+<td><code>*float64</code> or drop <code>,omitempty</code></td>
+</tr>
+<tr>
+<td>Streaming</td>
+<td><code>bufio.Scanner</code> over SSE, split on <code>data:</code>, stop at <code>[DONE]</code></td>
+</tr>
+<tr>
+<td>Reliability</td>
+<td>classify status, backoff + jitter, honor <code>Retry-After</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>The chat API is a stateless list of role-tagged messages.</strong> You own the history and resend it every call; the response is a list of <code>choices</code> plus a <code>usage</code> token count.</li>
+<li><strong>A typed Go client is four small pieces</strong> — request/response structs, a Bearer header from an env var, a context-aware <code>http.Request</code>, and a JSON decode. No framework needed.</li>
+<li><strong>Mind <code>omitempty</code> on numeric fields.</strong> It silently drops legitimate zero values like <code>temperature: 0</code>; use a pointer or send the value explicitly.</li>
+<li><strong>Retry only what&rsquo;s retryable.</strong> 429 and 5xx with exponential backoff and jitter; honor <code>Retry-After</code>; cap attempts; respect the context while you wait.</li>
+<li><strong>Streaming is SSE parsed line by line.</strong> Read with <code>bufio.Scanner</code>, strip <code>data:</code>, break on <code>[DONE]</code> before decoding, and raise the scanner buffer for long chunks.</li>
+<li><strong>SDKs are a convenience, not magic.</strong> Once the wire shape is clear, <code>openai-go</code>, <code>anthropic-sdk-go</code>, and <code>google.golang.org/genai</code> are just ergonomic wrappers over the same request and response.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://platform.openai.com/docs/api-reference/chat">OpenAI API reference — Chat Completions</a> — the request/response fields and streaming format this post mirrors.</li>
+<li><a href="https://docs.anthropic.com/en/api/messages">Anthropic API reference — Messages</a> — the same message-list concept with provider-specific field names.</li>
+<li><a href="https://pkg.go.dev/net/http">Go <code>net/http</code> package documentation</a> — <code>Client</code>, <code>NewRequestWithContext</code>, and header handling.</li>
+<li><a href="https://pkg.go.dev/encoding/json">Go <code>encoding/json</code> package documentation</a> — struct tags, <code>omitempty</code> semantics, <code>Marshal</code>/<code>Unmarshal</code>.</li>
+<li><a href="https://pkg.go.dev/bufio">Go <code>bufio</code> package documentation</a> — <code>Scanner</code>, <code>Buffer</code>, and the default token-size limit.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-03-tokens-and-tokenization.html">Tokens and Tokenization</a>
+      <span class="related-date">Jul 30</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-02-how-llms-work.html">How LLMs Work, Enough to Build With Them</a>
+      <span class="related-date">Jul 29</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-01-what-is-ai-engineering.html">What AI Engineering Is</a>
+      <span class="related-date">Jul 28</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
