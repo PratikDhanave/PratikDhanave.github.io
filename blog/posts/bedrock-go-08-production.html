@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Bedrock in Production: IAM, Cost, and Observability</title>
+<meta name="description" content="Taking a Bedrock Go service to production: least-privilege IAM and role-based credentials, tuning the SDK&#x27;s built-in retryer for throttling,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Bedrock in Production: IAM, Cost, and Observability">
+<meta property="og:description" content="Taking a Bedrock Go service to production: least-privilege IAM and role-based credentials, tuning the SDK&#x27;s built-in retryer for throttling, token-based cost tracking, and observability via model-invocation logging, structured metrics, and request IDs.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/bedrock-go-08-production.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-12T00:00:00Z">
+<meta property="article:tag" content="Amazon Bedrock">
+<meta property="article:tag" content="AWS">
+<meta property="article:tag" content="Production">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Bedrock in Production: IAM, Cost, and Observability">
+<meta name="twitter:description" content="Taking a Bedrock Go service to production: least-privilege IAM and role-based credentials, tuning the SDK&#x27;s built-in retryer for throttling, token-based cost tracking, and observability via model-invocation logging, structured metrics, and request IDs.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/bedrock-go-08-production.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Bedrock in Production: IAM, Cost, and Observability",
+  "description": "Taking a Bedrock Go service to production: least-privilege IAM and role-based credentials, tuning the SDK's built-in retryer for throttling, token-based cost tracking, and observability via model-invocation logging, structured metrics, and request IDs.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-12",
+  "dateModified": "2026-08-12",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Amazon Bedrock, AWS, Production, Go",
+  "url": "https://pratikdhanave.com/blog/posts/bedrock-go-08-production.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/bedrock-go-08-production.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Bedrock in Production: IAM, Cost, and Observability</h1>
+    <p class="post-subtitle">Taking an Amazon Bedrock Go service from a working prototype to something you can run on-call — least-privilege IAM, credentials without static keys, tuning the SDK&#x27;s built-in retryer, tracking token cost, and wiring up logging and metrics with aws-sdk-go-v2.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-12">August 12, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/amazon-bedrock/" class="tag-link"><span class="tag">#Amazon Bedrock</span></a><a href="/blog/tags/aws/" class="tag-link"><span class="tag">#AWS</span></a><a href="/blog/tags/production/" class="tag-link"><span class="tag">#Production</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 8 of 8</span>
+    <span class="series-title">Amazon Bedrock in Go</span>
+    <div class="series-nav"><a href="/blog/posts/bedrock-go-07-guardrails-and-safety.html" class="series-prev">&larr; Part 7: Guardrails and Safety</a></div>
+  </div>
+
+
+
+  <p>Across this series we built up a Bedrock service in Go one capability at a time: a first <a href="/blog/posts/bedrock-go-02-converse-api.html">Converse call</a>, then <a href="/blog/posts/bedrock-go-03-streaming-and-usage.html">streaming and usage accounting</a>, <a href="/blog/posts/bedrock-go-04-tool-use.html">tool use</a>, retrieval with knowledge bases, agents, and guardrails. Every one of those posts answered &ldquo;how do I make the model <em>do</em> this?&rdquo; This finale answers a different question: <strong>how do I run it in production without getting paged, over-billed, or breached?</strong></p>
+<p>None of what follows is model behaviour — it is operational plumbing. But it is the difference between a demo and a service. We will cover the four things that decide whether a Bedrock deployment is boring in the good way: identity and access, reliability, cost, and observability. All of it uses <code>github.com/aws/aws-sdk-go-v2</code> and the wider AWS Go SDK — no third-party frameworks.</p>
+<hr>
+<h2 id="two-gates-not-one">Two gates, not one</h2>
+<p>Before any IAM, understand the access model, because it trips up nearly everyone once: <strong>on Bedrock, calling a foundation model passes through two independent gates, and both must open.</strong></p>
+<ol>
+<li><strong>Model access</strong> is a per-account, per-region grant you request in the Bedrock console under <em>Model access</em>. Until a model shows as &ldquo;Access granted,&rdquo; no principal in the account can invoke it, regardless of IAM.</li>
+<li><strong>IAM permissions</strong> are the usual policy grant: the specific principal (your role) must be allowed the specific action on the specific model resource.</li>
+</ol>
+<p><strong>The gotcha:</strong> these are two separate switches and failing either one looks different. A missing model-access grant surfaces as an <code>AccessDeniedException</code> mentioning the model isn&rsquo;t accessible; a missing IAM permission surfaces as an <code>AccessDeniedException</code> about the <em>action</em>. Developers commonly fix the IAM policy, redeploy, and stay blocked because the account never requested model access in that region in the first place. Check both, and check them in the region you actually call.</p>
+<hr>
+<h2 id="a-least-privilege-iam-policy">A least-privilege IAM policy</h2>
+<p>The instinct to attach a broad <code>bedrock:*</code> policy &ldquo;just to get it working&rdquo; is how over-privileged roles metastasise. Bedrock&rsquo;s runtime actions are narrow and well-named, so scope to exactly what your service calls, on exactly the model ARNs it uses.</p>
+<p>The core runtime actions:</p>
+<ul>
+<li><code>bedrock:InvokeModel</code> — the raw invoke call.</li>
+<li><code>bedrock:InvokeModelWithResponseStream</code> — its streaming twin.</li>
+<li><code>bedrock:Converse</code> and <code>bedrock:ConverseStream</code> — the Converse API used throughout this series.</li>
+</ul>
+<p>If your service uses agents and knowledge bases, those are <em>separate</em> actions on <em>separate</em> resources: <code>bedrock:InvokeAgent</code>, and for retrieval <code>bedrock:Retrieve</code> / <code>bedrock:RetrieveAndGenerate</code>.</p>
+<p>Foundation-model ARNs have no account ID (the model is owned by AWS/the provider), while provisioned models and inference profiles live in your account. A policy for a Converse-based service calling one Claude model in <code>us-east-1</code> looks like this:</p>
+<pre><code class="language-json">{
+  &quot;Version&quot;: &quot;2012-10-17&quot;,
+  &quot;Statement&quot;: [
+    {
+      &quot;Sid&quot;: &quot;InvokeOneClaudeModel&quot;,
+      &quot;Effect&quot;: &quot;Allow&quot;,
+      &quot;Action&quot;: [
+        &quot;bedrock:Converse&quot;,
+        &quot;bedrock:ConverseStream&quot;,
+        &quot;bedrock:InvokeModel&quot;,
+        &quot;bedrock:InvokeModelWithResponseStream&quot;
+      ],
+      &quot;Resource&quot;: [
+        &quot;arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0&quot;
+      ]
+    }
+  ]
+}
+</code></pre>
+<p>If you route through a cross-region <strong>inference profile</strong> (common for Claude models today), the profile is a real resource in your account and you must list it <em>and</em> the underlying foundation models in every region it can reach:</p>
+<pre><code class="language-json">&quot;Resource&quot;: [
+  &quot;arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-3-5-sonnet-20240620-v1:0&quot;,
+  &quot;arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0&quot;,
+  &quot;arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0&quot;
+]
+</code></pre>
+<p><strong>The gotcha:</strong> an inference profile invocation is authorized against <em>both</em> the profile ARN and the foundation-model ARN in each region the profile fans out to. Scope your <code>Resource</code> to only the profile and you&rsquo;ll get denied at call time; list every region&rsquo;s model ARN the profile targets. Consult the profile&rsquo;s definition for its member regions rather than guessing.</p>
+<hr>
+<h2 id="credentials-without-static-keys">Credentials without static keys</h2>
+<p>Never bake access keys into a Bedrock service. Hard-coded keys leak, don&rsquo;t rotate, and can&rsquo;t be scoped per-task. Instead give the compute an <strong>IAM role</strong> and let the SDK find it.</p>
+<p><code>config.LoadDefaultConfig</code> walks the default credential provider chain — environment variables, shared config files, then the container/instance credential providers — and picks up whatever the runtime offers. On ECS it reads the task role from the container credentials endpoint; on EKS it uses IAM Roles for Service Accounts (IRSA) via the projected web-identity token; on Lambda it uses the function&rsquo;s execution role from the environment. In every case your code is identical and there are no keys in it:</p>
+<pre><code class="language-go">import (
+    &quot;context&quot;
+
+    &quot;github.com/aws/aws-sdk-go-v2/config&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime&quot;
+)
+
+func newClient(ctx context.Context) (*bedrockruntime.Client, error) {
+    cfg, err := config.LoadDefaultConfig(ctx,
+        config.WithRegion(&quot;us-east-1&quot;),
+    )
+    if err != nil {
+        return nil, err
+    }
+    return bedrockruntime.NewFromConfig(cfg), nil
+}
+</code></pre>
+<p>The credential chain also handles refresh: role credentials are temporary and the SDK re-fetches them before expiry, so a long-running service keeps working without restarts. Locally, the same chain reads your <code>aws configure</code> profile or <code>AWS_PROFILE</code>, so the code you run on your laptop is the code that runs in the cluster.</p>
+<p><strong>The gotcha:</strong> if you find yourself reaching for <code>config.WithCredentialsProvider</code> and a static-key provider, stop — that&rsquo;s almost always the wrong tool outside a short-lived test. The right move is to attach the correct role to the task/pod/function and let <code>LoadDefaultConfig</code> discover it. Static keys are the thing security review will flag first.</p>
+<hr>
+<h2 id="reliability-tune-the-retryer-dont-wrap-it">Reliability: tune the retryer, don&rsquo;t wrap it</h2>
+<p>Here is the single most important reliability fact about aws-sdk-go-v2: <strong>it already retries for you.</strong> Every Bedrock client is built with a standard retryer that catches transient and throttling errors and retries them with exponential backoff <em>and jitter</em>, up to a maximum attempt count. You do not need to write a retry loop, and if you do, you will make things worse.</p>
+<p>You configure the built-in retryer at construction. To raise the attempt ceiling, <code>config.WithRetryMaxAttempts</code> is the one-liner; for finer control, install a <code>retry.NewStandard</code> retryer (or the adaptive mode, which additionally rate-limits client-side under sustained throttling):</p>
+<pre><code class="language-go">import (
+    &quot;time&quot;
+
+    awshttp &quot;github.com/aws/aws-sdk-go-v2/aws/transport/http&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/aws/retry&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/config&quot;
+)
+
+cfg, err := config.LoadDefaultConfig(ctx,
+    config.WithRegion(&quot;us-east-1&quot;),
+
+    // Raise the built-in retryer's attempt cap (default is 3).
+    config.WithRetryMaxAttempts(5),
+
+    // Or take full control of the standard retryer.
+    config.WithRetryer(func() aws.Retryer {
+        return retry.NewStandard(func(o *retry.StandardOptions) {
+            o.MaxAttempts = 5
+            o.MaxBackoff = 10 * time.Second
+        })
+    }),
+
+    // A hard per-attempt transport timeout so no single call hangs.
+    config.WithHTTPClient(awshttp.NewBuildableClient().WithTimeout(60*time.Second)),
+)
+</code></pre>
+<p>Pass either <code>WithRetryMaxAttempts</code> <em>or</em> a custom <code>WithRetryer</code> — not both, since the custom retryer defines its own attempt count. Backoff and jitter come for free inside the standard retryer; you tune the ceilings, not the algorithm.</p>
+<p>Layer timeouts on top with <code>context</code>. The retryer governs <em>how many times</em>; the context governs <em>how long total</em>. A deadline on the call bounds the whole retry sequence:</p>
+<pre><code class="language-go">ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+defer cancel()
+out, err := client.Converse(ctx, input)
+</code></pre>
+<p>Because Converse and InvokeModel are effectively read-style, request-response calls (they don&rsquo;t mutate durable state on the Bedrock side), retrying them is safe — a retried call just produces another completion. That&rsquo;s what makes the built-in retryer sound here.</p>
+<p><strong>The gotcha:</strong> the SDK already retries with backoff, so a naive <code>for i := 0; i &lt; 5; i++</code> around your call <em>multiplies</em> attempts — 5 of your iterations times 3 SDK attempts is up to 15 requests, and under a throttling event that turns a hiccup into a self-inflicted request storm. If you need more resilience, raise <code>MaxAttempts</code> on the built-in retryer; don&rsquo;t stack your own loop on top of it. When you do want to react to throttling explicitly, detect it by type rather than string matching:</p>
+<pre><code class="language-go">import (
+    &quot;errors&quot;
+
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types&quot;
+)
+
+var thr *types.ThrottlingException
+if errors.As(err, &amp;thr) {
+    // The retryer has already exhausted its attempts; shed load,
+    // enqueue for later, or return a 429 to your caller.
+}
+</code></pre>
+<p>On-demand throughput has <strong>per-account, per-model quotas</strong> (requests and tokens per minute) that the service enforces by throttling. If your steady-state load is high enough to hit them, no amount of client retry fixes it — you either request a quota increase or buy <strong>provisioned throughput</strong>, which reserves capacity as model units for predictable, high-volume workloads. Invoking a provisioned model just means passing its provisioned-model ARN as the <code>ModelId</code>; the code doesn&rsquo;t otherwise change.</p>
+<hr>
+<h2 id="cost-control-starts-with-token-accounting">Cost control starts with token accounting</h2>
+<p>Bedrock bills on-demand usage by tokens — input and output priced separately, and the rates differ by <strong>model and region</strong>. I won&rsquo;t print numbers here because they change and vary; the authoritative source is the <a href="https://aws.amazon.com/bedrock/pricing/">Amazon Bedrock pricing page</a>, and your cost model should read from it, not from a blog.</p>
+<p>What you <em>can</em> do in code is measure. Every Converse response carries a <code>Usage</code> field (<code>types.TokenUsage</code>) with <code>InputTokens</code>, <code>OutputTokens</code>, and <code>TotalTokens</code> — the same accounting we used back in the <a href="/blog/posts/bedrock-go-03-streaming-and-usage.html">streaming and usage</a> post, now put to work for cost. Aggregate it per model with the per-token rates as configuration you fill in from the pricing page:</p>
+<pre><code class="language-go">import (
+    &quot;sync&quot;
+
+    &quot;github.com/aws/aws-sdk-go-v2/aws&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types&quot;
+)
+
+// Rates are per 1,000 tokens, model- and region-specific.
+// Fill these from the official Bedrock pricing page — do not hard-code
+// a number you can't cite.
+type Rate struct {
+    InputPer1K  float64
+    OutputPer1K float64
+}
+
+type CostTracker struct {
+    mu     sync.Mutex
+    rates  map[string]Rate // modelID -&gt; rate
+    inTok  map[string]int64
+    outTok map[string]int64
+}
+
+func NewCostTracker(rates map[string]Rate) *CostTracker {
+    return &amp;CostTracker{
+        rates:  rates,
+        inTok:  map[string]int64{},
+        outTok: map[string]int64{},
+    }
+}
+
+// Record folds one response's Usage into the running totals.
+func (c *CostTracker) Record(modelID string, u *types.TokenUsage) {
+    if u == nil {
+        return
+    }
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    c.inTok[modelID] += int64(aws.ToInt32(u.InputTokens))
+    c.outTok[modelID] += int64(aws.ToInt32(u.OutputTokens))
+}
+
+// EstimatedCost applies the configured rates to the accumulated tokens.
+func (c *CostTracker) EstimatedCost() float64 {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    var total float64
+    for model, r := range c.rates {
+        total += float64(c.inTok[model]) / 1000 * r.InputPer1K
+        total += float64(c.outTok[model]) / 1000 * r.OutputPer1K
+    }
+    return total
+}
+</code></pre>
+<p>This is an <em>estimate</em> for dashboards and alerts, not a billing system of record — reconcile against Cost Explorer and your AWS invoice. But having live token counts per model lets you catch a runaway prompt or a retry storm long before the bill does.</p>
+<p>Beyond measurement, the levers that actually move cost:</p>
+<ul>
+<li><strong>Right-size the model.</strong> The most capable model is rarely the cheapest, and many tasks (classification, extraction, short summaries) run fine on a smaller, faster model. Route by task.</li>
+<li><strong>Trim the context.</strong> Input tokens are billed too. Retrieval that stuffs ten documents into the prompt when three would do is pure waste — tighten what RAG injects.</li>
+<li><strong>Cache and batch where the shape allows.</strong> Deduplicate identical requests, and if the model family supports prompt caching for a large stable system prompt, reuse it rather than resending it every call.</li>
+</ul>
+<p><strong>The gotcha:</strong> never invent or hard-code a price. Rates differ by model and region and change over time; a number baked into your code silently goes wrong. Keep rates in configuration sourced from the pricing page, and treat the in-process estimate as a leading indicator that you reconcile against the actual bill.</p>
+<hr>
+<h2 id="observability-logs-you-own-and-logs-bedrock-keeps">Observability: logs you own and logs Bedrock keeps</h2>
+<p>Two layers of observability matter, and they&rsquo;re configured in different places.</p>
+<p><strong>Bedrock model-invocation logging</strong> is an account-and-region setting, <em>not</em> a per-call flag. You enable it once (in the Bedrock console under <em>Settings</em>, or via the <code>PutModelInvocationLoggingConfiguration</code> control-plane API) and Bedrock delivers full request/response records — optionally including prompt and completion data — to CloudWatch Logs and/or S3. This is your audit trail and your source of truth for what was actually sent to the model. Because it&rsquo;s platform-side, your Go code doesn&rsquo;t touch it; you just make sure it&rsquo;s turned on and pointed at a log group or bucket you retain.</p>
+<p><strong>Your own structured logs and metrics</strong> are what you emit from Go for latency, token counts, and error rate — the signals your dashboards and alerts run on. The key detail that ties your logs back to AWS support and to Bedrock&rsquo;s own logs is the <strong>request ID</strong>, which every SDK response exposes through its result metadata. Pull it with <code>awsmiddleware.GetRequestIDMetadata</code> and log it on every call:</p>
+<pre><code class="language-go">import (
+    &quot;context&quot;
+    &quot;log/slog&quot;
+    &quot;time&quot;
+
+    awsmiddleware &quot;github.com/aws/aws-sdk-go-v2/aws/middleware&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/aws&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types&quot;
+)
+
+// instrumentedConverse wraps a Converse call with timing, token accounting,
+// request-ID capture, and structured logging.
+func instrumentedConverse(
+    ctx context.Context,
+    client *bedrockruntime.Client,
+    log *slog.Logger,
+    cost *CostTracker,
+    in *bedrockruntime.ConverseInput,
+) (*bedrockruntime.ConverseOutput, error) {
+
+    start := time.Now()
+    out, err := client.Converse(ctx, in)
+    elapsed := time.Since(start)
+
+    modelID := aws.ToString(in.ModelId)
+
+    if err != nil {
+        log.ErrorContext(ctx, &quot;bedrock converse failed&quot;,
+            slog.String(&quot;model&quot;, modelID),
+            slog.Duration(&quot;latency&quot;, elapsed),
+            slog.String(&quot;error&quot;, err.Error()),
+        )
+        return nil, err
+    }
+
+    // Request ID lives in the response's result metadata.
+    reqID, _ := awsmiddleware.GetRequestIDMetadata(out.ResultMetadata)
+
+    var inTok, outTok int32
+    if out.Usage != nil {
+        inTok = aws.ToInt32(out.Usage.InputTokens)
+        outTok = aws.ToInt32(out.Usage.OutputTokens)
+        cost.Record(modelID, out.Usage)
+    }
+
+    log.InfoContext(ctx, &quot;bedrock converse ok&quot;,
+        slog.String(&quot;model&quot;, modelID),
+        slog.String(&quot;request_id&quot;, reqID),
+        slog.Duration(&quot;latency&quot;, elapsed),
+        slog.Int(&quot;input_tokens&quot;, int(inTok)),
+        slog.Int(&quot;output_tokens&quot;, int(outTok)),
+        slog.String(&quot;stop_reason&quot;, string(out.StopReason)),
+    )
+    return out, nil
+}
+
+var _ = types.TokenUsage{} // Usage type reference
+</code></pre>
+<p>Emit those same three numbers — latency, tokens, error/throttle counts — as metrics (CloudWatch, Prometheus, whatever you run) so you can alert on p99 latency creeping up, a spike in <code>ThrottlingException</code>, or tokens-per-request drifting. And if your service uses Bedrock <strong>agents</strong>, remember the agent already produces a trace of its reasoning and tool steps: capture that trace alongside these metrics for end-to-end visibility into multi-step runs.</p>
+<p><strong>The gotcha:</strong> log the <code>request_id</code> on <em>every</em> call, success or failure. When you open an AWS support case or cross-reference Bedrock&rsquo;s model-invocation logs, that ID is the join key. A latency spike with no request ID in your logs is a spike you can&rsquo;t investigate; one with the ID is a five-minute lookup.</p>
+<hr>
+<h2 id="a-production-checklist">A production checklist</h2>
+<p>Before you route real traffic at a Bedrock Go service:</p>
+<table><caption class="sr-only">A production checklist</caption>
+<thead>
+<tr>
+<th>Area</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Access</td>
+<td>Model access granted in the target region; IAM policy scoped to specific actions and model/profile ARNs</td>
+</tr>
+<tr>
+<td>Credentials</td>
+<td>Running under an IAM role (ECS task / EKS IRSA / Lambda execution role); zero static keys in code or config</td>
+</tr>
+<tr>
+<td>Reliability</td>
+<td>Built-in retryer tuned via <code>WithRetryMaxAttempts</code> or a custom <code>retry.NewStandard</code>; <strong>no</strong> hand-rolled retry loop on top</td>
+</tr>
+<tr>
+<td>Timeouts</td>
+<td><code>context</code> deadline per request; transport timeout on the HTTP client</td>
+</tr>
+<tr>
+<td>Throughput</td>
+<td>On-demand quotas understood; provisioned throughput or quota increase planned for steady high volume</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td>Token usage recorded per model; rates sourced from the pricing page, reconciled against Cost Explorer</td>
+</tr>
+<tr>
+<td>Observability</td>
+<td>Model-invocation logging enabled to CloudWatch/S3; structured logs + metrics for latency, tokens, errors; request IDs logged</td>
+</tr>
+<tr>
+<td>Errors</td>
+<td><code>ThrottlingException</code> and <code>AccessDeniedException</code> handled by type; agent traces captured where used</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Access is two gates.</strong> Model access (per account/region, in the console) and IAM permissions are independent — both must open, and they fail differently.</li>
+<li><strong>Scope IAM narrowly.</strong> Grant <code>bedrock:Converse*</code> / <code>bedrock:InvokeModel*</code> (and agent/KB actions only if used) on specific model, inference-profile, and provisioned ARNs — not <code>bedrock:*</code>.</li>
+<li><strong>Use roles, never keys.</strong> <code>config.LoadDefaultConfig</code> picks up the ECS/EKS/Lambda role automatically and refreshes it; static credentials are a smell.</li>
+<li><strong>Let the SDK retry.</strong> aws-sdk-go-v2 has exponential backoff with jitter built in — tune <code>MaxAttempts</code>, don&rsquo;t wrap it in your own loop, and bound the whole thing with a context deadline.</li>
+<li><strong>Measure tokens, cite prices.</strong> Aggregate <code>Usage</code> per model in code; keep rates in config from the official pricing page; reconcile against the real bill.</li>
+<li><strong>Own your observability.</strong> Turn on model-invocation logging platform-side, emit structured latency/token/error signals from Go, and log the SDK <strong>request ID</strong> on every call as your join key.</li>
+</ul>
+<p>That closes the arc: from a single Converse call, through tools, retrieval, agents, and guardrails, to a service you can put on-call. The model was never the hard part — running it safely, cheaply, and observably is the engineering. Now you have both halves.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/security.html">Security in Amazon Bedrock</a> and <a href="https://docs.aws.amazon.com/bedrock/latest/userguide/security-iam.html">Identity and access management</a> — the authoritative IAM actions, resources, and policy examples.</li>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/monitoring.html">Monitor Amazon Bedrock</a> and <a href="https://docs.aws.amazon.com/bedrock/latest/userguide/model-invocation-logging.html">Model invocation logging</a> — CloudWatch/S3 delivery and the logging configuration.</li>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/quotas.html">Amazon Bedrock quotas</a> and <a href="https://docs.aws.amazon.com/bedrock/latest/userguide/prov-throughput.html">Provisioned Throughput</a> — on-demand limits and reserved capacity.</li>
+<li><a href="https://aws.amazon.com/bedrock/pricing/">Amazon Bedrock pricing</a> — the current, model- and region-specific token rates.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/config"><code>config</code></a> and <a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/aws/retry"><code>aws/retry</code></a> on pkg.go.dev — <code>LoadDefaultConfig</code>, <code>WithRetryMaxAttempts</code>, <code>WithRetryer</code>, and <code>retry.NewStandard</code>.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/aws/middleware"><code>aws/middleware</code></a> — <code>GetRequestIDMetadata</code> for pulling the request ID out of response metadata.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/bedrock-go-07-guardrails-and-safety.html">Guardrails and Safety</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-06-bedrock-agents.html">Bedrock Agents</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-05-rag-knowledge-bases.html">Retrieval-Augmented Generation with Knowledge Bases</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

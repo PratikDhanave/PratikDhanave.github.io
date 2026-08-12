@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Bedrock Agents — Pratik Dhanave</title>
+<meta name="description" content="Agents for Amazon Bedrock from Go: the managed reason-act loop that runs server-side (vs the DIY Converse loop), invoking an agent alias with...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Bedrock Agents — Pratik Dhanave">
+<meta property="og:description" content="Agents for Amazon Bedrock from Go: the managed reason-act loop that runs server-side (vs the DIY Converse loop), invoking an agent alias with InvokeAgent, streaming the response and trace events, and keeping multi-turn state with a SessionId.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/bedrock-go-06-bedrock-agents.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-10T00:00:00Z">
+<meta property="article:tag" content="Amazon Bedrock">
+<meta property="article:tag" content="AWS">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Bedrock Agents — Pratik Dhanave">
+<meta name="twitter:description" content="Agents for Amazon Bedrock from Go: the managed reason-act loop that runs server-side (vs the DIY Converse loop), invoking an agent alias with InvokeAgent, streaming the response and trace events, and keeping multi-turn state with a SessionId.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/bedrock-go-06-bedrock-agents.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Bedrock Agents",
+  "description": "Agents for Amazon Bedrock from Go: the managed reason-act loop that runs server-side (vs the DIY Converse loop), invoking an agent alias with InvokeAgent, streaming the response and trace events, and keeping multi-turn state with a SessionId.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-10",
+  "dateModified": "2026-08-10",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Amazon Bedrock, AWS, AI Agents, Go",
+  "url": "https://pratikdhanave.com/blog/posts/bedrock-go-06-bedrock-agents.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/bedrock-go-06-bedrock-agents.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Bedrock Agents</h1>
+    <p class="post-subtitle">How to invoke a managed Agent for Amazon Bedrock from Go — where the server owns the reason-act loop, and your job is to call InvokeAgent, range the event stream, accumulate the answer chunks, and read the trace for observability.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-10">August 10, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/amazon-bedrock/" class="tag-link"><span class="tag">#Amazon Bedrock</span></a><a href="/blog/tags/aws/" class="tag-link"><span class="tag">#AWS</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 6 of 8</span>
+    <span class="series-title">Amazon Bedrock in Go</span>
+    <div class="series-nav"><a href="/blog/posts/bedrock-go-05-rag-knowledge-bases.html" class="series-prev">&larr; Part 5: Retrieval-Augmented Generation with Knowledge Bases</a>
+<a href="/blog/posts/bedrock-go-07-guardrails-and-safety.html" class="series-next">Part 7: Guardrails and Safety &rarr;</a></div>
+  </div>
+
+
+
+  <p>In an earlier post we built tool use by hand: you declared tools, caught the <code>ToolUse</code> stop reason, ran the real Go function, fed the result back, and called Converse again — a <code>for</code> loop you owned end to end. That loop is powerful precisely because <em>you</em> drive it. But it is also code you have to write, test, and cap against runaway iterations, every single time.</p>
+<p><strong>Agents for Amazon Bedrock</strong> move that loop server-side. You author an agent once — a model, a set of instructions, one or more <strong>action groups</strong> (tools backed by a Lambda function or a plain function schema), and optionally a <strong>knowledge base</strong> for retrieval — and Bedrock runs the reason-act cycle <em>for</em> you. From Go you make a single call, <code>InvokeAgent</code>, and stream back the result. The model deciding to call a tool, the tool running, the model reading the result and deciding what&rsquo;s next: all of that happens inside the service. You watch it through a <strong>trace</strong>, but you do not orchestrate it.</p>
+<p>This post is about <em>invoking</em> a prepared agent from Go with <code>github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime</code>. The contrast to hold onto: post 4 was &ldquo;you own the loop with Converse tool use&rdquo;; this post is &ldquo;Bedrock owns the loop, you invoke the agent and stream its trace.&rdquo;</p>
+<hr>
+<h2 id="two-ways-to-run-an-agent-loop">Two ways to run an agent loop</h2>
+<p>The distinction matters enough to make it concrete before any code:</p>
+<table><caption class="sr-only">Two ways to run an agent loop</caption>
+<thead>
+<tr>
+<th></th>
+<th>DIY tool use (Converse)</th>
+<th>Managed agent (InvokeAgent)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Who runs the reason-act loop</td>
+<td>You, in a Go <code>for</code> loop</td>
+<td>Bedrock, server-side</td>
+</tr>
+<tr>
+<td>Where tools execute</td>
+<td>Your process (the Go function)</td>
+<td>Lambda or a returned function-call contract</td>
+</tr>
+<tr>
+<td>Where instructions live</td>
+<td>Your <code>System</code> prompt each call</td>
+<td>Baked into the agent at author time</td>
+</tr>
+<tr>
+<td>What you call</td>
+<td><code>bedrockruntime.Converse</code> (repeatedly)</td>
+<td><code>bedrockagentruntime.InvokeAgent</code> (once per user turn)</td>
+</tr>
+<tr>
+<td>Package</td>
+<td><code>service/bedrockruntime</code></td>
+<td><code>service/bedrockagentruntime</code></td>
+</tr>
+<tr>
+<td>Retrieval / knowledge base</td>
+<td>You wire it up</td>
+<td>Attached to the agent, invoked automatically</td>
+</tr>
+<tr>
+<td>Observability</td>
+<td>You log each turn yourself</td>
+<td>A structured <strong>trace</strong> streamed to you</td>
+</tr>
+</tbody>
+</table>
+<p>Neither is strictly better. The DIY loop gives you total control and keeps tools in-process; the managed agent trades that control for a runtime you don&rsquo;t maintain, plus first-class knowledge bases and a step-by-step trace. Reach for a managed agent when the orchestration itself is undifferentiated work you&rsquo;d rather not own.</p>
+<hr>
+<h2 id="what-you-author-in-the-control-plane-briefly">What you author in the control plane (briefly)</h2>
+<p>There are <strong>two</strong> SDK surfaces, and mixing them up is the first stumbling block. The <em>control plane</em> — <code>github.com/aws/aws-sdk-go-v2/service/bedrockagent</code> — is where you build and version an agent. The <em>runtime</em> — <code>bedrockagentruntime</code> — is where you invoke it. This post lives almost entirely in the runtime, but you need a mental model of the control-plane lifecycle because the runtime call depends on it.</p>
+<p>Conceptually, authoring an agent looks like this (via the console, IaC such as CloudFormation/Terraform, or the <code>bedrockagent</code> client):</p>
+<ol>
+<li><strong><code>CreateAgent</code></strong> — name the agent, pick the foundation model, and write the natural-language <strong>instructions</strong> that define its job.</li>
+<li><strong>Attach action groups</strong> (<code>CreateAgentActionGroup</code>) — each is a set of tools the agent may call, described either by an OpenAPI/function schema and backed by a <strong>Lambda</strong> function, or configured to hand control back to your application. Optionally attach a <strong>knowledge base</strong> for retrieval-augmented answers.</li>
+<li><strong><code>PrepareAgent</code></strong> — compile the current draft into an invocable version. Edits to instructions or action groups don&rsquo;t take effect until you prepare again.</li>
+<li><strong><code>CreateAgentAlias</code></strong> — publish a named, versioned pointer (an <em>alias</em>) that the runtime targets. The alias is what production traffic uses.</li>
+</ol>
+<p>I&rsquo;m deliberately not inventing the full field-by-field shape of these calls — consult the <code>bedrockagent</code> docs for the exact request structures, which differ by whether you use Lambda-backed or return-control action groups. The one fact that shapes your Go runtime code is the output of this process: an <strong>agent id</strong> and an <strong>alias id</strong>.</p>
+<p><strong>The gotcha:</strong> you invoke an <em>alias</em>, never the draft. A freshly created agent is not callable until you&rsquo;ve run <code>PrepareAgent</code> and created at least one alias — until then <code>InvokeAgent</code> has nothing to point at. During development AWS provides a built-in test alias (<code>TSTALIASID</code>) that always tracks the latest prepared draft, which is convenient locally but should never be your production target; cut a real alias and pin to it so a mid-edit draft can&rsquo;t leak into live traffic.</p>
+<hr>
+<h2 id="invoking-a-prepared-agent">Invoking a prepared agent</h2>
+<p>With an agent id and alias id in hand, the runtime call is refreshingly small. Build a <code>bedrockagentruntime.Client</code> from your AWS config, then call <code>InvokeAgent</code> with four things: the agent id, the alias id, a <strong>session id</strong> you choose, and the user&rsquo;s <code>InputText</code>.</p>
+<pre><code class="language-go">import (
+    &quot;github.com/aws/aws-sdk-go-v2/aws&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime&quot;
+)
+
+client := bedrockagentruntime.NewFromConfig(cfg)
+
+out, err := client.InvokeAgent(ctx, &amp;bedrockagentruntime.InvokeAgentInput{
+    AgentId:      aws.String(agentID),      // from CreateAgent
+    AgentAliasId: aws.String(agentAliasID), // from CreateAgentAlias (not the draft)
+    SessionId:    aws.String(sessionID),    // YOU pick this; reuse it for memory
+    InputText:    aws.String(&quot;What's the status of order 4021?&quot;),
+    EnableTrace:  aws.Bool(true),           // stream the reasoning/tool steps too
+})
+if err != nil {
+    log.Fatalf(&quot;InvokeAgent request failed: %v&quot;, err)
+}
+</code></pre>
+<p>As with <code>ConverseStream</code>, the <code>err</code> here is the error from <em>starting</em> the invocation — bad ids, throttling, missing credentials, an agent that isn&rsquo;t prepared. A nil error means the stream opened, <strong>not</strong> that the agent finished. Anything that goes wrong mid-run surfaces on the stream, which is the next section.</p>
+<p><code>EnableTrace</code> defaults to off. Set it to <code>true</code> and Bedrock interleaves trace events describing each reasoning and tool step; leave it off and you get only the final answer chunks. Turn it on in development and for debugging, and weigh leaving it on in production against the extra payload — the trace can be verbose.</p>
+<hr>
+<h2 id="the-response-is-an-event-stream">The response is an event stream</h2>
+<p><code>InvokeAgentOutput</code> doesn&rsquo;t hand you a finished string. Like <code>ConverseStream</code>, it exposes an <strong>event stream</strong>: <code>out.GetStream()</code> returns the stream handle, and its <code>.Events()</code> method gives you a channel of <code>types.ResponseStream</code> — a union interface. You <code>range</code> the channel until Bedrock closes it and type-switch on each concrete event.</p>
+<p>The two events you care about:</p>
+<ul>
+<li><strong><code>*types.ResponseStreamMemberChunk</code></strong> — a piece of the final answer. Its <code>.Value</code> is a <code>types.PayloadPart</code>, whose <code>.Bytes</code> field is a <code>[]byte</code> slice of answer text. Append these across the stream to assemble the reply.</li>
+<li><strong><code>*types.ResponseStreamMemberTrace</code></strong> — a step in the agent&rsquo;s reasoning: which tool it decided to call, what a knowledge base returned, how it framed the final response. Present only when you set <code>EnableTrace: true</code>.</li>
+</ul>
+<p>The stream also carries typed exception events (throttling, validation, an internal error, a model that isn&rsquo;t ready) as their own union members, plus return-control and file members for advanced action-group patterns — but chunk and trace are the backbone of a normal invocation.</p>
+<pre><code class="language-go">stream := out.GetStream()
+defer stream.Close()
+
+var answer strings.Builder
+
+for event := range stream.Events() {
+    switch e := event.(type) {
+    case *types.ResponseStreamMemberChunk:
+        // A slice of the final answer text.
+        answer.Write(e.Value.Bytes)
+
+    case *types.ResponseStreamMemberTrace:
+        // A reasoning/tool step — see the trace section below.
+        logTrace(e.Value)
+    }
+}
+
+if err := stream.Err(); err != nil {
+    log.Fatalf(&quot;agent stream error: %v&quot;, err)
+}
+</code></pre>
+<p>The <code>types</code> here come from <code>github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime/types</code> — a <em>different</em> <code>types</code> package from the <code>bedrockruntime</code> one you used for Converse. The names rhyme (<code>GetStream</code>, <code>Events</code>, <code>Err</code>, <code>Close</code>) because both are Smithy event streams, but they are distinct types; import the runtime-agent package, not the plain runtime one.</p>
+<p><strong>The gotcha:</strong> the stream <strong>mixes</strong> chunk and trace events, so you must type-switch and cannot assume every event is answer text. A common bug is to grab <code>.Value.Bytes</code> off whatever event arrives — but a trace event has no such field, and treating every event as a chunk either won&rsquo;t compile or silently drops the reasoning steps. Match <code>*types.ResponseStreamMemberChunk</code> for answer bytes and <code>*types.ResponseStreamMemberTrace</code> for observability, and ignore the rest unless you need them.</p>
+<hr>
+<h2 id="always-check-err-and-close-the-stream">Always check Err and Close the stream</h2>
+<p>The same discipline that streaming Converse demanded applies here, for the same reason. The <code>range</code> over <code>stream.Events()</code> ends when the channel closes — and the channel closes on <strong>both</strong> a clean finish and a mid-run failure (a dropped connection, a timeout, a server-side error after the agent started working). Without a trailing <code>stream.Err()</code> check, a truncated answer is indistinguishable from a complete one: your loop just ends and you return whatever you accumulated as if it were the whole reply.</p>
+<p><strong>The gotcha:</strong> <code>defer stream.Close()</code> and a post-loop <code>if err := stream.Err(); err != nil</code> are not optional. <code>Close()</code> releases the underlying connection; <code>Err()</code> is the <em>only</em> place a mid-stream error surfaces, because <code>InvokeAgent</code> itself already returned nil. Skip the <code>Err()</code> check and you will ship silently truncated agent answers that look fine in a demo and fail in production under flaky networks.</p>
+<hr>
+<h2 id="reading-the-trace-for-observability">Reading the trace for observability</h2>
+<p>When you set <code>EnableTrace: true</code>, each <code>*types.ResponseStreamMemberTrace</code> carries a <code>types.TracePart</code>. That struct includes routing metadata — the <code>AgentId</code>, <code>AgentAliasId</code>, and <code>SessionId</code> the step belongs to — and a <code>Trace</code> field that is <em>itself a union</em> describing what kind of step it was: pre-processing, orchestration (the core reason-act step, including tool invocations and knowledge-base lookups), post-processing, guardrail evaluation, or a failure.</p>
+<p>Because that inner <code>Trace</code> is a union with several member types whose exact names vary by SDK version, keep your first pass minimal and verify the concrete member names on pkg.go.dev before switching on them. A pragmatic starting point is to log the whole trace part and drill in later:</p>
+<pre><code class="language-go">func logTrace(tp types.TracePart) {
+    // The orchestration/pre/post-processing detail lives in tp.Trace,
+    // a union — inspect its concrete member types on pkg.go.dev and
+    // type-switch on the ones you care about (orchestration is the core one).
+    log.Printf(&quot;trace step for session %s: %+v&quot;,
+        aws.ToString(tp.SessionId), tp.Trace)
+}
+</code></pre>
+<p>The trace is how you answer &ldquo;<em>why</em> did the agent say that?&rdquo; without owning the loop. It shows the rationale the model produced before acting, which action group or knowledge base it reached for, the inputs it passed, and what came back — the same visibility your hand-written Converse loop gave you by logging each turn, except Bedrock produces it for you. Treat it as your debugging and audit surface: capture it in development, and consider sampling it in production for a durable record of agent decisions.</p>
+<hr>
+<h2 id="sessions-and-multi-turn-memory">Sessions and multi-turn memory</h2>
+<p>The <code>SessionId</code> is a string <strong>you</strong> choose, and it is how the agent remembers a conversation. Send the same session id across successive <code>InvokeAgent</code> calls and Bedrock threads them into one continuous exchange — the agent&rsquo;s earlier turns, the tools it called, and the context it built all carry forward. Start a new session id and the agent begins with a clean slate.</p>
+<pre><code class="language-go">sessionID := uuid.NewString() // one per conversation
+
+// Turn 1
+invoke(ctx, client, sessionID, &quot;Look up order 4021.&quot;)
+// Turn 2 — same sessionID, so the agent still knows which order you mean
+invoke(ctx, client, sessionID, &quot;When will it ship?&quot;)
+</code></pre>
+<p>You are not resending the transcript the way you appended messages in the Converse loop — with a managed agent, the session id <em>is</em> the handle to the server-side conversation state. That&rsquo;s a real convenience: no growing <code>[]types.Message</code> to marshal each turn. It also means the session&rsquo;s lifetime and privacy are Bedrock&rsquo;s concern, governed by the agent&rsquo;s configuration.</p>
+<p><strong>The gotcha:</strong> reuse the session id for continuity, and mint a fresh one to start over — this is the single most common source of confusing agent behavior. Accidentally generate a new id every request (for example, calling <code>uuid.NewString()</code> inside your per-request handler) and every turn looks like a brand-new user to the agent, so &ldquo;when will it ship?&rdquo; answers with &ldquo;which order?&rdquo;. Conversely, share one hard-coded session id across different end users and you cross-contaminate their conversations. Scope the session id to exactly one logical conversation: one user, one thread.</p>
+<hr>
+<h2 id="a-complete-example">A complete example</h2>
+<p>Putting it together — build the client, invoke the alias with a session id, stream the answer to stdout, and surface any mid-stream error:</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;context&quot;
+    &quot;fmt&quot;
+    &quot;log&quot;
+    &quot;strings&quot;
+
+    &quot;github.com/aws/aws-sdk-go-v2/aws&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/config&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime/types&quot;
+    &quot;github.com/google/uuid&quot;
+)
+
+func main() {
+    ctx := context.Background()
+
+    cfg, err := config.LoadDefaultConfig(ctx)
+    if err != nil {
+        log.Fatalf(&quot;load AWS config: %v&quot;, err)
+    }
+    client := bedrockagentruntime.NewFromConfig(cfg)
+
+    const (
+        agentID      = &quot;ABCDEFGHIJ&quot;  // from CreateAgent
+        agentAliasID = &quot;KLMNOPQRST&quot;  // from CreateAgentAlias — an ALIAS, not the draft
+    )
+    sessionID := uuid.NewString() // reuse across turns of ONE conversation
+
+    answer, err := invoke(ctx, client, agentID, agentAliasID, sessionID,
+        &quot;What's the status of order 4021?&quot;)
+    if err != nil {
+        log.Fatalf(&quot;invoke agent: %v&quot;, err)
+    }
+    fmt.Printf(&quot;\n\nFinal answer:\n%s\n&quot;, answer)
+}
+
+func invoke(ctx context.Context, client *bedrockagentruntime.Client,
+    agentID, aliasID, sessionID, question string) (string, error) {
+
+    out, err := client.InvokeAgent(ctx, &amp;bedrockagentruntime.InvokeAgentInput{
+        AgentId:      aws.String(agentID),
+        AgentAliasId: aws.String(aliasID),
+        SessionId:    aws.String(sessionID),
+        InputText:    aws.String(question),
+        EnableTrace:  aws.Bool(true),
+    })
+    if err != nil {
+        return &quot;&quot;, fmt.Errorf(&quot;start invocation: %w&quot;, err)
+    }
+
+    stream := out.GetStream()
+    defer stream.Close()
+
+    var answer strings.Builder
+    for event := range stream.Events() {
+        switch e := event.(type) {
+        case *types.ResponseStreamMemberChunk:
+            text := string(e.Value.Bytes)
+            fmt.Print(text) // live output as the agent produces it
+            answer.WriteString(text)
+
+        case *types.ResponseStreamMemberTrace:
+            // Observability only — the reasoning/tool steps. See notes above.
+            log.Printf(&quot;[trace] session=%s&quot;, aws.ToString(e.Value.SessionId))
+        }
+    }
+
+    if err := stream.Err(); err != nil {
+        return &quot;&quot;, fmt.Errorf(&quot;agent stream: %w&quot;, err) // the ONLY place mid-run errors show
+    }
+    return answer.String(), nil
+}
+</code></pre>
+<p>Ask <em>&ldquo;What&rsquo;s the status of order 4021?&rdquo;</em> against an agent whose action group is wired to an order-lookup Lambda, and the shape of the run is: Bedrock reasons about the request, decides to call the order-lookup tool, runs it (in Lambda, not your process), reads the result, and streams back prose like <em>&ldquo;Order 4021 shipped yesterday and is due to arrive Thursday.&rdquo;</em> You see the answer arrive as chunk events; if <code>EnableTrace</code> is on, you also see the intermediate reasoning and the tool call as trace events — but you never wrote the loop that connected them.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>The agent owns the loop.</strong> With Converse tool use you drive a <code>for</code> loop in Go; with a Bedrock agent you call <code>InvokeAgent</code> once per user turn and the reason-act cycle — tool calls, knowledge-base lookups, re-reasoning — runs server-side.</li>
+<li><strong>Author in the control plane, invoke in the runtime.</strong> <code>bedrockagent</code> (CreateAgent / action groups / PrepareAgent / CreateAgentAlias) builds and versions the agent; <code>bedrockagentruntime.InvokeAgent</code> runs it. They are two different SDK packages.</li>
+<li><strong>You invoke an alias, not the draft.</strong> An agent isn&rsquo;t callable until it&rsquo;s prepared and has an alias. Pin production to a real alias; the built-in test alias is for local iteration only.</li>
+<li><strong>The response is a mixed event stream.</strong> Type-switch: <code>*types.ResponseStreamMemberChunk</code> carries answer bytes in <code>.Value.Bytes</code>; <code>*types.ResponseStreamMemberTrace</code> carries reasoning steps for observability (only when <code>EnableTrace</code> is true).</li>
+<li><strong>Always <code>defer stream.Close()</code> and check <code>stream.Err()</code>.</strong> <code>InvokeAgent</code> returned nil already — mid-run failures surface only on <code>Err()</code>, so skipping it ships silently truncated answers.</li>
+<li><strong>The session id is your memory handle.</strong> Reuse it across turns of one conversation for continuity; mint a fresh one to start clean; never share it across users. Verify exact trace member names on pkg.go.dev before switching on them.</li>
+</ul>
+<p>A managed agent is the right call when the orchestration is plumbing you&rsquo;d rather not maintain and you want knowledge bases and a trace out of the box. When you need every tool in your own process and total control of the loop, the DIY Converse approach from the tool-use post still wins — the two are complementary tools, not rivals.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/agents.html">Agents for Amazon Bedrock</a> — the official overview of agents, action groups, knowledge bases, and the prepare/alias lifecycle.</li>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/APIReference/API_agent-runtime_InvokeAgent.html">InvokeAgent API reference</a> — the runtime request/response contract, including sessions, trace, and the response event stream.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime"><code>bedrockagentruntime</code> package</a> and its <a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime/types"><code>types</code></a> — <code>InvokeAgentInput</code>, the <code>ResponseStream</code> union, <code>ResponseStreamMemberChunk</code>, <code>ResponseStreamMemberTrace</code>, <code>PayloadPart</code>, and <code>TracePart</code>.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockagent"><code>bedrockagent</code> package</a> — the control-plane client for <code>CreateAgent</code>, <code>CreateAgentActionGroup</code>, <code>PrepareAgent</code>, and <code>CreateAgentAlias</code>.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/bedrock-go-08-production.html">Bedrock in Production: IAM, Cost, and Observability</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-07-guardrails-and-safety.html">Guardrails and Safety</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-05-rag-knowledge-bases.html">Retrieval-Augmented Generation with Knowledge Bases</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

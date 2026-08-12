@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Guardrails and Safety — Pratik Dhanave</title>
+<meta name="description" content="Guardrails for Amazon Bedrock in Go: content filters, denied topics, PII/sensitive-information filters, and contextual grounding — attaching a...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Guardrails and Safety — Pratik Dhanave">
+<meta property="og:description" content="Guardrails for Amazon Bedrock in Go: content filters, denied topics, PII/sensitive-information filters, and contextual grounding — attaching a guardrail to a Converse call and screening arbitrary text with ApplyGuardrail, checking for intervention.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/bedrock-go-07-guardrails-and-safety.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-11T00:00:00Z">
+<meta property="article:tag" content="Amazon Bedrock">
+<meta property="article:tag" content="AWS">
+<meta property="article:tag" content="AI Safety">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Guardrails and Safety — Pratik Dhanave">
+<meta name="twitter:description" content="Guardrails for Amazon Bedrock in Go: content filters, denied topics, PII/sensitive-information filters, and contextual grounding — attaching a guardrail to a Converse call and screening arbitrary text with ApplyGuardrail, checking for intervention.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/bedrock-go-07-guardrails-and-safety.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Guardrails and Safety",
+  "description": "Guardrails for Amazon Bedrock in Go: content filters, denied topics, PII/sensitive-information filters, and contextual grounding \u2014 attaching a guardrail to a Converse call and screening arbitrary text with ApplyGuardrail, checking for intervention.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-11",
+  "dateModified": "2026-08-11",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Amazon Bedrock, AWS, AI Safety, Go",
+  "url": "https://pratikdhanave.com/blog/posts/bedrock-go-07-guardrails-and-safety.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/bedrock-go-07-guardrails-and-safety.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Guardrails and Safety</h1>
+    <p class="post-subtitle">How to put Amazon Bedrock Guardrails in front of a model from Go — attaching one to a Converse call, screening raw text with ApplyGuardrail, and reading whether the guardrail actually intervened.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-11">August 11, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/amazon-bedrock/" class="tag-link"><span class="tag">#Amazon Bedrock</span></a><a href="/blog/tags/aws/" class="tag-link"><span class="tag">#AWS</span></a><a href="/blog/tags/ai-safety/" class="tag-link"><span class="tag">#AI Safety</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 7 of 8</span>
+    <span class="series-title">Amazon Bedrock in Go</span>
+    <div class="series-nav"><a href="/blog/posts/bedrock-go-06-bedrock-agents.html" class="series-prev">&larr; Part 6: Bedrock Agents</a>
+<a href="/blog/posts/bedrock-go-08-production.html" class="series-next">Part 8: Bedrock in Production: IAM, Cost, and Observability &rarr;</a></div>
+  </div>
+
+
+
+  <p>A model that answers anything is a liability. The moment you expose a Bedrock-backed feature to real users, someone will try to make it produce hate speech, coax out a system prompt, ask it to draft self-harm instructions, or paste in a customer&rsquo;s credit-card number that you never wanted stored. You can try to prompt your way out of this — &ldquo;never discuss X&rdquo; in the system prompt — but instructions are suggestions, and a determined user will talk the model around them.</p>
+<p><strong>Guardrails for Amazon Bedrock</strong> are the managed answer. A guardrail is a policy object you configure once and then apply to model traffic. It evaluates text against a fixed set of policy types, and when something crosses a threshold it <em>intervenes</em> — blocking the message, masking the offending span, or returning a canned refusal you chose. Crucially it evaluates <strong>both</strong> directions: the user&rsquo;s input prompt on the way in, and the model&rsquo;s output on the way out. This post is about wiring that into Go with <code>aws-sdk-go-v2</code> — attaching a guardrail to a <code>Converse</code> call, and calling <code>ApplyGuardrail</code> to screen arbitrary text on its own.</p>
+<p>I&rsquo;ll assume you&rsquo;ve already got the earlier posts&rsquo; setup: <code>config.LoadDefaultConfig</code> for credentials and region, and a <code>bedrockruntime.Client</code>. If a field name here doesn&rsquo;t match what your editor autocompletes, trust the compiler and pkg.go.dev over me — the SDK types move, and I&rsquo;d rather you verify than copy a stale signature.</p>
+<hr>
+<h2 id="what-a-guardrail-actually-evaluates">What a guardrail actually evaluates</h2>
+<p>A guardrail is not one filter — it&rsquo;s a bundle of independently configured policies. When you apply it, Bedrock runs the text through every policy you enabled and aggregates the verdicts. The policy types are worth knowing by name, because the assessment result you get back in Go is broken down along exactly these lines:</p>
+<ul>
+<li><strong>Content filters.</strong> Six harm categories — hate, insults, sexual, violence, misconduct, and a separate prompt-attack (jailbreak) detector. Each has a configurable <em>strength</em> (<code>NONE</code>, <code>LOW</code>, <code>MEDIUM</code>, <code>HIGH</code>) set independently for the input side and the output side. Higher strength catches more but also flags more borderline text.</li>
+<li><strong>Denied topics.</strong> Named topics you define with a natural-language description and sample phrases — &ldquo;investment advice&rdquo;, &ldquo;competitor pricing&rdquo;, &ldquo;medical diagnosis&rdquo;. The guardrail classifies whether the text falls into one and blocks it if so. This is how you enforce &ldquo;the support bot does not give legal advice&rdquo; without depending on the model&rsquo;s goodwill.</li>
+<li><strong>Sensitive information filters (PII).</strong> A catalog of built-in PII types (email, phone, SSN, credit-card, name, address, and more) plus your own regex patterns. Each entry is set to either <code>BLOCK</code> (refuse the whole message) or <code>ANONYMIZE</code> (mask the span, e.g. replace it with <code>{EMAIL}</code>) so the rest of the text flows through redacted.</li>
+<li><strong>Word filters.</strong> A managed profanity list plus a custom deny-list of exact words and phrases — brand names you never want uttered, slurs, a competitor you won&rsquo;t name.</li>
+<li><strong>Contextual grounding and relevance.</strong> Two scored checks aimed at hallucination. <em>Grounding</em> measures whether the model&rsquo;s answer is supported by a source you supply; <em>relevance</em> measures whether it actually addresses the user&rsquo;s query. You set a threshold from 0 to 1, and responses that score below it are blocked.</li>
+</ul>
+<p>A guardrail also has an <strong>identifier</strong> and <strong>versions</strong>. You create it through the control plane and Bedrock assigns it an ID; every time you publish, you get a new numbered version (<code>1</code>, <code>2</code>, …). There&rsquo;s also a mutable <code>DRAFT</code> version that reflects your latest un-published edits. Both the identifier and a version are required whenever you apply the guardrail — which brings us to the first thing people get wrong.</p>
+<p><strong>The gotcha:</strong> the <code>DRAFT</code> version is not stable — anyone editing the guardrail in the console changes what <code>DRAFT</code> does, live, under your running service. Pin a <strong>published numeric version</strong> in production (<code>GuardrailVersion: aws.String("3")</code>), and treat bumping it as a deliberate deploy, not something that drifts on its own.</p>
+<hr>
+<h2 id="creating-a-guardrail-conceptually">Creating a guardrail (conceptually)</h2>
+<p>Guardrails live on the <strong>control plane</strong>, not the runtime one. You create and version them with the <code>service/bedrock</code> client (<code>CreateGuardrail</code>, <code>CreateGuardrailVersion</code>, <code>UpdateGuardrail</code>), or — more sanely — through the console, CloudFormation, or Terraform, so the policy is reviewed and version-controlled like any other infra. Building the full policy definition in Go is a large, fiddly struct, and it belongs in your provisioning code, not your request path.</p>
+<p>For this post the guardrail already exists. What matters at request time is two strings: the <strong>guardrail ID</strong> (something like <code>abcd1234efgh</code>) and the <strong>version</strong> you want to pin. Everything below assumes you&rsquo;ve pulled those from config or environment.</p>
+<pre><code class="language-go">guardrailID := os.Getenv(&quot;BEDROCK_GUARDRAIL_ID&quot;)
+guardrailVersion := os.Getenv(&quot;BEDROCK_GUARDRAIL_VERSION&quot;) // e.g. &quot;3&quot;, not &quot;DRAFT&quot; in prod
+</code></pre>
+<hr>
+<h2 id="way-1-attach-the-guardrail-to-a-converse-call">Way 1: attach the guardrail to a Converse call</h2>
+<p>The common case is: you&rsquo;re already calling <code>Converse</code> (from the earlier post), and you just want the guardrail to police that conversation. You do it by setting <code>GuardrailConfig</code> on the <code>ConverseInput</code>. Bedrock then screens the input messages before the model sees them and screens the model&rsquo;s reply before it reaches you.</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;context&quot;
+    &quot;fmt&quot;
+    &quot;log&quot;
+    &quot;os&quot;
+
+    &quot;github.com/aws/aws-sdk-go-v2/aws&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/config&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types&quot;
+)
+
+func main() {
+    ctx := context.Background()
+
+    cfg, err := config.LoadDefaultConfig(ctx)
+    if err != nil {
+        log.Fatalf(&quot;load config: %v&quot;, err)
+    }
+    client := bedrockruntime.NewFromConfig(cfg)
+
+    userText := &quot;I want to invest my savings. What stock should I buy today?&quot;
+
+    out, err := client.Converse(ctx, &amp;bedrockruntime.ConverseInput{
+        ModelId: aws.String(&quot;anthropic.claude-3-5-sonnet-20240620-v1:0&quot;),
+        Messages: []types.Message{
+            {
+                Role: types.ConversationRoleUser,
+                Content: []types.ContentBlock{
+                    &amp;types.ContentBlockMemberText{Value: userText},
+                },
+            },
+        },
+        GuardrailConfig: &amp;types.GuardrailConfiguration{
+            GuardrailIdentifier: aws.String(os.Getenv(&quot;BEDROCK_GUARDRAIL_ID&quot;)),
+            GuardrailVersion:    aws.String(os.Getenv(&quot;BEDROCK_GUARDRAIL_VERSION&quot;)),
+            Trace:               types.GuardrailTraceEnabled,
+        },
+    })
+    if err != nil {
+        log.Fatalf(&quot;converse: %v&quot;, err)
+    }
+
+    fmt.Println(&quot;stop reason:&quot;, out.StopReason)
+    if resp, ok := out.Output.(*types.ConverseOutputMemberMessage); ok {
+        for _, block := range resp.Value.Content {
+            if txt, ok := block.(*types.ContentBlockMemberText); ok {
+                fmt.Println(&quot;reply:&quot;, txt.Value)
+            }
+        }
+    }
+}
+</code></pre>
+<p>Two details do the work here. <code>GuardrailConfiguration</code> carries the ID and version. <code>Trace: types.GuardrailTraceEnabled</code> asks Bedrock to return <em>why</em> it did what it did — the per-policy assessment — in <code>out.Trace</code>. Without the trace you still get filtering, you just can&rsquo;t see the reasoning, which makes debugging a blocked message miserable.</p>
+<h3 id="reading-whether-it-intervened">Reading whether it intervened</h3>
+<p>This is the part people skip, and it&rsquo;s the part that matters. When a guardrail blocks a message, <code>Converse</code> does <strong>not</strong> return an error. It returns a normal, successful response whose content is the guardrail&rsquo;s <em>blocked-message</em> text — the canned string you configured, like &ldquo;I can&rsquo;t help with that.&rdquo; The signal that something was filtered is the <strong>stop reason</strong>:</p>
+<pre><code class="language-go">if out.StopReason == types.StopReasonGuardrailIntervened {
+    log.Println(&quot;guardrail intervened — response was filtered&quot;)
+}
+</code></pre>
+<p>So the flow is: check <code>StopReason</code> first. If it&rsquo;s <code>StopReasonGuardrailIntervened</code>, the &ldquo;reply&rdquo; you&rsquo;d otherwise print is a refusal, and you should treat it as one — log it, maybe surface a friendlier message, don&rsquo;t feed it back into the model as if the user got a real answer. If you enabled the trace, <code>out.Trace.Guardrail</code> holds the assessment that explains which policy fired.</p>
+<p><strong>The gotcha:</strong> a guardrail intervention is a <em>successful</em> API call. If your code only checks <code>err != nil</code> and otherwise prints <code>out.Output</code>, a blocked response sails through looking like a normal answer — you&rsquo;ll happily show the user the guardrail&rsquo;s refusal string and never know a policy fired. Always branch on <code>StopReason == types.StopReasonGuardrailIntervened</code> before trusting the content.</p>
+<hr>
+<h2 id="way-2-screen-text-on-its-own-with-applyguardrail">Way 2: screen text on its own with ApplyGuardrail</h2>
+<p>Attaching to <code>Converse</code> is convenient but coupled — the guardrail only runs when you call the model. Sometimes you want to evaluate text <em>without</em> a model call at all: screen a user&rsquo;s message before it ever reaches Bedrock (and skip the model call entirely if it&rsquo;s abusive), or check some content your app generated from another source. That&rsquo;s <code>ApplyGuardrail</code>.</p>
+<p><code>ApplyGuardrail</code> takes the guardrail ID and version, a <code>Source</code> telling it whether this text is an <code>INPUT</code> (a user prompt) or <code>OUTPUT</code> (a model response) — the distinction matters because content filters can be tuned differently per direction — and the <code>Content</code> to evaluate. It returns an <code>Action</code>, the possibly-modified <code>Outputs</code>, and the <code>Assessments</code> breakdown.</p>
+<pre><code class="language-go">func screenUserInput(ctx context.Context, client *bedrockruntime.Client, text string) (bool, string, error) {
+    out, err := client.ApplyGuardrail(ctx, &amp;bedrockruntime.ApplyGuardrailInput{
+        GuardrailIdentifier: aws.String(os.Getenv(&quot;BEDROCK_GUARDRAIL_ID&quot;)),
+        GuardrailVersion:    aws.String(os.Getenv(&quot;BEDROCK_GUARDRAIL_VERSION&quot;)),
+        Source:              types.GuardrailContentSourceInput,
+        Content: []types.GuardrailContentBlock{
+            &amp;types.GuardrailContentBlockMemberText{
+                Text: &amp;types.GuardrailTextBlock{
+                    Text: aws.String(text),
+                },
+            },
+        },
+    })
+    if err != nil {
+        return false, &quot;&quot;, fmt.Errorf(&quot;apply guardrail: %w&quot;, err)
+    }
+
+    // Action tells you the verdict for the whole request.
+    if out.Action == types.GuardrailActionGuardrailIntervened {
+        // Outputs holds the message the guardrail wants shown instead.
+        safe := &quot;&quot;
+        if len(out.Outputs) &gt; 0 &amp;&amp; out.Outputs[0].Text != nil {
+            safe = *out.Outputs[0].Text
+        }
+        return true, safe, nil // blocked == true
+    }
+    return false, text, nil // Action == NONE: text is clean, pass it through
+}
+</code></pre>
+<p><code>out.Action</code> is the top-level verdict: <code>GuardrailActionGuardrailIntervened</code> means a policy fired, <code>GuardrailActionNone</code> means the text passed clean. When it intervenes, <code>out.Outputs</code> carries the safe replacement text — for a PII policy set to <code>ANONYMIZE</code>, that&rsquo;s your original text with the sensitive spans masked (<code>{EMAIL}</code>, <code>{PHONE_NUMBER}</code>); for a hard block, it&rsquo;s the configured refusal string. And <code>out.Assessments</code> is the same per-policy breakdown the Converse trace gives you, so you can log <em>which</em> filter tripped.</p>
+<p>Wired into a request handler, it&rsquo;s a cheap front gate:</p>
+<pre><code class="language-go">blocked, safeText, err := screenUserInput(ctx, client, userMessage)
+if err != nil {
+    http.Error(w, &quot;screening failed&quot;, http.StatusInternalServerError)
+    return
+}
+if blocked {
+    // Never call the model. Return the guardrail's message.
+    writeJSON(w, map[string]string{&quot;reply&quot;: safeText})
+    return
+}
+// safeText is the original (or PII-redacted) message — now call the model.
+</code></pre>
+<p>The payoff: an abusive or PII-laden prompt is caught before it costs you a model invocation, and if you use <code>ANONYMIZE</code> you can forward the <em>redacted</em> text to the model so it never ingests the raw credit-card number in the first place.</p>
+<p><strong>The gotcha:</strong> <code>Source</code> is not cosmetic. <code>INPUT</code> and <code>OUTPUT</code> can be configured with different content-filter strengths, and grounding checks only make sense for <code>OUTPUT</code>. Screen a user&rsquo;s prompt as <code>INPUT</code> and a model&rsquo;s answer as <code>OUTPUT</code> — mislabel them and you&rsquo;re applying the wrong half of your policy, silently.</p>
+<hr>
+<h2 id="converse-trace-vs-applyguardrail-which-to-use">Converse trace vs. ApplyGuardrail: which to use</h2>
+<table><caption class="sr-only">Converse trace vs. ApplyGuardrail: which to use</caption>
+<thead>
+<tr>
+<th>You want to…</th>
+<th>Use</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Police a model conversation you&rsquo;re already having</td>
+<td><code>GuardrailConfig</code> on <code>Converse</code></td>
+<td>One call; check <code>StopReason</code></td>
+</tr>
+<tr>
+<td>Reject a user prompt before spending a model call</td>
+<td><code>ApplyGuardrail</code> with <code>Source: INPUT</code></td>
+<td>Standalone; check <code>Action</code></td>
+</tr>
+<tr>
+<td>Redact PII out of text before storing/forwarding it</td>
+<td><code>ApplyGuardrail</code></td>
+<td>Read the masked <code>Outputs</code></td>
+</tr>
+<tr>
+<td>Check output your app produced from another path</td>
+<td><code>ApplyGuardrail</code> with <code>Source: OUTPUT</code></td>
+<td>No model needed</td>
+</tr>
+<tr>
+<td>See exactly which policy fired</td>
+<td><code>Trace</code> (Converse) or <code>Assessments</code> (ApplyGuardrail)</td>
+<td>Enable trace to debug</td>
+</tr>
+</tbody>
+</table>
+<p>There&rsquo;s cost and latency to know about, too: applying a guardrail is a separate evaluation with its own per-text-unit pricing, and <code>ApplyGuardrail</code> adds a network round-trip. Don&rsquo;t screen the same text twice — if you already <code>ApplyGuardrail</code> on the input and redact it, you don&rsquo;t also need the input side of a Converse guardrail for that same text.</p>
+<hr>
+<h2 id="contextual-grounding-is-not-free-hallucination-detection">Contextual grounding is not free hallucination detection</h2>
+<p>Grounding is the most over-hoped policy. People read &ldquo;reduces hallucination&rdquo; and expect the guardrail to somehow <em>know</em> when the model made something up. It can&rsquo;t — it has no oracle for truth. What contextual grounding actually does is compare the model&rsquo;s answer against a <strong>grounding source you supply</strong> and score how well the answer is supported by it. No source, no grounding check.</p>
+<p>That means grounding only helps in a RAG-style flow where you&rsquo;re already passing retrieved documents as context — you provide those documents as the grounding source, and the guardrail flags answers that wander off them. If you&rsquo;re doing open-ended chat with no source material, the grounding policy has nothing to compare against.</p>
+<p><strong>The gotcha:</strong> contextual grounding needs the source text handed to it — it does not fact-check against the open world. Enable it only where you actually have grounding material to supply, and treat it as &ldquo;is this answer consistent with what I gave the model&rdquo;, not &ldquo;is this answer true&rdquo;.</p>
+<hr>
+<h2 id="defense-in-depth-guardrails-complement-your-own-checks">Defense in depth: guardrails complement your own checks</h2>
+<p>A guardrail is a strong layer, not the whole wall. It&rsquo;s an ML classifier making judgment calls, and like any classifier it has false negatives — a novel jailbreak phrasing, a PII format its detector doesn&rsquo;t recognize, an on-topic-but-harmful request. Lean on it as your <em>managed</em> safety layer, but keep your own controls around it:</p>
+<ul>
+<li><strong>Validate structurally</strong> before the guardrail: length limits, rate limits, auth, and schema checks on anything a user submits. A guardrail won&rsquo;t stop someone from hammering your endpoint.</li>
+<li><strong>Screen input independently</strong> with <code>ApplyGuardrail</code> so garbage never reaches the model and never appears in your logs unredacted.</li>
+<li><strong>Screen output</strong>, whether via the Converse trace or a second <code>ApplyGuardrail</code>, and fail closed — if the guardrail call itself errors, don&rsquo;t ship the unscreened model text; return a safe fallback.</li>
+<li><strong>Keep application-level policy</strong> in your own code for rules a guardrail can&rsquo;t express — per-user entitlements, business logic, &ldquo;this account can&rsquo;t ask about that dataset&rdquo;.</li>
+</ul>
+<p>Guardrails move the heavy, model-shaped safety work — harm classification, PII detection, topic policing — off your plate and onto a managed service you can version and audit. They don&rsquo;t move the <em>responsibility</em>. That still lives in your handler.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>A guardrail evaluates both directions.</strong> Input prompt on the way in, model output on the way out — one policy object, applied to both.</li>
+<li><strong>Attach it to <code>Converse</code> via <code>GuardrailConfig</code></strong>, and read <code>StopReason == types.StopReasonGuardrailIntervened</code> — an intervention is a <em>successful</em> call whose content is a refusal, not an error.</li>
+<li><strong>Use <code>ApplyGuardrail</code> to screen text standalone</strong>, with <code>Source</code> set to <code>INPUT</code> or <code>OUTPUT</code>; branch on <code>Action</code> and read the (possibly redacted) <code>Outputs</code>.</li>
+<li><strong>Pin a published numeric version</strong> in production — <code>DRAFT</code> mutates under you.</li>
+<li><strong>Grounding needs a source</strong> you supply; it checks support against that source, not truth against the world.</li>
+<li><strong>Guardrails complement your validation</strong>, they don&rsquo;t replace it — validate, screen, fail closed, and keep business rules in your own code.</li>
+</ul>
+<p>When a field name doesn&rsquo;t match your autocomplete, believe the compiler: the exact <code>types</code> shapes are the authority, and pkg.go.dev is where I&rsquo;d confirm anything here before shipping it.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html">Stop harmful content in models using Amazon Bedrock Guardrails</a> — the official user-guide overview of policy types, versions, and how evaluation works.</li>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-components.html">Components of a guardrail</a> — content filters, denied topics, sensitive-information filters, word filters, and contextual grounding in detail.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockruntime"><code>bedrockruntime</code> package — pkg.go.dev</a> — the <code>ApplyGuardrail</code> and <code>Converse</code> operations and their inputs.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"><code>bedrockruntime/types</code> — pkg.go.dev</a> — <code>GuardrailConfiguration</code>, <code>GuardrailContentBlock</code>, <code>GuardrailAction</code>, and <code>StopReason</code> constants.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrock"><code>bedrock</code> (control plane) — pkg.go.dev</a> — <code>CreateGuardrail</code> and <code>CreateGuardrailVersion</code> for provisioning guardrails from Go.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/bedrock-go-08-production.html">Bedrock in Production: IAM, Cost, and Observability</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-06-bedrock-agents.html">Bedrock Agents</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-05-rag-knowledge-bases.html">Retrieval-Augmented Generation with Knowledge Bases</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
