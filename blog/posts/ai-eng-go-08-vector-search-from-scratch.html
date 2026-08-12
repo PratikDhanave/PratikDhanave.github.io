@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Vector Search from Scratch — Pratik Dhanave</title>
+<meta name="description" content="Build an in-memory vector store and exact k-NN search in Go by hand: a VectorStore with Add and Search, top-k selection with container/heap,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Vector Search from Scratch — Pratik Dhanave">
+<meta property="og:description" content="Build an in-memory vector store and exact k-NN search in Go by hand: a VectorStore with Add and Search, top-k selection with container/heap, normalize-on-insert, an honest look at when brute force is right, and when ANN (HNSW, FAISS, pgvector) earns its keep.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-eng-go-08-vector-search-from-scratch.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-04T00:00:00Z">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="Vector Search">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Embeddings">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vector Search from Scratch — Pratik Dhanave">
+<meta name="twitter:description" content="Build an in-memory vector store and exact k-NN search in Go by hand: a VectorStore with Add and Search, top-k selection with container/heap, normalize-on-insert, an honest look at when brute force is right, and when ANN (HNSW, FAISS, pgvector) earns its keep.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-eng-go-08-vector-search-from-scratch.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Vector Search from Scratch",
+  "description": "Build an in-memory vector store and exact k-NN search in Go by hand: a VectorStore with Add and Search, top-k selection with container/heap, normalize-on-insert, an honest look at when brute force is right, and when ANN (HNSW, FAISS, pgvector) earns its keep.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-04",
+  "dateModified": "2026-08-04",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Engineering, Vector Search, Go, Embeddings",
+  "url": "https://pratikdhanave.com/blog/posts/ai-eng-go-08-vector-search-from-scratch.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-eng-go-08-vector-search-from-scratch.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Vector Search from Scratch</h1>
+    <p class="post-subtitle">Build a working in-memory vector store and exact k-nearest-neighbor search in Go by hand — no vector database — then understand precisely what HNSW, FAISS, and pgvector optimize when brute force finally runs out of road.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-04">August 04, 2026</time>
+      <span>·</span>
+      <span>16 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/vector-search/" class="tag-link"><span class="tag">#Vector Search</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/embeddings/" class="tag-link"><span class="tag">#Embeddings</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 8 of 15</span>
+    <span class="series-title">AI Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/ai-eng-go-07-embeddings.html" class="series-prev">&larr; Part 7: Embeddings</a></div>
+  </div>
+
+
+
+  <p>In post 7 we turned text into numbers. An embedding model maps a sentence to a fixed-length vector — a <code>[]float32</code> — where geometric closeness tracks semantic closeness. We wrote a <code>cosine</code> function that scores how aligned two vectors are, and we saw that &ldquo;a refund was issued&rdquo; lands near &ldquo;money was returned to the customer&rdquo; and far from &ldquo;the server caught fire.&rdquo;</p>
+<p>That&rsquo;s a nice party trick with two vectors. The real question is the one that powers retrieval: given a <em>query</em> vector and a <em>collection</em> of thousands of stored vectors, which stored items are most similar? That operation — nearest-neighbor search over a vector collection — is the engine underneath semantic search, recommendations, and the retrieval half of RAG (which is post 9).</p>
+<p>This post builds that engine from scratch in Go. No external vector database, no FAISS bindings, no <code>import</code> you don&rsquo;t already have. Just a struct, a slice, a heap, and the <code>cosine</code> function from last time. By the end you&rsquo;ll have a <code>VectorStore</code> that answers &ldquo;give me the top <em>k</em> matches for this query,&rdquo; and — just as important — you&rsquo;ll understand exactly what the industrial-strength systems are buying you when you eventually outgrow it.</p>
+<hr>
+<h2 id="the-data-model-what-a-vector-store-actually-stores">The data model: what a vector store actually stores</h2>
+<p>Strip away the marketing and a vector store is a list of records. Each record is three things: an <strong>id</strong> so you can point back at the source, the <strong>original text</strong> (or a reference to it) so a match means something to a human, and the <strong>embedding</strong> — the <code>[]float32</code> you search over.</p>
+<pre><code class="language-go">package vstore
+
+// Record is one item in the store: the vector plus what it points back to.
+type Record struct {
+    ID     string
+    Text   string
+    Vector []float32
+}
+
+// Result is one hit from a search, carrying its similarity score.
+type Result struct {
+    ID    string
+    Text  string
+    Score float32 // cosine similarity in [-1, 1]; higher is closer
+}
+</code></pre>
+<p>The store itself is a slice of records behind a small type. That&rsquo;s the whole &ldquo;database&rdquo; — no B-tree, no index file, no server process. For thousands to tens of thousands of vectors this is not a toy; it&rsquo;s the right amount of machinery.</p>
+<pre><code class="language-go">type VectorStore struct {
+    records []Record
+    dim     int // embedding dimension; all vectors must match
+}
+
+func New(dim int) *VectorStore {
+    return &amp;VectorStore{dim: dim}
+}
+</code></pre>
+<p>The <code>dim</code> field is a guardrail. Every embedding from a given model has the same length, and comparing vectors of different lengths is meaningless — so we pin the dimension at construction and reject anything that doesn&rsquo;t fit.</p>
+<hr>
+<h2 id="normalize-on-insert-and-search-becomes-a-dot-product">Normalize on insert, and search becomes a dot product</h2>
+<p>Here&rsquo;s a move that pays for itself immediately. Cosine similarity is the dot product of two vectors divided by the product of their magnitudes:</p>
+<pre><code class="language-text">cosine(a, b) = (a · b) / (||a|| * ||b||)
+</code></pre>
+<p>If both vectors are already <strong>unit length</strong> — magnitude exactly 1 — the denominator is <code>1 * 1 = 1</code>, and cosine similarity collapses to a plain dot product. So instead of recomputing magnitudes on every comparison, we normalize each vector <em>once</em> when it enters the store. From then on, scoring a query against a stored vector is a single loop of multiply-and-add, no division, no <code>math.Sqrt</code> in the hot path.</p>
+<pre><code class="language-go">import &quot;math&quot;
+
+// normalize returns a unit-length copy of v. A zero vector is returned as-is
+// (it has no direction to preserve).
+func normalize(v []float32) []float32 {
+    var sum float64
+    for _, x := range v {
+        sum += float64(x) * float64(x)
+    }
+    norm := math.Sqrt(sum)
+    if norm == 0 {
+        return v
+    }
+    out := make([]float32, len(v))
+    inv := float32(1.0 / norm)
+    for i, x := range v {
+        out[i] = x * inv
+    }
+    return out
+}
+
+// dot assumes both inputs are already unit length, so it equals cosine similarity.
+func dot(a, b []float32) float32 {
+    var sum float32
+    for i := range a {
+        sum += a[i] * b[i]
+    }
+    return sum
+}
+</code></pre>
+<p><code>Add</code> normalizes and appends:</p>
+<pre><code class="language-go">import (
+    &quot;fmt&quot;
+    &quot;sync&quot;
+)
+
+// Add stores a record, normalizing its vector so later searches are dot products.
+func (s *VectorStore) Add(id, text string, vector []float32) error {
+    if len(vector) != s.dim {
+        return fmt.Errorf(&quot;vector has dimension %d, store expects %d&quot;, len(vector), s.dim)
+    }
+    s.records = append(s.records, Record{
+        ID:     id,
+        Text:   text,
+        Vector: normalize(vector),
+    })
+    return nil
+}
+</code></pre>
+<p><strong>The gotcha:</strong> if you normalize <em>stored</em> vectors but forget to normalize the <em>query</em> before searching — or vice versa — your <code>dot</code> result is no longer cosine similarity. It&rsquo;s some arbitrary scaled number that still <em>sorts</em> roughly right for a single query but silently breaks the moment you compare scores across queries or apply a similarity threshold like &ldquo;only show hits above 0.75.&rdquo; Normalize on both sides, every time, or don&rsquo;t normalize at all and pay for the full cosine. Mixing the two is the subtle bug you&rsquo;ll waste an afternoon on.</p>
+<hr>
+<h2 id="brute-force-k-nn-score-everything-keep-the-best-k">Brute-force k-NN: score everything, keep the best k</h2>
+<p>The simplest correct search is exhaustive: compute the query&rsquo;s similarity to <em>every</em> stored vector, then return the highest-scoring <em>k</em>. This is exact k-nearest-neighbor — no approximation, no chance of missing a true match. It is also, for a surprisingly large range of collection sizes, the right thing to do.</p>
+<p>The naive implementation scores everything, sorts the whole list descending, and slices off the top <em>k</em>:</p>
+<pre><code class="language-go">import &quot;sort&quot;
+
+// SearchSort is the obvious-but-wasteful version: score all, sort all, take k.
+func (s *VectorStore) SearchSort(query []float32, k int) []Result {
+    q := normalize(query)
+    scored := make([]Result, len(s.records))
+    for i, r := range s.records {
+        scored[i] = Result{ID: r.ID, Text: r.Text, Score: dot(q, r.Vector)}
+    }
+    sort.Slice(scored, func(i, j int) bool {
+        return scored[i].Score &gt; scored[j].Score
+    })
+    if k &gt; len(scored) {
+        k = len(scored)
+    }
+    return scored[:k]
+}
+</code></pre>
+<p>This works and it&rsquo;s easy to read. But look at what it does: it fully orders all <em>n</em> results just to keep <em>k</em> of them. When <em>k</em> is 5 and <em>n</em> is 50,000, we sorted 50,000 items to throw away 49,995. Sorting is <code>O(n log n)</code>; we&rsquo;re paying the <code>log n</code> factor on the entire collection to answer a top-5 question.</p>
+<hr>
+<h2 id="select-dont-sort-a-bounded-min-heap">Select, don&rsquo;t sort: a bounded min-heap</h2>
+<p>When <code>k &lt;&lt; n</code>, the right tool is a <strong>min-heap of size k</strong>. Walk the records once. Keep a heap holding the <em>k</em> best scores seen so far, ordered so the <em>smallest</em> of those <em>k</em> sits at the root. For each new record: if the heap isn&rsquo;t full yet, push it; if it is full, compare the new score against the root (the current <em>k</em>-th best) — if the new score is larger, pop the root and push the newcomer; otherwise skip it. When the walk ends, the heap holds exactly the top <em>k</em>.</p>
+<p>Each push/pop costs <code>O(log k)</code>, and we do at most one per record, so the whole search is <code>O(n log k)</code> instead of <code>O(n log n)</code>. Since <em>k</em> is a small constant like 5 or 20 while <em>n</em> grows without bound, <code>log k</code> is effectively a small fixed number — the search is linear in <em>n</em> with a tiny multiplier. That&rsquo;s a real, not cosmetic, win: you&rsquo;re doing <code>log k</code> work per item instead of <code>log n</code>.</p>
+<p>Go ships <code>container/heap</code>, which needs a type implementing <code>heap.Interface</code>. We back it with a slice of results, ordered as a <strong>min</strong>-heap on <code>Score</code>:</p>
+<pre><code class="language-go">// minHeap orders results so the LOWEST score is at index 0 (the root).
+// That lets us cheaply test whether a new candidate beats the weakest survivor.
+type minHeap []Result
+
+func (h minHeap) Len() int            { return len(h) }
+func (h minHeap) Less(i, j int) bool  { return h[i].Score &lt; h[j].Score }
+func (h minHeap) Swap(i, j int)       { h[i], h[j] = h[j], h[i] }
+func (h *minHeap) Push(x any)         { *h = append(*h, x.(Result)) }
+func (h *minHeap) Pop() any {
+    old := *h
+    n := len(old)
+    item := old[n-1]
+    *h = old[:n-1]
+    return item
+}
+</code></pre>
+<p>Now the real <code>Search</code>:</p>
+<pre><code class="language-go">import (
+    &quot;container/heap&quot;
+    &quot;sort&quot;
+)
+
+// Search returns the top-k records by cosine similarity, highest first.
+// It uses a bounded min-heap so the cost is O(n log k), not O(n log n).
+func (s *VectorStore) Search(query []float32, k int) []Result {
+    if k &lt;= 0 || len(s.records) == 0 {
+        return nil
+    }
+    q := normalize(query)
+
+    h := &amp;minHeap{}
+    heap.Init(h)
+
+    for _, r := range s.records {
+        score := dot(q, r.Vector)
+        if h.Len() &lt; k {
+            heap.Push(h, Result{ID: r.ID, Text: r.Text, Score: score})
+            continue
+        }
+        // Heap is full: only keep this one if it beats the current weakest (root).
+        if score &gt; (*h)[0].Score {
+            heap.Pop(h)
+            heap.Push(h, Result{ID: r.ID, Text: r.Text, Score: score})
+        }
+    }
+
+    // The heap holds the top k but in min-first order. Drain and reverse
+    // so the caller gets highest similarity first.
+    out := make([]Result, h.Len())
+    for i := len(out) - 1; i &gt;= 0; i-- {
+        out[i] = heap.Pop(h).(Result)
+    }
+    sort.SliceStable(out, func(i, j int) bool { return out[i].Score &gt; out[j].Score })
+    return out
+}
+</code></pre>
+<p>That final sort runs on at most <em>k</em> elements — a rounding error, not the <code>O(n log n)</code> we were trying to avoid. The heap did the selection over <em>n</em>; the sort just tidies the <em>k</em> survivors into descending order for the caller.</p>
+<p><strong>The gotcha:</strong> the whole point of a size-<em>k</em> heap is that it never grows past <em>k</em>, so the comparison against <code>(*h)[0]</code> before pushing is not optional — drop it and you&rsquo;ve pushed all <em>n</em> items and rebuilt <code>SearchSort</code> with extra steps. Also mind the <em>direction</em>: it&rsquo;s a <strong>min</strong>-heap even though you want the <strong>maximum</strong> scores, because the cheap thing to inspect is &ldquo;who&rsquo;s the weakest survivor I might evict.&rdquo; Reaching for a max-heap here feels natural and is exactly wrong.</p>
+<hr>
+<h2 id="concurrency-a-shared-store-needs-a-lock">Concurrency: a shared store needs a lock</h2>
+<p>The store above is fine single-threaded. The moment a real service uses it, though, one goroutine may be serving a <code>Search</code> while another calls <code>Add</code> to ingest a new document. Appending to <code>s.records</code> while another goroutine ranges over it is a data race — Go&rsquo;s race detector will flag it, and in production it corrupts reads or panics.</p>
+<p>The fix is a <code>sync.RWMutex</code>. Reads (searches) can run concurrently with each other, so they take the read lock; writes (adds) take the exclusive write lock:</p>
+<pre><code class="language-go">type VectorStore struct {
+    mu      sync.RWMutex
+    records []Record
+    dim     int
+}
+
+func (s *VectorStore) Add(id, text string, vector []float32) error {
+    if len(vector) != s.dim {
+        return fmt.Errorf(&quot;vector has dimension %d, store expects %d&quot;, len(vector), s.dim)
+    }
+    rec := Record{ID: id, Text: text, Vector: normalize(vector)}
+    s.mu.Lock()
+    s.records = append(s.records, rec)
+    s.mu.Unlock()
+    return nil
+}
+
+func (s *VectorStore) Search(query []float32, k int) []Result {
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+    // ... heap search over s.records exactly as above ...
+}
+</code></pre>
+<p>Note the normalization happens <em>before</em> taking the write lock — no reason to hold the lock during math. And use <code>RWMutex</code> rather than a plain <code>Mutex</code>: searches vastly outnumber inserts in most retrieval workloads, and a read-write lock lets all those searches proceed in parallel.</p>
+<p><strong>The gotcha:</strong> an unguarded store searched while it&rsquo;s being written is not &ldquo;usually fine&rdquo; — it&rsquo;s a race that passes a thousand times and then panics under load. If your store is written and read from different goroutines, the mutex isn&rsquo;t optional. And if you <em>never</em> mutate after startup — build the whole store once, then only search — you can skip the lock entirely. Know which world you&rsquo;re in; don&rsquo;t cargo-cult the mutex onto a read-only store and serialize your searches for nothing.</p>
+<hr>
+<h2 id="a-complete-runnable-example">A complete, runnable example</h2>
+<p>Here&rsquo;s the whole thing end to end: build a store, add a handful of embedded texts, query it, print ranked results. The <code>embed</code> function stands in for post 7&rsquo;s embedding step — in real code it calls an embedding model; here it&rsquo;s whatever deterministic vectorizer you built last time. The search machinery doesn&rsquo;t care where the numbers come from.</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;fmt&quot;
+
+    &quot;example.com/vstore&quot;
+)
+
+// embed is post 7's embedding step. Swap in your real model call; the store
+// only needs same-dimension []float32 vectors, however they're produced.
+func embed(text string) []float32 { /* ... from post 7 ... */ return nil }
+
+func main() {
+    const dim = 256
+    store := vstore.New(dim)
+
+    docs := map[string]string{
+        &quot;doc-1&quot;: &quot;The refund was processed and the money returned to the customer.&quot;,
+        &quot;doc-2&quot;: &quot;Our data center lost power when the backup generator failed.&quot;,
+        &quot;doc-3&quot;: &quot;You can reset your password from the account settings page.&quot;,
+        &quot;doc-4&quot;: &quot;The customer was reimbursed in full for the cancelled order.&quot;,
+        &quot;doc-5&quot;: &quot;Deploy the service by pushing to the main branch.&quot;,
+    }
+    for id, text := range docs {
+        if err := store.Add(id, text, embed(text)); err != nil {
+            panic(err)
+        }
+    }
+
+    query := &quot;How do I get my money back?&quot;
+    hits := store.Search(embed(query), 3)
+
+    fmt.Printf(&quot;Query: %q\n\n&quot;, query)
+    for rank, h := range hits {
+        fmt.Printf(&quot;%d. [%.3f] %s — %s\n&quot;, rank+1, h.Score, h.ID, h.Text)
+    }
+}
+</code></pre>
+<p>With a working embedding model behind <code>embed</code>, the two refund sentences (<code>doc-1</code>, <code>doc-4</code>) rank at the top because they&rsquo;re <em>semantically</em> close to &ldquo;get my money back&rdquo; — even though the query shares almost no literal words with them. That&rsquo;s the payoff of vector search over keyword matching, and you built the retrieval side of it yourself.</p>
+<pre><code class="language-text">Query: &quot;How do I get my money back?&quot;
+
+1. [0.812] doc-1 — The refund was processed and the money returned to the customer.
+2. [0.788] doc-4 — The customer was reimbursed in full for the cancelled order.
+3. [0.301] doc-3 — You can reset your password from the account settings page.
+</code></pre>
+<p>(Exact scores depend on your embedding model; the <em>ranking</em> is the point.)</p>
+<hr>
+<h2 id="complexity-honestly-when-brute-force-is-right-and-when-it-isnt">Complexity, honestly: when brute force is right and when it isn&rsquo;t</h2>
+<p>Let&rsquo;s be precise about the cost, because this is where people over-engineer. Each query scores <em>n</em> stored vectors, and each score is a dot product over <em>d</em> dimensions — so one search is <code>O(n · d)</code>. With the heap, selecting the top <em>k</em> adds <code>O(n log k)</code>, dominated by the scoring. There&rsquo;s no index to maintain, inserts are <code>O(d)</code> (just normalize and append), and memory is simply the vectors themselves.</p>
+<p>For a collection of a few thousand to a few tens of thousands of vectors, this is genuinely fast — single-digit milliseconds on a modern CPU, and it&rsquo;s <em>exact</em>: it can never miss a true nearest neighbor the way an approximate method can. Say it plainly: <strong>brute force is the correct default, not a placeholder.</strong> Reaching for a vector database when you have 8,000 documents is solving a problem you don&rsquo;t have.</p>
+<p>The catch is that the cost grows <em>linearly</em> with <em>n</em>. Double the collection, double every query&rsquo;s work. At a few thousand vectors that&rsquo;s invisible. At ten million it isn&rsquo;t — scoring ten million dot products per query, per user, blows your latency budget. That linear wall is exactly where <strong>approximate nearest neighbor (ANN)</strong> earns its place.</p>
+<table><caption class="sr-only">Complexity, honestly: when brute force is right and when it isn&rsquo;t</caption>
+<thead>
+<tr>
+<th>Property</th>
+<th>Brute-force (this post)</th>
+<th>ANN (HNSW / IVF)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Query cost</td>
+<td><code>O(n · d)</code>, linear in n</td>
+<td>roughly sub-linear / logarithmic in n</td>
+</tr>
+<tr>
+<td>Exactness</td>
+<td>exact — never misses</td>
+<td>approximate — small recall trade-off</td>
+</tr>
+<tr>
+<td>Index build</td>
+<td>none</td>
+<td>must build &amp; tune an index</td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>just the vectors</td>
+<td>vectors + index overhead</td>
+</tr>
+<tr>
+<td>Sweet spot</td>
+<td>thousands–tens of thousands</td>
+<td>hundreds of thousands–billions</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="what-ann-buys-you-and-why-you-now-understand-it">What ANN buys you (and why you now understand it)</h2>
+<p>The intuition behind ANN is a trade: give up the <em>guarantee</em> of finding the exact nearest neighbors in exchange for not comparing against every vector. If you&rsquo;ll accept &ldquo;the top 5 are almost certainly the true top 5, 98% of the time,&rdquo; you can skip the vast majority of the collection.</p>
+<p>Two families dominate, and it&rsquo;s worth knowing them by name — without pretending to their APIs, which change and which you should read from the source:</p>
+<ul>
+<li><strong>HNSW (Hierarchical Navigable Small World)</strong> — a <em>graph</em> method. Vectors become nodes connected to their near neighbors, in layers: a sparse top layer for long hops across the space and denser lower layers for local refinement. A search greedily walks the graph toward the query, touching a tiny fraction of the nodes. This is what many embedded libraries and vector databases use by default.</li>
+<li><strong>IVF and quantization (as in FAISS)</strong> — a <em>partition-and-compress</em> method. IVF (inverted file) clusters vectors and, at query time, only scans the few clusters nearest the query instead of all of them. Product quantization compresses vectors into compact codes so more of the collection fits in memory and distance math gets cheaper. FAISS is the well-known library that packages these.</li>
+</ul>
+<p>In production you rarely hand-roll ANN. You reach for <strong>pgvector</strong> (vector search inside Postgres, so your vectors live next to your relational data), a <strong>dedicated vector database</strong>, or an <strong>embedded ANN library</strong> you link into your service. But here&rsquo;s the thing — you now know precisely what each of those is optimizing. When pgvector asks you to pick between exact and HNSW indexing, or FAISS asks for an IVF cluster count, those aren&rsquo;t magic knobs. They&rsquo;re the exact trade-off you just felt in your own code: pay <code>O(n)</code> for a guaranteed-correct answer, or build an index that skips most of the work and accept a sliver of approximation. You built the baseline they improve on.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>A vector store is a list of records</strong> — id, text, and a <code>[]float32</code> embedding. The &ldquo;database&rdquo; part is far less machinery than the name suggests.</li>
+<li><strong>Normalize on insert</strong> so every stored vector is unit length; then cosine similarity is a plain dot product with no division in the hot loop. Normalize the query too, or your scores stop meaning &ldquo;cosine.&rdquo;</li>
+<li><strong>Brute-force exact k-NN is <code>O(n · d)</code> per query</strong> and is the <em>correct default</em> for thousands to tens of thousands of vectors. It&rsquo;s not a placeholder — it never misses a true neighbor.</li>
+<li><strong>Select, don&rsquo;t sort.</strong> A bounded min-heap of size <em>k</em> gets the top <em>k</em> in <code>O(n log k)</code>; sorting the whole collection wastes the <code>log n</code> factor on items you throw away.</li>
+<li><strong>Guard a shared store with <code>sync.RWMutex</code></strong> if it&rsquo;s searched while written — many concurrent reads, exclusive writes. Skip the lock only for a truly read-only store.</li>
+<li><strong>ANN (HNSW, IVF/quantization) trades exactness for speed</strong> once <em>n</em> reaches the millions. pgvector, FAISS, and dedicated vector DBs are production implementations of that trade — and you now understand exactly what they optimize because you built the thing they replace.</li>
+</ul>
+<p>Next up in post 9: retrieval is only half of RAG. We&rsquo;ll take this <code>Search</code> and feed its results into a prompt, so an LLM answers grounded in the documents you retrieved instead of its own memory.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://arxiv.org/abs/1603.09320">Malkov &amp; Yashunin, &ldquo;Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs&rdquo; (arXiv:1603.09320)</a> — the HNSW paper.</li>
+<li><a href="https://github.com/pgvector/pgvector">pgvector</a> — vector similarity search as a Postgres extension, with exact and HNSW/IVFFlat indexing.</li>
+<li><a href="https://github.com/facebookresearch/faiss">FAISS</a> — Facebook AI&rsquo;s library for IVF, product quantization, and other ANN indexes; see its <a href="https://github.com/facebookresearch/faiss/wiki">wiki</a>.</li>
+<li><a href="https://pkg.go.dev/container/heap">Go <code>container/heap</code> package</a> — the standard-library heap used for top-k selection.</li>
+<li><a href="https://pkg.go.dev/sync">Go <code>sync</code> package</a> — <code>RWMutex</code> and friends for guarding the shared store.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-07-embeddings.html">Embeddings</a>
+      <span class="related-date">Aug 03</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-06-prompt-engineering.html">Prompt Engineering as Engineering</a>
+      <span class="related-date">Aug 02</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-05-structured-output-and-tool-calling.html">Structured Output and Tool Calling</a>
+      <span class="related-date">Aug 01</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

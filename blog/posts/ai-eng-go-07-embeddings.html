@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Embeddings — Pratik Dhanave</title>
+<meta name="description" content="Turn text into a []float32 that places meaning in space — what an embedding is, cosine similarity implemented by hand in Go, calling an...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Embeddings — Pratik Dhanave">
+<meta property="og:description" content="Turn text into a []float32 that places meaning in space — what an embedding is, cosine similarity implemented by hand in Go, calling an OpenAI-compatible /embeddings endpoint with net/http, and a worked pairwise-similarity example that scores related sentences higher.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-eng-go-07-embeddings.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-03T00:00:00Z">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="Embeddings">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Vector Search">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Embeddings — Pratik Dhanave">
+<meta name="twitter:description" content="Turn text into a []float32 that places meaning in space — what an embedding is, cosine similarity implemented by hand in Go, calling an OpenAI-compatible /embeddings endpoint with net/http, and a worked pairwise-similarity example that scores related sentences higher.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-eng-go-07-embeddings.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Embeddings",
+  "description": "Turn text into a []float32 that places meaning in space \u2014 what an embedding is, cosine similarity implemented by hand in Go, calling an OpenAI-compatible /embeddings endpoint with net/http, and a worked pairwise-similarity example that scores related sentences higher.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-03",
+  "dateModified": "2026-08-03",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Engineering, Embeddings, Go, Vector Search",
+  "url": "https://pratikdhanave.com/blog/posts/ai-eng-go-07-embeddings.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-eng-go-07-embeddings.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Embeddings</h1>
+    <p class="post-subtitle">Turn text into a `[]float32` that places meaning in space — what an embedding is, cosine similarity implemented by hand in Go, calling an OpenAI-compatible /embeddings endpoint with net/http, and a worked pairwise-similarity example that scores related sentences higher.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-03">August 03, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/embeddings/" class="tag-link"><span class="tag">#Embeddings</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/vector-search/" class="tag-link"><span class="tag">#Vector Search</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 7 of 15</span>
+    <span class="series-title">AI Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/ai-eng-go-06-prompt-engineering.html" class="series-prev">&larr; Part 6: Prompt Engineering as Engineering</a>
+<a href="/blog/posts/ai-eng-go-08-vector-search-from-scratch.html" class="series-next">Part 8: Vector Search from Scratch &rarr;</a></div>
+  </div>
+
+
+
+  <p>So far in this series the model has only ever handed us text back. Post 4 built a typed client that sends a list of messages and reads a completion. That is enough to <em>chat</em>, but it is not enough to <em>retrieve</em> — to answer &ldquo;which of my ten thousand documents is relevant to this question?&rdquo; A keyword search can find documents that share words with the query, but it is blind to meaning: &ldquo;car&rdquo; and &ldquo;automobile&rdquo; look like different strings, and &ldquo;the bank raised rates&rdquo; and &ldquo;the river bank flooded&rdquo; look like the same word. Embeddings are the fix. They convert a piece of text into a fixed-length vector of numbers such that texts <em>about the same thing</em> end up close together, even when they share no words at all.</p>
+<p>This post is the from-scratch foundation for retrieval. We will define exactly what an embedding is, implement the similarity math ourselves so nothing is a black box, call a real embeddings endpoint with the same standard-library tools from post 4, and run a small experiment that shows related sentences scoring higher than unrelated ones. Post 8 takes this and searches <em>many</em> vectors efficiently; post 9 assembles both into RAG.</p>
+<hr>
+<h2 id="an-embedding-is-a-vector">An embedding is a vector</h2>
+<p>Strip away the mystique and an embedding is just a slice of floats:</p>
+<pre><code class="language-go">// A 5-dimensional embedding of some text.
+vec := []float32{0.021, -0.114, 0.087, -0.043, 0.190}
+</code></pre>
+<p>Real models produce far larger vectors — a fixed size the model was trained to output, commonly somewhere in the hundreds to low thousands of dimensions (a given model might emit 384, 768, 1536, or more; the exact number is a property of the model, not something you choose). Every text you send that model back comes out as a vector of <em>that same length</em>. That fixed length is what makes the vectors comparable: they all live in the same high-dimensional space, and each dimension is a coordinate along one axis of that space.</p>
+<p>The magic is not in any single number — no dimension means &ldquo;is about cars.&rdquo; The meaning is <em>distributed</em> across all of them, learned during training so that texts humans consider similar land near each other geometrically. You never interpret the components by hand. You only ever ask one kind of question: <strong>how close are two of these vectors?</strong> Closeness in the space is the model&rsquo;s learned proxy for similarity in meaning.</p>
+<p>This is fundamentally different from keyword matching. A keyword index compares <em>surface form</em> — the literal characters. An embedding compares <em>position in a learned semantic space</em>. &ldquo;How do I reset my password?&rdquo; and &ldquo;I forgot my login credentials&rdquo; share almost no words, but a good embedding model places them near each other because they mean nearly the same thing. That is the entire reason embeddings exist.</p>
+<hr>
+<h2 id="measuring-closeness-dot-product-magnitude-cosine">Measuring closeness: dot product, magnitude, cosine</h2>
+<p>To turn &ldquo;close&rdquo; into a number we need geometry. Three quantities do all the work, and we will write each one in plain Go.</p>
+<p>The <strong>dot product</strong> multiplies the vectors component-by-component and sums the result. It is the raw ingredient for everything else:</p>
+<pre><code class="language-go">func dot(a, b []float32) float32 {
+    var sum float32
+    for i := range a {
+        sum += a[i] * b[i]
+    }
+    return sum
+}
+</code></pre>
+<p>The <strong>magnitude</strong> (or L2 norm) is the length of a vector — the square root of its dot product with itself. It tells you how &ldquo;far out&rdquo; the vector reaches from the origin:</p>
+<pre><code class="language-go">import &quot;math&quot;
+
+func magnitude(a []float32) float32 {
+    return float32(math.Sqrt(float64(dot(a, a))))
+}
+</code></pre>
+<p>Notice we widen to <code>float64</code> for <code>math.Sqrt</code> and narrow back. Go&rsquo;s <code>math</code> package operates on <code>float64</code>, so the conversions are unavoidable; we will come back to why staying disciplined about float widths matters.</p>
+<p>Now the important one. <strong>Cosine similarity</strong> measures the <em>angle</em> between two vectors, ignoring their lengths. It is the dot product divided by the product of the two magnitudes:</p>
+<pre><code class="language-go">func cosine(a, b []float32) float32 {
+    magA := magnitude(a)
+    magB := magnitude(b)
+    if magA == 0 || magB == 0 {
+        return 0 // a zero vector has no direction; refuse to divide by zero
+    }
+    return dot(a, b) / (magA * magB)
+}
+</code></pre>
+<p>Cosine ranges from <strong>-1</strong> (pointing in exactly opposite directions) through <strong>0</strong> (perpendicular, unrelated) to <strong>1</strong> (pointing the same way, maximally similar). For text embeddings the values you see in practice are usually positive, and higher means more similar.</p>
+<p>Why the <em>angle</em> rather than the straight-line (Euclidean) distance between the two points? Because for text, direction encodes meaning and length often encodes incidentals like document length or word count. Two passages about the same topic can differ in magnitude simply because one is longer, yet point in nearly the same direction. Euclidean distance would penalize that length difference; cosine ignores it and compares only orientation. That is why cosine is the default similarity for text, and why almost every vector database defaults to it.</p>
+<p><strong>The gotcha:</strong> a bare dot product is <em>not</em> cosine similarity. The dot product mixes direction and length together — a longer vector produces a bigger dot product even at the same angle. Cosine only equals the dot product in one special case: when both vectors have magnitude 1. Skip the division by magnitudes and you are silently ranking by &ldquo;length times alignment&rdquo; instead of &ldquo;alignment,&rdquo; which quietly corrupts your rankings whenever vector lengths vary.</p>
+<hr>
+<h2 id="normalize-once-then-dot-products-are-free">Normalize once, then dot products are free</h2>
+<p>That special case is worth engineering for. If you scale every vector to length 1 — <strong>L2 normalization</strong> — then <code>magA * magB == 1</code> for any pair, and <code>cosine(a, b)</code> collapses to plain <code>dot(a, b)</code>. Normalizing turns an expensive per-comparison operation (two square roots) into a one-time cost you pay when you first store the vector:</p>
+<pre><code class="language-go">func normalize(a []float32) []float32 {
+    mag := magnitude(a)
+    if mag == 0 {
+        return a // nothing sensible to do with an all-zero vector
+    }
+    out := make([]float32, len(a))
+    for i := range a {
+        out[i] = a[i] / mag
+    }
+    return out
+}
+</code></pre>
+<p>After <code>a = normalize(a)</code> and <code>b = normalize(b)</code>, <code>dot(a, b)</code> <em>is</em> the cosine similarity — no per-query square roots at all. When you are comparing one query against thousands of stored vectors (post 8&rsquo;s whole problem), that saving compounds. The pattern is: <strong>normalize once at write time, dot-product at read time.</strong> We return a new slice rather than mutating in place so the caller keeps the original if they need it; for a hot path you might normalize in place to avoid the allocation.</p>
+<p><strong>The gotcha:</strong> normalization only helps if you apply it <em>consistently</em>. If you normalize your stored vectors but forget to normalize the query — or vice versa — your &ldquo;dot product equals cosine&rdquo; shortcut breaks and the scores are wrong. Either normalize everything and use <code>dot</code>, or normalize nothing and use <code>cosine</code>. Don&rsquo;t mix the two conventions in one codebase.</p>
+<hr>
+<h2 id="getting-embeddings-from-an-api">Getting embeddings from an API</h2>
+<p>We do not train the model — we call one. The OpenAI-compatible embeddings endpoint is a sibling of the chat endpoint from post 4, and dozens of providers and local runtimes speak the same shape. You <strong>POST</strong> to <code>/embeddings</code> a JSON body with a <code>model</code> and an <code>input</code>, and you get back a <code>data</code> array where each element carries an <code>embedding</code> field — an array of floats.</p>
+<p>The request and response as Go structs, reusing exactly the net/http and encoding/json muscles from post 4:</p>
+<pre><code class="language-go">package embed
+
+type embedRequest struct {
+    Model string   `json:&quot;model&quot;`
+    Input []string `json:&quot;input&quot;` // batch: one vector back per string
+}
+
+type embedResponse struct {
+    Data []struct {
+        Index     int       `json:&quot;index&quot;`
+        Embedding []float32 `json:&quot;embedding&quot;`
+    } `json:&quot;data&quot;`
+    Model string `json:&quot;model&quot;`
+    Usage struct {
+        PromptTokens int `json:&quot;prompt_tokens&quot;`
+        TotalTokens  int `json:&quot;total_tokens&quot;`
+    } `json:&quot;usage&quot;`
+}
+</code></pre>
+<p>The <code>input</code> is a slice on purpose: the endpoint accepts a whole batch in one call and returns one embedding per input. The <code>Index</code> field on each result tells you which input it corresponds to — providers are expected to return them in order, but reading <code>Index</code> keeps you correct even if that ever changes. <code>encoding/json</code> decodes a JSON array of numbers straight into <code>[]float32</code> for us, so parsing is nearly free.</p>
+<p>The client mirrors post 4&rsquo;s structure — a shared <code>*http.Client</code>, a key from the environment, a context for cancellation:</p>
+<pre><code class="language-go">import (
+    &quot;bytes&quot;
+    &quot;context&quot;
+    &quot;encoding/json&quot;
+    &quot;fmt&quot;
+    &quot;io&quot;
+    &quot;net/http&quot;
+    &quot;os&quot;
+    &quot;time&quot;
+)
+
+type Client struct {
+    BaseURL    string
+    APIKey     string
+    Model      string
+    HTTPClient *http.Client
+}
+
+func NewClient() (*Client, error) {
+    key := os.Getenv(&quot;LLM_API_KEY&quot;)
+    if key == &quot;&quot; {
+        return nil, fmt.Errorf(&quot;LLM_API_KEY is not set&quot;)
+    }
+    return &amp;Client{
+        BaseURL:    &quot;https://api.openai.com/v1&quot;,
+        APIKey:     key,
+        Model:      &quot;text-embedding-3-small&quot;,
+        HTTPClient: &amp;http.Client{Timeout: 30 * time.Second},
+    }, nil
+}
+
+// Embed returns one vector per input string, in input order.
+func (c *Client) Embed(ctx context.Context, inputs []string) ([][]float32, error) {
+    payload, err := json.Marshal(embedRequest{Model: c.Model, Input: inputs})
+    if err != nil {
+        return nil, fmt.Errorf(&quot;marshal request: %w&quot;, err)
+    }
+
+    req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+        c.BaseURL+&quot;/embeddings&quot;, bytes.NewReader(payload))
+    if err != nil {
+        return nil, fmt.Errorf(&quot;build request: %w&quot;, err)
+    }
+    req.Header.Set(&quot;Content-Type&quot;, &quot;application/json&quot;)
+    req.Header.Set(&quot;Authorization&quot;, &quot;Bearer &quot;+c.APIKey)
+
+    resp, err := c.HTTPClient.Do(req)
+    if err != nil {
+        return nil, fmt.Errorf(&quot;send request: %w&quot;, err)
+    }
+    defer resp.Body.Close()
+
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, fmt.Errorf(&quot;read body: %w&quot;, err)
+    }
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf(&quot;api error %d: %s&quot;, resp.StatusCode, body)
+    }
+
+    var out embedResponse
+    if err := json.Unmarshal(body, &amp;out); err != nil {
+        return nil, fmt.Errorf(&quot;decode response: %w&quot;, err)
+    }
+
+    vecs := make([][]float32, len(out.Data))
+    for _, d := range out.Data {
+        vecs[d.Index] = d.Embedding // place by Index, not append order
+    }
+    return vecs, nil
+}
+</code></pre>
+<p>Everything that made the chat client robust carries over: read the body before checking the status so a provider error message survives, thread a <code>context.Context</code> so a slow call can be cancelled, and read the key from the environment rather than a literal. The only new idea is the batch: one HTTP round-trip yields many vectors.</p>
+<p><strong>The gotcha:</strong> never compare embeddings produced by <em>different models or model versions</em>. Each model learns its own space with its own axes; a vector from <code>text-embedding-3-small</code> and a vector from some other model are coordinates in incompatible coordinate systems, and their cosine similarity is meaningless noise. If you re-embed your corpus with a new model, you must re-embed <strong>everything</strong>, including old stored vectors — you cannot mix generations. Store the model name alongside your vectors so you can detect a mismatch instead of silently returning garbage.</p>
+<hr>
+<h2 id="a-worked-example-pairwise-similarity">A worked example: pairwise similarity</h2>
+<p>Let us prove the claim that related sentences score higher. We embed six short sentences — two about pets, two about programming, two about weather — and print the cosine similarity of every pair.</p>
+<pre><code class="language-go">func main() {
+    c, err := embed.NewClient()
+    if err != nil {
+        log.Fatal(err)
+    }
+    ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+    defer cancel()
+
+    texts := []string{
+        &quot;My cat sleeps on the windowsill all afternoon.&quot;,
+        &quot;The dog chased its tail around the yard.&quot;,
+        &quot;Go compiles to a single static binary.&quot;,
+        &quot;Rust guarantees memory safety without a garbage collector.&quot;,
+        &quot;Heavy rain is expected across the coast tonight.&quot;,
+        &quot;Tomorrow will be sunny with a light breeze.&quot;,
+    }
+
+    vecs, err := c.Embed(ctx, texts) // one batched call for all six
+    if err != nil {
+        log.Fatal(err)
+    }
+    for i := range vecs {
+        vecs[i] = normalize(vecs[i]) // normalize once; dot == cosine afterwards
+    }
+
+    for i := 0; i &lt; len(texts); i++ {
+        for j := i + 1; j &lt; len(texts); j++ {
+            fmt.Printf(&quot;%.3f  [%d]&lt;-&gt;[%d]\n&quot;, dot(vecs[i], vecs[j]), i, j)
+        }
+    }
+}
+</code></pre>
+<p>Because we normalized every vector, the inner <code>dot</code> <em>is</em> cosine similarity. The exact numbers depend on the model, but the <em>structure</em> of the output is the point — the within-topic pairs sit well above the across-topic pairs:</p>
+<pre><code class="language-text">0.61  [0]&lt;-&gt;[1]   cat / dog          (both pets — high)
+0.58  [2]&lt;-&gt;[3]   Go / Rust          (both languages — high)
+0.67  [4]&lt;-&gt;[5]   rain / sunny       (both weather — high)
+0.12  [0]&lt;-&gt;[2]   cat / Go           (unrelated — low)
+0.09  [1]&lt;-&gt;[4]   dog / rain         (unrelated — low)
+0.14  [3]&lt;-&gt;[5]   Rust / weather     (unrelated — low)
+</code></pre>
+<p>No shared vocabulary drove the pet pair together — &ldquo;cat&rdquo; and &ldquo;dog&rdquo; appear in neither of each other&rsquo;s sentences. The model placed them near each other because it learned they occupy similar semantic territory. That is retrieval&rsquo;s whole engine: to find the documents relevant to a query, embed the query, then rank stored documents by cosine similarity and take the top few. Post 8 is about doing that ranking fast when there are millions of vectors instead of six.</p>
+<p><strong>The gotcha:</strong> pick <code>float32</code> <em>or</em> <code>float64</code> for your vectors and hold the line across your whole pipeline. Most embedding APIs return 32-bit-precision floats and most vector stores keep <code>float32</code> to halve memory, so <code>float32</code> is the sensible default — but the moment you mix widths (decode as <code>float64</code> here, store as <code>float32</code> there, compare across the two) you invite subtle rounding drift that nudges similarity scores and reorders your top results. Decide once, encode it in your struct tags, and convert only where a library like <code>math</code> forces your hand.</p>
+<hr>
+<h2 id="practical-notes">Practical notes</h2>
+<p>A few habits keep an embedding pipeline correct and cheap.</p>
+<table><caption class="sr-only">Practical notes</caption>
+<thead>
+<tr>
+<th>Practice</th>
+<th>Why it matters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Batch inputs per request</td>
+<td>One HTTP round-trip for many texts amortizes latency and cost; the endpoint returns one vector per input.</td>
+</tr>
+<tr>
+<td>Normalize once at write time</td>
+<td>Turns every later comparison into a plain dot product — no per-query square roots.</td>
+</tr>
+<tr>
+<td>Store the model name with each vector</td>
+<td>Lets you detect and refuse cross-model comparisons instead of silently returning noise.</td>
+</tr>
+<tr>
+<td>Guard the all-zero vector</td>
+<td>An empty or degenerate input can yield a zero vector; cosine then divides by zero — return 0 and move on.</td>
+</tr>
+<tr>
+<td>Cache embeddings</td>
+<td>The same text always embeds to the same vector for a given model; re-embedding unchanged text is wasted spend.</td>
+</tr>
+</tbody>
+</table>
+<p>The through-line is that embeddings are <em>model-specific, fixed-length, and reusable</em>. Compute them once, normalize them once, store them next to the identity of the model that made them, and every downstream comparison is a single cheap loop. With that foundation in place, the next post can focus entirely on the hard part we deferred here: searching many vectors quickly.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>An embedding is a fixed-length <code>[]float32</code></strong> whose position in a learned high-dimensional space encodes meaning; the model&rsquo;s dimension count is fixed, not something you pick.</li>
+<li><strong>Embeddings compare meaning, not surface form</strong> — texts with no shared words still score high if they mean the same thing, which keyword matching can never do.</li>
+<li><strong>Cosine similarity is the dot product over the product of magnitudes.</strong> It measures angle, ignores length, and is the right default for text; raw Euclidean distance penalizes incidental length differences.</li>
+<li><strong>Normalize once and cosine becomes a bare dot product.</strong> L2-normalize at write time, then rank with a single multiply-and-sum loop — but apply the convention consistently to both stored vectors and queries.</li>
+<li><strong>Vectors are only comparable within one model.</strong> Never mix generations, guard the zero vector against divide-by-zero, and pick one float width for the whole pipeline.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://platform.openai.com/docs/api-reference/embeddings">OpenAI API reference — Embeddings</a> — the <code>/embeddings</code> request/response shape this post mirrors, including the <code>data[].embedding</code> array.</li>
+<li><a href="https://docs.cohere.com/docs/embeddings">Cohere — Introduction to Embeddings</a> — a second provider&rsquo;s take on the same concept, with its own model families and dimensions.</li>
+<li><a href="https://en.wikipedia.org/wiki/Cosine_similarity">Wikipedia — Cosine similarity</a> — the underlying definition, its relation to the dot product, and why it is used for high-dimensional text vectors.</li>
+<li><a href="https://pkg.go.dev/math">Go <code>math</code> package documentation</a> — <code>Sqrt</code> and the <code>float64</code> domain that forces the width conversions in <code>magnitude</code>.</li>
+<li><a href="https://pkg.go.dev/encoding/json">Go <code>encoding/json</code> package documentation</a> — decoding a JSON array of numbers straight into a <code>[]float32</code>.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-08-vector-search-from-scratch.html">Vector Search from Scratch</a>
+      <span class="related-date">Aug 04</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-06-prompt-engineering.html">Prompt Engineering as Engineering</a>
+      <span class="related-date">Aug 02</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-05-structured-output-and-tool-calling.html">Structured Output and Tool Calling</a>
+      <span class="related-date">Aug 01</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

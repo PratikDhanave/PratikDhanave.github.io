@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Structured Output and Tool Calling — Pratik Dhanave</title>
+<meta name="description" content="Getting reliable machine-readable output from an LLM in Go: structured output (json-schema mode, decode into a typed struct, validate with a bounded...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Structured Output and Tool Calling — Pratik Dhanave">
+<meta property="og:description" content="Getting reliable machine-readable output from an LLM in Go: structured output (json-schema mode, decode into a typed struct, validate with a bounded retry) and tool/function calling (the full round-trip loop, decoding tool arguments, returning results tied to the call id).">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-eng-go-05-structured-output-and-tool-calling.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-01T00:00:00Z">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="LLMs">
+<meta property="article:tag" content="Tool Use">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Structured Output and Tool Calling — Pratik Dhanave">
+<meta name="twitter:description" content="Getting reliable machine-readable output from an LLM in Go: structured output (json-schema mode, decode into a typed struct, validate with a bounded retry) and tool/function calling (the full round-trip loop, decoding tool arguments, returning results tied to the call id).">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-eng-go-05-structured-output-and-tool-calling.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Structured Output and Tool Calling",
+  "description": "Getting reliable machine-readable output from an LLM in Go: structured output (json-schema mode, decode into a typed struct, validate with a bounded retry) and tool/function calling (the full round-trip loop, decoding tool arguments, returning results tied to the call id).",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-01",
+  "dateModified": "2026-08-01",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Engineering, LLMs, Tool Use, Go",
+  "url": "https://pratikdhanave.com/blog/posts/ai-eng-go-05-structured-output-and-tool-calling.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-eng-go-05-structured-output-and-tool-calling.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Structured Output and Tool Calling</h1>
+    <p class="post-subtitle">From-scratch Go for the two mechanisms that turn an LLM from a text generator into a component you can wire into real software — schema-constrained JSON and function calling — both spoken over the same OpenAI-compatible chat JSON.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-01">August 01, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a><a href="/blog/tags/tool-use/" class="tag-link"><span class="tag">#Tool Use</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 5 of 15</span>
+    <span class="series-title">AI Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/ai-eng-go-04-calling-an-llm-from-go.html" class="series-prev">&larr; Part 4: Calling an LLM from Go</a>
+<a href="/blog/posts/ai-eng-go-06-prompt-engineering.html" class="series-next">Part 6: Prompt Engineering as Engineering &rarr;</a></div>
+  </div>
+
+
+
+  <p>In post 4 we called an LLM the way most tutorials stop: send a prompt, read the assistant&rsquo;s prose reply, print it. That is fine when a human reads the answer. It falls apart the moment your Go program has to <em>act</em> on the answer. <code>resp.Choices[0].Message.Content</code> is a <code>string</code>, and a string is exactly the wrong shape to feed into a database write, a switch statement, or a downstream API. You end up writing regexes to scrape a number out of a sentence, and the model breaks you the first time it adds &ldquo;Sure, here&rsquo;s the total: <strong>$42.00</strong>.&rdquo; around it.</p>
+<p>This post is about getting output you can <em>rely on</em> — machine-readable, typed, validated. There are two mechanisms, and the whole point of this post is that <strong>they are the same idea wearing two hats</strong>: constrain the model to emit JSON your Go code can decode and act on. The first, <strong>structured output</strong>, asks the model to fill in a shape you define. The second, <strong>tool calling</strong>, lets the model ask <em>you</em> to run a function and hand back the result. Both ride the same OpenAI-compatible chat JSON we already speak from post 4, so we build on the hand-rolled <code>net/http</code> client, not a vendor SDK.</p>
+<p>We will keep one hard rule throughout: <strong>the wire is JSON typed by a schema, but the model is not bound by your types.</strong> It can still return malformed or schema-violating JSON. So every decode is defensive, and every structured call gets a validate-and-retry loop.</p>
+<hr>
+<h2 id="the-shared-foundation-our-post-4-client">The shared foundation: our post-4 client</h2>
+<p>Everything below assumes the small chat client from post 4. As a refresher, the request and response envelopes look like this — plain structs over <code>encoding/json</code>, no framework:</p>
+<pre><code class="language-go">type Message struct {
+    Role       string     `json:&quot;role&quot;`
+    Content    string     `json:&quot;content,omitempty&quot;`
+    ToolCalls  []ToolCall `json:&quot;tool_calls,omitempty&quot;`
+    ToolCallID string     `json:&quot;tool_call_id,omitempty&quot;` // set on role:&quot;tool&quot; replies
+    Name       string     `json:&quot;name,omitempty&quot;`
+}
+
+type ChatRequest struct {
+    Model          string          `json:&quot;model&quot;`
+    Messages       []Message       `json:&quot;messages&quot;`
+    Tools          []Tool          `json:&quot;tools,omitempty&quot;`
+    ResponseFormat *ResponseFormat `json:&quot;response_format,omitempty&quot;`
+}
+
+type ChatResponse struct {
+    Choices []struct {
+        Message      Message `json:&quot;message&quot;`
+        FinishReason string  `json:&quot;finish_reason&quot;`
+    } `json:&quot;choices&quot;`
+}
+</code></pre>
+<p>Assume a method <code>client.Complete(ctx, ChatRequest) (ChatResponse, error)</code> that marshals the request, POSTs it, and unmarshals the reply — exactly what we wrote last time. The new fields (<code>Tools</code>, <code>ResponseFormat</code>, <code>ToolCalls</code>, <code>ToolCallID</code>) are all <code>omitempty</code>, so a plain chat call serializes identically to post 4. We are extending the envelope, not replacing it.</p>
+<hr>
+<h2 id="structured-output-attempt-one-just-ask-for-json">Structured output, attempt one: just ask for JSON</h2>
+<p>The lowest-tech approach is to ask, in the prompt, for JSON and nothing else. Define the Go shape you want first, because the struct <em>is</em> your contract:</p>
+<pre><code class="language-go">type Invoice struct {
+    Vendor   string  `json:&quot;vendor&quot;`
+    Total    float64 `json:&quot;total&quot;`
+    Currency string  `json:&quot;currency&quot;`
+    DueDate  string  `json:&quot;due_date&quot;` // ISO 8601, e.g. &quot;2026-09-01&quot;
+}
+</code></pre>
+<p>Then instruct the model to produce that shape:</p>
+<pre><code class="language-go">sys := `Extract the invoice fields. Respond with ONLY a JSON object, no prose, no
+markdown fences, matching exactly:
+{&quot;vendor&quot;: string, &quot;total&quot;: number, &quot;currency&quot;: string, &quot;due_date&quot;: &quot;YYYY-MM-DD&quot;}`
+
+resp, err := client.Complete(ctx, ChatRequest{
+    Model: &quot;gpt-4o-mini&quot;,
+    Messages: []Message{
+        {Role: &quot;system&quot;, Content: sys},
+        {Role: &quot;user&quot;, Content: rawInvoiceText},
+    },
+})
+</code></pre>
+<p>This works often enough to be tempting and fails often enough to hurt. The model may wrap the JSON in <code>```json</code> fences, prepend &ldquo;Here is the extracted data:&rdquo;, or emit a trailing comma. You are back to scraping text.</p>
+<p><strong>The gotcha:</strong> prompting for JSON is a <em>request</em>, not a <em>guarantee</em>. Never <code>json.Unmarshal</code> the raw content directly and assume success. At minimum, strip markdown fences and locate the outermost <code>{...}</code> before decoding — and even then, treat a decode error as an expected branch, not a panic. Prompt-only JSON is the fallback for models or endpoints that lack a real structured-output mode, not the default.</p>
+<hr>
+<h2 id="structured-output-attempt-two-response_format">Structured output, attempt two: response_format</h2>
+<p>Most OpenAI-compatible endpoints expose a <code>response_format</code> field that <em>constrains</em> the decoder rather than merely asking politely. Two modes matter:</p>
+<ul>
+<li><code>{"type": "json_object"}</code> — the model is guaranteed to emit syntactically valid JSON (some object), but not any <em>particular</em> shape.</li>
+<li><code>{"type": "json_schema", ...}</code> — you attach a JSON Schema and the model&rsquo;s output is constrained to match it. This is the strong version.</li>
+</ul>
+<p>Here are the Go types for the schema mode:</p>
+<pre><code class="language-go">type ResponseFormat struct {
+    Type       string      `json:&quot;type&quot;`                  // &quot;json_schema&quot;
+    JSONSchema *JSONSchema `json:&quot;json_schema,omitempty&quot;`
+}
+
+type JSONSchema struct {
+    Name   string                 `json:&quot;name&quot;`
+    Strict bool                   `json:&quot;strict&quot;`
+    Schema map[string]interface{} `json:&quot;schema&quot;`
+}
+</code></pre>
+<p>And the schema for our <code>Invoice</code> struct, written by hand as a Go map so it marshals to exactly the JSON Schema the API expects:</p>
+<pre><code class="language-go">invoiceSchema := map[string]interface{}{
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: map[string]interface{}{
+        &quot;vendor&quot;:   map[string]interface{}{&quot;type&quot;: &quot;string&quot;},
+        &quot;total&quot;:    map[string]interface{}{&quot;type&quot;: &quot;number&quot;},
+        &quot;currency&quot;: map[string]interface{}{&quot;type&quot;: &quot;string&quot;},
+        &quot;due_date&quot;: map[string]interface{}{&quot;type&quot;: &quot;string&quot;},
+    },
+    &quot;required&quot;:             []string{&quot;vendor&quot;, &quot;total&quot;, &quot;currency&quot;, &quot;due_date&quot;},
+    &quot;additionalProperties&quot;: false,
+}
+
+req := ChatRequest{
+    Model:    &quot;gpt-4o-mini&quot;,
+    Messages: []Message{{Role: &quot;user&quot;, Content: rawInvoiceText}},
+    ResponseFormat: &amp;ResponseFormat{
+        Type: &quot;json_schema&quot;,
+        JSONSchema: &amp;JSONSchema{Name: &quot;invoice&quot;, Strict: true, Schema: invoiceSchema},
+    },
+}
+</code></pre>
+<p>With <code>strict: true</code> and <code>additionalProperties: false</code>, a compliant endpoint returns JSON that decodes cleanly into <code>Invoice</code>. Writing the schema by hand keeps you honest about what &ldquo;required&rdquo; means and avoids pulling in a reflection library — but for larger structs you can generate the map from <code>reflect</code> once and reuse it.</p>
+<p><strong>The gotcha:</strong> <code>json_schema</code> support is provider- and model-specific. Older or self-hosted endpoints may accept only <code>json_object</code>, or silently ignore <code>response_format</code> entirely and return prose. Don&rsquo;t assume the field did anything — the very next section validates the result regardless of which mode produced it. Structured mode narrows the failure rate; it does not eliminate it.</p>
+<hr>
+<h2 id="decode-defensively-then-validate-then-retry">Decode defensively, then validate, then retry</h2>
+<p>This is the part most write-ups skip, and it is the part that makes structured output production-grade. Even with <code>strict: true</code>, you can get a <code>total</code> of <code>-1</code>, an empty <code>vendor</code>, or a <code>due_date</code> of <code>"next Tuesday"</code>. Schema conformance is not the same as <em>semantic</em> validity. So we separate three concerns: <strong>decode</strong> (is it valid JSON of the right shape?), <strong>validate</strong> (do the values make sense?), and <strong>retry</strong> (feed the error back and let the model fix it).</p>
+<pre><code class="language-go">func validateInvoice(inv Invoice) error {
+    if strings.TrimSpace(inv.Vendor) == &quot;&quot; {
+        return errors.New(&quot;vendor is empty&quot;)
+    }
+    if inv.Total &lt;= 0 {
+        return fmt.Errorf(&quot;total must be positive, got %v&quot;, inv.Total)
+    }
+    if _, err := time.Parse(&quot;2006-01-02&quot;, inv.DueDate); err != nil {
+        return fmt.Errorf(&quot;due_date %q is not YYYY-MM-DD&quot;, inv.DueDate)
+    }
+    return nil
+}
+</code></pre>
+<p>Now the loop. We give the model a bounded number of attempts; on each failure we append the model&rsquo;s bad answer <em>and</em> a user message describing what was wrong, so the next attempt is a correction rather than a blind retry:</p>
+<pre><code class="language-go">func extractInvoice(ctx context.Context, c *Client, text string) (Invoice, error) {
+    msgs := []Message{{Role: &quot;user&quot;, Content: text}}
+
+    const maxAttempts = 3
+    for attempt := 1; attempt &lt;= maxAttempts; attempt++ {
+        resp, err := c.Complete(ctx, ChatRequest{
+            Model: &quot;gpt-4o-mini&quot;, Messages: msgs,
+            ResponseFormat: &amp;ResponseFormat{
+                Type:       &quot;json_schema&quot;,
+                JSONSchema: &amp;JSONSchema{Name: &quot;invoice&quot;, Strict: true, Schema: invoiceSchema},
+            },
+        })
+        if err != nil {
+            return Invoice{}, err // transport error: don't burn a retry
+        }
+        content := resp.Choices[0].Message.Content
+
+        var inv Invoice
+        decodeErr := json.Unmarshal([]byte(content), &amp;inv)
+        if decodeErr == nil {
+            decodeErr = validateInvoice(inv)
+        }
+        if decodeErr == nil {
+            return inv, nil // success
+        }
+
+        // Feed the failure back for the next attempt.
+        msgs = append(msgs,
+            Message{Role: &quot;assistant&quot;, Content: content},
+            Message{Role: &quot;user&quot;, Content: &quot;That response was invalid: &quot; +
+                decodeErr.Error() + &quot;. Return corrected JSON only.&quot;})
+    }
+    return Invoice{}, fmt.Errorf(&quot;no valid invoice after %d attempts&quot;, maxAttempts)
+}
+</code></pre>
+<p>Note the two error paths are treated differently. A transport error (<code>err</code>) means the HTTP call itself failed — retrying inside this loop would just hammer a broken endpoint, so we return immediately and let the caller&rsquo;s own retry/backoff decide. A <em>content</em> error (<code>decodeErr</code>) means the model answered but got it wrong, which is exactly what the correction loop is for.</p>
+<p><strong>The gotcha:</strong> the retry budget must be <em>bounded</em>. An unbounded &ldquo;loop until valid&rdquo; can spin forever against a model that keeps making the same mistake, running up cost and latency with nothing to show. Three attempts is a reasonable default; past that, fail loudly and let a human or a fallback handle it. Also: keep the successfully-decoded value even if validation later fails — you want the error message to reference real values (&ldquo;got -1&rdquo;), which is what makes the correction prompt effective.</p>
+<hr>
+<h2 id="tool-calling-the-model-asks-you-to-run-code">Tool calling: the model asks you to run code</h2>
+<p>Structured output makes the model fill in a shape. Tool calling flips the direction: you tell the model what functions exist, and it decides to <em>call</em> one, handing you typed arguments. You run the real Go function and hand the result back. It is structured output pointed at your codebase.</p>
+<p>The request carries a <code>tools</code> array. Each tool is a name, a description, and a JSON-Schema description of its parameters — the same schema machinery as above:</p>
+<pre><code class="language-go">type Tool struct {
+    Type     string       `json:&quot;type&quot;` // always &quot;function&quot;
+    Function ToolFunction `json:&quot;function&quot;`
+}
+
+type ToolFunction struct {
+    Name        string                 `json:&quot;name&quot;`
+    Description string                 `json:&quot;description&quot;`
+    Parameters  map[string]interface{} `json:&quot;parameters&quot;`
+}
+</code></pre>
+<p>Let&rsquo;s expose one concrete tool: a currency converter backed by a fixed rate table (real Go, no fabricated service):</p>
+<pre><code class="language-go">var rates = map[string]float64{&quot;USD&quot;: 1.0, &quot;EUR&quot;: 1.08, &quot;GBP&quot;: 1.27, &quot;INR&quot;: 0.012}
+
+// The actual Go function the model's call will drive.
+func convertCurrency(amount float64, from, to string) (float64, error) {
+    rf, okF := rates[from]
+    rt, okT := rates[to]
+    if !okF || !okT {
+        return 0, fmt.Errorf(&quot;unsupported currency pair %s-&gt;%s&quot;, from, to)
+    }
+    return amount * rf / rt, nil
+}
+
+var convertTool = Tool{
+    Type: &quot;function&quot;,
+    Function: ToolFunction{
+        Name:        &quot;convert_currency&quot;,
+        Description: &quot;Convert an amount between USD, EUR, GBP and INR.&quot;,
+        Parameters: map[string]interface{}{
+            &quot;type&quot;: &quot;object&quot;,
+            &quot;properties&quot;: map[string]interface{}{
+                &quot;amount&quot;: map[string]interface{}{&quot;type&quot;: &quot;number&quot;},
+                &quot;from&quot;:   map[string]interface{}{&quot;type&quot;: &quot;string&quot;, &quot;enum&quot;: []string{&quot;USD&quot;, &quot;EUR&quot;, &quot;GBP&quot;, &quot;INR&quot;}},
+                &quot;to&quot;:     map[string]interface{}{&quot;type&quot;: &quot;string&quot;, &quot;enum&quot;: []string{&quot;USD&quot;, &quot;EUR&quot;, &quot;GBP&quot;, &quot;INR&quot;}},
+            },
+            &quot;required&quot;: []string{&quot;amount&quot;, &quot;from&quot;, &quot;to&quot;},
+        },
+    },
+}
+</code></pre>
+<p>When the model decides to use it, the response comes back not as prose but with <code>finish_reason: "tool_calls"</code> and a <code>tool_calls</code> array on the message:</p>
+<pre><code class="language-json">{
+  &quot;choices&quot;: [{
+    &quot;finish_reason&quot;: &quot;tool_calls&quot;,
+    &quot;message&quot;: {
+      &quot;role&quot;: &quot;assistant&quot;,
+      &quot;content&quot;: null,
+      &quot;tool_calls&quot;: [{
+        &quot;id&quot;: &quot;call_a1b2c3&quot;,
+        &quot;type&quot;: &quot;function&quot;,
+        &quot;function&quot;: {
+          &quot;name&quot;: &quot;convert_currency&quot;,
+          &quot;arguments&quot;: &quot;{\&quot;amount\&quot;: 100, \&quot;from\&quot;: \&quot;EUR\&quot;, \&quot;to\&quot;: \&quot;USD\&quot;}&quot;
+        }
+      }]
+    }
+  }]
+}
+</code></pre>
+<p>Look closely at <code>arguments</code>. It is a JSON <strong>string</strong>, not a JSON object — a string whose <em>contents</em> are JSON. Our Go types reflect that exactly:</p>
+<pre><code class="language-go">type ToolCall struct {
+    ID       string `json:&quot;id&quot;`
+    Type     string `json:&quot;type&quot;`
+    Function struct {
+        Name      string `json:&quot;name&quot;`
+        Arguments string `json:&quot;arguments&quot;` // JSON encoded as a string
+    } `json:&quot;function&quot;`
+}
+</code></pre>
+<p><strong>The gotcha:</strong> <code>arguments</code> arrives as a <em>string you must unmarshal a second time</em>, not a <code>map</code> you can index. <code>tc.Function.Arguments["amount"]</code> does not compile — the field is a <code>string</code>. You <code>json.Unmarshal([]byte(tc.Function.Arguments), &amp;args)</code> into a typed struct, and that decode can fail exactly like any other model output. The model can hallucinate an argument name, omit a required field, or pass a string where you wanted a number. Decode into a struct and check, never trust it blindly.</p>
+<hr>
+<h2 id="the-full-round-trip-loop">The full round-trip loop</h2>
+<p>One tool call is rarely the whole story. The model might call <code>convert_currency</code>, read the result, then call it again for a second pair, then finally answer in prose. So the driver is a <strong>loop</strong>: call the model, and while the reply contains tool calls, execute each one, append its result as a new message, and call again. You exit only when the model returns prose (<code>finish_reason</code> is not <code>tool_calls</code>).</p>
+<pre><code class="language-go">func runWithTools(ctx context.Context, c *Client, userMsg string) (string, error) {
+    msgs := []Message{{Role: &quot;user&quot;, Content: userMsg}}
+
+    const maxTurns = 8 // hard ceiling so a misbehaving model can't loop forever
+    for turn := 0; turn &lt; maxTurns; turn++ {
+        resp, err := c.Complete(ctx, ChatRequest{
+            Model: &quot;gpt-4o-mini&quot;, Messages: msgs, Tools: []Tool{convertTool},
+        })
+        if err != nil {
+            return &quot;&quot;, err
+        }
+        reply := resp.Choices[0].Message
+        msgs = append(msgs, reply) // the assistant turn (with its tool_calls) stays in history
+
+        if len(reply.ToolCalls) == 0 {
+            return reply.Content, nil // model answered in prose — we're done
+        }
+
+        // Execute every requested call and append one tool-result message per call.
+        for _, tc := range reply.ToolCalls {
+            result := dispatchTool(tc)
+            msgs = append(msgs, Message{
+                Role:       &quot;tool&quot;,
+                ToolCallID: tc.ID, // ties the result to the specific call
+                Name:       tc.Function.Name,
+                Content:    result,
+            })
+        }
+    }
+    return &quot;&quot;, fmt.Errorf(&quot;tool loop exceeded %d turns&quot;, maxTurns)
+}
+</code></pre>
+<p><code>dispatchTool</code> is where the string-arguments decode and the real function call live. Crucially, a tool <em>error</em> is not a Go error you return up the stack — it is a result you hand back to the model, which can then apologize or try different arguments:</p>
+<pre><code class="language-go">func dispatchTool(tc ToolCall) string {
+    switch tc.Function.Name {
+    case &quot;convert_currency&quot;:
+        var args struct {
+            Amount float64 `json:&quot;amount&quot;`
+            From   string  `json:&quot;from&quot;`
+            To     string  `json:&quot;to&quot;`
+        }
+        if err := json.Unmarshal([]byte(tc.Function.Arguments), &amp;args); err != nil {
+            return fmt.Sprintf(`{&quot;error&quot;: &quot;could not parse arguments: %s&quot;}`, err)
+        }
+        out, err := convertCurrency(args.Amount, args.From, args.To)
+        if err != nil {
+            return fmt.Sprintf(`{&quot;error&quot;: %q}`, err.Error())
+        }
+        return fmt.Sprintf(`{&quot;result&quot;: %.2f}`, out)
+    default:
+        return fmt.Sprintf(`{&quot;error&quot;: &quot;unknown tool %q&quot;}`, tc.Function.Name)
+    }
+}
+</code></pre>
+<p><strong>The gotcha:</strong> two things must be exact or the loop silently breaks. First, the assistant message <em>with its <code>tool_calls</code></em> must go back into <code>msgs</code> before you append the results — the API rejects a <code>tool</code> message that answers a call it never saw. Second, each tool result is its <strong>own message</strong> with <code>role: "tool"</code> and a <code>tool_call_id</code> matching the <code>id</code> the model sent. If the model made three calls in one turn, you append three tool messages, each tagged with its own id. Mismatch the ids and the model can&rsquo;t tell which result answers which call. And keep the <code>maxTurns</code> ceiling: without it, a model that loops on a failing tool will spin until your context window or your budget runs out.</p>
+<hr>
+<h2 id="the-two-mechanisms-side-by-side">The two mechanisms, side by side</h2>
+<table><caption class="sr-only">The two mechanisms, side by side</caption>
+<thead>
+<tr>
+<th></th>
+<th>Structured output</th>
+<th>Tool calling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Who initiates</td>
+<td>You demand a shape</td>
+<td>Model requests a function</td>
+</tr>
+<tr>
+<td>On the wire</td>
+<td><code>response_format</code> + schema</td>
+<td><code>tools</code> array + schema</td>
+</tr>
+<tr>
+<td>Model&rsquo;s reply</td>
+<td>JSON in <code>content</code></td>
+<td><code>tool_calls</code> array</td>
+</tr>
+<tr>
+<td>Your job</td>
+<td>Decode + validate the JSON</td>
+<td>Decode args, run func, return result</td>
+</tr>
+<tr>
+<td>Loop?</td>
+<td>Retry on invalid</td>
+<td>Loop while tool calls present</td>
+</tr>
+<tr>
+<td>Shared idea</td>
+<td>Constrain the model to emit JSON your Go code can act on</td>
+<td>← same</td>
+</tr>
+</tbody>
+</table>
+<p>Both are the same move: attach a JSON Schema, get back JSON, decode into a Go struct, and <em>never trust it until you have checked it</em>. Structured output is a one-shot fill-in-the-shape; tool calling is a conversation where the shape is &ldquo;which function, with what arguments.&rdquo; Once you see them as one idea, the defensive-decoding discipline transfers directly from one to the other.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>A string is the wrong output type for software.</strong> Structured output and tool calling both exist to get you typed, machine-readable JSON instead of prose you have to scrape.</li>
+<li><strong>Prefer <code>response_format</code> json_schema over prompt-only JSON</strong>, but know it is provider-dependent and still fallible — validate regardless of which mode produced the bytes.</li>
+<li><strong>Decode, validate, retry — bounded.</strong> Schema conformance is not semantic validity; run a real <code>validate</code> step and feed failures back into a capped correction loop.</li>
+<li><strong>Tool <code>arguments</code> is a JSON string, not a map.</strong> Unmarshal it a second time into a typed struct, and treat that decode as fallible.</li>
+<li><strong>Tool calling is a loop, not a call.</strong> Append the assistant&rsquo;s <code>tool_calls</code> turn, then one <code>role:"tool"</code> message per call tagged with its <code>tool_call_id</code>, and iterate until the model answers in prose — with a hard turn ceiling.</li>
+<li><strong>The two mechanisms are one idea:</strong> constrain the model to emit JSON your Go code can act on, and never act on it blindly.</li>
+</ul>
+<p>Next in the series we build on this loop to assemble a small agent — the same tool round-trip, plus memory and a planning step, so the model can string several tools together toward a goal.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://platform.openai.com/docs/guides/structured-outputs">OpenAI — Structured Outputs guide</a></li>
+<li><a href="https://platform.openai.com/docs/guides/function-calling">OpenAI — Function calling guide</a></li>
+<li><a href="https://docs.anthropic.com/en/docs/build-with-claude/tool-use">Anthropic — Tool use (function calling)</a></li>
+<li><a href="https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/increase-consistency">Anthropic — Increase output consistency with JSON</a></li>
+<li><a href="https://pkg.go.dev/encoding/json">Go — <code>encoding/json</code> package documentation</a></li>
+<li><a href="https://json-schema.org/understanding-json-schema/">JSON Schema — specification and reference</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-06-prompt-engineering.html">Prompt Engineering as Engineering</a>
+      <span class="related-date">Aug 02</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-04-calling-an-llm-from-go.html">Calling an LLM from Go</a>
+      <span class="related-date">Jul 31</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-03-tokens-and-tokenization.html">Tokens and Tokenization</a>
+      <span class="related-date">Jul 30</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
