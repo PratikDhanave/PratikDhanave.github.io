@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Calling a Model with the Converse API — Pratik Dhanave</title>
+<meta name="description" content="Your first real inference call on Bedrock in Go via the unified Converse API: building the client, the ConverseInput message/content-block union,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Calling a Model with the Converse API — Pratik Dhanave">
+<meta property="og:description" content="Your first real inference call on Bedrock in Go via the unified Converse API: building the client, the ConverseInput message/content-block union, extracting the assistant text, and reading stop reason and token usage — with the content-block union explained.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/bedrock-go-02-converse-api.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-06T00:00:00Z">
+<meta property="article:tag" content="Amazon Bedrock">
+<meta property="article:tag" content="AWS">
+<meta property="article:tag" content="LLMs">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Calling a Model with the Converse API — Pratik Dhanave">
+<meta name="twitter:description" content="Your first real inference call on Bedrock in Go via the unified Converse API: building the client, the ConverseInput message/content-block union, extracting the assistant text, and reading stop reason and token usage — with the content-block union explained.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/bedrock-go-02-converse-api.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Calling a Model with the Converse API",
+  "description": "Your first real inference call on Bedrock in Go via the unified Converse API: building the client, the ConverseInput message/content-block union, extracting the assistant text, and reading stop reason and token usage \u2014 with the content-block union explained.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-06",
+  "dateModified": "2026-08-06",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Amazon Bedrock, AWS, LLMs, Go",
+  "url": "https://pratikdhanave.com/blog/posts/bedrock-go-02-converse-api.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/bedrock-go-02-converse-api.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Calling a Model with the Converse API</h1>
+    <p class="post-subtitle">Your first real inference call in Go against Amazon Bedrock — using the unified, model-agnostic Converse API and the AWS SDK for Go v2, from client construction to reading tokens back off the response.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-06">August 06, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/amazon-bedrock/" class="tag-link"><span class="tag">#Amazon Bedrock</span></a><a href="/blog/tags/aws/" class="tag-link"><span class="tag">#AWS</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 2 of 8</span>
+    <span class="series-title">Amazon Bedrock in Go</span>
+    <div class="series-nav"><a href="/blog/posts/bedrock-go-01-what-is-amazon-bedrock.html" class="series-prev">&larr; Part 1: What Amazon Bedrock Is</a>
+<a href="/blog/posts/bedrock-go-03-streaming-and-usage.html" class="series-next">Part 3: Streaming and Token Usage &rarr;</a></div>
+  </div>
+
+
+
+  <p>In the last post we got credentials sorted and confirmed the account could see Bedrock. Now comes the part that actually earns its keep: sending a prompt to a model and getting text back, in Go, with types you can trust the compiler to check.</p>
+<p>Bedrock gives you two doors into a model. The older one is <code>InvokeModel</code>, where you hand the service a raw JSON body shaped exactly the way that specific model family expects, and parse an equally model-specific JSON blob out of the response. It works, but the shape of that body changes from vendor to vendor — Anthropic&rsquo;s messages format is not Meta&rsquo;s is not Amazon&rsquo;s own. The newer door is <strong>Converse</strong>, a single request/response shape that Bedrock normalizes across every chat-capable model on the platform. You write your messages, roles, and inference parameters <em>once</em>, and switching models becomes a one-line change to the model id. This post lives entirely on the Converse side, and for new code you should too. We will note where <code>InvokeModel</code> still matters, but Converse is the default you want.</p>
+<p>The catch — and the reason newcomers stall on their first call — is that the Go SDK models Bedrock&rsquo;s flexible content shapes as <strong>union interfaces</strong> implemented by <code>MemberXxx</code> structs. That is idiomatic aws-sdk-go-v2, but it looks alien if you&rsquo;ve only ever unmarshaled JSON into a plain struct. We&rsquo;ll unpack it carefully, because getting it wrong is the number-one source of &ldquo;why won&rsquo;t this compile / why is my text empty&rdquo; questions.</p>
+<hr>
+<h2 id="the-two-packages-you-need">The two packages you need</h2>
+<p>Everything for runtime inference lives in <code>github.com/aws/aws-sdk-go-v2/service/bedrockruntime</code>. There is a separate <code>bedrock</code> service package, but that one is for control-plane work — listing foundation models, managing provisioned throughput, custom model jobs. For <em>calling</em> a model you want <code>bedrockruntime</code> and its companion <code>bedrockruntime/types</code> package, which holds the message, content-block, and configuration types.</p>
+<pre><code class="language-bash">go get github.com/aws/aws-sdk-go-v2/config
+go get github.com/aws/aws-sdk-go-v2/aws
+go get github.com/aws/aws-sdk-go-v2/service/bedrockruntime
+</code></pre>
+<p>The <code>config</code> package loads your credentials and region the standard way (env vars, shared config file, SSO, IAM roles). The <code>aws</code> package gives you the pointer helpers — <code>aws.String</code>, <code>aws.Float32</code>, <code>aws.Int32</code> — that you&rsquo;ll need because many optional fields on the request are pointers, so the SDK can tell &ldquo;unset&rdquo; apart from &ldquo;set to zero.&rdquo;</p>
+<hr>
+<h2 id="constructing-the-client">Constructing the client</h2>
+<p>The client is built from a loaded <code>aws.Config</code>. Nothing Bedrock-specific happens here — it&rsquo;s the same two-step you&rsquo;d use for S3 or DynamoDB.</p>
+<pre><code class="language-go">cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(&quot;us-east-1&quot;))
+if err != nil {
+    log.Fatalf(&quot;load AWS config: %v&quot;, err)
+}
+
+client := bedrockruntime.NewFromConfig(cfg)
+</code></pre>
+<p><code>LoadDefaultConfig</code> walks the standard credential chain, so if <code>aws configure</code> or your environment is already set up, this just works. I pass the region explicitly because Bedrock model availability differs by region, and being explicit saves a confusing failure later when a model id that exists in <code>us-east-1</code> isn&rsquo;t offered in the region your default profile happens to point at.</p>
+<hr>
+<h2 id="building-the-request">Building the request</h2>
+<p><code>client.Converse</code> takes a <code>*bedrockruntime.ConverseInput</code>. The three fields you&rsquo;ll touch on almost every call are <code>ModelId</code>, <code>Messages</code>, and — usually — <code>InferenceConfig</code>. A <code>System</code> prompt is common too.</p>
+<pre><code class="language-go">input := &amp;bedrockruntime.ConverseInput{
+    ModelId: aws.String(&quot;anthropic.claude-3-5-sonnet-20240620-v1:0&quot;),
+    System: []types.SystemContentBlock{
+        &amp;types.SystemContentBlockMemberText{
+            Value: &quot;You are a terse assistant. Answer in one sentence.&quot;,
+        },
+    },
+    Messages: []types.Message{
+        {
+            Role: types.ConversationRoleUser,
+            Content: []types.ContentBlock{
+                &amp;types.ContentBlockMemberText{
+                    Value: &quot;In one sentence, what is Amazon Bedrock?&quot;,
+                },
+            },
+        },
+    },
+    InferenceConfig: &amp;types.InferenceConfiguration{
+        Temperature: aws.Float32(0.2),
+        TopP:        aws.Float32(0.9),
+        MaxTokens:   aws.Int32(300),
+    },
+}
+</code></pre>
+<p>Read that top to bottom, because every field is teaching you something about the shape.</p>
+<p><code>ModelId</code> is a <code>*string</code>. The value above is an example — a specific version of one Anthropic model. <strong>Model ids are not universal constants.</strong> They vary by region, they carry a version suffix that changes when the vendor ships a new revision, and some models are only reachable through an <em>inference profile</em> id (often prefixed with a region shorthand like <code>us.</code>) rather than the bare model id. Don&rsquo;t hardcode one from a blog post and expect it to be right forever — open the Bedrock console for your region, or list models via the control-plane API, and copy the id you&rsquo;re actually entitled to use.</p>
+<p><code>System</code> is a slice of <code>types.SystemContentBlock</code>. That&rsquo;s a union interface too, and its text implementation is <code>types.SystemContentBlockMemberText</code>. System content is optional — drop the field entirely and the model runs without a system prompt.</p>
+<p><code>Messages</code> is a <code>[]types.Message</code>, and this is the heart of the request. Each <code>types.Message</code> has exactly two fields you set: <code>Role</code> and <code>Content</code>.</p>
+<ul>
+<li><code>Role</code> is a <code>types.ConversationRole</code> — an enum with two values, <code>types.ConversationRoleUser</code> and <code>types.ConversationRoleAssistant</code>. A single-turn call is one user message. A multi-turn conversation is the full alternating history you replay on each request; Bedrock is stateless, so <em>you</em> own the transcript.</li>
+<li><code>Content</code> is <code>[]types.ContentBlock</code>, and content blocks are where the union interface bites.</li>
+</ul>
+<p><code>InferenceConfig</code> is a <code>*types.InferenceConfiguration</code>. <code>Temperature</code> and <code>TopP</code> are <code>*float32</code>; <code>MaxTokens</code> is an <code>*int32</code>. They&rsquo;re pointers so the SDK distinguishes &ldquo;leave it at the model default&rdquo; (nil) from &ldquo;set it to zero,&rdquo; which is why you wrap literals in <code>aws.Float32</code> / <code>aws.Int32</code>. The whole struct is optional — omit it and the model uses its defaults.</p>
+<hr>
+<h2 id="the-content-block-union-explained">The content-block union, explained</h2>
+<p>This is the concept to slow down on. <code>types.ContentBlock</code> is not a struct. It&rsquo;s an <strong>interface</strong>, and Bedrock uses it because a content block can be many things — text, an image, a document, a tool-use request, a tool result. Rather than one fat struct with a dozen mostly-nil fields, the SDK defines one concrete type per variant, each named <code>ContentBlockMemberX</code>, and each one satisfies the <code>ContentBlock</code> interface.</p>
+<p>For plain text, the variant is <code>types.ContentBlockMemberText</code>, which has a single exported field, <code>Value string</code>. You construct it as a pointer and append it to the slice:</p>
+<pre><code class="language-go">Content: []types.ContentBlock{
+    &amp;types.ContentBlockMemberText{Value: &quot;Hello&quot;},
+}
+</code></pre>
+<p>The payoff is on the response side, and it&rsquo;s the trap. When you read the model&rsquo;s reply, you get back a <code>[]types.ContentBlock</code> — the interface, not the concrete type. You <strong>cannot</strong> index into a string or read a <code>.Value</code> off the interface directly. You have to <em>type-assert</em> (or type-switch) each block back to its concrete variant before you can touch its data. Newcomers who expect <code>content[0].Value</code> get a compile error and assume they&rsquo;ve misconfigured something; in fact the SDK is forcing them to acknowledge that a block might not be text at all.</p>
+<p><strong>The gotcha:</strong> content is a union interface, not a string and not a struct — you must type-assert (or type-switch) each block to <code>*types.ContentBlockMemberText</code> before you can read <code>.Value</code>. Indexing it like a string, or reaching for a <code>.Value</code> field on the interface, won&rsquo;t compile. And treat &ldquo;this block is text&rdquo; as a runtime question, not a given: a tool-calling model can return a <code>ContentBlockMemberToolUse</code> block instead, and blindly asserting text on that yields the zero value.</p>
+<hr>
+<h2 id="reading-the-response">Reading the response</h2>
+<p><code>out.Output</code> is itself a union — a <code>types.ConverseOutput</code> interface. For a normal chat completion the concrete variant is <code>*types.ConverseOutputMemberMessage</code>, whose <code>.Value</code> is a <code>types.Message</code> (same shape as the ones you sent, but with the assistant&rsquo;s role). You assert your way down to it, then walk its content blocks.</p>
+<pre><code class="language-go">out, err := client.Converse(ctx, input)
+if err != nil {
+    log.Fatalf(&quot;Converse call failed: %v&quot;, err)
+}
+
+msg, ok := out.Output.(*types.ConverseOutputMemberMessage)
+if !ok {
+    log.Fatalf(&quot;unexpected output type: %T&quot;, out.Output)
+}
+
+var reply strings.Builder
+for _, block := range msg.Value.Content {
+    if text, ok := block.(*types.ContentBlockMemberText); ok {
+        reply.WriteString(text.Value)
+    }
+}
+fmt.Println(&quot;Assistant:&quot;, reply.String())
+</code></pre>
+<p>Two unions, two assertions: one to get from <code>out.Output</code> to the message, one per content block to get from <code>ContentBlock</code> to text. Concatenating every text block (rather than grabbing <code>Content[0]</code>) is the robust habit — a response can legitimately arrive as several blocks.</p>
+<p>Alongside the message, two fields tell you <em>how</em> the turn ended and <em>what it cost</em>:</p>
+<ul>
+<li><code>out.StopReason</code> is a <code>types.StopReason</code> enum. Common values are <code>end_turn</code> (the model finished naturally), <code>max_tokens</code> (it hit your <code>MaxTokens</code> ceiling and was cut off — a signal to raise the limit or expect truncation), and <code>stop_sequence</code>. Check it before trusting the text is complete.</li>
+<li><code>out.Usage</code> is a <code>*types.TokenUsage</code> with <code>InputTokens</code>, <code>OutputTokens</code>, and <code>TotalTokens</code>, each an <code>*int32</code>. This is your billing and budgeting signal — log it.</li>
+</ul>
+<pre><code class="language-go">fmt.Printf(&quot;stop reason: %s\n&quot;, out.StopReason)
+if u := out.Usage; u != nil {
+    fmt.Printf(&quot;tokens in=%d out=%d total=%d\n&quot;,
+        aws.ToInt32(u.InputTokens),
+        aws.ToInt32(u.OutputTokens),
+        aws.ToInt32(u.TotalTokens))
+}
+</code></pre>
+<p><code>aws.ToInt32</code> is the mirror of <code>aws.Int32</code> — it safely dereferences a <code>*int32</code>, returning zero for nil, so you don&rsquo;t hand-write nil checks on every pointer.</p>
+<hr>
+<h2 id="the-complete-program">The complete program</h2>
+<p>Putting it together: load config, build the client, construct the request, call, extract text, report usage. Note the context with a deadline — a network call to a model should never hang forever.</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;context&quot;
+    &quot;fmt&quot;
+    &quot;log&quot;
+    &quot;strings&quot;
+    &quot;time&quot;
+
+    &quot;github.com/aws/aws-sdk-go-v2/aws&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/config&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types&quot;
+)
+
+func main() {
+    ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+    defer cancel()
+
+    cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(&quot;us-east-1&quot;))
+    if err != nil {
+        log.Fatalf(&quot;load AWS config: %v&quot;, err)
+    }
+    client := bedrockruntime.NewFromConfig(cfg)
+
+    input := &amp;bedrockruntime.ConverseInput{
+        ModelId: aws.String(&quot;anthropic.claude-3-5-sonnet-20240620-v1:0&quot;),
+        System: []types.SystemContentBlock{
+            &amp;types.SystemContentBlockMemberText{
+                Value: &quot;You are a terse assistant. Answer in one sentence.&quot;,
+            },
+        },
+        Messages: []types.Message{
+            {
+                Role: types.ConversationRoleUser,
+                Content: []types.ContentBlock{
+                    &amp;types.ContentBlockMemberText{
+                        Value: &quot;In one sentence, what is Amazon Bedrock?&quot;,
+                    },
+                },
+            },
+        },
+        InferenceConfig: &amp;types.InferenceConfiguration{
+            Temperature: aws.Float32(0.2),
+            MaxTokens:   aws.Int32(300),
+        },
+    }
+
+    out, err := client.Converse(ctx, input)
+    if err != nil {
+        log.Fatalf(&quot;Converse call failed: %v&quot;, err)
+    }
+
+    msg, ok := out.Output.(*types.ConverseOutputMemberMessage)
+    if !ok {
+        log.Fatalf(&quot;unexpected output type: %T&quot;, out.Output)
+    }
+
+    var reply strings.Builder
+    for _, block := range msg.Value.Content {
+        if text, ok := block.(*types.ContentBlockMemberText); ok {
+            reply.WriteString(text.Value)
+        }
+    }
+
+    fmt.Println(&quot;Assistant:&quot;, reply.String())
+    fmt.Printf(&quot;stop reason: %s\n&quot;, out.StopReason)
+    if u := out.Usage; u != nil {
+        fmt.Printf(&quot;tokens in=%d out=%d total=%d\n&quot;,
+            aws.ToInt32(u.InputTokens),
+            aws.ToInt32(u.OutputTokens),
+            aws.ToInt32(u.TotalTokens))
+    }
+}
+</code></pre>
+<p>That compiles and runs against a real account with model access. If a field name here doesn&rsquo;t match what your SDK version exposes — the <code>types</code> package does evolve — don&rsquo;t guess. Open the exact version on pkg.go.dev, look at the <code>types</code> package, and match the <code>MemberXxx</code> names it lists; they&rsquo;re all there and named consistently.</p>
+<hr>
+<h2 id="handling-the-errors-that-actually-happen">Handling the errors that actually happen</h2>
+<p>The three failures you&rsquo;ll meet first are worth naming, because their error messages don&rsquo;t always point at the real cause.</p>
+<p><strong>Model access not granted.</strong> Before an account can call a model, someone has to request access to it in the Bedrock console. If that hasn&rsquo;t happened, the call fails — and it comes back as an <strong>access-denied</strong> error, <em>not</em> a &ldquo;not found.&rdquo; That surprises people who expect a missing resource to 404. If you see access-denied on a model id you&rsquo;re sure is spelled right, check the model-access page in the console before touching your code.</p>
+<p><strong>The wrong id, or an id that needs a profile.</strong> A model id valid in one region may not exist in another, and some models are only callable through an inference-profile id rather than the bare foundation-model id. A validation error about the model identifier usually means one of these, not a typo.</p>
+<p><strong>A blown deadline.</strong> Because we wrapped the call in a <code>context.WithTimeout</code>, a slow or hung request surfaces as a context-deadline-exceeded error rather than hanging your program. Treat that as &ldquo;retry or raise the timeout,&rdquo; not &ldquo;the model is broken.&rdquo;</p>
+<pre><code class="language-go">out, err := client.Converse(ctx, input)
+if err != nil {
+    if errors.Is(err, context.DeadlineExceeded) {
+        log.Fatalf(&quot;request timed out: %v&quot;, err)
+    }
+    // Otherwise inspect err — AccessDenied, ValidationException, etc.
+    log.Fatalf(&quot;Converse failed: %v&quot;, err)
+}
+</code></pre>
+<p>For structured handling you can assert the error against the modeled types in the <code>types</code> package (for example the access-denied and validation exception types) instead of matching on strings — the SDK returns them as concrete error types you can <code>errors.As</code> into.</p>
+<p><strong>The gotcha:</strong> an empty or surprising reply is often a stop-reason problem, not an API problem. If <code>out.StopReason</code> is <code>max_tokens</code>, the model was cut mid-sentence and your <code>MaxTokens</code> is too low — the call &ldquo;succeeded&rdquo; and the text is simply truncated. Always read <code>StopReason</code> before concluding the model gave a bad answer.</p>
+<hr>
+<h2 id="converse-vs-invokemodel-briefly">Converse vs. InvokeModel, briefly</h2>
+<table><caption class="sr-only">Converse vs. InvokeModel, briefly</caption>
+<thead>
+<tr>
+<th></th>
+<th>Converse</th>
+<th>InvokeModel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Request shape</td>
+<td>One unified schema for all models</td>
+<td>Per-model raw JSON body</td>
+</tr>
+<tr>
+<td>Switching models</td>
+<td>Change <code>ModelId</code></td>
+<td>Rewrite body + parsing</td>
+</tr>
+<tr>
+<td>Messages &amp; roles</td>
+<td>Normalized (<code>types.Message</code>)</td>
+<td>Model-specific fields</td>
+</tr>
+<tr>
+<td>Best for</td>
+<td>New multi-model code</td>
+<td>Model-specific features not yet in Converse</td>
+</tr>
+</tbody>
+</table>
+<p><code>InvokeModel</code> still exists and still has its place — occasionally a brand-new model parameter shows up in the raw API before it&rsquo;s surfaced through Converse. But for the everyday job of &ldquo;send messages, get a reply,&rdquo; Converse removes an entire class of per-vendor JSON wrangling. Start there.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Prefer Converse.</strong> One request/response shape across models means switching a model is a one-line <code>ModelId</code> change, not a rewrite of your JSON marshaling.</li>
+<li><strong>Content is a union interface.</strong> Build text with <code>&amp;types.ContentBlockMemberText{Value: ...}</code>, and on the way back <em>type-assert</em> each <code>types.ContentBlock</code> to <code>*types.ContentBlockMemberText</code> before reading <code>.Value</code>. You cannot index it like a string.</li>
+<li><strong>The output is a union too.</strong> Assert <code>out.Output</code> to <code>*types.ConverseOutputMemberMessage</code>, then walk <code>msg.Value.Content</code>.</li>
+<li><strong>Pointers everywhere optional.</strong> Use <code>aws.String</code>, <code>aws.Float32</code>, <code>aws.Int32</code> to set fields and <code>aws.ToInt32</code> to read them, so nil means &ldquo;unset.&rdquo;</li>
+<li><strong>Read <code>StopReason</code> and <code>Usage</code>.</strong> They tell you whether the answer is complete and what the turn cost — a <code>max_tokens</code> stop reason is truncation, not a bad model.</li>
+<li><strong>Model ids aren&rsquo;t constants,</strong> and a missing access grant returns access-denied, not not-found. Check the console for the id and the grant.</li>
+</ul>
+<p>When the exact field names matter, the <code>bedrockruntime</code> and <code>bedrockruntime/types</code> docs on pkg.go.dev are the authority — pin to your SDK version and match the <code>MemberXxx</code> names there rather than guessing.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html">Amazon Bedrock — Converse API documentation</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html">Amazon Bedrock Runtime API reference — Converse</a></li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockruntime">pkg.go.dev — service/bedrockruntime</a></li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types">pkg.go.dev — service/bedrockruntime/types</a></li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/aws">pkg.go.dev — aws pointer helpers (aws.String / aws.Float32 / aws.Int32)</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/bedrock-go-03-streaming-and-usage.html">Streaming and Token Usage</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-01-what-is-amazon-bedrock.html">What Amazon Bedrock Is</a>
+      <span class="related-date">Aug 05</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-04-tool-use.html">Tool Use with the Converse API</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Tool Use with the Converse API — Pratik Dhanave</title>
+<meta name="description" content="Giving a Bedrock model tools in Go via the Converse API: declaring a ToolConfiguration, the ToolUse round-trip loop, echoing ToolUseId, returning tool...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Tool Use with the Converse API — Pratik Dhanave">
+<meta property="og:description" content="Giving a Bedrock model tools in Go via the Converse API: declaring a ToolConfiguration, the ToolUse round-trip loop, echoing ToolUseId, returning tool results as a user message, and handling parallel tool calls.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/bedrock-go-04-tool-use.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-08T00:00:00Z">
+<meta property="article:tag" content="Amazon Bedrock">
+<meta property="article:tag" content="AWS">
+<meta property="article:tag" content="Tool Use">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tool Use with the Converse API — Pratik Dhanave">
+<meta name="twitter:description" content="Giving a Bedrock model tools in Go via the Converse API: declaring a ToolConfiguration, the ToolUse round-trip loop, echoing ToolUseId, returning tool results as a user message, and handling parallel tool calls.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/bedrock-go-04-tool-use.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Tool Use with the Converse API",
+  "description": "Giving a Bedrock model tools in Go via the Converse API: declaring a ToolConfiguration, the ToolUse round-trip loop, echoing ToolUseId, returning tool results as a user message, and handling parallel tool calls.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-08",
+  "dateModified": "2026-08-08",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Amazon Bedrock, AWS, Tool Use, Go",
+  "url": "https://pratikdhanave.com/blog/posts/bedrock-go-04-tool-use.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/bedrock-go-04-tool-use.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Tool Use with the Converse API</h1>
+    <p class="post-subtitle">How to give an Amazon Bedrock model real Go functions — declaring tools, catching the tool-use stop reason, executing your code, and returning results — using the full round-trip loop in aws-sdk-go-v2.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-08">August 08, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/amazon-bedrock/" class="tag-link"><span class="tag">#Amazon Bedrock</span></a><a href="/blog/tags/aws/" class="tag-link"><span class="tag">#AWS</span></a><a href="/blog/tags/tool-use/" class="tag-link"><span class="tag">#Tool Use</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 4 of 8</span>
+    <span class="series-title">Amazon Bedrock in Go</span>
+    <div class="series-nav"><a href="/blog/posts/bedrock-go-03-streaming-and-usage.html" class="series-prev">&larr; Part 3: Streaming and Token Usage</a></div>
+  </div>
+
+
+
+  <p>A Bedrock model can reason about your problem, but on its own it cannot read a database, hit an internal API, or do arithmetic you can trust. <strong>Tool use</strong> — the industry&rsquo;s name for function calling — closes that gap. You describe the functions you have, the model decides <em>when</em> to call one and <em>with what arguments</em>, you run the real Go code, and you hand the answer back so the model can finish its reply.</p>
+<p>The Converse API makes this uniform across every tool-capable model on Bedrock — Anthropic&rsquo;s Claude, Amazon Nova, Mistral, and others — behind one request shape. This post walks the whole loop in Go with <code>github.com/aws/aws-sdk-go-v2/service/bedrockruntime</code>: how a tool is declared, how the model signals it wants one, how you execute it, and how the result travels back. The theme to hold onto: <strong>tool use is a conversation, not a single call.</strong> You will loop.</p>
+<hr>
+<h2 id="the-shape-of-the-loop">The shape of the loop</h2>
+<p>Before any code, fix the five steps in your head. Everything below is an implementation of this:</p>
+<ol>
+<li>You send the conversation plus a <strong>tool configuration</strong> describing what the model may call.</li>
+<li>The model replies with stop reason <code>ToolUse</code> and one or more <strong>tool-use blocks</strong> — each naming a tool and carrying JSON input it chose.</li>
+<li>You <strong>execute the real function</strong> for each requested call.</li>
+<li>You append the model&rsquo;s message, then send a <strong>new user message</strong> containing one <strong>tool-result block</strong> per call, each echoing the request&rsquo;s id.</li>
+<li>You call Converse again. The model reads the results and either answers (<code>EndTurn</code>) or asks for more tools — in which case you go back to step 2.</li>
+</ol>
+<p>Steps 2 through 5 repeat until the model stops asking for tools. That repetition is the part people forget, and it is why this is a <code>for</code> loop rather than two sequential calls.</p>
+<hr>
+<h2 id="declaring-a-tool">Declaring a tool</h2>
+<p>A tool is a name, a human-readable description, and a JSON Schema for its inputs. In aws-sdk-go-v2 that maps onto a small tower of union types. Working outward from the schema:</p>
+<ul>
+<li>The schema itself is a <strong>document</strong> — a dynamic JSON value from <code>github.com/aws/aws-sdk-go-v2/aws/protocol/document</code>. You build one from a Go map with <code>document.NewLazyDocument(...)</code>. (If you are unsure of the exact constructor for a given SDK version, check the <code>aws/protocol/document</code> package on pkg.go.dev — the lazy document is the workhorse here.)</li>
+<li>That document goes inside the <code>types.ToolInputSchema</code> union, specifically the <code>*types.ToolInputSchemaMemberJson</code> variant.</li>
+<li>The schema, name, and description live in a <code>types.ToolSpecification</code>.</li>
+<li>The spec is wrapped in the <code>types.Tool</code> union via <code>*types.ToolMemberToolSpec</code>.</li>
+<li>One or more <code>types.Tool</code> values fill <code>types.ToolConfiguration.Tools</code>.</li>
+</ul>
+<p>Here is a single <code>get_weather</code> tool declared end to end:</p>
+<pre><code class="language-go">import (
+    &quot;github.com/aws/aws-sdk-go-v2/aws&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/aws/protocol/document&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types&quot;
+)
+
+func weatherToolConfig() *types.ToolConfiguration {
+    schema := document.NewLazyDocument(map[string]any{
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: map[string]any{
+            &quot;city&quot;: map[string]any{
+                &quot;type&quot;:        &quot;string&quot;,
+                &quot;description&quot;: &quot;City name, e.g. 'Pune' or 'Berlin'.&quot;,
+            },
+            &quot;unit&quot;: map[string]any{
+                &quot;type&quot;:        &quot;string&quot;,
+                &quot;enum&quot;:        []string{&quot;celsius&quot;, &quot;fahrenheit&quot;},
+                &quot;description&quot;: &quot;Temperature unit to report.&quot;,
+            },
+        },
+        &quot;required&quot;: []string{&quot;city&quot;},
+    })
+
+    return &amp;types.ToolConfiguration{
+        Tools: []types.Tool{
+            &amp;types.ToolMemberToolSpec{
+                Value: types.ToolSpecification{
+                    Name:        aws.String(&quot;get_weather&quot;),
+                    Description: aws.String(&quot;Get the current weather for a city.&quot;),
+                    InputSchema: &amp;types.ToolInputSchemaMemberJson{Value: schema},
+                },
+            },
+        },
+    }
+}
+</code></pre>
+<p>The JSON Schema is the model&rsquo;s entire view of your function. Names, the <code>description</code> on each property, <code>enum</code> constraints, and the <code>required</code> list are what steer the model toward correct calls — treat them as prompt engineering, not boilerplate.</p>
+<p><strong>The gotcha:</strong> <code>InputSchema</code> is a <em>document union</em>, not a Go map you can hand over directly. You must wrap your map in <code>document.NewLazyDocument(...)</code> and then in <code>*types.ToolInputSchemaMemberJson</code>. Skipping either layer is a compile error at best and, if you improvise with <code>any</code>, a runtime marshalling failure that surfaces as an opaque validation error from Bedrock.</p>
+<hr>
+<h2 id="the-real-go-function">The real Go function</h2>
+<p>The tool declaration is a promise; this is the code that keeps it. Nothing about it is special to Bedrock — it is an ordinary function. In production <code>get_weather</code> would call a weather API; here it returns a canned value so the example stays self-contained and deterministic.</p>
+<pre><code class="language-go">type WeatherArgs struct {
+    City string `json:&quot;city&quot;`
+    Unit string `json:&quot;unit&quot;`
+}
+
+func getWeather(args WeatherArgs) string {
+    unit := args.Unit
+    if unit == &quot;&quot; {
+        unit = &quot;celsius&quot;
+    }
+    // A real implementation would call a weather service here.
+    temp := &quot;24&quot;
+    if unit == &quot;fahrenheit&quot; {
+        temp = &quot;75&quot;
+    }
+    return fmt.Sprintf(&quot;The weather in %s is sunny, %s degrees %s.&quot;, args.City, temp, unit)
+}
+</code></pre>
+<p>The model will call <code>get_weather</code> with arguments <em>it</em> chose. Those arrive as a document, so before you can call <code>getWeather</code> you have to decode that document into <code>WeatherArgs</code>.</p>
+<hr>
+<h2 id="decoding-the-models-arguments">Decoding the model&rsquo;s arguments</h2>
+<p>When the model requests a tool, the input lands in <code>types.ToolUseBlock.Input</code>, typed as <code>document.Interface</code> — the same document abstraction as the schema, only now flowing the other direction. It is <strong>not</strong> a <code>map[string]any</code> you can index. Decode it deliberately into your struct with <code>UnmarshalSmithyDocument</code>:</p>
+<pre><code class="language-go">func decodeArgs(input document.Interface, out any) error {
+    if err := input.UnmarshalSmithyDocument(out); err != nil {
+        return fmt.Errorf(&quot;decode tool input: %w&quot;, err)
+    }
+    return nil
+}
+</code></pre>
+<p><code>UnmarshalSmithyDocument</code> honours the <code>json</code> struct tags, so the same <code>WeatherArgs</code> you would use for a plain JSON payload works here. If you prefer to route everything through <code>encoding/json</code>, marshal the document to bytes and <code>json.Unmarshal</code> into your struct — both are valid; pick one and be consistent.</p>
+<p><strong>The gotcha:</strong> the input is a document union, not a Go map. Reaching for a type assertion like <code>input.(map[string]any)</code> will not compile against the document interface. Decode it into a typed struct (or a <code>map[string]any</code> via unmarshalling) on purpose — and validate the fields, because the model can omit an optional argument or, occasionally, hallucinate one that is not in your schema.</p>
+<hr>
+<h2 id="reading-the-response">Reading the response</h2>
+<p>A Converse call returns a <code>*bedrockruntime.ConverseOutput</code>. Two fields drive the loop:</p>
+<ul>
+<li><code>output.StopReason</code> — a <code>types.StopReason</code>. <code>types.StopReasonToolUse</code> means &ldquo;run tools and come back&rdquo;; <code>types.StopReasonEndTurn</code> means the model is done.</li>
+<li><code>output.Output</code> — a <code>types.ConverseOutput</code> union whose <code>*types.ConverseOutputMemberMessage</code> variant holds the assistant&rsquo;s <code>types.Message</code>.</li>
+</ul>
+<p>That message&rsquo;s <code>Content</code> is a slice of <code>types.ContentBlock</code>. Iterate it and type-switch each block. A turn that uses tools contains one <code>*types.ContentBlockMemberToolUse</code> per requested call (and often a <code>*types.ContentBlockMemberText</code> block where the model narrates what it is about to do):</p>
+<pre><code class="language-go">func assistantMessage(out *bedrockruntime.ConverseOutput) (types.Message, error) {
+    msg, ok := out.Output.(*types.ConverseOutputMemberMessage)
+    if !ok {
+        return types.Message{}, fmt.Errorf(&quot;unexpected output type %T&quot;, out.Output)
+    }
+    return msg.Value, nil
+}
+</code></pre>
+<p>Each tool-use block carries a <code>types.ToolUseBlock</code> with three fields you need: <code>ToolUseId</code> (a unique id for <em>this</em> call), <code>Name</code> (which tool), and <code>Input</code> (the document of arguments).</p>
+<hr>
+<h2 id="handling-the-calls-and-building-results">Handling the calls and building results</h2>
+<p>For every <code>*types.ContentBlockMemberToolUse</code> in the assistant message, dispatch on <code>Name</code>, decode the input, run the function, and wrap the return value in a <code>*types.ContentBlockMemberToolResult</code>. The result block is a <code>types.ToolResultBlock</code>, and its <code>ToolUseId</code> <strong>must</strong> be the exact id from the request:</p>
+<pre><code class="language-go">func runToolCalls(assistant types.Message) ([]types.ContentBlock, error) {
+    var results []types.ContentBlock
+
+    for _, block := range assistant.Content {
+        use, ok := block.(*types.ContentBlockMemberToolUse)
+        if !ok {
+            continue // text or other blocks — nothing to execute
+        }
+        tu := use.Value
+
+        var (
+            output string
+            status = types.ToolResultStatusSuccess
+        )
+
+        switch aws.ToString(tu.Name) {
+        case &quot;get_weather&quot;:
+            var args WeatherArgs
+            if err := decodeArgs(tu.Input, &amp;args); err != nil {
+                output, status = err.Error(), types.ToolResultStatusError
+            } else {
+                output = getWeather(args)
+            }
+        default:
+            output = fmt.Sprintf(&quot;unknown tool %q&quot;, aws.ToString(tu.Name))
+            status = types.ToolResultStatusError
+        }
+
+        results = append(results, &amp;types.ContentBlockMemberToolResult{
+            Value: types.ToolResultBlock{
+                ToolUseId: tu.ToolUseId, // echo the SAME id
+                Status:    status,
+                Content: []types.ToolResultContentBlock{
+                    &amp;types.ToolResultContentBlockMemberText{Value: output},
+                },
+            },
+        })
+    }
+
+    return results, nil
+}
+</code></pre>
+<p>Note the nested unions again: a tool result&rsquo;s <code>Content</code> is a slice of <code>types.ToolResultContentBlock</code>, and text goes in via <code>*types.ToolResultContentBlockMemberText</code>. There is also a JSON variant (<code>*types.ToolResultContentBlockMemberJson</code>) if you would rather return structured data than a sentence — the model reads either.</p>
+<p><strong>The gotcha:</strong> every tool result <strong>must</strong> echo the exact <code>ToolUseId</code> from its request. Bedrock pairs results to calls by id, not by order; a mismatched or missing id makes the whole Converse call fail with a validation error. When a tool errors, do not drop the result — return it with <code>Status: types.ToolResultStatusError</code> and a message in the text block. The model can read the failure and recover (retry with different arguments, or apologise gracefully); a silently missing result just breaks the turn.</p>
+<hr>
+<h2 id="the-driving-loop">The driving loop</h2>
+<p>Now assemble the pieces. Seed the conversation with a user turn, then loop: call Converse, and if the stop reason is <code>ToolUse</code>, append the assistant message, run the tools, append a <strong>user</strong> message carrying the results, and go around again. Stop when the model returns any other stop reason.</p>
+<pre><code class="language-go">func converseWithTools(ctx context.Context, client *bedrockruntime.Client, modelID, question string) (string, error) {
+    toolCfg := weatherToolConfig()
+
+    messages := []types.Message{
+        {
+            Role:    types.ConversationRoleUser,
+            Content: []types.ContentBlock{&amp;types.ContentBlockMemberText{Value: question}},
+        },
+    }
+
+    const maxTurns = 8 // a hard ceiling so a misbehaving model can't loop forever
+    for turn := 0; turn &lt; maxTurns; turn++ {
+        out, err := client.Converse(ctx, &amp;bedrockruntime.ConverseInput{
+            ModelId:    aws.String(modelID),
+            Messages:   messages,
+            ToolConfig: toolCfg,
+        })
+        if err != nil {
+            return &quot;&quot;, fmt.Errorf(&quot;converse: %w&quot;, err)
+        }
+
+        assistant, err := assistantMessage(out)
+        if err != nil {
+            return &quot;&quot;, err
+        }
+
+        if out.StopReason != types.StopReasonToolUse {
+            return firstText(assistant), nil // EndTurn, MaxTokens, etc.
+        }
+
+        // Record the model's tool request, then answer it.
+        messages = append(messages, assistant)
+
+        results, err := runToolCalls(assistant)
+        if err != nil {
+            return &quot;&quot;, err
+        }
+        messages = append(messages, types.Message{
+            Role:    types.ConversationRoleUser, // results go back as USER role
+            Content: results,
+        })
+    }
+
+    return &quot;&quot;, fmt.Errorf(&quot;tool loop exceeded %d turns&quot;, maxTurns)
+}
+
+func firstText(msg types.Message) string {
+    for _, block := range msg.Content {
+        if t, ok := block.(*types.ContentBlockMemberText); ok {
+            return t.Value
+        }
+    }
+    return &quot;&quot;
+}
+</code></pre>
+<p>Ask <em>&ldquo;What&rsquo;s the weather in Pune in fahrenheit?&rdquo;</em> and the trace is: Converse returns <code>ToolUse</code> with a <code>get_weather</code> call for <code>{"city":"Pune","unit":"fahrenheit"}</code>; you run <code>getWeather</code>, append the assistant turn and a user turn holding the result; the second Converse call returns <code>EndTurn</code> with prose like <em>&ldquo;It&rsquo;s sunny in Pune, about 75 degrees fahrenheit.&rdquo;</em></p>
+<p><strong>The gotcha:</strong> one Converse call is almost never enough — you must loop. The first call only <em>requests</em> tools; the answer comes on a later iteration. Two subtleties bite here. First, tool results are sent back as a message with <strong><code>ConversationRoleUser</code></strong>, not assistant — the assistant role is reserved for what the model produced, and you appended that verbatim one step earlier. Second, always keep a turn ceiling (<code>maxTurns</code> above): a model that keeps requesting tools, or a buggy tool that always errors, would otherwise loop indefinitely and burn tokens.</p>
+<hr>
+<h2 id="parallel-tool-calls">Parallel tool calls</h2>
+<p>The loop above already handles the important subtlety: a single assistant turn can contain <strong>several</strong> tool-use blocks. If you ask <em>&ldquo;Compare the weather in Pune and Berlin,&rdquo;</em> the model may emit two <code>get_weather</code> calls in one turn rather than taking two round-trips. That is why <code>runToolCalls</code> ranges over <em>all</em> content blocks and returns a slice of results.</p>
+<p>The rules for the parallel case:</p>
+<ul>
+<li>Execute each requested call — sequentially, or concurrently with a <code>sync.WaitGroup</code> / <code>errgroup</code> if the functions are slow and independent.</li>
+<li>Return <strong>one</strong> tool-result block per tool-use block, each carrying its own matching <code>ToolUseId</code>.</li>
+<li>Put all of those result blocks in a <strong>single</strong> user message. You do not send one message per result; you send one message whose <code>Content</code> holds every result.</li>
+</ul>
+<table><caption class="sr-only">Parallel tool calls</caption>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Assistant turn</th>
+<th>Your reply</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One tool</td>
+<td>1 tool-use block</td>
+<td>1 user message, 1 result block</td>
+</tr>
+<tr>
+<td>Parallel tools</td>
+<td>N tool-use blocks in one turn</td>
+<td>1 user message, N result blocks (ids matched)</td>
+</tr>
+<tr>
+<td>Sequential tools</td>
+<td>1 tool-use block, then <code>ToolUse</code> again next turn</td>
+<td>1 result, loop, repeat</td>
+</tr>
+</tbody>
+</table>
+<p>If you execute the calls concurrently, guard shared state and preserve the id-to-result pairing — order within the message does not matter to Bedrock, but every id must be present and correct.</p>
+<p><strong>The gotcha:</strong> in the parallel case it is easy to build results whose ids drift — for example, if you collect outputs in a map keyed by tool name instead of by <code>ToolUseId</code>, two calls to the same tool collide. Key everything by <code>ToolUseId</code>, the value Bedrock assigned, so each result lands against the exact call that produced it.</p>
+<hr>
+<h2 id="nudging-the-model-toward-or-away-from-tools">Nudging the model toward (or away from) tools</h2>
+<p><code>types.ToolConfiguration</code> has an optional <code>ToolChoice</code> union that governs <em>whether</em> the model may or must call a tool on the next turn:</p>
+<ul>
+<li><code>*types.ToolChoiceMemberAuto</code> — the model decides (the default behaviour).</li>
+<li><code>*types.ToolChoiceMemberAny</code> — the model must call <em>some</em> tool.</li>
+<li><code>*types.ToolChoiceMemberTool</code> — the model must call one specific named tool.</li>
+</ul>
+<p>Support for <code>Any</code> and a forced tool varies by model family, so consult the model&rsquo;s documentation before relying on them; <code>Auto</code> is universal. Forcing a tool is useful when your application always needs structured output on the first turn — for example, always extracting fields into a known schema.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Tool use is a loop, not a call.</strong> Send the tool config, catch <code>StopReason == ToolUse</code>, run the function, return the result, and Converse again — repeating until the model stops asking. Always cap the iterations.</li>
+<li><strong>Declarations are nested unions.</strong> A tool is <code>*types.ToolMemberToolSpec</code> → <code>types.ToolSpecification</code> → <code>*types.ToolInputSchemaMemberJson</code> → a <code>document.NewLazyDocument(...)</code> JSON Schema. The schema is the model&rsquo;s whole view of your function.</li>
+<li><strong>Inputs arrive as a document, not a map.</strong> Decode <code>ToolUseBlock.Input</code> with <code>UnmarshalSmithyDocument</code> (or a JSON round-trip) into a typed struct, and validate.</li>
+<li><strong>Every result must echo its <code>ToolUseId</code>,</strong> carry a <code>Status</code>, and travel back in a <strong>user-role</strong> message. Bedrock pairs results to calls by id, so mismatches fail the turn.</li>
+<li><strong>Handle parallel calls.</strong> One turn can hold several tool-use blocks; return one id-matched result each, all in a single user message.</li>
+</ul>
+<p>Give a model good tools with clear schemas and a correct loop, and it stops guessing at facts it cannot know and starts orchestrating the real capabilities you already built.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use-inference-call.html">Use a tool to complete an Amazon Bedrock model response</a> — the official Converse tool-use (function calling) guide.</li>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use-examples.html">Call a tool with the Converse API</a> — request/response walkthroughs and the tool-result contract.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockruntime"><code>bedrockruntime</code> package</a> and its <a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"><code>types</code></a> — <code>ConverseInput</code>, <code>ToolConfiguration</code>, <code>Tool</code>, <code>ToolUseBlock</code>, <code>ToolResultBlock</code>, and the content-block unions.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/aws/protocol/document"><code>aws/protocol/document</code></a> — <code>NewLazyDocument</code> and <code>UnmarshalSmithyDocument</code> for building schemas and decoding tool inputs.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/bedrock-go-03-streaming-and-usage.html">Streaming and Token Usage</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-02-converse-api.html">Calling a Model with the Converse API</a>
+      <span class="related-date">Aug 06</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-01-what-is-amazon-bedrock.html">What Amazon Bedrock Is</a>
+      <span class="related-date">Aug 05</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

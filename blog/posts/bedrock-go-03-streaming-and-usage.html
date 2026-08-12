@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Streaming and Token Usage — Pratik Dhanave</title>
+<meta name="description" content="Streaming responses and accounting for tokens and cost on Bedrock in Go: ranging the ConverseStream event stream, the nested delta unions, checking...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Streaming and Token Usage — Pratik Dhanave">
+<meta property="og:description" content="Streaming responses and accounting for tokens and cost on Bedrock in Go: ranging the ConverseStream event stream, the nested delta unions, checking stream.Err(), and computing cost from the metadata usage event with a formula you fill in.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/bedrock-go-03-streaming-and-usage.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-07T00:00:00Z">
+<meta property="article:tag" content="Amazon Bedrock">
+<meta property="article:tag" content="AWS">
+<meta property="article:tag" content="LLMs">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Streaming and Token Usage — Pratik Dhanave">
+<meta name="twitter:description" content="Streaming responses and accounting for tokens and cost on Bedrock in Go: ranging the ConverseStream event stream, the nested delta unions, checking stream.Err(), and computing cost from the metadata usage event with a formula you fill in.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/bedrock-go-03-streaming-and-usage.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Streaming and Token Usage",
+  "description": "Streaming responses and accounting for tokens and cost on Bedrock in Go: ranging the ConverseStream event stream, the nested delta unions, checking stream.Err(), and computing cost from the metadata usage event with a formula you fill in.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-07",
+  "dateModified": "2026-08-07",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Amazon Bedrock, AWS, LLMs, Go",
+  "url": "https://pratikdhanave.com/blog/posts/bedrock-go-03-streaming-and-usage.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/bedrock-go-03-streaming-and-usage.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Streaming and Token Usage</h1>
+    <p class="post-subtitle">How to stream Amazon Bedrock responses token-by-token with the aws-sdk-go-v2 Converse API, decode the event stream with a double type-switch, and account for tokens and cost from the metadata event — accurately, in Go.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-07">August 07, 2026</time>
+      <span>·</span>
+      <span>9 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/amazon-bedrock/" class="tag-link"><span class="tag">#Amazon Bedrock</span></a><a href="/blog/tags/aws/" class="tag-link"><span class="tag">#AWS</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 3 of 8</span>
+    <span class="series-title">Amazon Bedrock in Go</span>
+    <div class="series-nav"><a href="/blog/posts/bedrock-go-02-converse-api.html" class="series-prev">&larr; Part 2: Calling a Model with the Converse API</a>
+<a href="/blog/posts/bedrock-go-04-tool-use.html" class="series-next">Part 4: Tool Use with the Converse API &rarr;</a></div>
+  </div>
+
+
+
+  <p>In the previous post we called <code>client.Converse(...)</code> and got the whole reply back in one <code>ConverseOutput</code>. That is fine for short answers, but a model generating a few hundred tokens keeps the user staring at a spinner for seconds. <strong>Streaming</strong> fixes the perceived latency: you print each fragment as the model produces it, so text appears to type itself onto the screen.</p>
+<p>Bedrock exposes this through <code>ConverseStream</code>, a near-twin of <code>Converse</code> that returns an <strong>event stream</strong> instead of a single response. The trade-off is that you now have to decode a sequence of union events rather than read one struct — and Go&rsquo;s type system makes that decode explicit. This post walks the whole loop: firing the request, ranging the event channel, unwrapping the nested delta unions, and reading token usage off the final metadata event so you can price a request.</p>
+<p>Everything below uses <code>github.com/aws/aws-sdk-go-v2/service/bedrockruntime</code> and its <code>types</code> package. I assume you already have a <code>*bedrockruntime.Client</code> and a model id from the Converse basics post.</p>
+<hr>
+<h2 id="conversestream-same-input-streaming-output">ConverseStream: same input, streaming output</h2>
+<p><code>ConverseStreamInput</code> takes the <strong>same fields</strong> as <code>ConverseInput</code> — <code>ModelId</code>, <code>Messages</code>, <code>System</code>, <code>InferenceConfig</code>, <code>ToolConfig</code>. If you can build a Converse request, you can build a ConverseStream request; only the call and the response handling change.</p>
+<pre><code class="language-go">out, err := client.ConverseStream(ctx, &amp;bedrockruntime.ConverseStreamInput{
+    ModelId: aws.String(modelID),
+    Messages: []types.Message{
+        {
+            Role: types.ConversationRoleUser,
+            Content: []types.ContentBlock{
+                &amp;types.ContentBlockMemberText{Value: &quot;Explain goroutine leaks in three sentences.&quot;},
+            },
+        },
+    },
+    InferenceConfig: &amp;types.InferenceConfiguration{
+        MaxTokens:   aws.Int32(512),
+        Temperature: aws.Float32(0.3),
+    },
+})
+if err != nil {
+    log.Fatalf(&quot;ConverseStream request failed: %v&quot;, err)
+}
+</code></pre>
+<p>Note what <code>err</code> covers here: it is the error from <em>starting</em> the stream — bad model id, throttling, a malformed request, missing credentials. A successful return means the connection opened, <strong>not</strong> that generation finished cleanly. Errors that happen mid-generation surface elsewhere, and that distinction is the source of the most common streaming bug (more on that below).</p>
+<hr>
+<h2 id="ranging-the-event-stream">Ranging the event stream</h2>
+<p><code>out.GetStream()</code> returns the stream handle. Its <code>.Events()</code> method gives you a channel of <code>types.ConverseStreamOutput</code> — a union interface. You <code>range</code> the channel until Bedrock closes it, and inside the loop you type-switch on which concrete event arrived.</p>
+<pre><code class="language-go">stream := out.GetStream()
+defer stream.Close()
+
+for event := range stream.Events() {
+    switch e := event.(type) {
+    case *types.ConverseStreamOutputMemberMessageStart:
+        // The assistant turn is beginning; e.Value.Role is the role.
+
+    case *types.ConverseStreamOutputMemberContentBlockDelta:
+        // An incremental chunk — decoded in the next section.
+
+    case *types.ConverseStreamOutputMemberContentBlockStop:
+        // One content block finished.
+
+    case *types.ConverseStreamOutputMemberMessageStop:
+        fmt.Printf(&quot;\n[stop reason: %s]\n&quot;, e.Value.StopReason)
+
+    case *types.ConverseStreamOutputMemberMetadata:
+        // Token usage and latency land here — see the usage section.
+    }
+}
+
+if err := stream.Err(); err != nil {
+    log.Fatalf(&quot;stream error: %v&quot;, err)
+}
+</code></pre>
+<p>The lifecycle is predictable: one <code>MessageStart</code>, then for each content block a <code>ContentBlockStart</code> (omitted above — it carries no text for plain replies), a run of <code>ContentBlockDelta</code> events, and a <code>ContentBlockStop</code>; finally a <code>MessageStop</code> with the stop reason and a <code>Metadata</code> event with usage. Tool-use replies interleave more block types, but text generation is this simple shape.</p>
+<p><strong>The gotcha:</strong> you <strong>must</strong> check <code>stream.Err()</code> after the range loop ends. The <code>range</code> terminates when the channel closes — and the channel closes on <em>both</em> a clean finish and a mid-stream failure (a dropped connection, a timeout, a server-side error after generation started). Without the <code>stream.Err()</code> check, a truncated response is indistinguishable from a complete one: your loop just ends and you print whatever you got as if it were the full answer. Always pair the range with a trailing <code>stream.Err()</code> and a <code>defer stream.Close()</code>.</p>
+<hr>
+<h2 id="decoding-a-delta-the-second-type-switch">Decoding a delta: the second type-switch</h2>
+<p>The interesting event is <code>ConverseStreamOutputMemberContentBlockDelta</code>. Its <code>.Value</code> is a <code>types.ContentBlockDeltaEvent</code>, and inside that, <code>.Value.Delta</code> is <strong>itself a union</strong> — <code>types.ContentBlockDelta</code>. That second union is why decoding text takes two type-switches, not one: the outer switch tells you &ldquo;this is a delta event,&rdquo; and the inner switch tells you &ldquo;this delta is text&rdquo; (versus a tool-use argument fragment, a reasoning chunk, and so on).</p>
+<p>The text variant is <code>*types.ContentBlockDeltaMemberText</code>, whose <code>.Value</code> is the incremental <code>string</code>.</p>
+<pre><code class="language-go">case *types.ConverseStreamOutputMemberContentBlockDelta:
+    switch d := e.Value.Delta.(type) {
+    case *types.ContentBlockDeltaMemberText:
+        fmt.Print(d.Value) // the incremental piece of text
+        builder.WriteString(d.Value)
+    }
+</code></pre>
+<p>Printing <code>d.Value</code> as it arrives is what produces the live &ldquo;typing&rdquo; effect. The <code>builder</code> is a <code>strings.Builder</code> you keep around if you also want the assembled full message at the end — Bedrock never hands you the complete text in one place during streaming, so if you need it you concatenate the deltas yourself.</p>
+<p><strong>The gotcha:</strong> the delta is a <strong>nested union</strong>, so a single type-switch is not enough — <code>e.Value.Delta</code> is an interface you must switch on again. If you only match the outer <code>ContentBlockDelta</code> event and try to read text off it directly, it won&rsquo;t compile, because the event doesn&rsquo;t carry a string; the string lives one union deeper. Two events, two switches.</p>
+<hr>
+<h2 id="a-complete-streaming-example">A complete streaming example</h2>
+<p>Putting the pieces together — fire the request, stream text to stdout, accumulate the full reply, and capture usage from the metadata event:</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;context&quot;
+    &quot;fmt&quot;
+    &quot;log&quot;
+    &quot;strings&quot;
+
+    &quot;github.com/aws/aws-sdk-go-v2/aws&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/config&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types&quot;
+)
+
+func main() {
+    ctx := context.Background()
+
+    cfg, err := config.LoadDefaultConfig(ctx)
+    if err != nil {
+        log.Fatalf(&quot;load AWS config: %v&quot;, err)
+    }
+    client := bedrockruntime.NewFromConfig(cfg)
+
+    modelID := &quot;anthropic.claude-3-5-sonnet-20240620-v1:0&quot;
+
+    out, err := client.ConverseStream(ctx, &amp;bedrockruntime.ConverseStreamInput{
+        ModelId: aws.String(modelID),
+        Messages: []types.Message{
+            {
+                Role: types.ConversationRoleUser,
+                Content: []types.ContentBlock{
+                    &amp;types.ContentBlockMemberText{
+                        Value: &quot;Explain goroutine leaks in three sentences.&quot;,
+                    },
+                },
+            },
+        },
+        InferenceConfig: &amp;types.InferenceConfiguration{
+            MaxTokens: aws.Int32(512),
+        },
+    })
+    if err != nil {
+        log.Fatalf(&quot;ConverseStream request failed: %v&quot;, err)
+    }
+
+    stream := out.GetStream()
+    defer stream.Close()
+
+    var builder strings.Builder
+    var usage *types.TokenUsage
+
+    for event := range stream.Events() {
+        switch e := event.(type) {
+        case *types.ConverseStreamOutputMemberContentBlockDelta:
+            if d, ok := e.Value.Delta.(*types.ContentBlockDeltaMemberText); ok {
+                fmt.Print(d.Value)
+                builder.WriteString(d.Value)
+            }
+
+        case *types.ConverseStreamOutputMemberMessageStop:
+            fmt.Printf(&quot;\n\n[stop reason: %s]\n&quot;, e.Value.StopReason)
+
+        case *types.ConverseStreamOutputMemberMetadata:
+            usage = e.Value.Usage
+        }
+    }
+
+    if err := stream.Err(); err != nil {
+        log.Fatalf(&quot;stream error: %v&quot;, err)
+    }
+
+    if usage != nil {
+        fmt.Printf(&quot;tokens: input=%d output=%d total=%d\n&quot;,
+            aws.ToInt32(usage.InputTokens),
+            aws.ToInt32(usage.OutputTokens),
+            aws.ToInt32(usage.TotalTokens),
+        )
+    }
+
+    _ = builder.String() // the full assembled reply, if you need it
+}
+</code></pre>
+<p>The <code>aws.ToInt32</code> helper safely dereferences the <code>*int32</code> pointers the SDK uses (returning <code>0</code> for a nil pointer), which keeps the print statement free of nil checks.</p>
+<hr>
+<h2 id="token-usage-and-cost">Token usage and cost</h2>
+<p>Every Bedrock request reports how many tokens it consumed, and that is the number your bill is built from. Where you read it depends on the call:</p>
+<ul>
+<li><strong>Non-streaming</strong> (<code>Converse</code>): <code>out.Usage</code>, a <code>*types.TokenUsage</code>, is on the response struct directly.</li>
+<li><strong>Streaming</strong> (<code>ConverseStream</code>): usage rides on the <code>ConverseStreamOutputMemberMetadata</code> event as <code>e.Value.Usage</code> — the same <code>*types.TokenUsage</code> type. The metadata event also typically carries latency in <code>e.Value.Metrics</code>.</li>
+</ul>
+<p><code>TokenUsage</code> has three fields worth knowing:</p>
+<table><caption class="sr-only">Token usage and cost</caption>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>InputTokens</code></td>
+<td>Tokens in your prompt — system prompt, message history, tool schemas, the current user turn</td>
+</tr>
+<tr>
+<td><code>OutputTokens</code></td>
+<td>Tokens the model generated in its reply</td>
+</tr>
+<tr>
+<td><code>TotalTokens</code></td>
+<td><code>InputTokens + OutputTokens</code></td>
+</tr>
+</tbody>
+</table>
+<p>The split matters because <strong>input and output tokens are priced differently</strong> — output tokens almost always cost more per token than input tokens. That is why a chatbot with a long system prompt and short replies has a very different cost profile from a summarizer that reads a little and writes a lot.</p>
+<p><strong>The gotcha:</strong> in a stream, usage arrives <strong>only</strong> on the final <code>Metadata</code> event — never on the per-delta events. If you try to read a token count while ranging the deltas, there is nothing there yet. Capture usage in a variable inside the <code>Metadata</code> case (as above) and read it <em>after</em> the loop, once you have also confirmed <code>stream.Err() == nil</code>. A stream that errors out before the metadata event gives you no usage at all.</p>
+<h3 id="computing-cost-in-go">Computing cost in Go</h3>
+<p>Bedrock pricing is <strong>per-token, and both model-specific and region-specific</strong> — a Claude model in <code>us-east-1</code> is priced differently from a Llama model, or the same model in another region. Rates are commonly published per 1,000 tokens or per 1,000,000 tokens depending on the page. I am deliberately <strong>not</strong> putting dollar figures here, because they change and would go stale: look up the current numbers on the Bedrock pricing page for your exact model and region, then plug them into a formula like this.</p>
+<pre><code class="language-go">// Fill these in from the current Bedrock pricing page for YOUR model + region.
+// Example units: USD per 1,000 tokens. Match the units to whatever the page quotes.
+const (
+    inputPricePer1K  = 0.0 // e.g. price of 1,000 input tokens
+    outputPricePer1K = 0.0 // e.g. price of 1,000 output tokens
+)
+
+func requestCostUSD(u *types.TokenUsage) float64 {
+    if u == nil {
+        return 0
+    }
+    in := float64(aws.ToInt32(u.InputTokens)) / 1000.0 * inputPricePer1K
+    out := float64(aws.ToInt32(u.OutputTokens)) / 1000.0 * outputPricePer1K
+    return in + out
+}
+</code></pre>
+<p>Keeping the rates as named constants (or, better, config values loaded per model) means the formula never hard-codes a price you would have to hunt down and update later. When AWS changes pricing or you switch models, you edit one place.</p>
+<h3 id="practical-accounting-tips">Practical accounting tips</h3>
+<ul>
+<li><strong>Accumulate deltas yourself if you need the full text.</strong> The stream never replays the complete message; the <code>strings.Builder</code> pattern above is the only way to get it. You need this for logging, for storing the assistant turn back into your message history, or for post-processing.</li>
+<li><strong>Measure usage per request, not per session estimate.</strong> The metadata event gives you exact counts — log <code>InputTokens</code>/<code>OutputTokens</code> per call so budgeting is based on real numbers rather than a token estimate from counting characters.</li>
+<li><strong>Watch input tokens grow in conversations.</strong> Every turn resends the full history as input, so input tokens climb with conversation length. If cost creeps up, that growing prompt is usually why — trim or summarize old turns.</li>
+<li><strong>Usage is reported even on a truncated reply.</strong> If <code>StopReason</code> is <code>max_tokens</code>, you still pay for the output generated up to the cutoff, and the metadata event reflects it. Check the stop reason when a reply looks cut off.</li>
+</ul>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong><code>ConverseStream</code> takes the same input as <code>Converse</code></strong> — the only real work is decoding the event stream it returns instead of reading one struct.</li>
+<li><strong>Range <code>out.GetStream().Events()</code> and type-switch</strong> on <code>ConverseStreamOutput</code> variants: <code>MessageStart</code>, <code>ContentBlockDelta</code>, <code>ContentBlockStop</code>, <code>MessageStop</code>, <code>Metadata</code>.</li>
+<li><strong>Text lives two unions deep.</strong> Match <code>*ContentBlockDelta</code>, then switch again on <code>.Value.Delta</code> for <code>*ContentBlockDeltaMemberText</code> to reach the incremental string.</li>
+<li><strong>Always check <code>stream.Err()</code> after the loop</strong> and <code>defer stream.Close()</code> — a mid-stream failure otherwise looks exactly like a clean finish.</li>
+<li><strong>Usage comes from the <code>Metadata</code> event when streaming</strong> (<code>out.Usage</code> when not). Input and output tokens are priced separately; compute cost with rates you read from the current pricing page, not from hard-coded numbers.</li>
+</ul>
+<p>Streaming turns a slow-feeling call into a responsive one, and the metadata event turns every request into a measurable, budgetable unit. Next in the series we build on this to handle tool use over Converse, where the delta stream carries function-call arguments instead of plain text.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseStream.html">Amazon Bedrock ConverseStream API reference</a> — the event types and request/response shape from the source.</li>
+<li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/converse-api.html">Use the Converse API — Amazon Bedrock User Guide</a> — how Converse and ConverseStream fit together, including tokens and stop reasons.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockruntime"><code>bedrockruntime</code> package on pkg.go.dev</a> — the client, <code>ConverseStreamInput</code>, and <code>GetStream()</code>.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"><code>bedrockruntime/types</code> on pkg.go.dev</a> — the <code>ConverseStreamOutput</code>, <code>ContentBlockDelta</code>, and <code>TokenUsage</code> union and struct definitions.</li>
+<li><a href="https://aws.amazon.com/bedrock/pricing/">Amazon Bedrock pricing</a> — current per-token rates by model and region (look up your exact numbers here).</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/bedrock-go-02-converse-api.html">Calling a Model with the Converse API</a>
+      <span class="related-date">Aug 06</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-01-what-is-amazon-bedrock.html">What Amazon Bedrock Is</a>
+      <span class="related-date">Aug 05</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-04-tool-use.html">Tool Use with the Converse API</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

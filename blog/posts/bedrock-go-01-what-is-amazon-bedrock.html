@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>What Amazon Bedrock Is — Pratik Dhanave</title>
+<meta name="description" content="The opener to a series on building LLM and agent applications on Amazon Bedrock in Go: what Bedrock actually is, what it adds over calling a provider...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="What Amazon Bedrock Is — Pratik Dhanave">
+<meta property="og:description" content="The opener to a series on building LLM and agent applications on Amazon Bedrock in Go: what Bedrock actually is, what it adds over calling a provider API directly (one API across models, IAM auth, data residency), and the aws-sdk-go-v2 packages you&#x27;ll use.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/bedrock-go-01-what-is-amazon-bedrock.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-05T00:00:00Z">
+<meta property="article:tag" content="Amazon Bedrock">
+<meta property="article:tag" content="AWS">
+<meta property="article:tag" content="LLMs">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="What Amazon Bedrock Is — Pratik Dhanave">
+<meta name="twitter:description" content="The opener to a series on building LLM and agent applications on Amazon Bedrock in Go: what Bedrock actually is, what it adds over calling a provider API directly (one API across models, IAM auth, data residency), and the aws-sdk-go-v2 packages you&#x27;ll use.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/bedrock-go-01-what-is-amazon-bedrock.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "What Amazon Bedrock Is",
+  "description": "The opener to a series on building LLM and agent applications on Amazon Bedrock in Go: what Bedrock actually is, what it adds over calling a provider API directly (one API across models, IAM auth, data residency), and the aws-sdk-go-v2 packages you'll use.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-05",
+  "dateModified": "2026-08-05",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Amazon Bedrock, AWS, LLMs, Go",
+  "url": "https://pratikdhanave.com/blog/posts/bedrock-go-01-what-is-amazon-bedrock.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/bedrock-go-01-what-is-amazon-bedrock.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>What Amazon Bedrock Is</h1>
+    <p class="post-subtitle">The opener for a Go series on building LLM and agent applications with Amazon Bedrock — what the service actually is, why it sits between your Go code and a dozen foundation models, and which aws-sdk-go-v2 packages you will lean on for the rest of the way.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-05">August 05, 2026</time>
+      <span>·</span>
+      <span>9 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/amazon-bedrock/" class="tag-link"><span class="tag">#Amazon Bedrock</span></a><a href="/blog/tags/aws/" class="tag-link"><span class="tag">#AWS</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 1 of 8</span>
+    <span class="series-title">Amazon Bedrock in Go</span>
+    <div class="series-nav"><a href="/blog/posts/bedrock-go-02-converse-api.html" class="series-next">Part 2: Calling a Model with the Converse API &rarr;</a></div>
+  </div>
+
+
+
+  <p>In earlier posts I called model providers the blunt way: build a JSON body, <code>POST</code> it with <code>net/http</code>, set a bearer token in a header, parse the response. That works, and it teaches you what a completion request really looks like on the wire. But the moment you want a second model, a second region, an audit trail, or a security team that signs off, the hand-rolled client starts to hurt. <strong>Amazon Bedrock</strong> is AWS&rsquo;s answer to that friction: one managed service that puts many foundation models behind a single API, authenticated and governed the way the rest of your AWS account already is.</p>
+<p>This series builds real Go applications on Bedrock — the Converse API, streaming, tool use, retrieval over your own documents, agents, guardrails, and the production concerns that decide whether any of it survives contact with a bill and an on-call rotation. This first post is the map. No feature deep-dive yet; just what Bedrock is, what it adds over a raw provider call, what it costs you in exchange, and which SDK packages back each piece.</p>
+<hr>
+<h2 id="one-api-in-front-of-many-models">One API in front of many models</h2>
+<p>The core idea is small and worth stating plainly. Bedrock is a fully-managed service that exposes foundation models from several providers — Anthropic&rsquo;s Claude family, Amazon&rsquo;s own Nova and Titan models, Meta&rsquo;s Llama, Mistral, and others — through a shared request surface. You pick a model by its <strong>model ID</strong> (a string like <code>anthropic.claude-3-5-sonnet-20241022-v2:0</code>), and for most chat-style work you call the same operation regardless of which vendor built the model.</p>
+<p>That last part is the leverage. With a direct provider integration, switching from one vendor to another means a new endpoint, a new auth scheme, a new request schema, and a new response shape — a rewrite. On Bedrock, the <strong>Converse API</strong> normalizes messages, system prompts, tool definitions, and token usage across providers, so swapping models is often a one-line change to the model ID. You still tune per-model behavior where it matters, but the plumbing stays put.</p>
+<p>The models are not automatically available. Each one must be <strong>enabled for your account in a given region</strong> through the Bedrock console&rsquo;s model-access page, and availability varies by region. That is the first thing to internalize: Bedrock is regional, and a model that answers in <code>us-east-1</code> may simply not exist in <code>eu-central-1</code> yet.</p>
+<hr>
+<h2 id="what-bedrock-adds-over-a-raw-provider-call">What Bedrock adds over a raw provider call</h2>
+<p>If you already have a working <code>net/http</code> client against a provider, it is fair to ask what a managed layer buys you. Here is the honest accounting.</p>
+<p><strong>AWS-native auth instead of bearer keys.</strong> A direct provider call carries a long-lived API key in a header — a secret you have to store, rotate, and hope never leaks into a log or a git history. Bedrock uses <strong>IAM and SigV4 request signing</strong>. The SDK signs each request with credentials resolved from your environment — an IAM role on an EC2 instance or a Lambda, an SSO session, a named profile — and you scope access with IAM policies (allow <code>bedrock:InvokeModel</code> on this model ARN, deny everything else). There is no model API key to manage.</p>
+<p><strong>Data stays in your AWS account and region.</strong> Requests and responses flow through your chosen region, and you can keep traffic on the AWS network with <strong>VPC endpoints and PrivateLink</strong> so nothing traverses the public internet. For teams with data-residency obligations, choosing the region <em>is</em> the compliance control.</p>
+<p><strong>Operational plumbing you would otherwise build.</strong> CloudWatch metrics and logs, per-model and per-account quotas, and <strong>provisioned throughput</strong> for workloads that need reserved, predictable capacity rather than on-demand rates.</p>
+<p><strong>Higher-level building blocks.</strong> Beyond raw inference, Bedrock offers <strong>guardrails</strong> (content and topic policies applied to inputs and outputs), <strong>knowledge bases</strong> (managed retrieval-augmented generation over your documents), and <strong>agents</strong> (multi-step tool-using workflows the service orchestrates). These are later posts, but they are the reason to be on Bedrock rather than gluing models together yourself.</p>
+<p>The trade-offs are real and you should name them up front:</p>
+<ul>
+<li><strong>AWS lock-in.</strong> Your auth, networking, and higher-level features are AWS-shaped. Portability drops.</li>
+<li><strong>Region-dependent model availability.</strong> The newest model may land in one region months before another.</li>
+<li><strong>You must request model access.</strong> A fresh account cannot call any model until you enable it in the console — a step that surprises people on day one.</li>
+</ul>
+<hr>
+<h2 id="the-pieces-you-will-use-and-the-packages-behind-them">The pieces you will use, and the packages behind them</h2>
+<p>Bedrock splits into a <strong>control plane</strong> (managing models, guardrails, and configuration) and a <strong>runtime</strong> (actually running inference and invoking agents). The Go SDK, <code>aws-sdk-go-v2</code>, mirrors that split across four service packages. Knowing which is which saves you a lot of confused importing.</p>
+<table><caption class="sr-only">The pieces you will use, and the packages behind them</caption>
+<thead>
+<tr>
+<th>Package</th>
+<th>Plane</th>
+<th>What you do with it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>github.com/aws/aws-sdk-go-v2/service/bedrock</code></td>
+<td>Control</td>
+<td>List available foundation models, manage guardrails and model customization</td>
+</tr>
+<tr>
+<td><code>github.com/aws/aws-sdk-go-v2/service/bedrockruntime</code></td>
+<td>Runtime</td>
+<td>Run inference: <code>Converse</code>, <code>ConverseStream</code>, <code>InvokeModel</code></td>
+</tr>
+<tr>
+<td><code>github.com/aws/aws-sdk-go-v2/service/bedrockagent</code></td>
+<td>Control</td>
+<td>Author agents and knowledge bases (design-time)</td>
+</tr>
+<tr>
+<td><code>github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime</code></td>
+<td>Runtime</td>
+<td>Invoke agents at run-time: <code>InvokeAgent</code>, <code>RetrieveAndGenerate</code></td>
+</tr>
+</tbody>
+</table>
+<p>The pairing is the thing to remember: <code>bedrock</code> and <code>bedrockagent</code> are where you <em>configure</em>; <code>bedrockruntime</code> and <code>bedrockagentruntime</code> are where you <em>call</em>. Most of this series lives in <code>bedrockruntime</code> — the Converse API is the workhorse — with <code>bedrockagent</code> and <code>bedrockagentruntime</code> arriving when we build agents and RAG.</p>
+<p><strong>The gotcha:</strong> the package that runs a chat completion is <code>bedrockruntime</code>, not <code>bedrock</code>. The plain <code>bedrock</code> package has no <code>Converse</code> method — it is the control plane. If your editor cannot find <code>Converse</code>, you have almost certainly imported the wrong one. This trips up nearly everyone on their first client.</p>
+<hr>
+<h2 id="why-go-for-this">Why Go for this</h2>
+<p>The Go SDK is not a second-class binding here — <code>aws-sdk-go-v2</code> is a first-class, AWS-maintained SDK, and the Bedrock service packages are generated and updated alongside the rest of AWS. Three properties make Go a genuinely good fit for Bedrock services:</p>
+<ul>
+<li><strong>Single static binary.</strong> A Bedrock-backed API ships as one artifact with no runtime to install — trivial to drop into a container, a Lambda, or a bare host.</li>
+<li><strong>First-class SDK.</strong> Context-aware operations, structured error types, pluggable credential providers, and typed request/response shapes generated straight from the AWS API models.</li>
+<li><strong>Concurrency that fits the workload.</strong> LLM calls are I/O-bound and often fan out — score ten candidates, summarize twenty documents, race two models. Goroutines and a bounded worker pool make that natural, and <code>context.Context</code> gives you clean per-request timeouts and cancellation on calls that can run for many seconds.</li>
+</ul>
+<hr>
+<h2 id="config-and-auth-from-credentials-to-a-client">Config and auth: from credentials to a client</h2>
+<p>Every Bedrock call needs an <code>aws.Config</code> — the resolved bundle of region, credentials, and HTTP settings. You build it once with the <code>config</code> package&rsquo;s <code>LoadDefaultConfig</code>, which walks the standard AWS credential chain (environment variables, shared config files, SSO, and IAM roles) so your code never hardcodes a secret. Then you construct a runtime client from that config.</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;context&quot;
+    &quot;log&quot;
+
+    &quot;github.com/aws/aws-sdk-go-v2/config&quot;
+    &quot;github.com/aws/aws-sdk-go-v2/service/bedrockruntime&quot;
+)
+
+func main() {
+    ctx := context.Background()
+
+    // Resolve region + credentials from the standard AWS chain.
+    cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(&quot;us-east-1&quot;))
+    if err != nil {
+        log.Fatalf(&quot;load AWS config: %v&quot;, err)
+    }
+
+    // A runtime client is all you need to run inference later.
+    client := bedrockruntime.NewFromConfig(cfg)
+
+    log.Printf(&quot;bedrock runtime client ready in region %s&quot;, cfg.Region)
+    _ = client // next post: client.Converse(ctx, ...)
+}
+</code></pre>
+<p>Before this compiles into something that actually talks to AWS, install the packages:</p>
+<pre><code class="language-bash">go get github.com/aws/aws-sdk-go-v2/config
+go get github.com/aws/aws-sdk-go-v2/service/bedrockruntime
+</code></pre>
+<p>To confirm your credentials and region resolve <em>and</em> that a model is enabled, you can list foundation models from the control-plane client — a read-only call that touches no inference budget:</p>
+<pre><code class="language-go">import &quot;github.com/aws/aws-sdk-go-v2/service/bedrock&quot;
+
+// cfg from LoadDefaultConfig above
+ctrl := bedrock.NewFromConfig(cfg)
+out, err := ctrl.ListFoundationModels(ctx, &amp;bedrock.ListFoundationModelsInput{})
+if err != nil {
+    log.Fatalf(&quot;list models: %v&quot;, err)
+}
+log.Printf(&quot;region %s exposes %d foundation models&quot;, cfg.Region, len(out.ModelSummaries))
+</code></pre>
+<p><strong>The gotcha:</strong> a clean compile and valid credentials still are not enough to <em>invoke</em> a model. <code>ListFoundationModels</code> shows what exists in the region; it does not mean you have access. Until you enable a specific model on the Bedrock console&rsquo;s model-access page for that region, an inference call returns an <code>AccessDeniedException</code>. And because access is granted per region, enabling Claude in <code>us-east-1</code> does nothing for a client configured against <code>eu-west-1</code>. Enable the model, in the region, before you expect an answer.</p>
+<hr>
+<h2 id="the-road-ahead">The road ahead</h2>
+<p>With the map in hand, here is where the series goes. Each post is standalone Go you can run, building toward a production-shaped Bedrock service.</p>
+<ol>
+<li><strong>What Amazon Bedrock is</strong> — this post: the service, the trade-offs, the packages, the client.</li>
+<li><strong>The Converse API</strong> — the unified chat call: messages, system prompts, inference parameters, and swapping models by ID.</li>
+<li><strong>Streaming and usage</strong> — <code>ConverseStream</code> for token-by-token output, and reading token counts to track cost.</li>
+<li><strong>Tool use</strong> — letting a model call your Go functions through Converse&rsquo;s tool-calling loop.</li>
+<li><strong>Knowledge-base RAG</strong> — grounding answers in your own documents with <code>RetrieveAndGenerate</code>.</li>
+<li><strong>Bedrock Agents</strong> — multi-step, tool-using workflows invoked with <code>InvokeAgent</code>.</li>
+<li><strong>Guardrails</strong> — content and topic policies on inputs and outputs.</li>
+<li><strong>Production</strong> — IAM scoping, cost control, retries and timeouts, and CloudWatch observability.</li>
+</ol>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Bedrock is one API in front of many models.</strong> Pick a model by ID; the Converse API keeps the request and response shape stable across Anthropic, Amazon, Meta, Mistral, and more.</li>
+<li><strong>Auth is IAM, not bearer keys.</strong> The SDK signs every request with SigV4 using credentials from the standard chain — nothing to store or rotate by hand.</li>
+<li><strong>It is regional, and access is opt-in.</strong> Model availability varies by region, and each model must be enabled in the console for that region before you can invoke it.</li>
+<li><strong>Four packages, split into two planes.</strong> <code>bedrock</code> / <code>bedrockagent</code> configure; <code>bedrockruntime</code> / <code>bedrockagentruntime</code> run. Inference lives in <code>bedrockruntime</code> — not <code>bedrock</code>.</li>
+<li><strong>Go fits the shape of the work.</strong> Single-binary services, a first-class SDK, and cheap concurrency for I/O-bound, fan-out model calls.</li>
+<li><strong>The price is lock-in and setup.</strong> You trade portability for AWS-native auth, networking, data residency, and higher-level features like guardrails, knowledge bases, and agents.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/bedrock/">Amazon Bedrock User Guide</a> — the primary source for models, regions, model access, guardrails, knowledge bases, and agents.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockruntime"><code>bedrockruntime</code> on pkg.go.dev</a> — the inference client (<code>Converse</code>, <code>ConverseStream</code>, <code>InvokeModel</code>).</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrock"><code>bedrock</code> on pkg.go.dev</a> — the control-plane client (list models, manage guardrails).</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockagent"><code>bedrockagent</code> on pkg.go.dev</a> — authoring agents and knowledge bases.</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime"><code>bedrockagentruntime</code> on pkg.go.dev</a> — invoking agents (<code>InvokeAgent</code>, <code>RetrieveAndGenerate</code>).</li>
+<li><a href="https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/config"><code>config</code> on pkg.go.dev</a> — <code>LoadDefaultConfig</code> and the credential chain.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/bedrock-go-03-streaming-and-usage.html">Streaming and Token Usage</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-02-converse-api.html">Calling a Model with the Converse API</a>
+      <span class="related-date">Aug 06</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-04-tool-use.html">Tool Use with the Converse API</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

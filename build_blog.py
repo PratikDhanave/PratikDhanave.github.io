@@ -159,6 +159,39 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+    "2026-08-05-bedrock-go-01-what-is-amazon-bedrock.md": {
+        "slug": "bedrock-go-01-what-is-amazon-bedrock",
+        "date": "2026-08-05",
+        "tags": ["Amazon Bedrock", "AWS", "LLMs", "Go"],
+        "audience": "Go engineers building LLM/agent apps on AWS",
+        "excerpt": "The opener to a series on building LLM and agent applications on Amazon Bedrock in Go: what Bedrock actually is, what it adds over calling a provider API directly (one API across models, IAM auth, data residency), and the aws-sdk-go-v2 packages you'll use.",
+        "series": "Amazon Bedrock in Go", "series_position": 1, "series_total": 8,
+        "featured": True,
+    },
+    "2026-08-06-bedrock-go-02-converse-api.md": {
+        "slug": "bedrock-go-02-converse-api",
+        "date": "2026-08-06",
+        "tags": ["Amazon Bedrock", "AWS", "LLMs", "Go"],
+        "audience": "Go engineers building LLM/agent apps on AWS",
+        "excerpt": "Your first real inference call on Bedrock in Go via the unified Converse API: building the client, the ConverseInput message/content-block union, extracting the assistant text, and reading stop reason and token usage — with the content-block union explained.",
+        "series": "Amazon Bedrock in Go", "series_position": 2, "series_total": 8,
+    },
+    "2026-08-07-bedrock-go-03-streaming-and-usage.md": {
+        "slug": "bedrock-go-03-streaming-and-usage",
+        "date": "2026-08-07",
+        "tags": ["Amazon Bedrock", "AWS", "LLMs", "Go"],
+        "audience": "Go engineers building LLM/agent apps on AWS",
+        "excerpt": "Streaming responses and accounting for tokens and cost on Bedrock in Go: ranging the ConverseStream event stream, the nested delta unions, checking stream.Err(), and computing cost from the metadata usage event with a formula you fill in.",
+        "series": "Amazon Bedrock in Go", "series_position": 3, "series_total": 8,
+    },
+    "2026-08-08-bedrock-go-04-tool-use.md": {
+        "slug": "bedrock-go-04-tool-use",
+        "date": "2026-08-08",
+        "tags": ["Amazon Bedrock", "AWS", "Tool Use", "Go"],
+        "audience": "Go engineers building LLM/agent apps on AWS",
+        "excerpt": "Giving a Bedrock model tools in Go via the Converse API: declaring a ToolConfiguration, the ToolUse round-trip loop, echoing ToolUseId, returning tool results as a user message, and handling parallel tool calls.",
+        "series": "Amazon Bedrock in Go", "series_position": 4, "series_total": 8,
+    },
     "2026-07-28-ai-eng-go-01-what-is-ai-engineering.md": {
         "slug": "ai-eng-go-01-what-is-ai-engineering",
         "date": "2026-07-28",
