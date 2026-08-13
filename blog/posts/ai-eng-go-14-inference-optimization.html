@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Inference Optimization — Pratik Dhanave</title>
+<meta name="description" content="Make LLM systems faster and cheaper without retraining: TTFT vs throughput, exact and semantic response caching, prompt caching, token reduction, model...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Inference Optimization — Pratik Dhanave">
+<meta property="og:description" content="Make LLM systems faster and cheaper without retraining: TTFT vs throughput, exact and semantic response caching, prompt caching, token reduction, model routing and cascades, and Go concurrency with a worker pool and rate limiter.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-eng-go-14-inference-optimization.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-10T00:00:00Z">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="Performance">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="LLMs">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Inference Optimization — Pratik Dhanave">
+<meta name="twitter:description" content="Make LLM systems faster and cheaper without retraining: TTFT vs throughput, exact and semantic response caching, prompt caching, token reduction, model routing and cascades, and Go concurrency with a worker pool and rate limiter.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-eng-go-14-inference-optimization.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Inference Optimization",
+  "description": "Make LLM systems faster and cheaper without retraining: TTFT vs throughput, exact and semantic response caching, prompt caching, token reduction, model routing and cascades, and Go concurrency with a worker pool and rate limiter.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-10",
+  "dateModified": "2026-08-10",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Engineering, Performance, Go, LLMs",
+  "url": "https://pratikdhanave.com/blog/posts/ai-eng-go-14-inference-optimization.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-eng-go-14-inference-optimization.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Inference Optimization</h1>
+    <p class="post-subtitle">Making an LLM system faster and cheaper without touching the weights — the levers an application engineer actually controls, from streaming and caching to token trimming, model routing, and Go&#x27;s real superpower: concurrency with a rate limiter.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-10">August 10, 2026</time>
+      <span>·</span>
+      <span>14 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/performance/" class="tag-link"><span class="tag">#Performance</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 14 of 15</span>
+    <span class="series-title">AI Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/ai-eng-go-13-evaluating-ai-systems.html" class="series-prev">&larr; Part 13: Evaluating AI Systems</a>
+<a href="/blog/posts/ai-eng-go-15-production-ai.html" class="series-next">Part 15: Production AI &rarr;</a></div>
+  </div>
+
+
+
+  <p>&ldquo;Inference optimization&rdquo; sounds like something that happens on a GPU cluster you&rsquo;ll never see. Some of it does — quantization, distillation, better serving kernels — and we&rsquo;ll touch that at the end. But most of the speed and cost you can win in a real product comes from decisions in <em>your</em> code: what you send, how often you send it, which model you send it to, and how many calls you run at once. None of it requires retraining anything.</p>
+<p>This post is about those levers, each with a concrete Go angle. We&rsquo;ve built the pieces already — a chat client with streaming (post 4), token accounting (post 3), embeddings and cosine similarity (post 7), a from-scratch agent (posts 11–12). Inference optimization is mostly applying those pieces with discipline. The first rule, though, is the one everyone skips: <strong>measure before you change anything.</strong> You can&rsquo;t optimize a number you aren&rsquo;t looking at.</p>
+<hr>
+<h2 id="latency-is-two-numbers-not-one">Latency is two numbers, not one</h2>
+<p>When someone says a model is &ldquo;slow,&rdquo; ask <em>which</em> slow. There are two distinct measurements, and they trade off against each other:</p>
+<ul>
+<li><strong>TTFT (time to first token)</strong> — how long from sending the request until the first token comes back. This is what a user <em>feels</em> as responsiveness.</li>
+<li><strong>Total latency / throughput</strong> — how long until the whole response is done, and how many tokens per second stream in between.</li>
+</ul>
+<p>A model can have great TTFT and mediocre throughput, or vice versa. A short answer with a slow start feels laggy; a long answer that starts instantly and streams smoothly feels fast even if it takes longer overall. This is exactly why <strong>streaming (post 4) is the single biggest perceived-latency win you can ship without changing a model.</strong> The total time to generate 800 tokens is identical whether you stream or not — but streaming turns one long silence into a first word in a few hundred milliseconds and a steady flow after. Perceived latency collapses.</p>
+<p>To optimize either number you have to measure both. With a streaming client, TTFT is the time to the first chunk and total is the time to the last:</p>
+<pre><code class="language-go">func Measure(ctx context.Context, client StreamingClient, req ChatRequest) (ttft, total time.Duration, err error) {
+    start := time.Now()
+    stream, err := client.Stream(ctx, req)
+    if err != nil {
+        return 0, 0, err
+    }
+    defer stream.Close()
+
+    first := true
+    for stream.Next() {
+        if first {
+            ttft = time.Since(start) // first token has arrived
+            first = false
+        }
+        _ = stream.Chunk() // consume the token text
+    }
+    total = time.Since(start)
+    return ttft, total, stream.Err()
+}
+</code></pre>
+<p>Run that across a representative sample of prompts, not one lucky call. Record the distribution — the p50 and the p95 — because tail latency is what users complain about. Once you have those two numbers per route, every optimization below becomes a measurable before/after instead of a guess.</p>
+<p><strong>The gotcha:</strong> the biggest cheap win is almost never a clever micro-optimization — it&rsquo;s a smaller model that still passes your evals (post 13), or a cache hit that skips the call entirely. Engineers love shaving 50ms off serialization while a redundant call to an oversized model sits right next to it costing 2 seconds and ten times the money. Measure first, and spend your effort where the seconds actually are.</p>
+<hr>
+<h2 id="caching-the-fastest-call-is-the-one-you-dont-make">Caching: the fastest call is the one you don&rsquo;t make</h2>
+<p>Every request you can avoid is 100% faster and 100% cheaper than the one you optimize. There are three caching layers worth knowing, in increasing order of cleverness and risk.</p>
+<h3 id="exact-match-response-cache">Exact-match response cache</h3>
+<p>If the same request comes in twice, return the stored answer. &ldquo;Same&rdquo; means byte-identical inputs, so the key is a hash of everything that shapes the output — model, and every message.</p>
+<pre><code class="language-go">type ResponseCache struct {
+    mu    sync.RWMutex
+    store map[string]string
+}
+
+func NewResponseCache() *ResponseCache {
+    return &amp;ResponseCache{store: make(map[string]string)}
+}
+
+func cacheKey(req ChatRequest) string {
+    h := sha256.New()
+    fmt.Fprintf(h, &quot;model=%s\n&quot;, req.Model)
+    for _, m := range req.Messages {
+        fmt.Fprintf(h, &quot;%s: %s\n&quot;, m.Role, m.Content)
+    }
+    return hex.EncodeToString(h.Sum(nil))
+}
+
+func (c *ResponseCache) Get(key string) (string, bool) {
+    c.mu.RLock()
+    defer c.mu.RUnlock()
+    v, ok := c.store[key]
+    return v, ok
+}
+
+func (c *ResponseCache) Set(key, val string) {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    c.store[key] = val
+}
+</code></pre>
+<p>An <code>sync.RWMutex</code> guarding a map is fine to start; swap in Redis when you need it to survive restarts or be shared across instances. This wins big on repeated prompts — FAQ-style lookups, retries, the same document summarized twice.</p>
+<p><strong>The gotcha:</strong> caching a non-deterministic model&rsquo;s output is fine <em>as long as the key captures everything that varies</em>. If you cache by prompt text alone but vary <code>temperature</code>, or inject a changing system prompt or retrieved context, two &ldquo;identical&rdquo; prompts can legitimately need different answers — and you&rsquo;ll serve a stale one. Put every input that affects the output into the key, or don&rsquo;t cache that route.</p>
+<h3 id="semantic-cache">Semantic cache</h3>
+<p>Exact match misses &ldquo;What&rsquo;s your refund policy?&rdquo; versus &ldquo;How do I get a refund?&rdquo; — same intent, different bytes. A <em>semantic</em> cache reuses the embeddings and cosine similarity from post 7: embed the incoming query, compare it to embeddings of past queries, and if one is close enough, return that cached answer.</p>
+<pre><code class="language-go">type semanticEntry struct {
+    embedding []float32
+    answer    string
+}
+
+type SemanticCache struct {
+    mu        sync.RWMutex
+    entries   []semanticEntry
+    embed     func(context.Context, string) ([]float32, error)
+    threshold float32 // e.g. 0.92 — tune this carefully
+}
+
+func (c *SemanticCache) Lookup(ctx context.Context, query string) (string, bool, error) {
+    qv, err := c.embed(ctx, query)
+    if err != nil {
+        return &quot;&quot;, false, err
+    }
+    c.mu.RLock()
+    defer c.mu.RUnlock()
+
+    best, bestScore := &quot;&quot;, float32(-1)
+    for _, e := range c.entries {
+        if s := cosine(qv, e.embedding); s &gt; bestScore { // cosine from post 7
+            best, bestScore = e.answer, s
+        }
+    }
+    if bestScore &gt;= c.threshold {
+        return best, true, nil
+    }
+    return &quot;&quot;, false, nil
+}
+</code></pre>
+<p><strong>The gotcha:</strong> a semantic cache trades correctness for speed, and the trade is not free. &ldquo;How do I <em>cancel</em> my subscription?&rdquo; and &ldquo;How do I <em>change</em> my subscription?&rdquo; are embedding-neighbors but need opposite answers — a near-miss above the threshold will confidently serve the wrong one. The threshold is a dial between hit rate and wrong answers, and there is no setting that gives you both. Use semantic caching only where a slightly-off answer is recoverable, keep the threshold conservative, and never point it at anything where a wrong hit is dangerous.</p>
+<h3 id="provider-prompt-caching">Provider prompt caching</h3>
+<p>Most hosted providers offer <strong>prompt caching</strong>: if many requests share a long identical prefix — a big system prompt, a fixed few-shot block, a retrieved document — the provider caches the processed prefix so it isn&rsquo;t recomputed every call. Cache <em>reads</em> are dramatically cheaper than fresh input tokens (often around a tenth of the price) and lower latency, while the initial cache <em>write</em> costs slightly more than a normal call. It&rsquo;s a prefix match, so anything that changes the prefix — a timestamp in the system prompt, a reordered tool list — invalidates it. Structure your prompt with stable content first and the per-request part last. The exact way you enable it (a header, a flag on a content block) differs by provider and SDK, so reach for their docs rather than assume a specific call — but the shape of the win is universal: pay to process the shared prefix once, ride it cheaply for every request after.</p>
+<hr>
+<h2 id="cut-the-tokens-cut-the-bill">Cut the tokens, cut the bill</h2>
+<p>Tokens are the currency of both cost and latency (post 3): you pay per input token, per output token, and generation time scales with how many tokens the model has to emit. So the most direct optimization is to move fewer of them.</p>
+<ul>
+<li><strong>Trim the prompt.</strong> Verbose system prompts, redundant instructions, and stale conversation history all cost tokens every single turn. In an agent loop that resends history each call, this compounds — tie it back to the compaction discipline from post 12.</li>
+<li><strong>Prune few-shot examples.</strong> Five examples rarely beat two well-chosen ones. Drop the ones that aren&rsquo;t earning their tokens.</li>
+<li><strong>Cap <code>max_tokens</code>.</strong> If you need a one-word classification, don&rsquo;t leave room for an essay. A tight output cap bounds both cost and worst-case latency.</li>
+<li><strong>Ask for less.</strong> &ldquo;Reply with just the category name&rdquo; produces fewer output tokens than &ldquo;explain your reasoning and then give the category.&rdquo; Output tokens are usually the more expensive kind, so shortening the <em>answer</em> often matters more than shortening the <em>prompt</em>.</li>
+</ul>
+<p>None of this touches the model. It&rsquo;s editing, and it&rsquo;s the highest-leverage editing you&rsquo;ll do.</p>
+<hr>
+<h2 id="right-size-the-model-then-route">Right-size the model, then route</h2>
+<p>The costliest habit in LLM engineering is sending every request to the strongest model out of caution. Most requests don&rsquo;t need it.</p>
+<p><strong>Model selection</strong> is the first cut: use the smallest model that passes your eval suite (post 13) for the task. If a small model scores as well as a large one on your actual test cases, the large one is pure waste — more money, more latency, no benefit. Eval is what makes this a decision instead of a gamble.</p>
+<p><strong>Routing</strong> goes further: classify each request and send easy ones to a cheap model, hard ones to a strong one.</p>
+<pre><code class="language-go">type Router struct {
+    cheap  Client
+    strong Client
+}
+
+func (r *Router) Route(ctx context.Context, prompt string) (string, error) {
+    client := r.cheap
+    if isHard(prompt) {
+        client = r.strong
+    }
+    resp, err := client.Complete(ctx, ChatRequest{
+        Messages: []Message{{Role: &quot;user&quot;, Content: prompt}},
+    })
+    if err != nil {
+        return &quot;&quot;, err
+    }
+    return resp.Text, nil
+}
+</code></pre>
+<p><code>isHard</code> can be as simple as a length or keyword heuristic, or as involved as a cheap classifier call. The point is that most traffic flows to the cheap path.</p>
+<p><strong>Cascades</strong> are routing without an up-front decision: try the cheap model first, and escalate only when its answer looks weak. You need a confidence signal — often the cheap model returning a structured result (post 5) with a self-reported confidence field, or a validator that checks the output.</p>
+<pre><code class="language-go">func (r *Router) Cascade(ctx context.Context, prompt string) (string, error) {
+    resp, err := r.cheap.Complete(ctx, ChatRequest{
+        Messages: []Message{{Role: &quot;user&quot;, Content: prompt}},
+    })
+    if err != nil {
+        return &quot;&quot;, err
+    }
+    if confident(resp) {
+        return resp.Text, nil // cheap path was enough
+    }
+    strong, err := r.strong.Complete(ctx, ChatRequest{
+        Messages: []Message{{Role: &quot;user&quot;, Content: prompt}},
+    })
+    if err != nil {
+        return resp.Text, nil // strong path failed — fall back to the cheap answer
+    }
+    return strong.Text, nil
+}
+</code></pre>
+<p>A cascade pays two calls on hard queries but one cheap call on the easy majority. Whether it wins depends on your traffic mix — measure the blended cost against always using the strong model.</p>
+<table><caption class="sr-only">Right-size the model, then route</caption>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>When it fits</th>
+<th>Cost shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Model selection</td>
+<td>One task type, uniform difficulty</td>
+<td>Flat — smallest model that passes eval</td>
+</tr>
+<tr>
+<td>Routing</td>
+<td>Mixed difficulty, cheap to classify up front</td>
+<td>Cheap path for most, strong for the hard slice</td>
+</tr>
+<tr>
+<td>Cascade</td>
+<td>Hard to classify up front, cheap confidence signal</td>
+<td>One cheap call usually; two on escalation</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="concurrency-gos-home-turf">Concurrency: Go&rsquo;s home turf</h2>
+<p>Here&rsquo;s where Go earns its place in the stack. Model calls are almost entirely I/O-bound waiting on a network round trip — the ideal workload for goroutines. If you have 500 independent prompts to run, running them one at a time is leaving nearly all your throughput on the floor.</p>
+<p>But you can&rsquo;t just fire 500 goroutines at a provider. You&rsquo;ll get rate-limited (HTTP 429), and now you&rsquo;ve converted a latency problem into an error-handling problem. The right shape is a <strong>bounded worker pool</strong> with a <strong>rate limiter</strong>. Two real packages do the heavy lifting: <code>golang.org/x/sync/errgroup</code> bounds concurrency and collects the first error, and <code>golang.org/x/time/rate</code> is a token-bucket limiter that paces requests to a rate the provider tolerates.</p>
+<pre><code class="language-go">import (
+    &quot;context&quot;
+
+    &quot;golang.org/x/sync/errgroup&quot;
+    &quot;golang.org/x/time/rate&quot;
+)
+
+// CompleteMany runs prompts concurrently, capped at maxConcurrent in flight
+// and rps requests per second.
+func CompleteMany(ctx context.Context, client Client, prompts []string, maxConcurrent int, rps float64) ([]string, error) {
+    results := make([]string, len(prompts))
+    limiter := rate.NewLimiter(rate.Limit(rps), 1)
+
+    g, ctx := errgroup.WithContext(ctx)
+    g.SetLimit(maxConcurrent) // at most this many goroutines active at once
+
+    for i, prompt := range prompts {
+        i, prompt := i, prompt // capture per iteration (unneeded as of Go 1.22)
+        g.Go(func() error {
+            if err := limiter.Wait(ctx); err != nil {
+                return err // context cancelled while waiting for a token
+            }
+            resp, err := client.Complete(ctx, ChatRequest{
+                Messages: []Message{{Role: &quot;user&quot;, Content: prompt}},
+            })
+            if err != nil {
+                return err
+            }
+            results[i] = resp.Text
+            return nil
+        })
+    }
+    if err := g.Wait(); err != nil {
+        return nil, err
+    }
+    return results, nil
+}
+</code></pre>
+<p><code>g.SetLimit(maxConcurrent)</code> caps how many calls are in flight; <code>limiter.Wait(ctx)</code> blocks each goroutine until the bucket has a token, smoothing the request rate. Because <code>errgroup.WithContext</code> cancels the shared context on the first error, a failure stops the fleet cleanly instead of letting the rest pile into a wall of 429s. Each goroutine writes to its own index in <code>results</code>, so no extra locking is needed — a common Go pattern that beginners often over-guard with a mutex.</p>
+<p><strong>The gotcha:</strong> parallelizing without a rate limiter doesn&rsquo;t speed anything up — it just converts latency into 429s. The provider throttles you, your retries add load, and total wall-clock time can end up <em>worse</em> than running serially. The limiter isn&rsquo;t optional garnish; it&rsquo;s the thing that makes concurrency actually pay off. Set the rate below your provider&rsquo;s documented limit and leave headroom for retries.</p>
+<p>For large offline jobs where latency doesn&rsquo;t matter — nightly re-summarization, backfilling embeddings — many providers also offer a <strong>batch API</strong>: you submit a file of thousands of requests and collect results within a window (often up to a day) at a steep discount, commonly around half the normal price. It&rsquo;s the opposite trade from the worker pool above: you give up immediacy to buy throughput and savings. Reach for batch APIs when the work isn&rsquo;t time-sensitive, and the concurrent worker pool when it is.</p>
+<hr>
+<h2 id="the-levers-you-dont-control-but-should-know">The levers you don&rsquo;t control (but should know)</h2>
+<p>Server-side, providers run their own optimizations: <strong>quantized</strong> models (weights stored at lower precision for faster, cheaper inference) and <strong>distilled</strong> models (a smaller model trained to imitate a larger one). You don&rsquo;t operate these — but they&rsquo;re often exactly what a provider&rsquo;s &ldquo;small&rdquo; or &ldquo;fast&rdquo; tier <em>is</em>. That&rsquo;s why model selection and routing work: the cheap tier is frequently a quantized or distilled version tuned for speed. Knowing this reframes the choice — picking the cheap model isn&rsquo;t settling for less, it&rsquo;s picking a model someone already optimized for the easy majority of your traffic. Confirm the fit with your evals and move on.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Measure two latencies.</strong> TTFT is what users feel; total latency and throughput are what they wait for. Optimize the one that matters for your UX, and always measure before and after.</li>
+<li><strong>Streaming is the cheapest perceived-latency win.</strong> It doesn&rsquo;t change total time, but it turns one long silence into an instant first token (post 4).</li>
+<li><strong>The fastest call is the one you skip.</strong> Exact-match caching is safe and free wins; semantic caching is powerful but trades correctness for speed — keep the threshold conservative; provider prompt caching cuts the cost of a shared prefix.</li>
+<li><strong>Tokens are the cost and latency driver.</strong> Trim prompts, prune few-shot, cap <code>max_tokens</code>, ask for shorter answers (post 3, post 12).</li>
+<li><strong>Right-size then route.</strong> Use the smallest model that passes eval (post 13); route easy queries cheap and hard ones strong; cascade when confidence is checkable.</li>
+<li><strong>Concurrency is Go&rsquo;s edge — with a limiter.</strong> A bounded worker pool over <code>errgroup</code> plus a <code>rate</code> token bucket runs many calls at once without turning latency into 429s. Batch APIs handle the offline bulk at a discount.</li>
+<li><strong>Measure first, optimize second.</strong> The biggest win is usually a smaller model or a cache hit, not a micro-optimization.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://developer.nvidia.com/blog/mastering-llm-techniques-inference-optimization/">NVIDIA — Mastering LLM Techniques: Inference Optimization</a> — a solid primary on the latency metrics (TTFT, inter-token latency, throughput) this post builds on.</li>
+<li><a href="https://pkg.go.dev/golang.org/x/sync/errgroup">Go <code>golang.org/x/sync/errgroup</code> package documentation</a> — bounded concurrency with <code>SetLimit</code> and first-error propagation.</li>
+<li><a href="https://pkg.go.dev/golang.org/x/time/rate">Go <code>golang.org/x/time/rate</code> package documentation</a> — the token-bucket limiter used above.</li>
+<li><a href="https://docs.claude.com/en/docs/build-with-claude/streaming">Anthropic — Streaming Messages</a> — how token-by-token streaming works over the wire.</li>
+<li><a href="https://docs.claude.com/en/docs/build-with-claude/prompt-caching">Anthropic — Prompt caching</a> — a concrete example of the provider prompt-caching feature described above.</li>
+<li><a href="https://docs.claude.com/en/docs/build-with-claude/batch-processing">Anthropic — Message Batches</a> — a representative batch API for offline jobs at a discount.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-15-production-ai.html">Production AI</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-13-evaluating-ai-systems.html">Evaluating AI Systems</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-06-prompt-engineering.html">Prompt Engineering as Engineering</a>
+      <span class="related-date">Aug 02</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Production AI — Pratik Dhanave</title>
+<meta name="description" content="The capstone: running an LLM system in production from a Go engineer&#x27;s seat — reliability (timeouts, retries, fallbacks), security (injection,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Production AI — Pratik Dhanave">
+<meta property="og:description" content="The capstone: running an LLM system in production from a Go engineer&#x27;s seat — reliability (timeouts, retries, fallbacks), security (injection, least-privilege tools, secrets), cost and observability, CI eval gates, and versioning models and prompts.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-eng-go-15-production-ai.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-11T00:00:00Z">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="Production">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="LLMs">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Production AI — Pratik Dhanave">
+<meta name="twitter:description" content="The capstone: running an LLM system in production from a Go engineer&#x27;s seat — reliability (timeouts, retries, fallbacks), security (injection, least-privilege tools, secrets), cost and observability, CI eval gates, and versioning models and prompts.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-eng-go-15-production-ai.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Production AI",
+  "description": "The capstone: running an LLM system in production from a Go engineer's seat \u2014 reliability (timeouts, retries, fallbacks), security (injection, least-privilege tools, secrets), cost and observability, CI eval gates, and versioning models and prompts.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-11",
+  "dateModified": "2026-08-11",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Engineering, Production, Go, LLMs",
+  "url": "https://pratikdhanave.com/blog/posts/ai-eng-go-15-production-ai.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-eng-go-15-production-ai.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Production AI</h1>
+    <p class="post-subtitle">The last post in the series: what changes when the LLM system you built across posts 1-14 has to run for real — reliability, security, cost, observability, evaluation gates, and versioning, from a Go engineer&#x27;s seat, with code where it earns its place.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-11">August 11, 2026</time>
+      <span>·</span>
+      <span>15 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/production/" class="tag-link"><span class="tag">#Production</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 15 of 15</span>
+    <span class="series-title">AI Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/ai-eng-go-14-inference-optimization.html" class="series-prev">&larr; Part 14: Inference Optimization</a></div>
+  </div>
+
+
+
+  <p>Across this series we built the whole stack from scratch in Go: a first raw model call (post 4), structured output and streaming (post 5), disciplined prompting (post 6), embeddings and a hand-rolled vector search (posts 7-8), retrieval-augmented generation (posts 9-10), a tool-using agent with memory and planning (posts 11-12), an evaluation harness (post 13), and inference optimization (post 14). Every one of those posts ended with something that <em>worked on my machine</em>.</p>
+<p>Production is a different discipline. The model is now a remote dependency you don&rsquo;t control, invoked by real users, spending real money, over an untrusted network, with untrusted input flowing through your prompts. This post is about the concerns that only show up once the system is live — and where Go&rsquo;s standard library already gives you the tools to handle them. Nothing here is exotic; it&rsquo;s the same reliability engineering you&rsquo;d apply to any network service, plus a few things that are specific to LLMs.</p>
+<hr>
+<h2 id="1-reliability-the-model-call-will-fail">1. Reliability: the model call will fail</h2>
+<p>Post 4 called the model with a plain <code>context.Context</code>. In production that context is your first line of defense. A model endpoint is a network hop that can hang, rate-limit you, or return a 500 mid-stream. If you don&rsquo;t bound it, one slow upstream call ties up a goroutine, then a request, then your whole pool.</p>
+<p>Every model call gets a deadline, and that deadline propagates:</p>
+<pre><code class="language-go">ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+defer cancel()
+
+resp, err := client.Complete(ctx, req)
+</code></pre>
+<p>Because you pass <code>r.Context()</code> in, a client that hangs up cancels the upstream model call too — no work continues for a user who has already left. This is the same <code>context</code> plumbing from post 4, now doing load-bearing work.</p>
+<h3 id="retries-with-backoff-and-jitter">Retries with backoff and jitter</h3>
+<p>Transient failures — a 429 rate-limit, a 503, a dropped connection — are not bugs; they are the normal weather of a shared API. The fix is to retry, but naively retrying immediately just amplifies the storm. You want <em>exponential backoff</em> (wait longer each attempt) with <em>jitter</em> (randomize the wait so a thousand clients don&rsquo;t retry in lockstep).</p>
+<pre><code class="language-go">// retryable reports whether an error is worth trying again.
+func retryable(err error, status int) bool {
+    if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+        return false // caller gave up or timed out; don't burn attempts
+    }
+    return status == 429 || status == 503 || (status &gt;= 500 &amp;&amp; status &lt; 600) || err != nil
+}
+
+// withRetry retries fn up to maxAttempts with exponential backoff + jitter.
+func withRetry(ctx context.Context, maxAttempts int, fn func() (int, error)) error {
+    var lastErr error
+    for attempt := 0; attempt &lt; maxAttempts; attempt++ {
+        status, err := fn()
+        if err == nil &amp;&amp; status &lt; 400 {
+            return nil
+        }
+        lastErr = err
+        if !retryable(err, status) {
+            return err
+        }
+        // 0.5s, 1s, 2s, 4s ... capped, then a random 0-1x jitter on top.
+        base := time.Duration(1&lt;&lt;attempt) * 500 * time.Millisecond
+        if base &gt; 30*time.Second {
+            base = 30 * time.Second
+        }
+        wait := base/2 + time.Duration(rand.Int63n(int64(base/2)))
+        select {
+        case &lt;-time.After(wait):
+        case &lt;-ctx.Done():
+            return ctx.Err()
+        }
+    }
+    return fmt.Errorf(&quot;gave up after %d attempts: %w&quot;, maxAttempts, lastErr)
+}
+</code></pre>
+<p>Two details matter more than the arithmetic. First, the wait respects the context — if the caller&rsquo;s deadline fires while you&rsquo;re sleeping, you abandon the retry instead of blocking. Second, you only retry things that <em>can</em> succeed on a second try: a 429 or 503, yes; a 400 (malformed request) or a context cancellation, never. Retrying a deterministic failure just wastes the user&rsquo;s time and your budget. If the provider sends a <code>Retry-After</code> header, honor it over your own backoff.</p>
+<p><strong>The gotcha:</strong> without token and cost observability (section 3), a retry loop wrapped around an agent loop (post 11) is a compounding hazard. An agent that retries a failing tool call, inside a planning loop that retries the whole step, inside your HTTP handler that retries the request, can multiply one user action into dozens of billed model calls. Cap attempts at <em>every</em> layer and count them.</p>
+<h3 id="circuit-breakers-and-graceful-degradation">Circuit breakers and graceful degradation</h3>
+<p>Retries handle a blip. They make a sustained outage <em>worse</em> — every request piles more load onto a provider that&rsquo;s already down. A circuit breaker fixes that: after N consecutive failures, &ldquo;open&rdquo; the circuit and fail fast for a cooling-off window instead of trying at all, then let a single probe request test whether the provider has recovered.</p>
+<p>When the circuit is open, you don&rsquo;t have to return an error to the user. You <em>degrade gracefully</em>:</p>
+<pre><code class="language-go">answer, err := breaker.Do(ctx, func() (string, error) {
+    return callPrimaryModel(ctx, prompt)
+})
+if err != nil {
+    // Fallbacks, in order of preference:
+    if cached, ok := cache.Get(promptKey); ok {
+        return cached, nil            // 1. a recent cached answer
+    }
+    if alt, err2 := callFallbackModel(ctx, prompt); err2 == nil {
+        return alt, nil               // 2. a smaller/alternate model
+    }
+    return cannedResponse, nil        // 3. an honest &quot;try again shortly&quot;
+}
+</code></pre>
+<p>A fallback to a smaller model, a cached answer, or an honest canned message keeps the product usable when the primary provider is having a bad day. The worst outcome is a spinner that never resolves.</p>
+<hr>
+<h2 id="2-security-and-safety-the-prompt-is-an-attack-surface">2. Security and safety: the prompt is an attack surface</h2>
+<p>The single biggest mindset shift for production LLMs is this: <strong>anything that reaches the model as text is untrusted input, including text your own system retrieved.</strong></p>
+<h3 id="prompt-injection-widened-by-rag-and-tools">Prompt injection, widened by RAG and tools</h3>
+<p>Post 6 introduced prompt injection — a user writing &ldquo;ignore your instructions and…&rdquo;. In a bare chatbot the injection can only come from the user. The moment you add RAG (post 9) or tools (post 11), the attack surface widens dramatically: a retrieved document, a web page an agent fetched, a row in a database, or a tool&rsquo;s output can <em>all</em> carry instructions the model will happily follow. An attacker who can get a poisoned paragraph into your knowledge base has, in effect, gotten text into your system prompt.</p>
+<p><strong>The gotcha:</strong> treat retrieved content as untrusted data, never as instructions. Keep it structurally separated from your directives — put documents inside a clearly delimited block and tell the model, in the trusted system prompt, that everything in that block is reference material to be quoted, not commands to be obeyed. Structural separation is not a cryptographic boundary; it raises the cost of an attack, it doesn&rsquo;t eliminate it. The durable defenses live <em>outside</em> the prompt.</p>
+<h3 id="least-privilege-for-tools">Least privilege for tools</h3>
+<p>Post 11&rsquo;s agent could call functions. In production, assume the model can be talked into calling any tool with any arguments — because a good enough injection will. So the security boundary cannot be the prompt; it has to be the tool implementation itself.</p>
+<pre><code class="language-go">func (t *DeleteRecordTool) Call(ctx context.Context, args Args) (string, error) {
+    user := UserFromContext(ctx)
+    if !user.Can(&quot;record:delete&quot;, args.RecordID) {
+        return &quot;&quot;, ErrForbidden // the tool enforces authz, not the prompt
+    }
+    // scoped, audited, reversible where possible
+    return t.store.SoftDelete(ctx, args.RecordID, user.ID)
+}
+</code></pre>
+<p>A tool an agent can call should have exactly the authority a well-behaved call needs and no more: scoped to the current user, read-only where read-only will do, rate-limited, and audit-logged. If a tool can wire money or delete data, put a human approval step in front of it. The rule is the same one from operating-system design — least privilege — applied to model-invoked functions.</p>
+<h3 id="output-validation-pii-and-secrets">Output validation, PII, and secrets</h3>
+<p>Three more layers that are cheap to add and expensive to omit:</p>
+<ul>
+<li><strong>Validate output before it acts.</strong> If the model returns JSON (post 5), unmarshal it into a strict struct and reject anything that doesn&rsquo;t fit <em>before</em> you act on it. If it returns SQL or code, never execute it directly against production. The model&rsquo;s output is a suggestion, not a command.</li>
+<li><strong>Handle PII deliberately.</strong> Decide what personal data is allowed to leave your boundary for the provider, redact what isn&rsquo;t, and know your provider&rsquo;s data-retention terms. Moderation and safety classifiers — the provider&rsquo;s, or your own — belong as a <em>layer</em> around the model on both input and output, not as a line in the prompt.</li>
+<li><strong>Keep secrets out of code.</strong> API keys come from the environment or a secret manager, never a committed file. This is table stakes, and it&rsquo;s a one-liner in Go:</li>
+</ul>
+<pre><code class="language-go">apiKey := os.Getenv(&quot;MODEL_API_KEY&quot;)
+if apiKey == &quot;&quot; {
+    log.Fatal(&quot;MODEL_API_KEY not set&quot;) // fail loudly at startup, not per request
+}
+</code></pre>
+<hr>
+<h2 id="3-cost-control-and-observability-you-cant-fix-what-you-cant-see">3. Cost control and observability: you can&rsquo;t fix what you can&rsquo;t see</h2>
+<p>An LLM system fails differently from a normal service. It rarely throws — it returns a confident, wrong, or expensive answer with a 200 status. Your metrics dashboard will look green while users are unhappy and the bill climbs. Observability for AI has to capture <em>what the model did</em>, not just <em>whether the call returned</em>.</p>
+<h3 id="track-tokens-and-cost-per-request">Track tokens and cost per request</h3>
+<p>Post 3 taught that tokens are the unit of both latency and billing, and post 14 optimized around them. In production you turn that into a number attached to every request. The provider returns token counts in its response; capture them, price them, and log them:</p>
+<pre><code class="language-go">type Usage struct {
+    PromptTokens     int
+    CompletionTokens int
+}
+
+func costUSD(u Usage, inPer1M, outPer1M float64) float64 {
+    return float64(u.PromptTokens)/1e6*inPer1M +
+        float64(u.CompletionTokens)/1e6*outPer1M
+}
+</code></pre>
+<p>Use your provider&rsquo;s published per-token prices for <code>inPer1M</code>/<code>outPer1M</code> — don&rsquo;t hard-code a number that will drift. Aggregate cost per user, per feature, and per endpoint so a runaway agent loop shows up as a line on a graph the day it starts, not as a shock on the invoice at month&rsquo;s end.</p>
+<h3 id="structured-logging-and-tracing">Structured logging and tracing</h3>
+<p>Log every model interaction as structured data — Go&rsquo;s standard <code>log/slog</code> is enough — so you can actually query it later:</p>
+<pre><code class="language-go">slog.InfoContext(ctx, &quot;model_call&quot;,
+    &quot;request_id&quot;, reqID,
+    &quot;model&quot;, modelVersion,   // the pinned version, not &quot;latest&quot; (section 5)
+    &quot;prompt_tokens&quot;, usage.PromptTokens,
+    &quot;completion_tokens&quot;, usage.CompletionTokens,
+    &quot;cost_usd&quot;, costUSD(usage, inPrice, outPrice),
+    &quot;latency_ms&quot;, time.Since(start).Milliseconds(),
+    &quot;retrieved_doc_ids&quot;, docIDs, // which chunks RAG fed the model
+    &quot;tool_calls&quot;, toolNames,     // which tools the agent invoked
+)
+</code></pre>
+<p>The goal is to <strong>log enough to debug a bad answer</strong>. When a user reports a wrong reply, you want to reconstruct exactly what happened: which prompt, which retrieved chunks, which tool calls, which model version, and what came back. A single <code>request_id</code> threaded through the context lets you trace one request across the RAG lookup, each agent step, and every model call — the LLM equivalent of a distributed trace. (Be careful logging raw prompts and responses when they can contain PII; redact or hash where policy requires.)</p>
+<h3 id="metrics-dashboards-and-alerts">Metrics, dashboards, and alerts</h3>
+<p>Beyond logs, expose aggregate metrics: latency percentiles (p50/p95/p99 — averages hide the tail that hurts users), error rate, retry rate, circuit-breaker state, and cost per hour. Wire alerts on the ones that signal trouble: cost spiking, error rate climbing, p99 latency past your SLO. OpenTelemetry has a mature Go SDK if you want traces and metrics to flow into standard tooling rather than rolling your own.</p>
+<hr>
+<h2 id="4-evaluation-in-cicd-catch-regressions-before-users-do">4. Evaluation in CI/CD: catch regressions before users do</h2>
+<p>Post 13 built an evaluation set — inputs paired with graded expectations. In production that eval set becomes a <em>gate</em>. Before any change to a prompt, a model, a retrieval parameter, or the code around them ships, run the eval suite and block the deploy if quality drops below threshold. In Go this is just a test that runs your graders:</p>
+<pre><code class="language-go">func TestAnswerQualityGate(t *testing.T) {
+    results := runEvalSuite(context.Background(), evalSet)
+    if results.PassRate &lt; 0.90 {
+        t.Fatalf(&quot;quality gate failed: pass rate %.2f &lt; 0.90&quot;, results.PassRate)
+    }
+}
+</code></pre>
+<p><strong>The gotcha:</strong> an eval gate in CI is the only thing that reliably catches quality regressions <em>before</em> users do. Unit tests confirm the code runs; they say nothing about whether the answers got worse. A one-line prompt tweak that fixes one case and quietly breaks ten will pass every conventional test and fail your users — unless the eval suite is standing in the deploy path.</p>
+<p>Two techniques carry this into production, where the eval set can&rsquo;t cover everything:</p>
+<ul>
+<li><strong>Canary and shadow deploys.</strong> Route a small slice of live traffic to the new version (canary) and watch its metrics before promoting. Or run the new version <em>in shadow</em> — it processes real requests but its output isn&rsquo;t served, only compared — so you see how a change behaves on real traffic with zero user risk.</li>
+<li><strong>Online evaluation and feedback signals.</strong> Sample production traffic and grade it continuously (an LLM-as-judge from post 13, or human review). Capture user feedback — thumbs up/down, edits, retries, abandonment — as a quality signal. This is how you detect <em>drift</em>: the slow degradation that offline evals never see because the world changed, not your code.</li>
+</ul>
+<hr>
+<h2 id="5-versioning-prompts-models-and-data-are-all-artifacts">5. Versioning: prompts, models, and data are all artifacts</h2>
+<p>The subtlest production failure is the one where you changed <em>nothing</em> and the system got worse. It happens because three of your most important inputs are not in your codebase by default.</p>
+<p><strong>Pin your model version.</strong> Providers ship a moving <code>latest</code> alias and periodically point it at a new snapshot. If you call <code>latest</code>, your behavior changes the day they update it — new refusals, different formatting, a shifted tone — with no deploy on your side and no line in your changelog. Pin an explicit, dated model version, treat an upgrade as a deliberate change, and run it through the eval gate before you adopt it.</p>
+<p><strong>The gotcha:</strong> pinning the model version is not optional hygiene — it&rsquo;s the difference between a system you can reason about and one that regresses overnight. &ldquo;Latest&rdquo; silently changing under you can tank your eval scores while every one of your tests still passes, because the thing that changed was never in your repo.</p>
+<p>Version the other two artifacts the same way:</p>
+<ul>
+<li><strong>Prompts</strong> are code. Keep them in version control, review changes, and log which prompt version produced each response so you can correlate a quality dip with a specific edit.</li>
+<li><strong>Datasets</strong> — your RAG corpus and your eval set — are versioned artifacts too. When retrieval quality shifts, you want to know whether the corpus changed. When eval scores move, you want to know it was a real regression and not a quietly edited test set.</li>
+</ul>
+<hr>
+<h2 id="6-a-production-checklist">6. A production checklist</h2>
+<table><caption class="sr-only">6. A production checklist</caption>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Minimum bar for production</th>
+<th>Series link</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Timeouts</td>
+<td>Every model call bounded by a <code>context</code> deadline that propagates</td>
+<td>Post 4</td>
+</tr>
+<tr>
+<td>Retries</td>
+<td>Backoff + jitter on 429/5xx only; capped at every layer</td>
+<td>This post</td>
+</tr>
+<tr>
+<td>Degradation</td>
+<td>Circuit breaker + fallback model / cache / canned reply</td>
+<td>This post</td>
+</tr>
+<tr>
+<td>Injection</td>
+<td>Retrieved &amp; tool content treated as untrusted; structurally separated</td>
+<td>Posts 6, 9</td>
+</tr>
+<tr>
+<td>Tool authority</td>
+<td>Least privilege, scoped, audited; human gate on dangerous actions</td>
+<td>Post 11</td>
+</tr>
+<tr>
+<td>Output safety</td>
+<td>Strict validation before acting; moderation as a layer; PII policy</td>
+<td>Post 5</td>
+</tr>
+<tr>
+<td>Secrets</td>
+<td>Keys from env / secret manager; fail loudly if missing</td>
+<td>This post</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td>Token + USD tracked per request, per user, per feature</td>
+<td>Posts 3, 14</td>
+</tr>
+<tr>
+<td>Observability</td>
+<td>Structured logs + request-id tracing across RAG → agent → model</td>
+<td>This post</td>
+</tr>
+<tr>
+<td>Metrics</td>
+<td>Latency percentiles, error/retry rate, cost; alerts on each</td>
+<td>This post</td>
+</tr>
+<tr>
+<td>Eval gate</td>
+<td>Regression gate in CI blocks deploys below threshold</td>
+<td>Post 13</td>
+</tr>
+<tr>
+<td>Rollout</td>
+<td>Canary or shadow before full promotion</td>
+<td>This post</td>
+</tr>
+<tr>
+<td>Online eval</td>
+<td>Sampled production grading + user feedback for drift</td>
+<td>Post 13</td>
+</tr>
+<tr>
+<td>Versioning</td>
+<td>Model pinned; prompts and datasets under version control</td>
+<td>This post</td>
+</tr>
+</tbody>
+</table>
+<p>Treat it as a starting point, not a compliance form — the right bar depends on what your system can do if it misbehaves. A summarizer needs less than an agent that can move money.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>The model is an unreliable remote dependency.</strong> Bound it with a context deadline, retry only what can succeed with backoff and jitter, and degrade gracefully behind a circuit breaker instead of hanging.</li>
+<li><strong>Every text that reaches the model is untrusted — including your own retrieved documents.</strong> RAG and tools widen the injection surface; the real defenses are least-privilege tools, output validation, and moderation layers, not clever prompt wording.</li>
+<li><strong>Observe what the model did, not just whether it returned.</strong> Track tokens and cost per request, log enough to reconstruct any bad answer, and trace one request across RAG and agent steps.</li>
+<li><strong>An eval gate in CI is your regression seatbelt.</strong> It&rsquo;s the only check that catches quality dropping before users report it; pair it with canary/shadow rollout and online eval for drift.</li>
+<li><strong>Pin your model version and version your prompts and data.</strong> &ldquo;Latest&rdquo; changes under you; the system you can&rsquo;t reproduce is the system you can&rsquo;t debug.</li>
+</ul>
+<p>Fifteen posts ago we made a single call to a model and printed the reply. From that one call we added structure, retrieval, memory, planning, evaluation, and optimization — and in this post, the scaffolding that lets all of it survive contact with real users, real money, and real adversaries. That scaffolding is not glamorous, and almost none of it is AI-specific: it&rsquo;s the ordinary reliability, security, and observability engineering that Go was built for, pointed at a new kind of dependency.</p>
+<p>Where to go next depends on what you want to build. Take the from-scratch agent from posts 11-12 and give it the production treatment here. Swap the hand-rolled vector search of post 8 for a real vector database and re-run your eval gate to prove the answers held. Or go deeper on any one pillar — evaluation and observability, in particular, are entire disciplines. The point of building each piece from scratch was never that you&rsquo;d ship the hand-rolled version; it was that you&rsquo;d understand the managed one well enough to run it in production without fear. That understanding is the whole series. Now go ship something.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://owasp.org/www-project-top-10-for-large-language-model-applications/">OWASP Top 10 for LLM Applications</a> — the canonical catalog of LLM-specific risks, including prompt injection, insecure output handling, and excessive agency.</li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html">OWASP LLM Prompt Injection Prevention Cheat Sheet</a> — concrete mitigations for the injection surface that RAG and tools widen.</li>
+<li><a href="https://pkg.go.dev/context">Go <code>context</code> package documentation</a> — deadlines, cancellation, and propagation, the foundation of reliable model calls.</li>
+<li><a href="https://pkg.go.dev/log/slog">Go <code>log/slog</code> package documentation</a> — the standard library&rsquo;s structured logging, enough for production LLM observability.</li>
+<li><a href="https://opentelemetry.io/docs/languages/go/">OpenTelemetry Go SDK</a> — distributed tracing and metrics for threading a request through RAG and agent steps.</li>
+<li><a href="https://sre.google/sre-book/handling-overload/">Google SRE Book — Handling Overload</a> — retries, load shedding, and graceful degradation, the reliability patterns behind this post.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-14-inference-optimization.html">Inference Optimization</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-13-evaluating-ai-systems.html">Evaluating AI Systems</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-06-prompt-engineering.html">Prompt Engineering as Engineering</a>
+      <span class="related-date">Aug 02</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Evaluating AI Systems — Pratik Dhanave</title>
+<meta name="description" content="How to know whether an LLM system works when outputs are non-deterministic: build an eval dataset, score with deterministic checks, embedding...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Evaluating AI Systems — Pratik Dhanave">
+<meta property="og:description" content="How to know whether an LLM system works when outputs are non-deterministic: build an eval dataset, score with deterministic checks, embedding similarity, and LLM-as-judge (with its biases), evaluate RAG and classification, and gate regressions in CI.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-eng-go-13-evaluating-ai-systems.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-09T00:00:00Z">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="Evaluation">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="LLMs">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Evaluating AI Systems — Pratik Dhanave">
+<meta name="twitter:description" content="How to know whether an LLM system works when outputs are non-deterministic: build an eval dataset, score with deterministic checks, embedding similarity, and LLM-as-judge (with its biases), evaluate RAG and classification, and gate regressions in CI.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-eng-go-13-evaluating-ai-systems.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Evaluating AI Systems",
+  "description": "How to know whether an LLM system works when outputs are non-deterministic: build an eval dataset, score with deterministic checks, embedding similarity, and LLM-as-judge (with its biases), evaluate RAG and classification, and gate regressions in CI.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-09",
+  "dateModified": "2026-08-09",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Engineering, Evaluation, Go, LLMs",
+  "url": "https://pratikdhanave.com/blog/posts/ai-eng-go-13-evaluating-ai-systems.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-eng-go-13-evaluating-ai-systems.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Evaluating AI Systems</h1>
+    <p class="post-subtitle">How to know whether an LLM system actually works — building an eval dataset, the four metric families (deterministic checks, text overlap, embedding similarity, LLM-as-judge) in Go, task-specific eval for RAG and classification, and wiring a scored regression gate into CI so you measure instead of vibe.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-09">August 09, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/evaluation/" class="tag-link"><span class="tag">#Evaluation</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 13 of 15</span>
+    <span class="series-title">AI Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/ai-eng-go-12-agent-memory-and-planning.html" class="series-prev">&larr; Part 12: Agent Memory and Planning</a>
+<a href="/blog/posts/ai-eng-go-14-inference-optimization.html" class="series-next">Part 14: Inference Optimization &rarr;</a></div>
+  </div>
+
+
+
+  <p>Every earlier post in this series ended with a program that ran. The chat client in post 4 returned a completion; the structured extractor in post 5 returned a typed struct; the RAG pipeline in posts 9 and 10 returned a grounded answer; the agent in posts 11 and 12 returned a result after a loop of tool calls. In each case we eyeballed the output, decided it looked right, and moved on. That works for a demo. It does not survive contact with a second prompt, a model upgrade, or a colleague asking &ldquo;did your change make it better or worse?&rdquo;</p>
+<p>The reason ordinary tests don&rsquo;t answer that question is that LLM output is <strong>non-deterministic and open-ended</strong>. A unit test asserts <code>got == want</code>. But an LLM asked to summarize a paragraph can produce a hundred equally correct summaries that share almost no words, and running the same prompt twice can return different bytes. <code>assert.Equal</code> fails a correct answer for being phrased differently, and tells you nothing about the paraphrases you didn&rsquo;t hardcode. So instead of <em>testing</em> an LLM system, you <strong>evaluate</strong> it: you score its behavior across a set of representative cases and track that score over time. This post builds the machinery from scratch in Go.</p>
+<blockquote>
+<p>This is the broad primer for evaluating AI <em>systems</em>. For the agent-specific deep dive — trajectory scoring, tool-call correctness, multi-turn conversations — a companion series on this blog, <a href="/blog/posts/eval-agents-go-01-why-evaluate-agents.html">Evaluating Agents in Go</a>, goes much further. Here we stay at the level every LLM feature needs.</p>
+</blockquote>
+<hr>
+<h2 id="start-with-a-dataset-not-a-metric">Start with a dataset, not a metric</h2>
+<p>Evaluation begins with examples, not code. An <strong>eval dataset</strong> is a collection of cases, each pairing an input with either a reference answer or a rubric describing what a good answer looks like. In Go it is just a slice of structs:</p>
+<pre><code class="language-go">type EvalCase struct {
+    ID        string   `json:&quot;id&quot;`
+    Input     string   `json:&quot;input&quot;`
+    Reference string   `json:&quot;reference,omitempty&quot;` // gold answer, if one exists
+    Rubric    string   `json:&quot;rubric,omitempty&quot;`    // for open-ended cases
+    MustHave  []string `json:&quot;must_have,omitempty&quot;` // required facts/terms
+}
+</code></pre>
+<p>Where do cases come from? The worst source is your imagination — you&rsquo;ll write cases your system already passes. The best source is <strong>real usage</strong>. The chat client, RAG pipeline, and agent from earlier posts all pass through a request/response path you control, so log every interaction (input, output, retrieved context, latency, cost) as a trace. Then curate: sample real inputs, keep the ones that expose interesting behavior, and write down what the right answer should have been. A dataset grown this way stays honest because it reflects what users actually ask, not what you wish they asked.</p>
+<p><strong>The gotcha:</strong> a tiny or stale eval set gives false confidence. Twenty hand-written cases can all pass while your system quietly breaks on the long tail of real inputs. Treat the dataset as a living asset — every bug report is a missing test case, and the set should grow every week. A high score on ten cases means almost nothing; a high score on three hundred curated-from-production cases means something.</p>
+<hr>
+<h2 id="family-1-deterministic-checks-the-cheap-wins">Family 1: deterministic checks, the cheap wins</h2>
+<p>Some correctness <em>is</em> mechanical, and where it is, code it in plain Go — no model, no cost, no flakiness. A <strong>scorer</strong> is any function that maps a case and an output to a number in <code>[0,1]</code>:</p>
+<pre><code class="language-go">type Scorer func(c EvalCase, output string) float64
+
+func exactMatch(c EvalCase, out string) float64 {
+    if strings.TrimSpace(out) == strings.TrimSpace(c.Reference) {
+        return 1
+    }
+    return 0
+}
+
+func containsAll(c EvalCase, out string) float64 {
+    low := strings.ToLower(out)
+    for _, want := range c.MustHave {
+        if !strings.Contains(low, strings.ToLower(want)) {
+            return 0
+        }
+    }
+    return 1
+}
+
+func validJSON(_ EvalCase, out string) float64 {
+    if json.Valid([]byte(out)) {
+        return 1
+    }
+    return 0
+}
+</code></pre>
+<p>The same family covers regex matching, JSON-schema validity (reuse the <code>validateInvoice</code>-style check from post 5), and <strong>budgets</strong>: latency and cost are deterministic numbers you can assert against a ceiling. Wrap them the same way — record the elapsed time and the token usage from the <code>Usage</code> field post 4 already parsed, and score <code>1</code> if under budget, <code>0</code> if over. A running harness over these scorers is a dozen lines:</p>
+<pre><code class="language-go">func run(cases []EvalCase, generate func(string) string, score Scorer) float64 {
+    var total float64
+    for _, c := range cases {
+        total += score(c, generate(c.Input))
+    }
+    return total / float64(len(cases))
+}
+</code></pre>
+<p><strong>The gotcha:</strong> exact match massively <em>under</em>-counts correct answers. &ldquo;Paris is the capital of France&rdquo; and &ldquo;The capital of France is Paris&rdquo; are both right and score <code>0</code> against each other. Exact match is only honest for closed-form outputs — a classification label, an extracted ID, a number. For anything free-form it is a lower bound so pessimistic it&rsquo;s misleading. Use <code>containsAll</code> for required facts, and reach for the semantic and judge scorers below for the phrasing itself.</p>
+<hr>
+<h2 id="family-2-reference-based-text-overlap-and-why-its-weak">Family 2: reference-based text overlap (and why it&rsquo;s weak)</h2>
+<p>Before embeddings, the standard way to compare a generated string to a reference was <strong>n-gram overlap</strong>. Two names dominate: <strong>BLEU</strong>, which measures precision (how many of the output&rsquo;s word-sequences appear in the reference), and <strong>ROUGE</strong>, which measures recall (how many of the reference&rsquo;s word-sequences appear in the output). At their core both count shared runs of tokens. A minimal unigram-recall version — the intuition behind ROUGE — is a handful of lines:</p>
+<pre><code class="language-go">func unigramRecall(reference, output string) float64 {
+    refWords := strings.Fields(strings.ToLower(reference))
+    outSet := map[string]bool{}
+    for _, w := range strings.Fields(strings.ToLower(output)) {
+        outSet[w] = true
+    }
+    var hit int
+    for _, w := range refWords {
+        if outSet[w] {
+            hit++
+        }
+    }
+    return float64(hit) / float64(len(refWords))
+}
+</code></pre>
+<p>These metrics were built for machine translation and summarization, where a reference is available and outputs stay close to it. They are fast and reproducible, which is why they persist.</p>
+<p><strong>The gotcha:</strong> overlap metrics are weak for open-ended text. They reward surface word choice, not meaning — a perfect paraphrase using synonyms scores low, and a fluent-but-wrong answer that reuses the reference&rsquo;s vocabulary scores high. Report them if you already have references and want a cheap trend line, but never treat a BLEU/ROUGE number as a verdict on whether an answer is <em>correct</em>.</p>
+<hr>
+<h2 id="family-3-semantic-similarity-with-embeddings">Family 3: semantic similarity with embeddings</h2>
+<p>The fix for paraphrase-blindness is the tool we already built. Post 7 turned text into a <code>[]float32</code> where meaning lives in geometry, and implemented <code>cosine</code> by hand. Reuse it directly: embed the output and the reference, and score their cosine similarity. Synonyms and reordered clauses land close together even when they share no exact tokens.</p>
+<pre><code class="language-go">// embed calls the /embeddings endpoint from post 7; cosine is post 7's function.
+func semanticScore(c EvalCase, out string) float64 {
+    refVec := embed(c.Reference)
+    outVec := embed(out)
+    sim := cosine(refVec, outVec) // roughly [-1, 1]
+    if sim &lt; 0 {
+        return 0
+    }
+    return sim // clamp to [0,1] for a usable score
+}
+</code></pre>
+<p>This is the single biggest upgrade over exact match for free-form answers, and it stays cheap and deterministic (pin the embedding model). Its limit is that it rewards <em>topical</em> closeness, not <em>factual</em> correctness: &ldquo;The dose is 5mg&rdquo; and &ldquo;The dose is 50mg&rdquo; are nearly identical vectors but one is dangerously wrong. Use semantic similarity as a phrasing-tolerant filter, and when factual precision matters, escalate to a judge.</p>
+<hr>
+<h2 id="family-4-llm-as-judge">Family 4: LLM-as-judge</h2>
+<p>When there&rsquo;s no clean reference and correctness is subjective — is this summary faithful? is this answer helpful and on-topic? — hand the grading to a strong model. <strong>LLM-as-judge</strong> prompts a capable model with the input, the output, and an explicit rubric, and asks for a score plus a reason. Post 5 already gave us structured output, so we get a typed, parseable verdict instead of prose:</p>
+<pre><code class="language-go">type Verdict struct {
+    Score     int    `json:&quot;score&quot;`     // 1-5 against the rubric
+    Reasoning string `json:&quot;reasoning&quot;` // why — forces the model to justify
+}
+
+func judge(ctx context.Context, c *Client, input, output, rubric string) (Verdict, error) {
+    sys := &quot;You are a strict grader. Apply the rubric exactly. &quot; +
+        &quot;Score 1-5. Reason first, then score. Return only JSON.&quot;
+    user := fmt.Sprintf(&quot;RUBRIC:\n%s\n\nINPUT:\n%s\n\nANSWER:\n%s&quot;, rubric, input, output)
+
+    resp, err := c.Complete(ctx, ChatRequest{
+        Messages:       []Message{{Role: &quot;system&quot;, Content: sys}, {Role: &quot;user&quot;, Content: user}},
+        ResponseFormat: jsonSchema(reflectSchema(Verdict{})), // response_format from post 5
+        Temperature:    0,
+    })
+    if err != nil {
+        return Verdict{}, err
+    }
+    var v Verdict
+    if err := json.Unmarshal([]byte(resp.Choices[0].Message.Content), &amp;v); err != nil {
+        return Verdict{}, err
+    }
+    return v, nil
+}
+</code></pre>
+<p>Asking for the reasoning <em>before</em> the score isn&rsquo;t decoration — a model that must justify its grade grades more consistently, and the reasoning is your audit trail when a score looks wrong.</p>
+<p><strong>The gotcha:</strong> judges are biased, and the biases are systematic. Models favor <strong>longer</strong> answers over concise correct ones, favor whichever answer comes <strong>first</strong> when comparing two, and rate their <strong>own</strong> outputs higher than a rival model&rsquo;s. Three mitigations: (1) <strong>anchor with a concrete rubric</strong> — replace &ldquo;rate the quality&rdquo; with &ldquo;5 = every claim supported by the input; 3 = mostly supported, one unsupported claim; 1 = fabricated&rdquo; so the score has fixed meaning; (2) prefer <strong>pairwise comparison</strong> (&ldquo;is A or B better?&rdquo;) over absolute scoring, since relative judgments are more stable — and swap the order across runs to cancel position bias; (3) use a <strong>different model</strong> to judge than the one that generated, to avoid self-preference. A judge is a useful, scalable approximation of a human rater, not an oracle.</p>
+<hr>
+<h2 id="task-specific-eval">Task-specific eval</h2>
+<p>The four families are your toolkit; different tasks assemble them differently.</p>
+<p><strong>RAG</strong> (posts 9–10) has three failure surfaces, each with its own metric. <strong>Retrieval recall@k</strong> — is the answer-bearing chunk in the top <em>k</em>? — is the ceiling on everything downstream, exactly as post 10 argued; it&rsquo;s a deterministic set check against known-relevant chunk IDs. <strong>Faithfulness / groundedness</strong> asks whether every claim in the answer is supported by the retrieved context — a perfect job for an LLM-as-judge that sees the context and flags any unsupported sentence. <strong>Answer relevance</strong> asks whether the answer actually addresses the question — semantic similarity between the answer and the question, or another judge pass. Together they separate &ldquo;we retrieved the wrong thing&rdquo; from &ldquo;we retrieved the right thing and then ignored or contradicted it.&rdquo;</p>
+<p><strong>Classification</strong> — routing, intent detection, the retrieval gate from post 10 — is the one place where references are crisp and the old metrics shine. Count outcomes per label and compute precision, recall, and F1 directly:</p>
+<pre><code class="language-go">func prf1(tp, fp, fn int) (precision, recall, f1 float64) {
+    if tp+fp &gt; 0 {
+        precision = float64(tp) / float64(tp+fp)
+    }
+    if tp+fn &gt; 0 {
+        recall = float64(tp) / float64(tp+fn)
+    }
+    if precision+recall &gt; 0 {
+        f1 = 2 * precision * recall / (precision + recall)
+    }
+    return
+}
+</code></pre>
+<p>Precision asks &ldquo;when it said yes, was it right?&rdquo;; recall asks &ldquo;of all the real yeses, how many did it catch?&rdquo;; F1 balances the two. Which you optimize depends on the cost of each error — a spam filter guards precision, a fraud flag guards recall.</p>
+<table><caption class="sr-only">Task-specific eval</caption>
+<thead>
+<tr>
+<th>Task</th>
+<th>Primary metric</th>
+<th>Family</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Extraction / labels / IDs</td>
+<td>exact match, JSON validity</td>
+<td>deterministic</td>
+</tr>
+<tr>
+<td>Free-form Q&amp;A</td>
+<td>semantic similarity + judge</td>
+<td>embeddings + judge</td>
+</tr>
+<tr>
+<td>Summarization</td>
+<td>faithfulness (judge), ROUGE trend</td>
+<td>judge + overlap</td>
+</tr>
+<tr>
+<td>RAG retrieval</td>
+<td>recall@k</td>
+<td>deterministic</td>
+</tr>
+<tr>
+<td>RAG answer</td>
+<td>groundedness + relevance</td>
+<td>judge + embeddings</td>
+</tr>
+<tr>
+<td>Classification / routing</td>
+<td>precision / recall / F1</td>
+<td>deterministic</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="make-eval-part-of-the-loop">Make eval part of the loop</h2>
+<p>A score you compute once and forget is a vanity metric. The point of all this machinery is to run it <em>automatically</em> and <em>repeatedly</em>. Combine the pieces into a runner that scores a whole dataset and fails when quality drops:</p>
+<pre><code class="language-go">func gate(cases []EvalCase, generate func(string) string, score Scorer, floor float64) error {
+    got := run(cases, generate, score)
+    fmt.Printf(&quot;eval score: %.3f (floor %.3f)\n&quot;, got, floor)
+    if got &lt; floor {
+        return fmt.Errorf(&quot;regression: %.3f &lt; %.3f&quot;, got, floor)
+    }
+    return nil
+}
+</code></pre>
+<p>Call it from a Go test so <code>go test ./...</code> runs it, wire that into CI, and every pull request now proves it didn&rsquo;t make the system worse before it merges. Commit the floor alongside the code; ratchet it up as you improve. (The companion <a href="/blog/posts/eval-agents-go-07-ci-regression-gating.html">Evaluating Agents in Go</a> series covers this CI gating pattern in depth for agents.)</p>
+<p>This is <strong>offline eval</strong> — a fixed dataset scored before shipping, the fast feedback that guides development. It is necessary but not sufficient, because a curated set never fully mirrors live traffic. <strong>Online eval</strong> closes the gap: sample real production responses, score them with the same judges and checks, and watch the trend. Ship changes behind an <strong>A/B test</strong> — route a fraction of traffic to the new version and compare scores on identical distributions — and collect <strong>human feedback</strong> (thumbs up/down, corrections), the ground truth you calibrate your automated judges against and the richest source of new eval cases.</p>
+<p><strong>The gotcha:</strong> non-determinism will corrupt your scores if you ignore it. The same input can yield different outputs, so a single sample per case makes your metric jittery — a &ldquo;regression&rdquo; might be noise. Two defenses: pin <strong>temperature 0</strong> for the model under test so scoring is reproducible, and for anything still stochastic (judges included), <strong>run several samples and average</strong>. Fix the eval-set order, fix model versions, and record them with the score, so a number from today is comparable to a number from last month.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>You evaluate LLM systems, you don&rsquo;t unit-test them.</strong> Output is non-deterministic and open-ended, so <code>assert.Equal</code> fails correct answers and proves nothing about the ones you didn&rsquo;t hardcode. Score behavior across a dataset instead.</li>
+<li><strong>The dataset is the product.</strong> Curate cases from real traces, turn every failure into a case, and keep it growing. A tiny or stale set is false confidence.</li>
+<li><strong>Match the metric to the task.</strong> Deterministic checks for closed-form outputs and budgets; embedding cosine (post 7) for paraphrase-tolerant free-form comparison; LLM-as-judge for subjective quality; precision/recall/F1 for classification.</li>
+<li><strong>Exact match and n-gram overlap under-count correctness</strong> on open-ended text — treat them as cheap lower bounds, not verdicts.</li>
+<li><strong>LLM-as-judge is scalable but biased</strong> toward longer, first, and self-authored answers. Anchor with a concrete rubric, prefer order-swapped pairwise comparison, and judge with a different model.</li>
+<li><strong>RAG splits into recall@k, groundedness, and relevance</strong> — measure them separately so you know <em>which</em> stage failed.</li>
+<li><strong>Eval belongs in CI as a scored regression gate</strong>, backed by online scoring, A/B tests, and human feedback. Pin temperature 0 and average multiple samples so your scores are reproducible.</li>
+<li><strong>Measure before you tweak.</strong> Set a baseline first; every prompt change is a hypothesis you verify against the score, not a vibe you ship.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://arxiv.org/abs/2306.05685">Zheng et al., &ldquo;Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena&rdquo; (arXiv:2306.05685)</a> — the foundational study of LLM-as-judge, including the position, verbosity, and self-enhancement biases and the pairwise-comparison mitigation.</li>
+<li><a href="https://aclanthology.org/W04-1013/">Lin, &ldquo;ROUGE: A Package for Automatic Evaluation of Summaries&rdquo; (ACL 2004)</a> — the original ROUGE paper defining n-gram recall for summarization.</li>
+<li><a href="https://aclanthology.org/P02-1040/">Papineni et al., &ldquo;BLEU: a Method for Automatic Evaluation of Machine Translation&rdquo; (ACL 2002)</a> — the original BLEU precision-based overlap metric.</li>
+<li><a href="https://arxiv.org/abs/2309.15217">Es et al., &ldquo;RAGAS: Automated Evaluation of Retrieval Augmented Generation&rdquo; (arXiv:2309.15217)</a> — reference-free RAG metrics for faithfulness and answer relevance.</li>
+<li><a href="/blog/posts/eval-agents-go-01-why-evaluate-agents.html">Evaluating Agents in Go</a> — the companion series on this blog for agent-specific trajectory and multi-turn evaluation.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-15-production-ai.html">Production AI</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-14-inference-optimization.html">Inference Optimization</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-06-prompt-engineering.html">Prompt Engineering as Engineering</a>
+      <span class="related-date">Aug 02</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
