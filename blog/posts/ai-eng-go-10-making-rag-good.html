@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Making RAG Good — Pratik Dhanave</title>
+<meta name="description" content="Why naive RAG underperforms and the techniques that fix it: measure recall@k first, then structure-aware chunking, hybrid dense+BM25 search fused with...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Making RAG Good — Pratik Dhanave">
+<meta property="og:description" content="Why naive RAG underperforms and the techniques that fix it: measure recall@k first, then structure-aware chunking, hybrid dense+BM25 search fused with RRF, over-retrieve-then-rerank, query transformation (HyDE, multi-query), and deliberate context construction against lost-in-the-middle.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-eng-go-10-making-rag-good.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-06T00:00:00Z">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="RAG">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Search">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Making RAG Good — Pratik Dhanave">
+<meta name="twitter:description" content="Why naive RAG underperforms and the techniques that fix it: measure recall@k first, then structure-aware chunking, hybrid dense+BM25 search fused with RRF, over-retrieve-then-rerank, query transformation (HyDE, multi-query), and deliberate context construction against lost-in-the-middle.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-eng-go-10-making-rag-good.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Making RAG Good",
+  "description": "Why naive RAG underperforms and the techniques that fix it: measure recall@k first, then structure-aware chunking, hybrid dense+BM25 search fused with RRF, over-retrieve-then-rerank, query transformation (HyDE, multi-query), and deliberate context construction against lost-in-the-middle.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-06",
+  "dateModified": "2026-08-06",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Engineering, RAG, Go, Search",
+  "url": "https://pratikdhanave.com/blog/posts/ai-eng-go-10-making-rag-good.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-eng-go-10-making-rag-good.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Making RAG Good</h1>
+    <p class="post-subtitle">Why the naive RAG pipeline from post 9 underperforms in production, and the concrete, evaluation-driven fixes — structure-aware chunking, hybrid search, reranking, query transformation, and deliberate context construction — each explained with the reasoning and a real Go sketch.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-06">August 06, 2026</time>
+      <span>·</span>
+      <span>17 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/rag/" class="tag-link"><span class="tag">#RAG</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/search/" class="tag-link"><span class="tag">#Search</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 10 of 15</span>
+    <span class="series-title">AI Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/ai-eng-go-09-rag.html" class="series-prev">&larr; Part 9: Retrieval-Augmented Generation</a>
+<a href="/blog/posts/ai-eng-go-11-agents-from-scratch.html" class="series-next">Part 11: Agents from Scratch &rarr;</a></div>
+  </div>
+
+
+
+  <p>In post 9 we built a RAG pipeline in Go end to end: chunk the documents, embed each chunk, drop the vectors into the <code>vstore.VectorStore</code> from post 8, and at query time call <code>Search(embed(query), k)</code>, paste the top-<em>k</em> chunks into a prompt, and generate. It works. In a demo, with clean documents and softball questions, it looks like magic.</p>
+<p>Then you point it at real documents and real users, and it disappoints. It misses the one paragraph that had the answer. It confidently cites the wrong section. Ask it for an exact error code or a person&rsquo;s name and it returns three chunks <em>vaguely about</em> the topic that never mention the term you typed. The generation half is fine — the model writes a fluent answer. The problem is almost always the <em>retrieval</em> half: you fed the model the wrong chunks, so it answered the wrong question well.</p>
+<p>This post is about closing that gap. Every technique here targets one thing: <strong>get the right chunks in front of the model.</strong> And the discipline that makes all of them work is measurement — so we start there, because the single most expensive mistake in RAG is tuning the prompt when the bug is in retrieval.</p>
+<hr>
+<h2 id="start-by-measuring-retrieval-not-vibes">Start by measuring retrieval, not vibes</h2>
+<p>You cannot improve what you don&rsquo;t measure, and &ldquo;the answers feel better now&rdquo; is not a measurement. Before touching chunking or search, build a tiny evaluation set: a handful of real questions, and for each one, the id(s) of the chunk(s) that actually contain the answer. That&rsquo;s your ground truth. Then compute <strong>recall@k</strong> — of the questions whose answer chunk <em>exists</em> in the store, how often does it appear in the top <em>k</em> you retrieved?</p>
+<p>Recall@k is the ceiling on your whole system. If the right chunk isn&rsquo;t in the top <em>k</em>, no prompt, no reranker, no bigger model can recover it — the information never reached the generator.</p>
+<pre><code class="language-go">package rageval
+
+// Case is one labeled question: the query and the set of chunk ids that
+// genuinely answer it.
+type Case struct {
+    Query   string
+    Relevant map[string]bool // chunk ids that contain the answer
+}
+
+// Retriever is any function that returns ranked chunk ids for a query.
+type Retriever func(query string, k int) []string
+
+// RecallAtK is the fraction of cases whose retrieval contained at least one
+// relevant chunk in the top k. This is the number you improve against.
+func RecallAtK(cases []Case, retrieve Retriever, k int) float64 {
+    if len(cases) == 0 {
+        return 0
+    }
+    var hits int
+    for _, c := range cases {
+        for _, id := range retrieve(c.Query, k) {
+            if c.Relevant[id] {
+                hits++
+                break
+            }
+        }
+    }
+    return float64(hits) / float64(len(cases))
+}
+</code></pre>
+<p>Run this once against your post-9 baseline and write the number down. Every change below is a hypothesis: <em>this will raise recall@k.</em> Some will; some won&rsquo;t for your data. The point is you&rsquo;ll know, instead of guessing.</p>
+<p><strong>The gotcha:</strong> you can&rsquo;t improve what you don&rsquo;t measure — fix retrieval metrics <em>before</em> you touch the prompt. Teams burn weeks rewording system prompts to fix answers that were doomed the moment retrieval returned the wrong chunks. If recall@5 is 0.6, the model is answering a third of your questions blind, and no prompt engineering changes that. Measure retrieval first, in isolation, and only optimize the generator once the right context is reliably reaching it. (We go deep on end-to-end RAG evaluation in post 13; recall@k is the retrieval-only foundation it builds on.)</p>
+<hr>
+<h2 id="chunk-with-structure-not-with-a-ruler">Chunk with structure, not with a ruler</h2>
+<p>The naive pipeline split text every N characters. That&rsquo;s a ruler, and documents don&rsquo;t obey rulers. A fixed-length cut lands mid-sentence, severs a heading from the paragraph it introduces, and splits a table row from its header. The embedding of half a thought is a bad embedding, and it retrieves badly.</p>
+<p>Two fixes carry most of the weight. First, <strong>split on structure</strong> — paragraph and section boundaries, list items, code blocks — so each chunk is a coherent unit of meaning. Second, keep a small <strong>overlap</strong> between adjacent chunks so an answer that straddles a boundary survives in at least one whole chunk. And throughout, carry <strong>metadata</strong> with every chunk: which document it came from and which section. That metadata is what lets you cite sources later and filter by document.</p>
+<pre><code class="language-go">// Chunk is a retrievable unit plus where it came from. The metadata rides
+// along through embedding, search, and into the final citation.
+type Chunk struct {
+    ID      string
+    Text    string
+    Source  string // document filename or URL
+    Section string // nearest heading above this chunk
+}
+
+// splitStructured breaks a document into chunks on blank-line (paragraph)
+// boundaries, packing paragraphs up to a soft size limit and carrying the
+// current heading. It never cuts mid-paragraph.
+func splitStructured(source, doc string, maxRunes int) []Chunk {
+    var chunks []Chunk
+    section := &quot;&quot;
+    var buf strings.Builder
+    flush := func() {
+        if buf.Len() == 0 {
+            return
+        }
+        chunks = append(chunks, Chunk{
+            ID:      fmt.Sprintf(&quot;%s#%d&quot;, source, len(chunks)),
+            Text:    strings.TrimSpace(buf.String()),
+            Source:  source,
+            Section: section,
+        })
+        buf.Reset()
+    }
+    for _, para := range strings.Split(doc, &quot;\n\n&quot;) {
+        para = strings.TrimSpace(para)
+        if para == &quot;&quot; {
+            continue
+        }
+        if h, ok := headingText(para); ok { // e.g. a Markdown &quot;## ...&quot; line
+            flush()
+            section = h
+            continue
+        }
+        if utf8.RuneCountInString(buf.String())+utf8.RuneCountInString(para) &gt; maxRunes {
+            flush()
+        }
+        buf.WriteString(para)
+        buf.WriteString(&quot;\n\n&quot;)
+    }
+    flush()
+    return chunks
+}
+</code></pre>
+<p>Overlap is a one-line policy on top of this: when you flush, seed the next buffer with the last sentence or two of the chunk you just emitted, so a fact sitting on the seam appears whole in both neighbors.</p>
+<p><strong>The gotcha:</strong> chunk size is a real trade-off, not a default to copy from a tutorial. Chunks too large dilute the embedding — one vector now averages several topics, so it&rsquo;s a strong match for none of them and reranking has more junk to wade through. Chunks too small fragment the answer across many hits and blow your top-<em>k</em> budget on pieces of one paragraph. Structure-aware splitting sidesteps the worst of it by cutting where the meaning already breaks, but you still tune <code>maxRunes</code> against recall@k on <em>your</em> documents — legal contracts and chat logs want different numbers.</p>
+<hr>
+<h2 id="hybrid-search-dense-plus-lexical">Hybrid search: dense plus lexical</h2>
+<p>Embeddings are semantic — they find text that <em>means</em> the same thing even with no shared words, which is exactly why post 8 beat keyword matching. But that strength is also a blind spot. Ask for the exact error code <code>ERR_2048</code>, an SKU, a function name, or a person&rsquo;s surname, and the dense vector for that token is weak and generic. The model that made the embedding never learned that <code>ERR_2048</code> is special; it&rsquo;s just a rare string. Lexical search, meanwhile, nails exact tokens by construction — that&rsquo;s all it does.</p>
+<p>So run both. <strong>Dense</strong> (your <code>vstore.Search</code>) for meaning, <strong>sparse</strong> keyword search (BM25, the standard lexical ranking function) for exact terms, then fuse the two ranked lists. The catch is that the scores live on incompatible scales: cosine similarity is roughly <code>[-1, 1]</code>, BM25 is an unbounded positive number that depends on term frequency and corpus statistics. Averaging them directly is meaningless.</p>
+<p><strong>Reciprocal Rank Fusion (RRF)</strong> sidesteps the scale problem entirely by throwing the scores away and fusing on <em>rank</em> alone. Each list contributes <code>1 / (rrfK + rank)</code> to every id it ranks; sum across lists; sort by the total. A chunk that both methods rank highly floats to the top; a chunk only one method found still gets a fair contribution.</p>
+<pre><code class="language-go">// fuseRRF combines several ranked id lists into one by Reciprocal Rank Fusion.
+// rrfK is a smoothing constant (60 is the value from the original paper).
+// It uses only rank, so dense cosine and BM25's different scales never meet.
+func fuseRRF(rankings [][]string, rrfK int) []string {
+    score := map[string]float64{}
+    for _, list := range rankings {
+        for rank, id := range list { // rank is 0-based
+            score[id] += 1.0 / float64(rrfK+rank+1)
+        }
+    }
+    fused := make([]string, 0, len(score))
+    for id := range score {
+        fused = append(fused, id)
+    }
+    sort.Slice(fused, func(i, j int) bool {
+        if score[fused[i]] != score[fused[j]] {
+            return score[fused[i]] &gt; score[fused[j]]
+        }
+        return fused[i] &lt; fused[j] // stable tie-break
+    })
+    return fused
+}
+
+// hybridSearch runs dense and lexical retrieval and fuses the two rankings.
+func hybridSearch(query string, n int) []string {
+    dense := ids(store.Search(embed(query), n)) // post 8/9 vector search
+    sparse := bm25.Search(query, n)             // any BM25 index over the same chunks
+    return fuseRRF([][]string{dense, sparse}, 60)
+}
+</code></pre>
+<p><code>bm25.Search</code> is a keyword index over the same chunk corpus — you can build one from an inverted index and the Okapi BM25 formula, or borrow a small Go library; the fusion above doesn&rsquo;t care how the sparse list was produced, only that it&rsquo;s ranked.</p>
+<p><strong>The gotcha:</strong> hybrid search needs score normalization, and getting it wrong quietly wrecks the ranking. Dense cosine and BM25 are different scales, so any scheme that <em>adds</em> their raw scores is dominated by whichever number happens to be bigger. You can normalize both to <code>[0, 1]</code> and take a weighted sum — but then you own a fragile weight to tune per corpus. RRF sidesteps the whole problem by fusing on rank instead of score. Start with RRF; reach for weighted score fusion only if you have the eval harness to tune the weight and evidence it beats RRF on your data.</p>
+<hr>
+<h2 id="rerank-the-shortlist">Rerank the shortlist</h2>
+<p>Here is the highest-leverage change in this whole post, and the one people skip. Your retriever — dense, sparse, or fused — is optimized for <em>speed over a huge corpus</em>. It compares a single query vector against millions of chunk vectors, so it can only afford a cheap similarity. That cheapness costs accuracy: the top 20 are roughly right, but the true best chunk might be sitting at rank 11, not rank 1.</p>
+<p>A <strong>reranker</strong> fixes the ordering of a short list with a much stronger, much slower signal. The standard tool is a <em>cross-encoder</em>: instead of embedding the query and chunk separately and comparing vectors, it feeds the query and one candidate chunk <em>together</em> into a model that scores their relevance directly. That joint attention is far more accurate than comparing two independent embeddings — and far too expensive to run over the whole corpus, which is exactly why it only sees a shortlist. Reranker models and hosted reranking endpoints exist from several providers; the mechanics below are vendor-neutral, so treat <code>rerank</code> as whichever model or API you wire in.</p>
+<p>The control flow is: <strong>over-retrieve</strong> N (say 30), <strong>rerank</strong> all N, <strong>take</strong> the top <em>k</em> (say 5) for the prompt.</p>
+<pre><code class="language-go">// Reranker scores how well each candidate answers the query. A cross-encoder
+// model or a hosted reranking endpoint implements this; higher is better.
+type Reranker interface {
+    Score(ctx context.Context, query string, candidates []string) ([]float64, error)
+}
+
+// retrieveRerank over-retrieves N, reranks with a stronger model, keeps top k.
+func retrieveRerank(ctx context.Context, rr Reranker, query string, n, k int) ([]Chunk, error) {
+    shortlist := lookup(hybridSearch(query, n)) // []Chunk for the fused top-N ids
+    texts := make([]string, len(shortlist))
+    for i, c := range shortlist {
+        texts[i] = c.Text
+    }
+    scores, err := rr.Score(ctx, query, texts)
+    if err != nil {
+        return shortlist[:min(k, len(shortlist))], nil // degrade to retrieval order
+    }
+    sort.SliceStable(shortlist, func(i, j int) bool { return scores[i] &gt; scores[j] })
+    return shortlist[:min(k, len(shortlist))], nil
+}
+</code></pre>
+<p>If you have no reranker model handy, an <strong>LLM-as-reranker</strong> is a serviceable stand-in: prompt a capable model with the query and the numbered candidates and ask it to return the ids in relevance order. It&rsquo;s slower and pricier per query than a dedicated cross-encoder, but it needs no extra infrastructure and often beats raw retrieval order handily.</p>
+<p><strong>The gotcha:</strong> reranking is where most of the quality gains hide, but it adds latency and cost on every query — you&rsquo;re now running a second model over N candidates. So over-retrieve <em>modestly</em>. Going from N=20 to N=100 rarely moves recall enough to justify 5x the rerank bill and latency; the answer chunk that isn&rsquo;t in your fused top 30 usually isn&rsquo;t in the top 100 either. Tune N against recall@k: find the smallest N where the true chunk is almost always present, then let the reranker sort <em>that</em> out. Note the fallback in the code — if the reranker call fails, degrade to retrieval order rather than failing the query; a slightly worse ranking beats no answer.</p>
+<hr>
+<h2 id="transform-the-query-before-you-search">Transform the query before you search</h2>
+<p>The naive pipeline embeds the user&rsquo;s raw question and searches with it. But users ask badly for retrieval: they&rsquo;re terse (&ldquo;the timeout thing&rdquo;), they carry context from earlier turns (&ldquo;what about the second one?&rdquo;), and their phrasing rarely matches how the <em>documents</em> are written. A short pre-processing step reshapes the query into something that retrieves better.</p>
+<ul>
+<li><strong>Rewriting and expansion.</strong> Use a cheap LLM call to rewrite a vague or conversational query into a self-contained, keyword-rich one — resolving &ldquo;the second one&rdquo; against the conversation, adding synonyms the docs might use. The rewrite is what you embed and search.</li>
+<li><strong>Multi-query.</strong> Generate two or three paraphrases of the question, retrieve for each, and fuse the results with the same <code>fuseRRF</code> from above. Different phrasings surface different true chunks; fusion keeps what they agree on.</li>
+<li><strong>HyDE (Hypothetical Document Embeddings).</strong> The intuition: a question and its answer are written differently, so a question embedding sits awkwardly among <em>answer</em>-shaped document chunks. HyDE has the LLM draft a hypothetical answer to the question — fabricated, possibly wrong — then embeds <em>that</em> and searches with it. You&rsquo;re matching answer-shaped text against answer-shaped chunks, which lands closer in embedding space. You never show the hallucinated draft to the user; it&rsquo;s purely a better search key.</li>
+</ul>
+<pre><code class="language-go">// multiQuery rewrites the raw query into several phrasings, retrieves for each,
+// and fuses. rewrite() is a cheap LLM call returning paraphrases; embed/search
+// are the post 8/9 primitives.
+func multiQuery(ctx context.Context, raw string, n int) []string {
+    variants := rewrite(ctx, raw) // e.g. 3 self-contained paraphrases
+    rankings := make([][]string, 0, len(variants))
+    for _, q := range variants {
+        rankings = append(rankings, ids(store.Search(embed(q), n)))
+    }
+    return fuseRRF(rankings, 60)
+}
+</code></pre>
+<p><strong>The gotcha:</strong> every transformation is an extra LLM call before you&rsquo;ve retrieved anything — that&rsquo;s latency and cost on the critical path, and a rewrite can <em>drift</em> the query away from the user&rsquo;s intent. Gate these on the eval set like everything else: adopt HyDE or multi-query only where recall@k actually rises. They pay off most for short, ambiguous, or conversational queries and add little for already-precise ones.</p>
+<hr>
+<h2 id="build-the-context-deliberately">Build the context deliberately</h2>
+<p>Retrieval hands you <em>k</em> good chunks. How you assemble them into the prompt is not an afterthought — it changes the answer. Three rules.</p>
+<p><strong>Order matters, and not how you&rsquo;d guess.</strong> Long-context models under-use the <em>middle</em> of their context — the &ldquo;lost in the middle&rdquo; effect. Attention favors the beginning and end, so a critical chunk buried in the middle of ten gets skimmed. Put your strongest chunks first and last, not in a neat descending pile.</p>
+<p><strong>Deduplicate.</strong> Overlapping chunks and multi-query fusion both produce near-duplicate passages. Sending the same fact three times wastes budget and biases the model toward whatever got repeated. Drop near-identical chunks before assembling.</p>
+<p><strong>Respect the token budget (post 3).</strong> Context isn&rsquo;t free and it isn&rsquo;t infinite. Count tokens as you add chunks and stop before you blow the budget — leaving headroom for the model&rsquo;s answer. And <strong>carry the source metadata into the prompt</strong> so the model can cite it and you can trace every claim back to a chunk.</p>
+<pre><code class="language-go">// buildContext assembles reranked chunks into a prompt block: dedup, respect a
+// token budget, and place the strongest chunks at the edges (not the middle).
+func buildContext(chunks []Chunk, budget int) string {
+    chunks = dedup(chunks) // drop near-identical passages
+    kept := []Chunk{}
+    used := 0
+    for _, c := range chunks {
+        t := countTokens(c.Text) // post 3's tokenizer
+        if used+t &gt; budget {
+            break
+        }
+        kept = append(kept, c)
+        used += t
+    }
+    kept = edgeOrder(kept) // best first and last; weakest toward the middle
+    var b strings.Builder
+    for _, c := range kept {
+        fmt.Fprintf(&amp;b, &quot;[%s — %s]\n%s\n\n&quot;, c.Source, c.Section, c.Text)
+    }
+    return b.String()
+}
+</code></pre>
+<p><strong>The gotcha:</strong> more chunks in context is not better. It&rsquo;s tempting to raise <em>k</em> to 20 &ldquo;to be safe,&rdquo; but that pushes real evidence into the lost-in-the-middle dead zone, dilutes attention across mostly-irrelevant text, and costs tokens on every call. A tightly reranked top 3–5 usually beats a loose top 20. Retrieve wide, rerank hard, and send <em>few</em>.</p>
+<hr>
+<h2 id="know-when-not-to-retrieve">Know when not to retrieve</h2>
+<p>The last improvement is retrieving less. Not every query needs your documents. &ldquo;Rewrite this email more formally,&rdquo; &ldquo;what&rsquo;s 15% of 240,&rdquo; &ldquo;translate this to French&rdquo; — the answer is in the request, not your corpus. Retrieving anyway injects irrelevant chunks that can only distract the model, and spends latency and money to make the answer <em>worse</em>.</p>
+<p>So put a gate in front of retrieval: a cheap classification — a small LLM call, or even a heuristic — deciding whether this query is knowledge-seeking against your corpus at all. If not, skip straight to generation. This also handles conversational filler (&ldquo;thanks!&rdquo;, &ldquo;can you redo that&rdquo;) that would otherwise retrieve noise. The best RAG systems retrieve <em>when it helps</em> and get out of the way when it doesn&rsquo;t.</p>
+<hr>
+<h2 id="the-improvements-at-a-glance">The improvements, at a glance</h2>
+<table><caption class="sr-only">The improvements, at a glance</caption>
+<thead>
+<tr>
+<th>Technique</th>
+<th>Fixes</th>
+<th>Cost it adds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Recall@k evaluation</td>
+<td>Optimizing blind</td>
+<td>Building a labeled set (do it anyway)</td>
+</tr>
+<tr>
+<td>Structure-aware chunking + overlap</td>
+<td>Severed, incoherent chunks</td>
+<td>Tuning chunk size per corpus</td>
+</tr>
+<tr>
+<td>Hybrid search (dense + BM25, RRF)</td>
+<td>Missing exact terms, IDs, names</td>
+<td>A second index; fusion step</td>
+</tr>
+<tr>
+<td>Reranking (cross-encoder / LLM)</td>
+<td>Right chunk buried below top-k</td>
+<td>A slow model over N candidates</td>
+</tr>
+<tr>
+<td>Query transformation (rewrite/HyDE/multi)</td>
+<td>Vague, conversational, mismatched queries</td>
+<td>Extra LLM call(s) before retrieval</td>
+</tr>
+<tr>
+<td>Deliberate context construction</td>
+<td>Lost-in-the-middle, dupes, budget overruns</td>
+<td>Dedup + token accounting</td>
+</tr>
+<tr>
+<td>Retrieval gating</td>
+<td>Distraction on non-corpus queries</td>
+<td>A cheap classifier call</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Retrieval quality is the ceiling.</strong> If the answer chunk isn&rsquo;t in the top <em>k</em>, nothing downstream can save the response. Measure recall@k first, and treat every change as a hypothesis you verify against it.</li>
+<li><strong>Chunk on structure, not size.</strong> Split where meaning breaks, overlap the seams, and carry source/section metadata through the whole pipeline so you can cite and filter.</li>
+<li><strong>Run dense and lexical together.</strong> Embeddings find meaning; BM25 nails exact tokens. Fuse them with RRF, which combines on rank and sidesteps the incompatible-scale problem.</li>
+<li><strong>Reranking is the biggest single win.</strong> Over-retrieve N, rerank with a cross-encoder or an LLM, take the top <em>k</em>. Over-retrieve modestly — it&rsquo;s a per-query cost.</li>
+<li><strong>Reshape the query and assemble the context on purpose.</strong> Rewrite/HyDE/multi-query help ambiguous questions; then dedup, respect the token budget, and place strong chunks at the edges to beat lost-in-the-middle.</li>
+<li><strong>Sometimes the fix is not retrieving at all.</strong> Gate retrieval so non-corpus queries skip it entirely.</li>
+<li><strong>It&rsquo;s a loop, not a checklist.</strong> Change one thing, re-run recall@k (and, in post 13, end-to-end answer quality), keep what wins on <em>your</em> data. RAG is tuned, not configured.</li>
+</ul>
+<p>Post 9 got you a pipeline that runs. This post gets you one that&rsquo;s worth trusting — and the reason you can trust it is that every step is now something you measure, not something you hope.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://www.staff.city.ac.uk/~sbrp622/papers/foundations_bm25_review.pdf">Robertson &amp; Zaragoza, &ldquo;The Probabilistic Relevance Framework: BM25 and Beyond&rdquo; (Foundations and Trends in Information Retrieval, 2009)</a> — the definitive reference for the Okapi BM25 lexical ranking function.</li>
+<li><a href="https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf">Cormack, Clarke &amp; Büttcher, &ldquo;Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods&rdquo; (SIGIR 2009)</a> — the original RRF paper, including the <code>k=60</code> constant used above.</li>
+<li><a href="https://arxiv.org/abs/1901.04085">Nogueira &amp; Cho, &ldquo;Passage Re-ranking with BERT&rdquo; (arXiv:1901.04085)</a> — the cross-encoder reranking approach that popularized over-retrieve-then-rerank.</li>
+<li><a href="https://arxiv.org/abs/2212.10496">Gao et al., &ldquo;Precise Zero-Shot Dense Retrieval without Relevance Labels&rdquo; (arXiv:2212.10496)</a> — the HyDE (Hypothetical Document Embeddings) paper.</li>
+<li><a href="https://arxiv.org/abs/2307.03172">Liu et al., &ldquo;Lost in the Middle: How Language Models Use Long Contexts&rdquo; (arXiv:2307.03172)</a> — the empirical study behind edge-ordering your context.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-09-rag.html">Retrieval-Augmented Generation</a>
+      <span class="related-date">Aug 05</span>
+    </li>
+    <li>
+      <a href="/blog/posts/bedrock-go-05-rag-knowledge-bases.html">Retrieval-Augmented Generation with Knowledge Bases</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-12-agent-memory-and-planning.html">Agent Memory and Planning</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

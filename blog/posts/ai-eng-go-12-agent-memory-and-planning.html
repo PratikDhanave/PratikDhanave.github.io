@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Agent Memory and Planning — Pratik Dhanave</title>
+<meta name="description" content="Give the agent memory and planning in Go: a compacting short-term conversation buffer, long-term memory as timestamped embeddings in the vector store,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Agent Memory and Planning — Pratik Dhanave">
+<meta property="og:description" content="Give the agent memory and planning in Go: a compacting short-term conversation buffer, long-term memory as timestamped embeddings in the vector store, and planning — plan-then-execute, reflection and re-planning when observations contradict the plan, and task decomposition.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-eng-go-12-agent-memory-and-planning.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-08T00:00:00Z">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="AI Agents">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Memory">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Agent Memory and Planning — Pratik Dhanave">
+<meta name="twitter:description" content="Give the agent memory and planning in Go: a compacting short-term conversation buffer, long-term memory as timestamped embeddings in the vector store, and planning — plan-then-execute, reflection and re-planning when observations contradict the plan, and task decomposition.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-eng-go-12-agent-memory-and-planning.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Agent Memory and Planning",
+  "description": "Give the agent memory and planning in Go: a compacting short-term conversation buffer, long-term memory as timestamped embeddings in the vector store, and planning \u2014 plan-then-execute, reflection and re-planning when observations contradict the plan, and task decomposition.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-08",
+  "dateModified": "2026-08-08",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Engineering, AI Agents, Go, Memory",
+  "url": "https://pratikdhanave.com/blog/posts/ai-eng-go-12-agent-memory-and-planning.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-eng-go-12-agent-memory-and-planning.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Agent Memory and Planning</h1>
+    <p class="post-subtitle">Give the hand-rolled Go agent from post 11 a memory it can carry between turns and a plan it can follow across many steps — a compacting conversation buffer, retrieval over the post-8 vector store, and a plan-then-execute-then-reflect loop, all built from scratch.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-08">August 08, 2026</time>
+      <span>·</span>
+      <span>15 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/memory/" class="tag-link"><span class="tag">#Memory</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 12 of 15</span>
+    <span class="series-title">AI Engineering in Go</span>
+    <div class="series-nav"><a href="/blog/posts/ai-eng-go-11-agents-from-scratch.html" class="series-prev">&larr; Part 11: Agents from Scratch</a></div>
+  </div>
+
+
+
+  <p>In post 11 we built an <code>Agent</code> from parts: a tool registry, a <code>[]Message</code> history, and a <code>Run</code> loop that thinks, calls a tool, observes the result, and repeats until the model produces a final answer. It works, and for a single well-scoped request it&rsquo;s genuinely useful. But it has two holes you feel the moment you ask anything harder.</p>
+<p>First, it forgets. The instant <code>Run</code> returns, the <code>[]Message</code> it built is gone. Ask a follow-up and the agent has no idea what you just discussed — the model is <em>stateless between calls</em>, so the only memory that exists is whatever you resend. Second, it improvises. The reason-act loop decides one step at a time with no view of the whole task, so on a multi-step job it wanders, backtracks, and burns turns rediscovering what it should have planned up front.</p>
+<p>This post fixes both, from scratch in Go. Memory first — because planning without memory is just a longer way to forget — then planning on top of it.</p>
+<hr>
+<h2 id="the-core-problem-the-model-remembers-nothing">The core problem: the model remembers nothing</h2>
+<p>Every call to <code>client.Complete(ctx, ChatRequest)</code> is independent. The model doesn&rsquo;t retain your last conversation, your last turn, or even the tool result it just saw — unless that text is sitting in the <code>Messages</code> slice you send <em>this</em> call. &ldquo;Agent memory&rdquo; is not a feature of the model. It is a decision you make on every turn: <strong>what do I put back into the context?</strong></p>
+<p>And you can&rsquo;t put everything back, because the context window is finite (post 3). Every model has a hard token ceiling, and every token you spend on history is a token you can&rsquo;t spend on the current task — and one you pay for, on input, every single turn. So memory engineering is really <em>budget</em> engineering: choosing what earns its place in a fixed number of tokens.</p>
+<p>There are three layers worth separating, and they map cleanly onto Go types:</p>
+<table><caption class="sr-only">The core problem: the model remembers nothing</caption>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What it is</th>
+<th>Lives where</th>
+<th>Lifetime</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Short-term (working)</td>
+<td>the running message history</td>
+<td><code>[]Message</code> in the agent</td>
+<td>one task / session</td>
+</tr>
+<tr>
+<td>Long-term</td>
+<td>past facts and interactions, retrievable</td>
+<td>the post-8 <code>VectorStore</code></td>
+<td>across sessions</td>
+</tr>
+<tr>
+<td>Scratchpad</td>
+<td>notes the agent writes to itself</td>
+<td>a field in the run state</td>
+<td>one task</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="short-term-memory-a-conversation-buffer-that-compacts">Short-term memory: a conversation buffer that compacts</h2>
+<p>Working memory is just the message history — the transcript of the current task or conversation. The naive version is one line: keep appending to <code>[]Message</code> and resend the whole thing every turn. It&rsquo;s correct, and it&rsquo;s a trap.</p>
+<p><strong>The gotcha:</strong> naive full-history grows unbounded, and because you resend <em>all</em> prior tokens on every turn, cost grows roughly <em>quadratically</em> over a long session. Turn 1 sends 1 message, turn 50 sends 50 — and the model re-reads turns 1 through 49 every time. A chatty agent that runs for an hour will blow past the context window and, long before that, past your budget. Unbounded history is not &ldquo;memory,&rdquo; it&rsquo;s a leak.</p>
+<p>The fix is to <em>manage</em> the buffer. Two strategies, and the good answer combines them:</p>
+<ul>
+<li><strong>Windowing</strong> — keep only the last <em>N</em> turns, drop the oldest. Cheap and simple; it just forgets old context wholesale.</li>
+<li><strong>Summarization</strong> — when the buffer gets too big, compress the oldest turns into a running summary and keep that summary in context in their place.</li>
+</ul>
+<p>The sane design keeps the system prompt pinned, a running summary of everything old, and the <em>raw</em> recent turns verbatim. Here&rsquo;s a <code>ConversationBuffer</code> that compacts when it crosses a token threshold. <code>estimateTokens</code> is the rough counter from post 3 — a token is ~4 characters of English, close enough for a budget guard:</p>
+<pre><code class="language-go">package memory
+
+// estimateTokens is post 3's rough heuristic: ~4 chars per token.
+func estimateTokens(s string) int { return (len(s) + 3) / 4 }
+
+// ConversationBuffer is working memory that stays under a token budget by
+// summarizing old turns while keeping recent ones verbatim.
+type ConversationBuffer struct {
+    system     Message   // pinned; never dropped or summarized
+    summary    string    // running summary of everything already compacted
+    recent     []Message // raw, verbatim recent turns
+    maxTokens  int       // budget for the whole rendered buffer
+    keepRecent int       // always keep at least this many raw turns
+    summarize  func(prior string, turns []Message) (string, error)
+}
+
+func (b *ConversationBuffer) Append(m Message) { b.recent = append(b.recent, m) }
+</code></pre>
+<p><code>Messages</code> renders the buffer into the slice you actually send: the pinned system message, the summary (if any) as a system note, then the raw recent turns.</p>
+<pre><code class="language-go">func (b *ConversationBuffer) Messages() []Message {
+    out := []Message{b.system}
+    if b.summary != &quot;&quot; {
+        out = append(out, Message{
+            Role:    &quot;system&quot;,
+            Content: &quot;Summary of earlier conversation:\n&quot; + b.summary,
+        })
+    }
+    return append(out, b.recent...)
+}
+
+func (b *ConversationBuffer) tokens() int {
+    total := 0
+    for _, m := range b.Messages() {
+        total += estimateTokens(m.Content)
+    }
+    return total
+}
+</code></pre>
+<p><code>Compact</code> is the interesting part. When the rendered buffer exceeds the budget, peel off the oldest turns (everything past <code>keepRecent</code>), fold them into the summary with a cheap LLM call, and drop the raw copies:</p>
+<pre><code class="language-go">// Compact folds the oldest turns into the running summary until the buffer
+// fits its token budget, always leaving keepRecent raw turns intact.
+func (b *ConversationBuffer) Compact() error {
+    for b.tokens() &gt; b.maxTokens &amp;&amp; len(b.recent) &gt; b.keepRecent {
+        // Take the oldest turns beyond the keep-window.
+        cut := len(b.recent) - b.keepRecent
+        old := b.recent[:cut]
+
+        newSummary, err := b.summarize(b.summary, old)
+        if err != nil {
+            return err
+        }
+        b.summary = newSummary
+        b.recent = append([]Message(nil), b.recent[cut:]...) // keep only recent
+    }
+    return nil
+}
+</code></pre>
+<p>The <code>summarize</code> function is itself a model call — &ldquo;here&rsquo;s the summary so far and some older turns, produce an updated summary that preserves decisions, facts, and open questions.&rdquo; You call <code>Compact</code> after each turn, before the next <code>Complete</code>.</p>
+<p><strong>The gotcha:</strong> summarization is lossy — a summary is a compression, and compression throws away detail you might need three turns from now (&ldquo;wait, what account number did they give me?&rdquo;). That&rsquo;s exactly why you keep <code>keepRecent</code> raw turns <em>and</em> a summary of the old ones, rather than summarizing everything. Recent context is where precision matters most; keep it verbatim and only compress the distant past.</p>
+<hr>
+<h2 id="long-term-memory-recall-from-the-vector-store">Long-term memory: recall from the vector store</h2>
+<p>Working memory dies with the task. Long-term memory outlives it: facts the agent learned, decisions it made, things the user told it last week. You already built the machinery for this in posts 7 and 8 — embeddings and a <code>VectorStore</code> with <code>Add</code> and <code>Search</code>. Long-term memory is <em>RAG pointed at the agent&rsquo;s own history</em>: write memories in as embeddings, and retrieve the relevant ones back into context on demand.</p>
+<p>A thin wrapper turns the vector store into a memory:</p>
+<pre><code class="language-go">package memory
+
+import (
+    &quot;time&quot;
+
+    &quot;example.com/vstore&quot;
+)
+
+// MemoryStore persists facts as embeddings and recalls relevant ones on demand.
+type MemoryStore struct {
+    store *vstore.VectorStore
+    embed func(string) []float32 // post 7's embedding step
+    clock func() time.Time
+}
+
+// Remember embeds a fact and stores it with a timestamp, so recall can
+// prefer newer memories when two disagree.
+func (m *MemoryStore) Remember(id, fact string) error {
+    stamped := m.clock().UTC().Format(time.RFC3339) + &quot; | &quot; + fact
+    return m.store.Add(id, stamped, m.embed(fact))
+}
+
+// Recall returns the k memories most relevant to the query text.
+func (m *MemoryStore) Recall(query string, k int) []vstore.Result {
+    return m.store.Search(m.embed(query), k)
+}
+</code></pre>
+<p>Wiring it into the agent is one extra step at the start of a run — the <em>recall</em> step. Embed the incoming task, search memory, and inject the hits as a context message before the reason-act loop starts:</p>
+<pre><code class="language-go">// recallInto adds relevant long-term memories to the buffer as context.
+func recallInto(buf *ConversationBuffer, mem *MemoryStore, task string) {
+    hits := mem.Recall(task, 4)
+    if len(hits) == 0 {
+        return
+    }
+    note := &quot;Relevant things you remember (most similar first):\n&quot;
+    for _, h := range hits {
+        note += &quot;- &quot; + h.Text + &quot;\n&quot;
+    }
+    buf.Append(Message{Role: &quot;system&quot;, Content: note})
+}
+</code></pre>
+<p>Note that the stored text carries a timestamp, and the embedding is of the <em>fact</em> alone — you don&rsquo;t want the date polluting the semantic match, only informing the model once retrieved.</p>
+<p><strong>The gotcha:</strong> retrieved long-term memories can be stale or flatly contradict the current state of the world. The agent &ldquo;remembers&rdquo; the user&rsquo;s address from six months ago, or a preference they&rsquo;ve since reversed. Retrieval finds <em>similar</em> text, not <em>true</em> text — similarity has no sense of time. Timestamp every memory (as above), surface the timestamp to the model, and instruct it to prefer the most recent when memories conflict. Better still, when a fact is superseded, write the correction as a new memory so recency and relevance point the same way.</p>
+<hr>
+<h2 id="scratchpad-state-the-agent-writes-for-itself">Scratchpad: state the agent writes for itself</h2>
+<p>The third layer is the smallest: a place the agent records intermediate conclusions <em>within</em> a single task. The reason-act trace from post 11 is already a scratchpad — each &ldquo;thought&rdquo; the model emits is a note to its future self, resent as context on the next iteration. It&rsquo;s worth making one bit explicit: a plain field the run can write structured intermediate results into (a tally, a partial list, the current plan) so they survive independent of the chatty transcript and don&rsquo;t get lost when the buffer compacts.</p>
+<pre><code class="language-go">// RunState is the agent's scratchpad for a single task.
+type RunState struct {
+    Task    string
+    Plan    []Step   // the current plan (below)
+    Results []string // outcomes of completed steps
+    Notes   string   // free-form working notes the model maintains
+}
+</code></pre>
+<p>Keep it small. The scratchpad is working memory with a schema, not a second transcript.</p>
+<hr>
+<h2 id="why-one-reason-act-step-isnt-enough">Why one reason-act step isn&rsquo;t enough</h2>
+<p>That&rsquo;s memory. Now planning — the second hole. The post-11 loop decides the <em>next</em> action from the current state and nothing else. For &ldquo;what&rsquo;s the weather in Pune?&rdquo; that&rsquo;s perfect: one tool call, done. For &ldquo;compare our Q1 and Q2 refund rates and draft a summary email&rdquo; it flails, because success depends on <em>order and structure</em> the model can&rsquo;t see one step at a time. It&rsquo;ll fetch Q1, forget why, fetch something unrelated, and burn turns rediscovering the goal.</p>
+<p>The fix is to make the plan explicit: decide the shape of the whole task before executing, then execute against that plan — and revise it when reality disagrees.</p>
+<hr>
+<h2 id="plan-then-execute">Plan-then-execute</h2>
+<p>The first pattern is the simplest: ask the model to decompose the task into an ordered list of steps <em>before</em> doing anything, then walk the list. This is structured output (post 5) — you ask for JSON and decode it into a <code>[]Step</code>.</p>
+<pre><code class="language-go">type Step struct {
+    N       int    `json:&quot;n&quot;`
+    Goal    string `json:&quot;goal&quot;`        // what this step achieves
+    Tool    string `json:&quot;tool&quot;`        // suggested tool, or &quot;&quot; to reason
+    Done    bool   `json:&quot;-&quot;`
+}
+
+// plan asks the model to decompose a task into ordered steps.
+func (a *Agent) plan(ctx context.Context, task string) ([]Step, error) {
+    req := ChatRequest{
+        Model: a.model,
+        Messages: []Message{
+            {Role: &quot;system&quot;, Content: &quot;Break the user's task into 2-6 ordered, &quot; +
+                &quot;concrete steps. Reply as JSON: {\&quot;steps\&quot;:[{\&quot;n\&quot;:1,\&quot;goal\&quot;:\&quot;...\&quot;,&quot; +
+                &quot;\&quot;tool\&quot;:\&quot;...\&quot;}]}. Use tool \&quot;\&quot; for a pure reasoning step.&quot;},
+            {Role: &quot;user&quot;, Content: task},
+        },
+        ResponseFormat: jsonObject(), // post 5's structured-output request
+    }
+    resp, err := a.client.Complete(ctx, req)
+    if err != nil {
+        return nil, err
+    }
+    var out struct{ Steps []Step `json:&quot;steps&quot;` }
+    if err := json.Unmarshal([]byte(resp.Choices[0].Message.Content), &amp;out); err != nil {
+        return nil, err
+    }
+    return out.Steps, nil
+}
+</code></pre>
+<p>Executing the plan reuses post 11&rsquo;s <code>Run</code> — each step becomes a scoped sub-run of the reason-act loop, focused on one goal instead of the whole sprawling task:</p>
+<pre><code class="language-go">func (a *Agent) executePlan(ctx context.Context, st *RunState) error {
+    for i := range st.Plan {
+        step := &amp;st.Plan[i]
+        prompt := fmt.Sprintf(&quot;Overall task: %s\nCurrent step %d: %s&quot;,
+            st.Task, step.N, step.Goal)
+        result, err := a.Run(ctx, prompt) // post 11's reason-act loop
+        if err != nil {
+            return fmt.Errorf(&quot;step %d (%s): %w&quot;, step.N, step.Goal, err)
+        }
+        step.Done = true
+        st.Results = append(st.Results, result)
+    }
+    return nil
+}
+</code></pre>
+<p>The win is focus: each <code>Run</code> sees a small, concrete goal, so its tool selection is sharper and it can&rsquo;t wander. The cost is real too — you&rsquo;ve added a whole model call up front just to make the plan, before any work happens.</p>
+<hr>
+<h2 id="re-planning-and-reflection">Re-planning and reflection</h2>
+<p>A plan made before any observations is a guess, and guesses go stale. Step 2 returns &ldquo;no data for Q1&rdquo; and steps 3 through 6 — all built on Q1 data — are now dead. Blindly executing a dead plan is worse than having no plan.</p>
+<p>So after each step (or a batch of them), let the agent <em>reflect</em>: look at the plan and the results so far, judge whether it&rsquo;s still on track, and revise the remaining steps. This is the core idea behind Reflexion (Shinn et al.) — an agent that critiques its own trajectory and adjusts, rather than barreling ahead.</p>
+<pre><code class="language-go">// reflect asks the model to critique progress and return a revised plan for
+// the remaining work. It returns the (possibly rewritten) remaining steps.
+func (a *Agent) reflect(ctx context.Context, st *RunState) ([]Step, error) {
+    var b strings.Builder
+    fmt.Fprintf(&amp;b, &quot;Task: %s\n\nResults so far:\n&quot;, st.Task)
+    for i, r := range st.Results {
+        fmt.Fprintf(&amp;b, &quot;%d. %s\n&quot;, i+1, r)
+    }
+    b.WriteString(&quot;\nAre we on track? If a result contradicts the plan, rewrite &quot; +
+        &quot;the REMAINING steps. Reply as JSON {\&quot;steps\&quot;:[...]} — same shape as before.&quot;)
+
+    resp, err := a.client.Complete(ctx, ChatRequest{
+        Model:          a.model,
+        Messages:       []Message{{Role: &quot;system&quot;, Content: b.String()}},
+        ResponseFormat: jsonObject(),
+    })
+    if err != nil {
+        return nil, err
+    }
+    var out struct{ Steps []Step `json:&quot;steps&quot;` }
+    err = json.Unmarshal([]byte(resp.Choices[0].Message.Content), &amp;out)
+    return out.Steps, err
+}
+</code></pre>
+<p><strong>The gotcha:</strong> a plan made up front goes stale — so re-plan <em>when observations contradict it</em>, not on a blind timer and not never. Reflecting after every single step doubles your call count for little gain; never reflecting means executing dead plans to the bitter end. The trigger that actually earns its cost is a <em>surprise</em>: a step failed, returned empty, or contradicted an assumption the plan rested on. Reflect then.</p>
+<hr>
+<h2 id="task-decomposition-into-sub-tasks">Task decomposition into sub-tasks</h2>
+<p>Plan steps and sub-tasks are the same idea at two scales. A step whose <code>Goal</code> is itself complex can be handed to a <em>fresh</em> agent run — its own plan, its own reason-act loop, its own scratchpad — and only the result bubbles back up. That recursion is how a top-level plan stays short (2-6 steps) while the real work fans out beneath it. In practice you cap the depth, because each level multiplies calls.</p>
+<p>Be honest about the trade-off, because it&rsquo;s the whole game: <strong>every layer of planning and reflection adds model calls and latency, and more autonomy means more ways to fail.</strong> A one-shot answer can be wrong; a five-step autonomous plan can be wrong in five places, compound its own mistakes, and cost five times as much doing it. Add planning when a task genuinely needs structure the model can&rsquo;t hold in a single step — not because &ldquo;agentic&rdquo; sounds better than &ldquo;a function that calls an API.&rdquo;</p>
+<hr>
+<h2 id="putting-it-together">Putting it together</h2>
+<p>Here&rsquo;s the shape of a planning agent with memory, extending the post-11 <code>Agent</code>. Recall long-term memory, plan, execute step by step through the reason-act loop with a compacting buffer, reflect when a step surprises us, and remember the outcome for next time:</p>
+<pre><code class="language-go">func (a *Agent) RunPlanned(ctx context.Context, task string) (string, error) {
+    st := &amp;RunState{Task: task}
+
+    recallInto(a.buf, a.mem, task) // long-term memory → context
+
+    plan, err := a.plan(ctx, task)
+    if err != nil {
+        return &quot;&quot;, err
+    }
+    st.Plan = plan
+
+    for i := 0; i &lt; len(st.Plan); i++ {
+        step := &amp;st.Plan[i]
+        result, err := a.Run(ctx, step.Goal) // reason-act loop
+        if err != nil {
+            return &quot;&quot;, err
+        }
+        st.Results = append(st.Results, result)
+        step.Done = true
+        a.buf.Append(Message{Role: &quot;assistant&quot;, Content: result})
+        if err := a.buf.Compact(); err != nil { // keep working memory bounded
+            return &quot;&quot;, err
+        }
+
+        if surprising(result) { // failed / empty / contradicts the plan
+            revised, err := a.reflect(ctx, st)
+            if err != nil {
+                return &quot;&quot;, err
+            }
+            st.Plan = append(st.Plan[:i+1], revised...) // splice in new steps
+        }
+    }
+
+    final := strings.Join(st.Results, &quot;\n&quot;)
+    _ = a.mem.Remember(task, &quot;Completed: &quot;+task+&quot; → &quot;+final) // long-term write-back
+    return final, nil
+}
+</code></pre>
+<p>Every piece here is something you already built: <code>Run</code> and the tool registry from post 11, the <code>VectorStore</code> from post 8, embeddings from post 7, structured output from post 5, the token budget from post 3. Memory and planning aren&rsquo;t new machinery so much as new <em>discipline</em> applied to the parts you have — deciding what goes back into a finite context, and deciding the order of the work before you start doing it.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>The model is stateless; memory is what you resend.</strong> Every <code>Complete</code> call is amnesiac. &ldquo;Agent memory&rdquo; is your decision, each turn, about what to put back into a finite context window.</li>
+<li><strong>Bound your working memory.</strong> Naive full history re-sends every prior token every turn — cost grows quadratically. Window old turns or summarize them, but keep recent turns verbatim because summaries are lossy.</li>
+<li><strong>Long-term memory is RAG over the agent&rsquo;s own history.</strong> Persist facts as embeddings in the post-8 vector store and recall the relevant ones on demand. Timestamp them, because retrieval finds similar text, not current text.</li>
+<li><strong>One reason-act step doesn&rsquo;t plan.</strong> For multi-step tasks, decompose into an ordered <code>[]Step</code> first, then execute each as a scoped sub-run.</li>
+<li><strong>Re-plan on surprise, not on a schedule.</strong> A stale plan is worse than no plan; reflect when a step fails or contradicts an assumption, and splice in revised steps.</li>
+<li><strong>Autonomy has a price.</strong> Every planning and reflection layer adds calls, latency, and new failure modes. Add structure only when the task genuinely needs it.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://arxiv.org/abs/2303.11366">Shinn et al., &ldquo;Reflexion: Language Agents with Verbal Reinforcement Learning&rdquo; (arXiv:2303.11366)</a> — self-critique and revision as a loop; the primary source for the reflection pattern above.</li>
+<li><a href="https://arxiv.org/abs/2210.03629">Yao et al., &ldquo;ReAct: Synergizing Reasoning and Acting in Language Models&rdquo; (arXiv:2210.03629)</a> — the reason-act loop post 11 is built on, and the baseline planning improves.</li>
+<li><a href="https://docs.claude.com/en/docs/build-with-claude/context-windows">Anthropic — Context management and the context window</a> — how a provider counts tokens and what falls out of the window.</li>
+<li><a href="https://pkg.go.dev/container/list">Go <code>container/list</code> package</a> — a doubly linked list handy for a sliding conversation window when you evict from the front often.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-11-agents-from-scratch.html">Agents from Scratch</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/maf-go-04-conversation-and-memory.html">Conversation and Memory — Microsoft Agent Framework in Go</a>
+      <span class="related-date">Jul 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/maf-go-26-foundry-memory.html">step22 · Foundry Memory</a>
+      <span class="related-date">May 14</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
