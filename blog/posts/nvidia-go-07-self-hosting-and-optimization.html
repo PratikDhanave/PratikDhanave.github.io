@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Self-Hosting and Optimizing Inference — Pratik Dhanave</title>
+<meta name="description" content="Move from the hosted API Catalog to self-hosted inference: run a NIM container (your Go client works unchanged by swapping the base URL), when to use...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Self-Hosting and Optimizing Inference — Pratik Dhanave">
+<meta property="og:description" content="Move from the hosted API Catalog to self-hosted inference: run a NIM container (your Go client works unchanged by swapping the base URL), when to use Triton directly, and the TensorRT-LLM optimization levers — quantization, in-flight batching, paged KV cache, tensor parallelism.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/nvidia-go-07-self-hosting-and-optimization.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-12T00:00:00Z">
+<meta property="article:tag" content="NVIDIA">
+<meta property="article:tag" content="NIM">
+<meta property="article:tag" content="Performance">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Self-Hosting and Optimizing Inference — Pratik Dhanave">
+<meta name="twitter:description" content="Move from the hosted API Catalog to self-hosted inference: run a NIM container (your Go client works unchanged by swapping the base URL), when to use Triton directly, and the TensorRT-LLM optimization levers — quantization, in-flight batching, paged KV cache, tensor parallelism.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/nvidia-go-07-self-hosting-and-optimization.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Self-Hosting and Optimizing Inference",
+  "description": "Move from the hosted API Catalog to self-hosted inference: run a NIM container (your Go client works unchanged by swapping the base URL), when to use Triton directly, and the TensorRT-LLM optimization levers \u2014 quantization, in-flight batching, paged KV cache, tensor parallelism.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-12",
+  "dateModified": "2026-08-12",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "NVIDIA, NIM, Performance, Go",
+  "url": "https://pratikdhanave.com/blog/posts/nvidia-go-07-self-hosting-and-optimization.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/nvidia-go-07-self-hosting-and-optimization.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Self-Hosting and Optimizing Inference</h1>
+    <p class="post-subtitle">When to graduate from the hosted API Catalog to inference you run yourself — deploying a NIM container, understanding Triton and TensorRT-LLM, the optimization levers that raise throughput and cut latency, and the one Go base-URL switch that makes the move free.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-12">August 12, 2026</time>
+      <span>·</span>
+      <span>14 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/nvidia/" class="tag-link"><span class="tag">#NVIDIA</span></a><a href="/blog/tags/nim/" class="tag-link"><span class="tag">#NIM</span></a><a href="/blog/tags/performance/" class="tag-link"><span class="tag">#Performance</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 7 of 8</span>
+    <span class="series-title">NVIDIA AI Stack in Go</span>
+    <div class="series-nav"><a href="/blog/posts/nvidia-go-06-nemo-guardrails.html" class="series-prev">&larr; Part 6: Guardrails with NeMo Guardrails</a>
+<a href="/blog/posts/nvidia-go-08-production.html" class="series-next">Part 8: Production on the NVIDIA Stack &rarr;</a></div>
+  </div>
+
+
+
+  <p>Earlier in this series the Go client talked to <code>https://integrate.api.nvidia.com/v1</code> — NVIDIA&rsquo;s hosted API Catalog. That endpoint is the right way to start: no GPUs, no drivers, no ops, just a Bearer token and a model id. But it is not the only way to run, and past a certain point it stops being the <em>cheapest</em> or most <em>controllable</em> way. This post is about the other end of the spectrum — inference you host and operate yourself — and how to decide where on that spectrum you belong.</p>
+<p>A caution up front, so the framing is honest: <strong>NVIDIA ships no Go SDK, and this is not a Go-heavy post.</strong> Deploying and tuning inference is an operations job — containers, GPUs, and server config — that happens mostly outside your Go program. Go&rsquo;s role here is narrow but real: it <em>calls</em> the endpoint you stand up, and it <em>operates</em> it (health checks, readiness gating). The payoff established in post 2 pays off again here — because your client speaks the OpenAI-compatible dialect, moving from hosted to self-hosted is a one-line change. Everything else in this post is the ops context around that one line.</p>
+<hr>
+<h2 id="why-self-host-at-all">Why self-host at all</h2>
+<p>The hosted catalog is a managed convenience: NVIDIA owns the hardware, the scaling, and the uptime, and you pay per token. Self-hosting inverts every one of those. You take on GPUs and operations, and in exchange you get control. The reasons that justify the trade tend to be some mix of:</p>
+<ul>
+<li><strong>Data control and residency.</strong> When prompts or documents can&rsquo;t leave your network — regulated data, customer PII, contractual residency requirements — sending them to a third-party API is a non-starter. A NIM running inside your VPC keeps every token on infrastructure you control.</li>
+<li><strong>Predictable cost at scale.</strong> Per-token pricing is wonderful at low volume and brutal at high volume. Once you&rsquo;re serving a steady, heavy request stream, the fixed cost of a GPU you own can undercut a metered bill — <em>if</em> your utilization is high enough to amortize it.</li>
+<li><strong>Latency and locality.</strong> A model co-located with your application — same region, same network, no public-internet round trip — can shave the tail latency that a remote API adds.</li>
+<li><strong>No per-token vendor pricing.</strong> Self-hosting converts a variable, usage-coupled cost into a fixed capacity cost. That changes the economics of features that would be reckless to ship on a metered API (bulk reprocessing, aggressive retries, speculative calls).</li>
+<li><strong>Air-gapped operation.</strong> Some environments have no outbound internet at all. A container you pull once and run offline is the only option that works.</li>
+</ul>
+<p><strong>The gotcha:</strong> self-hosting trades vendor cost for <strong>GPU + ops cost</strong> — and the ops cost is the one teams underestimate. You now own driver upgrades, capacity planning, autoscaling, monitoring, and on-call. It is only worth it past a volume (or compliance) threshold, and that threshold is specific to your workload. Don&rsquo;t reason about it in the abstract — <strong>measure</strong> your actual request volume and compare the fully-loaded cost of owned hardware against your metered bill before you commit.</p>
+<hr>
+<h2 id="deploying-a-nim-a-container-that-self-optimizes">Deploying a NIM: a container that self-optimizes</h2>
+<p>A NIM (NVIDIA Inference Microservice) is distributed as a <strong>container image</strong>. You pull it from NVIDIA&rsquo;s NGC registry, run it on a host with a compatible NVIDIA GPU, and it comes up serving the <em>same</em> OpenAI-compatible endpoint you&rsquo;ve been calling in the hosted catalog — typically on a local port. The clever part is what happens between pull and serve: the NIM inspects the GPU it landed on and configures itself with an optimized inference profile for that hardware. You don&rsquo;t hand-tune the engine; the container does that work for you.</p>
+<p>To pull from NGC you need an <strong>NGC API key</strong>, and to give the container access to the GPU you need the NVIDIA driver plus the <strong>NVIDIA Container Toolkit</strong> installed on the host (that&rsquo;s what wires the GPU through to the container runtime). The shape of a run looks roughly like this — treat the exact flags as <strong>illustrative</strong>, and confirm the current image name, tag, port, and environment variables against the NIM documentation for your chosen model, because they vary by model and change over time:</p>
+<pre><code class="language-bash"># ILLUSTRATIVE — verify image, tag, port, and env against the NIM docs.
+# 1) Authenticate to NGC so docker can pull the image.
+docker login nvcr.io   # username: $oauthtoken, password: your NGC API key
+
+# 2) Run the NIM with GPU access exposed through the container toolkit.
+docker run --rm --gpus all \
+  -e NGC_API_KEY=&quot;$NGC_API_KEY&quot; \
+  -p 8000:8000 \
+  nvcr.io/nim/&lt;publisher&gt;/&lt;model&gt;:&lt;tag&gt;
+</code></pre>
+<p>Once it reports ready, it is answering <code>POST /v1/chat/completions</code> on <code>localhost:8000</code> — byte-for-byte the contract your Go client already speaks.</p>
+<p><strong>The gotcha:</strong> a NIM has <strong>real GPU and driver requirements</strong> — a supported CUDA/driver version, the NVIDIA Container Toolkit, and a GPU with enough memory for the model. When those don&rsquo;t line up, the container fails <em>at start</em>, not at request time. A missing toolkit, a too-old driver, or a GPU that can&rsquo;t fit the weights surfaces as a container that never becomes ready — so read the container logs on startup rather than waiting for a request to error.</p>
+<hr>
+<h2 id="the-portability-payoff-realized">The portability payoff, realized</h2>
+<p>Here is the part that makes all of the above cheap from Go&rsquo;s side. The client we built in post 2 took its endpoint as a constructor argument. Pointing it at the NIM you just deployed is one line:</p>
+<pre><code class="language-go">// Before — hosted API Catalog (needs an nvapi-... key):
+client, _ := nim.New()
+
+// After — your self-hosted NIM (no key if it's network-scoped):
+client := nim.NewWithBaseURL(&quot;http://localhost:8000/v1&quot;, &quot;&quot;)
+</code></pre>
+<p>Nothing else in the Go code changes. The request structs, the SSE streaming parser, the status-error handling, the token accounting — all identical, because both endpoints implement the same OpenAI-compatible surface. That is the quiet dividend of NIM having <em>no</em> bespoke Go SDK: there is no vendor abstraction to unlearn when you move from a hosted trial to production on your own hardware.</p>
+<p><strong>The gotcha:</strong> the <em>wire protocol</em> is portable, but the <em>catalog</em> is not. Model ids differ between the hosted catalog and what you self-host, and a self-hosted model may not have exactly the same capabilities — tool/function calling, structured output, and context window can all differ by model and version. So the base-URL switch is free, but <strong>re-verify capabilities after you flip it</strong>: run your tool-calling and streaming paths against the self-hosted endpoint before you assume they behave identically. Portable transport does not guarantee portable behavior.</p>
+<hr>
+<h2 id="triton-inference-server-when-you-need-more-than-a-nim">Triton Inference Server: when you need more than a NIM</h2>
+<p>A NIM is a curated, single-purpose microservice: one model, pre-packaged, self-optimizing. <strong>Triton Inference Server</strong> is the general-purpose serving layer underneath that convenience. You reach for Triton directly when a NIM&rsquo;s one-model, one-endpoint shape is too narrow — when you need to:</p>
+<ul>
+<li><strong>Serve multiple models</strong> (or multiple versions of one) from a single server, with its model-repository layout and version management.</li>
+<li><strong>Serve custom or non-LLM models</strong> — your own fine-tunes, classical ML, vision models — across multiple backends, not just the LLMs a NIM wraps.</li>
+<li><strong>Talk gRPC as well as HTTP.</strong> Triton exposes both, following the KServe-compatible inference protocol, which matters for high-throughput, low-overhead internal services.</li>
+<li><strong>Control batching yourself</strong> through Triton&rsquo;s dynamic batching — coalescing requests that arrive close together into one GPU pass.</li>
+</ul>
+<p>Triton also exposes a <strong>Prometheus metrics endpoint</strong>, which is what makes it operable in production. You scrape it for the signals that tell you whether the server is healthy and how hard it&rsquo;s working — request counts, queue and compute latencies, and GPU utilization — and wire those into dashboards and alerts. A NIM gives you a turnkey model; Triton gives you a serving <em>platform</em> you assemble and operate. The rule of thumb: use a NIM when one exists for your model and its packaging fits; drop to Triton when you&rsquo;re serving a fleet of models or something a NIM doesn&rsquo;t cover.</p>
+<hr>
+<h2 id="tensorrt-llm-the-optimization-layer-underneath">TensorRT-LLM: the optimization layer underneath</h2>
+<p>Both NIM and Triton can serve LLMs through <strong>TensorRT-LLM</strong> — NVIDIA&rsquo;s optimization library and inference backend for large language models. This is where raw throughput and latency actually get won or lost. You mostly don&rsquo;t touch it directly when you run a NIM (the NIM applies it for you), but understanding <em>what</em> it does explains <em>why</em> self-hosted inference can be fast. The core techniques, at an intuition level:</p>
+<ul>
+<li><strong>Quantization (e.g. FP8, INT8).</strong> Model weights and activations are stored and computed in lower numerical precision instead of full 16- or 32-bit floats. Smaller numbers mean less memory moved per token and faster arithmetic on hardware built for low precision — so you fit bigger models or more concurrent requests on the same GPU, and each step runs quicker. The trade is a small, usually acceptable accuracy cost that the quantization method works to minimize.</li>
+<li><strong>In-flight (continuous) batching.</strong> Naive batching waits for a whole batch of requests to finish before starting the next — the fast requests idle while the slow ones drag. Continuous batching instead swaps finished sequences out and new ones in <em>while the batch is running</em>, keeping the GPU saturated. Higher utilization means higher total throughput without punishing latency for short requests.</li>
+<li><strong>Paged KV cache.</strong> As a model generates, it caches the attention keys and values for tokens already seen (the &ldquo;KV cache&rdquo;). Reserving one big contiguous block per request wastes memory to fragmentation. Paging it — allocating the cache in small reusable pages, like virtual memory — packs many more concurrent sequences into the same GPU memory, which raises the concurrency ceiling and thus throughput.</li>
+<li><strong>Tensor parallelism.</strong> A model too large for one GPU is split <em>across</em> several, with each GPU holding a slice of every layer and the GPUs exchanging partial results. That&rsquo;s what lets you serve models that no single GPU could hold, and it can cut latency by putting more compute on each token.</li>
+</ul>
+<p>Each lever pushes on the same two dials — memory pressure and GPU occupancy — because those are what bound LLM serving. The practical takeaway: a NIM already applies an appropriate combination of these for the GPU it detects, so you get most of the benefit without hand-tuning. You&rsquo;d configure TensorRT-LLM yourself only when you&rsquo;re building a custom Triton deployment and need to control the engine directly.</p>
+<p><strong>The gotcha:</strong> these are legitimately powerful, and it is tempting to reach for the numbers. Resist quoting throughput or latency figures you didn&rsquo;t measure on <em>your</em> hardware with <em>your</em> model and <em>your</em> traffic — the gains are real but entirely dependent on GPU, model, quantization, and request mix. The only honest benchmark is the one you run against your own deployment.</p>
+<hr>
+<h2 id="a-decision-framework-three-tiers-of-control">A decision framework: three tiers of control</h2>
+<p>These three options form a ladder of increasing control and increasing effort. Climb only as far as your requirements force you:</p>
+<table><caption class="sr-only">A decision framework: three tiers of control</caption>
+<thead>
+<tr>
+<th>Tier</th>
+<th>What it is</th>
+<th>You control</th>
+<th>You operate</th>
+<th>Reach for it when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Hosted API Catalog</td>
+<td>NVIDIA-run endpoint, per-token billing</td>
+<td>Almost nothing</td>
+<td>Nothing</td>
+<td>Prototyping, low/spiky volume, no data-residency constraint</td>
+</tr>
+<tr>
+<td>2. Self-hosted NIM</td>
+<td>Container you pull and run; self-optimizing</td>
+<td>Placement, scaling, data path</td>
+<td>GPUs + ops</td>
+<td>Data must stay in your network; steady high volume; predictable cost matters</td>
+</tr>
+<tr>
+<td>3. Custom Triton + TensorRT-LLM</td>
+<td>Server you assemble and tune</td>
+<td>The whole serving stack</td>
+<td>Everything</td>
+<td>Multiple/custom models, gRPC, or engine-level tuning a NIM can&rsquo;t give</td>
+</tr>
+</tbody>
+</table>
+<p>The discipline is to <strong>stop at the lowest tier that meets your constraints</strong>. Tier 1 costs the least engineering and is where every project should start. Tier 2 is the common landing spot for production once compliance or volume forces the move — you get most of the optimization for the price of running a container. Tier 3 is for teams that genuinely need a serving platform, and it carries the most operational weight. Jumping to tier 3 because it sounds powerful is how you end up owning a Kubernetes-plus-GPU platform to serve one model that a NIM would have handled.</p>
+<hr>
+<h2 id="gos-job-gate-traffic-on-a-readiness-probe">Go&rsquo;s job: gate traffic on a readiness probe</h2>
+<p>Here is where Go re-enters. A model server — NIM or Triton — takes real time to become ready after the container starts: it loads weights, builds or loads the optimized engine, and warms up. Routing traffic before it&rsquo;s ready gives your users errors. So before a new instance joins your pool, your Go orchestration should <strong>poll a health/readiness endpoint until it passes</strong>, then route. The exact path depends on the server (NIM and Triton expose their own health/ready endpoints — check the docs); the pattern is the same:</p>
+<pre><code class="language-go">package health
+
+import (
+    &quot;context&quot;
+    &quot;fmt&quot;
+    &quot;net/http&quot;
+    &quot;time&quot;
+)
+
+// WaitReady polls the server's readiness endpoint until it returns 200 OK
+// or the context deadline is hit. Nothing should route to the endpoint
+// until this returns nil.
+func WaitReady(ctx context.Context, httpClient *http.Client, readyURL string) error {
+    ticker := time.NewTicker(2 * time.Second)
+    defer ticker.Stop()
+
+    for {
+        if ok := probe(ctx, httpClient, readyURL); ok {
+            return nil
+        }
+        select {
+        case &lt;-ctx.Done():
+            return fmt.Errorf(&quot;endpoint %s not ready before deadline: %w&quot;, readyURL, ctx.Err())
+        case &lt;-ticker.C:
+            // try again on the next tick
+        }
+    }
+}
+
+// probe issues a single readiness check. A 200 means &quot;route traffic here&quot;;
+// anything else (including a connection error while the model still loads)
+// means &quot;not yet&quot;.
+func probe(ctx context.Context, httpClient *http.Client, readyURL string) bool {
+    req, err := http.NewRequestWithContext(ctx, http.MethodGet, readyURL, nil)
+    if err != nil {
+        return false
+    }
+    resp, err := httpClient.Do(req)
+    if err != nil {
+        return false // server not up yet — expected during startup
+    }
+    defer resp.Body.Close()
+    return resp.StatusCode == http.StatusOK
+}
+</code></pre>
+<p>Driving it before the first real request:</p>
+<pre><code class="language-go">ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+defer cancel()
+
+readyURL := &quot;http://localhost:8000/v1/health/ready&quot; // illustrative path — confirm in the docs
+if err := health.WaitReady(ctx, &amp;http.Client{Timeout: 5 * time.Second}, readyURL); err != nil {
+    log.Fatalf(&quot;NIM never became ready: %v&quot;, err)
+}
+
+// Only now is it safe to construct the client and send traffic.
+client := nim.NewWithBaseURL(&quot;http://localhost:8000/v1&quot;, &quot;&quot;)
+</code></pre>
+<p><strong>The gotcha:</strong> <strong>don&rsquo;t route traffic before the readiness probe passes.</strong> Model load is not instant — a large model can take minutes to come up, and during that window the endpoint may refuse connections or return errors that look like failures but are just &ldquo;not ready yet.&rdquo; Treat a connection error during startup as <em>keep polling</em>, give the probe a generous deadline (a coarse per-request timeout plus an overall budget), and only flip an instance into rotation once it answers 200. A liveness/readiness gate like this is exactly what a Kubernetes readiness probe automates in production — the Go loop above is the same idea when you&rsquo;re orchestrating it yourself.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Start hosted; self-host only when a constraint forces it.</strong> Data residency, air-gapping, predictable cost at high volume, and latency are the reasons that justify taking on GPUs and ops — and the ops cost is the one to measure, not guess.</li>
+<li><strong>A NIM is a container that optimizes itself.</strong> Pull it from NGC with your NGC API key, run it with GPU access via the NVIDIA Container Toolkit, and it serves the same OpenAI-compatible endpoint the hosted catalog does. Requirement mismatches fail at container start, so watch the startup logs.</li>
+<li><strong>The base-URL switch is free; behavior parity is not.</strong> Your Go client moves from hosted to self-hosted in one line, but model ids and capabilities differ — re-verify tool calling and streaming against the new endpoint.</li>
+<li><strong>Triton is the platform; TensorRT-LLM is the engine.</strong> Drop to Triton for multiple/custom models, gRPC, and Prometheus metrics; TensorRT-LLM&rsquo;s quantization, continuous batching, paged KV cache, and tensor parallelism are the levers that raise throughput and cut latency — and a NIM applies them for you.</li>
+<li><strong>Gate traffic on readiness.</strong> Model load takes time; poll a health endpoint until it returns 200 before routing, and never quote performance numbers you didn&rsquo;t measure on your own hardware.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.nvidia.com/nim/">NVIDIA NIM documentation</a> — deploying NIM microservices: container prerequisites, NGC authentication, GPU requirements, and the served endpoints.</li>
+<li><a href="https://docs.nvidia.com/nim/large-language-models/latest/getting-started.html">NVIDIA NIM for LLMs — deployment guide</a> — pulling and running an LLM NIM, and confirming its current image names, ports, and environment variables.</li>
+<li><a href="https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/index.html">Triton Inference Server documentation</a> — model repositories, HTTP/gRPC (KServe) protocol, dynamic batching, and the Prometheus metrics endpoint.</li>
+<li><a href="https://github.com/NVIDIA/TensorRT-LLM">TensorRT-LLM (GitHub)</a> — the optimization backend: quantization, in-flight batching, paged KV cache, and tensor parallelism.</li>
+<li><a href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html">NVIDIA Container Toolkit documentation</a> — installing the toolkit and driver so containers can access the GPU.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/nvidia-go-08-production.html">Production on the NVIDIA Stack</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-go-03-tool-calling.html">Tool Calling with NIM</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-go-02-calling-nim-from-go.html">Calling NIM from Go</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

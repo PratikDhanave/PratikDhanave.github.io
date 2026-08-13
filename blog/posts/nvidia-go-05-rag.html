@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>RAG on the NVIDIA Stack — Pratik Dhanave</title>
+<meta name="description" content="Assemble a full RAG pipeline in Go on NVIDIA&#x27;s stack: chunk and embed with NeMo Retriever (passage vs query input_type), shortlist by cosine, rerank...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="RAG on the NVIDIA Stack — Pratik Dhanave">
+<meta property="og:description" content="Assemble a full RAG pipeline in Go on NVIDIA&#x27;s stack: chunk and embed with NeMo Retriever (passage vs query input_type), shortlist by cosine, rerank with the reranking NIM, then generate a grounded, cited answer from a NIM chat model — with a note on moving to a real vector DB.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/nvidia-go-05-rag.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-10T00:00:00Z">
+<meta property="article:tag" content="NVIDIA">
+<meta property="article:tag" content="NeMo Retriever">
+<meta property="article:tag" content="RAG">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="RAG on the NVIDIA Stack — Pratik Dhanave">
+<meta name="twitter:description" content="Assemble a full RAG pipeline in Go on NVIDIA&#x27;s stack: chunk and embed with NeMo Retriever (passage vs query input_type), shortlist by cosine, rerank with the reranking NIM, then generate a grounded, cited answer from a NIM chat model — with a note on moving to a real vector DB.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/nvidia-go-05-rag.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "RAG on the NVIDIA Stack",
+  "description": "Assemble a full RAG pipeline in Go on NVIDIA's stack: chunk and embed with NeMo Retriever (passage vs query input_type), shortlist by cosine, rerank with the reranking NIM, then generate a grounded, cited answer from a NIM chat model \u2014 with a note on moving to a real vector DB.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-10",
+  "dateModified": "2026-08-10",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "NVIDIA, NeMo Retriever, RAG, Go",
+  "url": "https://pratikdhanave.com/blog/posts/nvidia-go-05-rag.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/nvidia-go-05-rag.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>RAG on the NVIDIA Stack</h1>
+    <p class="post-subtitle">Assembling an end-to-end retrieval-augmented generation pipeline in Go on NVIDIA NIM — chunking, passage embedding, cosine shortlisting, cross-encoder reranking, and a grounded, cited answer — over nothing but net/http.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-10">August 10, 2026</time>
+      <span>·</span>
+      <span>15 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/nvidia/" class="tag-link"><span class="tag">#NVIDIA</span></a><a href="/blog/tags/nemo-retriever/" class="tag-link"><span class="tag">#NeMo Retriever</span></a><a href="/blog/tags/rag/" class="tag-link"><span class="tag">#RAG</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 5 of 8</span>
+    <span class="series-title">NVIDIA AI Stack in Go</span>
+    <div class="series-nav"><a href="/blog/posts/nvidia-go-04-embeddings-and-reranking.html" class="series-prev">&larr; Part 4: Embeddings and Reranking with NeMo Retriever</a>
+<a href="/blog/posts/nvidia-go-06-nemo-guardrails.html" class="series-next">Part 6: Guardrails with NeMo Guardrails &rarr;</a></div>
+  </div>
+
+
+
+  <p>The two earlier posts in this series built the pieces of a RAG system without ever calling them RAG. Post 2 built a typed Go client for a NIM chat model over its OpenAI-compatible REST API. Post 4 built the retrieval core: a NeMo Retriever embedding NIM with asymmetric <code>input_type</code>, a from-scratch cosine similarity, and a NeMo Retriever reranking NIM for precise ordering. This post wires all of it into one thing: a function <code>Answer(question) (string, []Source)</code> that pulls the right passages out of your own documents and hands the model an answer it can actually stand behind, with citations.</p>
+<p>Nothing new gets invented here at the transport layer. NVIDIA still ships no Go SDK, so every service call is <code>net/http</code> and <code>encoding/json</code>, exactly as before. What is new is the <em>orchestration</em> — the four stages that turn a pile of text and a question into a grounded reply: <strong>ingest, retrieve, rerank, generate.</strong> We&rsquo;ll build each as concrete Go, then assemble them.</p>
+<hr>
+<h2 id="the-full-shape-of-rag">The full shape of RAG</h2>
+<p>Retrieval-augmented generation exists to solve one problem: a language model only knows what was in its training data, and it will confidently make up the rest. RAG fixes that by fetching relevant passages from <em>your</em> corpus at question time and pasting them into the prompt, so the model answers from evidence you control rather than from its frozen parametric memory.</p>
+<p>The pipeline splits cleanly in two. <strong>Ingest</strong> runs offline, once per document: chunk it, embed each chunk, store the vectors. <strong>Query</strong> runs per question: embed the question, shortlist by cosine, rerank the shortlist, build a grounded prompt, and generate. Everything downstream of retrieval is only as good as the passages retrieval returns — which is why two of the four stages exist purely to get the right chunks in the right order.</p>
+<hr>
+<h2 id="stage-1-ingest-chunk-embed-store">Stage 1 — Ingest: chunk, embed, store</h2>
+<p>You cannot embed a whole document as one vector and expect good retrieval. A 40-page manual squeezed into a single embedding is a blurry average of everything it says, and it matches every query weakly and none of them well. So the first job of ingest is <strong>chunking</strong>: splitting each document into passages small enough that one vector captures one idea, with a little <strong>overlap</strong> so a sentence straddling a boundary isn&rsquo;t orphaned from its context.</p>
+<p>Here is a word-based chunker with configurable size and overlap. Word boundaries keep it simple and language-agnostic; the overlap slides the window back a fixed number of words each step.</p>
+<pre><code class="language-go">package rag
+
+import &quot;strings&quot;
+
+// Chunk splits text into windows of about maxWords words, each overlapping the
+// previous by overlap words. overlap must be smaller than maxWords.
+func Chunk(text string, maxWords, overlap int) []string {
+    if maxWords &lt;= 0 {
+        maxWords = 200
+    }
+    if overlap &lt; 0 || overlap &gt;= maxWords {
+        overlap = maxWords / 5 // sane default: 20% overlap
+    }
+
+    words := strings.Fields(text)
+    if len(words) &lt;= maxWords {
+        if len(words) == 0 {
+            return nil
+        }
+        return []string{strings.Join(words, &quot; &quot;)}
+    }
+
+    step := maxWords - overlap
+    var chunks []string
+    for start := 0; start &lt; len(words); start += step {
+        end := start + maxWords
+        if end &gt; len(words) {
+            end = len(words)
+        }
+        chunks = append(chunks, strings.Join(words[start:end], &quot; &quot;))
+        if end == len(words) {
+            break // last window reached the end; don't emit a tail duplicate
+        }
+    }
+    return chunks
+}
+</code></pre>
+<p>Each chunk becomes a stored record. We keep the text alongside the vector and a source id so we can cite it later — retrieval that can&rsquo;t tell you <em>where</em> an answer came from is retrieval you can&rsquo;t trust.</p>
+<pre><code class="language-go">// Source identifies where a chunk came from, for citation.
+type Source struct {
+    DocID string // e.g. &quot;handbook.md&quot;
+    Chunk int    // chunk index within the document
+}
+
+// Record is one stored, embedded passage.
+type Record struct {
+    ID     string    // stable unique id, e.g. &quot;handbook.md#3&quot;
+    Text   string    // the chunk text
+    Source Source
+    Vector []float32 // passage embedding
+}
+
+// Store is a trivial in-memory index. Fine for learning; see the note at the
+// end for what production uses instead.
+type Store struct {
+    Records []Record
+}
+</code></pre>
+<p>Now ingest: chunk every document, embed all chunks with the embedding NIM using <code>input_type: "passage"</code> (the <code>EmbedPassages</code> wrapper from post 4), and append the records. We reuse the <code>retriever.Client</code> verbatim — this post never re-implements the HTTP layer.</p>
+<pre><code class="language-go">import (
+    &quot;context&quot;
+    &quot;fmt&quot;
+
+    &quot;example.com/retriever&quot; // the client from post 4
+)
+
+// Document is raw input to ingest.
+type Document struct {
+    ID   string
+    Text string
+}
+
+// Ingest chunks each document, embeds the chunks as passages, and stores them.
+func Ingest(
+    ctx context.Context,
+    c *retriever.Client,
+    embedModel string,
+    docs []Document,
+    maxWords, overlap int,
+) (*Store, error) {
+    store := &amp;Store{}
+    for _, d := range docs {
+        chunks := Chunk(d.Text, maxWords, overlap)
+        if len(chunks) == 0 {
+            continue
+        }
+        // One batched embed call per document — input_type = &quot;passage&quot;.
+        vecs, err := c.EmbedPassages(ctx, embedModel, chunks)
+        if err != nil {
+            return nil, fmt.Errorf(&quot;embed %s: %w&quot;, d.ID, err)
+        }
+        for i, chunk := range chunks {
+            store.Records = append(store.Records, Record{
+                ID:     fmt.Sprintf(&quot;%s#%d&quot;, d.ID, i),
+                Text:   chunk,
+                Source: Source{DocID: d.ID, Chunk: i},
+                Vector: vecs[i],
+            })
+        }
+    }
+    if len(store.Records) == 0 {
+        return nil, fmt.Errorf(&quot;ingest produced no records&quot;)
+    }
+    return store, nil
+}
+</code></pre>
+<p><strong>The gotcha:</strong> the asymmetric <code>input_type</code> has to be right on <em>both</em> ends of the pipeline, and ingest is the half people forget. Passages go in as <code>"passage"</code> here; queries go in as <code>"query"</code> in the next stage (post 4 covered why). Embed your corpus with the wrong mode and there is no error and no crash — the vectors come back looking perfectly normal, they just live in the wrong half of the space, and every retrieval quietly returns near-random passages. If relevance looks like noise, audit the ingest <code>input_type</code> before you touch anything else.</p>
+<hr>
+<h2 id="stage-2-retrieve-embed-the-query-shortlist-by-cosine">Stage 2 — Retrieve: embed the query, shortlist by cosine</h2>
+<p>At query time, embed the question as a <code>"query"</code> and score it against every stored vector with the cosine similarity from post 4. This stage is deliberately <em>cheap and approximate</em>: its only job is recall — pull back a shortlist of plausible passages, over-retrieving modestly so the good ones are in there somewhere. Precision is the next stage&rsquo;s problem.</p>
+<pre><code class="language-go">import &quot;sort&quot;
+
+// shortlist embeds the query and returns the top-n records by cosine.
+func (s *Store) shortlist(
+    ctx context.Context,
+    c *retriever.Client,
+    embedModel, query string,
+    n int,
+) ([]Record, error) {
+    qVec, err := c.EmbedQuery(ctx, embedModel, query) // input_type = &quot;query&quot;
+    if err != nil {
+        return nil, fmt.Errorf(&quot;embed query: %w&quot;, err)
+    }
+
+    type scored struct {
+        rec Record
+        sim float64
+    }
+    ranked := make([]scored, 0, len(s.Records))
+    for _, r := range s.Records {
+        sim, err := retriever.CosineSimilarity(qVec, r.Vector)
+        if err != nil {
+            return nil, fmt.Errorf(&quot;cosine on %s: %w&quot;, r.ID, err)
+        }
+        ranked = append(ranked, scored{rec: r, sim: sim})
+    }
+    sort.Slice(ranked, func(i, j int) bool { return ranked[i].sim &gt; ranked[j].sim })
+
+    if n &gt; 0 &amp;&amp; n &lt; len(ranked) {
+        ranked = ranked[:n]
+    }
+    out := make([]Record, len(ranked))
+    for i, sc := range ranked {
+        out[i] = sc.rec
+    }
+    return out, nil
+}
+</code></pre>
+<p>The embedding model <em>must</em> be the same one used at ingest — vectors from two different models aren&rsquo;t comparable, and the dimension check inside <code>CosineSimilarity</code> is your tripwire if they ever get mixed. Over the whole corpus this is a linear scan, which is fine for thousands of chunks in memory; the &ldquo;what if it&rsquo;s millions&rdquo; answer comes at the end.</p>
+<hr>
+<h2 id="stage-3-rerank-precision-after-recall">Stage 3 — Rerank: precision after recall</h2>
+<p>The cosine shortlist is fast because each passage was embedded ahead of time, in isolation — the model never saw the query and the passage <em>together</em>. That is exactly why it&rsquo;s only approximate. The reranking NIM is a cross-encoder: it reads the query and one candidate passage as a single input and scores how well they actually match. Far more precise, far more expensive, so you only ever run it over the shortlist recall already narrowed down.</p>
+<p>We reuse <code>Rerank</code> from post 4, which sends the query plus candidate texts to the reranking NIM&rsquo;s ranking endpoint and returns passages ordered most-relevant first. The one wrinkle: the reranker works in plain text, but we need to map its winners back to our <code>Record</code>s to keep the source ids for citation. So we rerank the texts, then re-associate.</p>
+<pre><code class="language-go">// rerankRecords reorders the shortlist with the reranking NIM and keeps top-k,
+// preserving each record's Source for citation.
+func rerankRecords(
+    ctx context.Context,
+    c *retriever.Client,
+    rerankModel, query string,
+    shortlist []Record,
+    topK int,
+) ([]Record, error) {
+    if len(shortlist) == 0 {
+        return nil, nil
+    }
+    texts := make([]string, len(shortlist))
+    for i, r := range shortlist {
+        texts[i] = r.Text
+    }
+
+    scored, err := c.Rerank(ctx, rerankModel, query, texts, topK)
+    if err != nil {
+        return nil, fmt.Errorf(&quot;rerank: %w&quot;, err)
+    }
+
+    // Map reranked text back to the record that carried it. Chunk texts can
+    // repeat across documents, so match by first unused occurrence.
+    used := make([]bool, len(shortlist))
+    out := make([]Record, 0, len(scored))
+    for _, sc := range scored {
+        for i, r := range shortlist {
+            if !used[i] &amp;&amp; r.Text == sc.Text {
+                used[i] = true
+                out = append(out, r)
+                break
+            }
+        }
+    }
+    return out, nil
+}
+</code></pre>
+<p><strong>The gotcha:</strong> reranking is where most of your RAG quality actually comes from, and it is the stage teams are most tempted to skip. Feeding the LLM the raw cosine top-5 gives mushy, half-relevant context and mediocre answers — and everyone blames the model. Nine times out of ten the retrieval was the problem: cosine got the right passage <em>into</em> the top 30 but not into the top 5, and only the cross-encoder can tell the difference. Over-retrieve modestly (a shortlist of 20–50), then let the reranker pick the handful that go in the prompt. Don&rsquo;t skip it.</p>
+<hr>
+<h2 id="stage-4-augment-and-generate-a-grounded-cited-prompt">Stage 4 — Augment and generate: a grounded, cited prompt</h2>
+<p>Now the top-k records become context for the chat NIM from post 2. Two design choices decide whether generation is trustworthy. First, <strong>structure the context so the model can cite it</strong> — number each passage and tell the model to reference passages by number. Second, <strong>instruct it to answer only from the context and to admit when the context doesn&rsquo;t contain the answer.</strong> Without that instruction the model happily falls back to parametric memory and hallucinates a confident, wrong answer.</p>
+<pre><code class="language-go">import &quot;strings&quot;
+
+const systemPrompt = `You are a precise assistant. Answer the user's question
+using ONLY the numbered context passages provided. Cite the passages you use by
+their number in square brackets, like [1] or [2]. If the context does not
+contain the answer, reply exactly: &quot;I don't know based on the provided context.&quot;
+Do not use any knowledge beyond the context.`
+
+// buildContext renders the top-k records as a numbered block and returns the
+// per-number Source list so callers can resolve citations.
+func buildContext(records []Record) (string, []Source) {
+    var b strings.Builder
+    sources := make([]Source, len(records))
+    for i, r := range records {
+        fmt.Fprintf(&amp;b, &quot;[%d] (%s) %s\n\n&quot;, i+1, r.ID, r.Text)
+        sources[i] = r.Source
+    }
+    return b.String(), sources
+}
+</code></pre>
+<p>The generation call is the <code>nim.Client.Chat</code> from post 2 — a system message carrying the rules, a user message carrying the context and the question. A low temperature keeps the model close to the evidence.</p>
+<pre><code class="language-go">import &quot;example.com/nim&quot; // the chat client from post 2
+
+// generate calls the chat NIM with the grounded prompt.
+func generate(
+    ctx context.Context,
+    chat *nim.Client,
+    chatModel, question, contextBlock string,
+) (string, error) {
+    userMsg := fmt.Sprintf(
+        &quot;Context passages:\n\n%s\nQuestion: %s&quot;,
+        contextBlock, question,
+    )
+    resp, err := chat.Chat(ctx, nim.ChatRequest{
+        Model: chatModel, // e.g. &quot;meta/llama-3.1-8b-instruct&quot; — verify in the catalog
+        Messages: []nim.Message{
+            {Role: &quot;system&quot;, Content: systemPrompt},
+            {Role: &quot;user&quot;, Content: userMsg},
+        },
+        Temperature: 0.1,
+        MaxTokens:   512,
+    })
+    if err != nil {
+        return &quot;&quot;, fmt.Errorf(&quot;generate: %w&quot;, err)
+    }
+    return resp.Choices[0].Message.Content, nil
+}
+</code></pre>
+<p><strong>The gotcha:</strong> the grounding instruction is not optional decoration — it is the difference between RAG and an expensive way to hallucinate. If you don&rsquo;t explicitly tell the model to use only the context <em>and</em> give it permission to say &ldquo;I don&rsquo;t know,&rdquo; it treats the passages as a hint and pads the gaps with its training data. That failure is invisible in a demo (the answer sounds great) and disastrous in production (the answer is wrong and cites nothing). Make &ldquo;admit the context doesn&rsquo;t cover it&rdquo; an allowed, named outcome.</p>
+<hr>
+<h2 id="wiring-it-together-answerquestion">Wiring it together: Answer(question)</h2>
+<p>A small pipeline type holds the two clients and the model ids, and <code>Answer</code> runs the four stages end to end, returning the text and the sources behind it.</p>
+<pre><code class="language-go">// Pipeline holds the clients and model ids for one RAG system.
+type Pipeline struct {
+    Retriever   *retriever.Client // embedding + reranking NIMs (post 4)
+    Chat        *nim.Client       // chat NIM (post 2)
+    EmbedModel  string
+    RerankModel string
+    ChatModel   string
+    Store       *Store
+
+    Shortlist int // candidates to rerank, e.g. 30
+    TopK      int // passages to put in the prompt, e.g. 5
+}
+
+// Answer runs retrieve -&gt; rerank -&gt; generate and returns the grounded reply
+// plus the sources of the passages used to produce it.
+func (p *Pipeline) Answer(ctx context.Context, question string) (string, []Source, error) {
+    // 1. Recall: cosine shortlist.
+    shortlist, err := p.Store.shortlist(ctx, p.Retriever, p.EmbedModel, question, p.Shortlist)
+    if err != nil {
+        return &quot;&quot;, nil, err
+    }
+    // 2. Precision: rerank, keep top-k.
+    top, err := rerankRecords(ctx, p.Retriever, p.RerankModel, question, shortlist, p.TopK)
+    if err != nil {
+        return &quot;&quot;, nil, err
+    }
+    if len(top) == 0 {
+        return &quot;I don't know based on the provided context.&quot;, nil, nil
+    }
+    // 3. Augment + generate.
+    contextBlock, sources := buildContext(top)
+    answer, err := generate(ctx, p.Chat, p.ChatModel, question, contextBlock)
+    if err != nil {
+        return &quot;&quot;, nil, err
+    }
+    return answer, sources, nil
+}
+</code></pre>
+<p>And a caller that ingests a corpus once, then asks:</p>
+<pre><code class="language-go">func main() {
+    ctx := context.Background()
+
+    rc := retriever.NewClient(&quot;https://integrate.api.nvidia.com/v1&quot;, os.Getenv(&quot;NVIDIA_API_KEY&quot;))
+    chat := nim.NewWithBaseURL(&quot;https://integrate.api.nvidia.com/v1&quot;, os.Getenv(&quot;NVIDIA_API_KEY&quot;))
+
+    docs := []rag.Document{
+        {ID: &quot;handbook.md&quot;, Text: &quot;...&quot;}, // your real documents
+        {ID: &quot;faq.md&quot;, Text: &quot;...&quot;},
+    }
+
+    store, err := rag.Ingest(ctx, rc, &quot;nvidia/nv-embedqa-e5-v5&quot;, docs, 200, 40)
+    if err != nil {
+        log.Fatalf(&quot;ingest: %v&quot;, err)
+    }
+
+    p := &amp;rag.Pipeline{
+        Retriever:   rc,
+        Chat:        chat,
+        EmbedModel:  &quot;nvidia/nv-embedqa-e5-v5&quot;,           // verify in the catalog
+        RerankModel: &quot;nvidia/nv-rerankqa-mistral-4b-v3&quot;,  // verify in the catalog
+        ChatModel:   &quot;meta/llama-3.1-8b-instruct&quot;,        // verify in the catalog
+        Store:       store,
+        Shortlist:   30,
+        TopK:        5,
+    }
+
+    answer, sources, err := p.Answer(ctx, &quot;What is the refund window?&quot;)
+    if err != nil {
+        log.Fatalf(&quot;answer: %v&quot;, err)
+    }
+    fmt.Println(answer)
+    for i, s := range sources {
+        fmt.Printf(&quot;[%d] %s (chunk %d)\n&quot;, i+1, s.DocID, s.Chunk)
+    }
+}
+</code></pre>
+<p>The whole system runs over REST from Go — three NIMs (embedding, reranking, chat), one small <code>net/http</code> client shared shape, and no vendor SDK anywhere. Model ids are examples; confirm the current ones against the catalog on build.nvidia.com.</p>
+<hr>
+<h2 id="where-the-in-memory-store-stops">Where the in-memory store stops</h2>
+<p>The <code>Store</code> above is a slice, and its <code>shortlist</code> scans every vector on every query. That is a <em>teaching</em> tool: it makes the data flow obvious and it is genuinely fine for thousands of chunks. It does not survive contact with production, where corpora run to millions of vectors and a linear scan per query is far too slow.</p>
+<p>Production RAG puts the vectors in a <strong>vector database</strong> that indexes them for approximate-nearest-neighbor search. NVIDIA&rsquo;s ecosystem integrates with vector DBs rather than shipping its own: <strong>Milvus</strong>, for instance, supports a <strong>GPU index</strong> for accelerated similarity search, and <strong>NVIDIA cuVS</strong> provides GPU-accelerated vector-search primitives that such databases can build on. You would talk to Milvus over its <em>own</em> client or REST API — there is no NVIDIA Go SDK for it any more than there is for NIM — so from Go you&rsquo;d swap the in-memory <code>shortlist</code> for a call to your vector DB and leave everything else alone. NVIDIA also publishes <strong>RAG reference architectures / blueprints</strong> that assemble these components into a deployable system; treat those as the blueprint for scaling this pattern up, not as an API to call from here.</p>
+<p><strong>The gotcha:</strong> the in-memory store is the <em>only</em> part of this design that changes when you scale. The <code>retrieve → rerank → generate</code> shape is identical whether recall comes from a Go slice or a GPU-indexed Milvus collection — you&rsquo;re still embedding the query, pulling back a shortlist, reranking it with the NeMo Retriever cross-encoder, and grounding the chat NIM on the top-k. Learn the shape on the slice; move the shortlist to a real vector DB before production and nothing downstream has to move with it.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>RAG is four stages, and two of them exist to fix retrieval.</strong> Ingest and generate are the obvious ends; the shortlist-then-rerank middle is what makes the answer good.</li>
+<li><strong>Chunk with overlap.</strong> One vector should capture one idea; overlap keeps boundary-straddling sentences from losing their context.</li>
+<li><strong><code>input_type</code> must be right on both ends.</strong> Passages as <code>"passage"</code> at ingest, queries as <code>"query"</code> at retrieval — a silent, error-free failure that destroys relevance if you get it wrong.</li>
+<li><strong>Don&rsquo;t skip reranking.</strong> Cosine gets the right passage into the top 30; only the cross-encoder gets it into the top 5. Most &ldquo;bad RAG&rdquo; is unranked retrieval.</li>
+<li><strong>Ground the model and let it say &ldquo;I don&rsquo;t know.&rdquo;</strong> Without that instruction it falls back to parametric memory and hallucinates confidently.</li>
+<li><strong>In-memory is a teaching tool.</strong> Move to a real vector DB (Milvus GPU index, cuVS) before production — but the <code>retrieve → rerank → generate</code> shape stays identical.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.nvidia.com/nim/nemo-retriever/text-embedding/latest/overview.html">NeMo Retriever Text Embedding NIM — documentation</a> — the embedding endpoint, <code>input_type</code>, and model ids.</li>
+<li><a href="https://docs.nvidia.com/nim/nemo-retriever/text-reranking/latest/overview.html">NeMo Retriever Text Reranking NIM — documentation</a> — confirm the ranking request/response fields for your version.</li>
+<li><a href="https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline">NVIDIA RAG Blueprint</a> — NVIDIA&rsquo;s reference architecture for an enterprise RAG pipeline.</li>
+<li><a href="https://milvus.io/docs/gpu_index.md">Milvus documentation — GPU index</a> — GPU-accelerated vector indexing in Milvus.</li>
+<li><a href="https://docs.rapids.ai/api/cuvs/stable/">NVIDIA cuVS</a> — GPU-accelerated vector search primitives.</li>
+<li><a href="https://pkg.go.dev/net/http">Go <code>net/http</code> package reference</a> — the whole transport layer of this pipeline.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/nvidia-go-04-embeddings-and-reranking.html">Embeddings and Reranking with NeMo Retriever</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-go-08-production.html">Production on the NVIDIA Stack</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-go-07-self-hosting-and-optimization.html">Self-Hosting and Optimizing Inference</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
