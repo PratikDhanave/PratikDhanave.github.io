@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Production on the NVIDIA Stack — Pratik Dhanave</title>
+<meta name="description" content="Run an NVIDIA-stack LLM system in production from Python: hosted vs self-hosted vs hybrid, reliability (client retries, tenacity backoff, readiness...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Production on the NVIDIA Stack — Pratik Dhanave">
+<meta property="og:description" content="Run an NVIDIA-stack LLM system in production from Python: hosted vs self-hosted vs hybrid, reliability (client retries, tenacity backoff, readiness probes, fallback), the GPU-hours cost model, Prometheus observability across the pipeline, and securing nvapi-/NGC keys.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/nvidia-py-08-production.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-13T00:00:00Z">
+<meta property="article:tag" content="NVIDIA">
+<meta property="article:tag" content="Production">
+<meta property="article:tag" content="NIM">
+<meta property="article:tag" content="Python">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Production on the NVIDIA Stack — Pratik Dhanave">
+<meta name="twitter:description" content="Run an NVIDIA-stack LLM system in production from Python: hosted vs self-hosted vs hybrid, reliability (client retries, tenacity backoff, readiness probes, fallback), the GPU-hours cost model, Prometheus observability across the pipeline, and securing nvapi-/NGC keys.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/nvidia-py-08-production.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Production on the NVIDIA Stack",
+  "description": "Run an NVIDIA-stack LLM system in production from Python: hosted vs self-hosted vs hybrid, reliability (client retries, tenacity backoff, readiness probes, fallback), the GPU-hours cost model, Prometheus observability across the pipeline, and securing nvapi-/NGC keys.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-13",
+  "dateModified": "2026-08-13",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "NVIDIA, Production, NIM, Python",
+  "url": "https://pratikdhanave.com/blog/posts/nvidia-py-08-production.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/nvidia-py-08-production.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Production on the NVIDIA Stack</h1>
+    <p class="post-subtitle">Taking an NVIDIA-stack LLM system from a working prototype to something you trust in production — reliability, cost and throughput, observability, and security — all from Python, with the OpenAI-compatible surface keeping the code stable whether you burst to the API Catalog or run your own NIM.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-13">August 13, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/nvidia/" class="tag-link"><span class="tag">#NVIDIA</span></a><a href="/blog/tags/production/" class="tag-link"><span class="tag">#Production</span></a><a href="/blog/tags/nim/" class="tag-link"><span class="tag">#NIM</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 8 of 8</span>
+    <span class="series-title">NVIDIA AI Stack in Python</span>
+    <div class="series-nav"><a href="/blog/posts/nvidia-py-07-self-hosting-and-optimization.html" class="series-prev">&larr; Part 7: Self-Hosting and Optimizing Inference</a></div>
+  </div>
+
+
+
+  <p>Every earlier post in this series built one capability and stopped at &ldquo;it works.&rdquo; This one is about the gap between <em>works on my laptop</em> and <em>works at 2 a.m. under load with a dashboard someone is paging off of.</em> The good news, and the through-line of the whole series, is that going to production does <strong>not</strong> mean rewriting anything. The same <code>openai</code> client, the same <code>resp.usage</code> accounting, the same request shape you have used since post 2 are what you harden here. Production is mostly wrapping calls you already have in retries, health checks, metrics, and secrets.</p>
+<p>We will walk the four production concerns — reliability, cost/throughput, observability, security — with Python where Python earns it, then finish with a checklist and a FastAPI endpoint that ties the series together.</p>
+<hr>
+<h2 id="hosted-self-hosted-and-the-hybrid-in-between">Hosted, self-hosted, and the hybrid in between</h2>
+<p>Post 7 self-hosted a NIM on Triton with TensorRT-LLM. The choice between that and the hosted API Catalog is the first production decision, and it is a genuine trade, not a default:</p>
+<table><caption class="sr-only">Hosted, self-hosted, and the hybrid in between</caption>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Hosted (API Catalog)</th>
+<th>Self-hosted NIM/Triton</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cost model</td>
+<td>Per-token / per-request</td>
+<td>GPU-hours (you pay for the box, busy or idle)</td>
+</tr>
+<tr>
+<td>Control</td>
+<td>NVIDIA sets versions, limits</td>
+<td>You pin versions, tune batching, own the SLA</td>
+</tr>
+<tr>
+<td>Data path</td>
+<td>Prompts leave your network</td>
+<td>Prompts stay inside your VPC</td>
+</tr>
+<tr>
+<td>Scaling</td>
+<td>Elastic, someone else&rsquo;s problem</td>
+<td>Your capacity planning</td>
+</tr>
+</tbody>
+</table>
+<p>The mature answer is usually <strong>hybrid</strong>: run steady-state traffic on a self-hosted NIM you have sized and optimized, and <strong>burst</strong> overflow to the hosted API Catalog when demand spikes past your GPU capacity. Because both speak the OpenAI wire protocol, &ldquo;route to the other backend&rdquo; is a change of <code>base_url</code> and key — not a change of code.</p>
+<pre><code class="language-python">from openai import OpenAI
+
+SELF_HOSTED = OpenAI(base_url=&quot;http://nim.internal:8000/v1&quot;, api_key=&quot;not-used&quot;)
+HOSTED = OpenAI(base_url=&quot;https://integrate.api.nvidia.com/v1&quot;,
+                api_key=os.environ[&quot;NVIDIA_API_KEY&quot;])  # nvapi-...
+
+def pick_client(self_hosted_healthy: bool) -&gt; OpenAI:
+    return SELF_HOSTED if self_hosted_healthy else HOSTED
+</code></pre>
+<p><strong>The gotcha:</strong> pin your model version and container tag. Deploying <code>:latest</code> — or leaving a hosted model id unversioned — means the model can change behavior <em>under you</em> between deploys, and your prompts and guardrails were tuned against the old one. Pin the NIM image tag and record the exact model id you tested; treat a version bump as a code change that goes through the same eval you would run for a prompt edit.</p>
+<hr>
+<h2 id="reliability-assume-everything-fails-briefly">Reliability: assume everything fails, briefly</h2>
+<p>Networks blip, GPUs restart, hosted endpoints rate-limit. Reliability is layering cheap defenses so a transient failure never reaches the user.</p>
+<h3 id="timeouts-and-the-clients-built-in-retries">Timeouts and the client&rsquo;s built-in retries</h3>
+<p>The <code>openai</code> client already retries — by default it retries certain failures (connection errors, <code>429</code>, <code>5xx</code>) with exponential backoff. Make the policy explicit rather than inheriting defaults, and always set a timeout so a stuck socket cannot hang a request forever.</p>
+<pre><code class="language-python">client = OpenAI(
+    base_url=&quot;https://integrate.api.nvidia.com/v1&quot;,
+    api_key=os.environ[&quot;NVIDIA_API_KEY&quot;],
+    max_retries=4,      # client retries 429/5xx/connection errors with backoff
+    timeout=30.0,       # seconds; a hung call fails fast instead of hanging
+)
+</code></pre>
+<p>That covers the SDK&rsquo;s own calls. For <em>your</em> orchestration code — a whole RAG turn, a reranker call, a guardrails pass — wrap the unit in <code>tenacity</code> so a flaky step retries with jittered backoff instead of failing the request:</p>
+<pre><code class="language-python">from tenacity import (retry, stop_after_attempt, wait_exponential_jitter,
+                      retry_if_exception_type)
+from openai import APIConnectionError, RateLimitError, InternalServerError
+
+@retry(
+    retry=retry_if_exception_type(
+        (APIConnectionError, RateLimitError, InternalServerError)),
+    wait=wait_exponential_jitter(initial=1, max=20),
+    stop=stop_after_attempt(4),
+    reraise=True,
+)
+def generate(client: OpenAI, model: str, messages: list[dict]) -&gt; str:
+    resp = client.chat.completions.create(model=model, messages=messages)
+    return resp.choices[0].message.content
+</code></pre>
+<p>Retry only <em>transient</em> exception types. Retrying a <code>400</code> (a malformed request) or a content-policy rejection just burns latency and money to fail the same way four times.</p>
+<h3 id="probe-readiness-before-you-route">Probe readiness before you route</h3>
+<p>Post 7 noted that a NIM exposes health endpoints. Use them: check readiness <em>before</em> sending a request to a self-hosted backend, so a container that is up but not yet serving does not eat real traffic.</p>
+<pre><code class="language-python">import httpx
+
+def nim_ready(base: str = &quot;http://nim.internal:8000&quot;, timeout: float = 2.0) -&gt; bool:
+    try:
+        r = httpx.get(f&quot;{base}/v1/health/ready&quot;, timeout=timeout)
+        return r.status_code == 200
+    except httpx.HTTPError:
+        return False
+</code></pre>
+<h3 id="graceful-fallback">Graceful fallback</h3>
+<p>Now compose the pieces into a fallback chain: try the self-hosted NIM, fall back to the hosted API Catalog if it is unhealthy, and fall back to a cached or canned answer if <em>both</em> are unreachable. The user gets a degraded answer, never a stack trace.</p>
+<pre><code class="language-python">def answer(messages: list[dict], model: str) -&gt; str:
+    if nim_ready():
+        try:
+            return generate(SELF_HOSTED, model, messages)
+        except Exception:
+            log.warning(&quot;self-hosted NIM failed, falling back to hosted&quot;)
+    try:
+        return generate(HOSTED, model, messages)  # burst / disaster fallback
+    except Exception:
+        log.error(&quot;all live backends down, serving canned response&quot;)
+        return &quot;I can't reach the model right now. Please try again shortly.&quot;
+</code></pre>
+<p><strong>The gotcha:</strong> an untested fallback path fails exactly when you need it. The <code>except</code> branch you never exercise is where the real outage happens — the hosted key expired, the fallback model id is wrong, the canned string got refactored away. Test the fallback deliberately: point the primary at a dead port in a staging run and confirm the chain degrades cleanly. A fallback you have never watched execute is a hope, not a safety net.</p>
+<hr>
+<h2 id="cost-and-throughput-two-completely-different-meters">Cost and throughput: two completely different meters</h2>
+<p>The most common production surprise is that <strong>hosted and self-hosted bill on different axes</strong>, so the optimization that helps one does nothing for the other.</p>
+<h3 id="hosted-count-tokens">Hosted: count tokens</h3>
+<p>Hosted cost is a function of tokens, and every response tells you exactly how many it used. Log <code>resp.usage</code> (introduced in post 2) on every call so cost is observable, not a month-end shock.</p>
+<pre><code class="language-python">resp = client.chat.completions.create(model=model, messages=messages)
+u = resp.usage  # prompt_tokens, completion_tokens, total_tokens
+log.info(&quot;llm_call&quot;, extra={&quot;model&quot;: model,
+         &quot;prompt_tokens&quot;: u.prompt_tokens,
+         &quot;completion_tokens&quot;: u.completion_tokens,
+         &quot;total_tokens&quot;: u.total_tokens})
+</code></pre>
+<p>The levers that lower this bill are prompt size (retrieval that fetches <em>fewer, better</em> passages — post 4&rsquo;s reranking directly reduces context tokens) and output length (<code>max_tokens</code>). Token accounting is what lets you attribute cost to a feature and decide whether that feature is worth it.</p>
+<h3 id="self-hosted-fill-the-gpu">Self-hosted: fill the GPU</h3>
+<p>Self-hosted cost is <strong>GPU-hours</strong>, flat, whether the GPU serves a thousand requests an hour or zero. There is no per-token meter — the box costs the same idling as it does saturated. That inverts the goal: instead of minimizing tokens, you <strong>maximize utilization</strong>. Triton&rsquo;s dynamic batching (post 7) groups concurrent requests into one GPU pass; higher throughput per GPU-hour is lower cost per request. Your capacity-planning job is to keep the GPU busy but not so saturated that latency spikes — and the only way to know where that line is is the metrics in the next section.</p>
+<h3 id="rate-limit-yourself-before-the-provider-does">Rate-limit yourself before the provider does</h3>
+<p>The hosted API Catalog enforces rate limits. Fire a burst of naive concurrent requests and you get <code>429</code>s — which your retries then dutifully re-send, making it worse. Cap concurrency on your side with an <code>asyncio.Semaphore</code> (or a token-bucket limiter for a strict rate ceiling):</p>
+<pre><code class="language-python">import asyncio
+from openai import AsyncOpenAI
+
+aclient = AsyncOpenAI(base_url=&quot;https://integrate.api.nvidia.com/v1&quot;,
+                      api_key=os.environ[&quot;NVIDIA_API_KEY&quot;])
+sem = asyncio.Semaphore(8)  # at most 8 in-flight calls
+
+async def bounded_generate(model: str, messages: list[dict]) -&gt; str:
+    async with sem:
+        resp = await aclient.chat.completions.create(model=model, messages=messages)
+        return resp.choices[0].message.content
+</code></pre>
+<p><strong>The gotcha:</strong> hosted rate limits mean naive concurrency turns into a <code>429</code> storm, and self-hosted has the opposite failure — an idle GPU is pure sunk cost while a saturated one drops latency off a cliff. Capacity-plan with real Prometheus numbers (below), not intuition: size self-hosted GPU count to your steady-state utilization target, and cap client-side concurrency to stay under hosted limits.</p>
+<hr>
+<h2 id="observability-see-the-whole-request">Observability: see the whole request</h2>
+<p>A production request on this stack is a <em>pipeline</em> — retrieve, rerank, guardrails, generate — and when it is slow or wrong you need to know <em>which stage</em>. Two feeds give you that: the server&rsquo;s own metrics and the ones you emit.</p>
+<h3 id="server-side-prometheus-metrics">Server-side Prometheus metrics</h3>
+<p>Both Triton and NIM expose <strong>Prometheus</strong> metrics out of the box. Triton publishes them on its metrics port (<code>8002</code>) at <code>/metrics</code> — GPU utilization, inference latency, and queue depth (how long requests wait before the GPU picks them up). Queue depth is your saturation signal: rising queue depth with flat GPU utilization means you need more replicas, not a bigger batch. Scrape these into Prometheus and alert on them.</p>
+<h3 id="your-own-structured-logs-and-metrics">Your own structured logs and metrics</h3>
+<p>Server metrics tell you about the GPU; they cannot tell you that <em>your reranker</em> is the slow stage. Emit that yourself with the standard <code>logging</code> module and <code>prometheus_client</code>.</p>
+<pre><code class="language-python">import logging, time
+from prometheus_client import Counter, Histogram, start_http_server
+
+logging.basicConfig(level=logging.INFO, format=&quot;%(asctime)s %(levelname)s %(message)s&quot;)
+log = logging.getLogger(&quot;ragapp&quot;)
+
+STAGE_LATENCY = Histogram(&quot;rag_stage_seconds&quot;, &quot;Per-stage latency&quot;, [&quot;stage&quot;])
+REQUESTS = Counter(&quot;rag_requests_total&quot;, &quot;Requests&quot;, [&quot;outcome&quot;])
+TOKENS = Counter(&quot;rag_tokens_total&quot;, &quot;Tokens billed&quot;, [&quot;kind&quot;])
+
+start_http_server(9100)  # exposes /metrics for Prometheus to scrape
+</code></pre>
+<p>Now instrument each stage and carry a request id through so a single turn is traceable end to end across retrieve → rerank → guardrails → generate:</p>
+<pre><code class="language-python">import uuid
+
+def handle(question: str) -&gt; str:
+    req_id = uuid.uuid4().hex[:8]
+    try:
+        for stage, fn in ((&quot;retrieve&quot;, retrieve), (&quot;rerank&quot;, rerank),
+                          (&quot;guardrails&quot;, check_input), (&quot;generate&quot;, run_llm)):
+            t0 = time.perf_counter()
+            result = fn(question)
+            dt = time.perf_counter() - t0
+            STAGE_LATENCY.labels(stage=stage).observe(dt)
+            log.info(&quot;stage done&quot;, extra={&quot;req_id&quot;: req_id, &quot;stage&quot;: stage,
+                                          &quot;seconds&quot;: round(dt, 3)})
+        REQUESTS.labels(outcome=&quot;ok&quot;).inc()
+        return result
+    except Exception:
+        REQUESTS.labels(outcome=&quot;error&quot;).inc()
+        log.exception(&quot;request failed&quot;, extra={&quot;req_id&quot;: req_id})
+        raise
+</code></pre>
+<p>With this in place a slow request is no longer a mystery: the histogram shows <em>which</em> stage&rsquo;s latency moved, and the <code>req_id</code> in the logs lets you replay that exact turn. Feed the same token counts from <code>resp.usage</code> into the <code>TOKENS</code> counter and your cost graph lives on the same dashboard as your latency graph.</p>
+<hr>
+<h2 id="security-keys-injection-and-network-scope">Security: keys, injection, and network scope</h2>
+<p>Three surfaces matter more in production than in a prototype.</p>
+<p><strong>Keys belong in a secret manager, never in code.</strong> You now hold two kinds: <code>nvapi-</code> keys for the hosted API Catalog, and NGC keys used to <em>pull</em> NIM container images. Neither goes in source, a Docker image layer, or a committed <code>.env</code>. Read them at runtime from a secret manager (AWS Secrets Manager, GCP Secret Manager, Vault, or your orchestrator&rsquo;s secret mount) and inject as environment variables the process reads once at startup.</p>
+<pre><code class="language-python">import os
+api_key = os.environ[&quot;NVIDIA_API_KEY&quot;]  # injected from the secret store, not baked in
+if not api_key:
+    raise RuntimeError(&quot;NVIDIA_API_KEY missing — refusing to start&quot;)
+</code></pre>
+<p><strong>Your injection surface grew.</strong> Every capability the series added widened it: RAG (post 5) feeds retrieved documents into the prompt, tools (post 3) let the model trigger actions, and both can carry adversarial instructions from untrusted sources. This is exactly why the NeMo Guardrails pass from post 6 runs <em>in production, on every request</em> — not just in demos. Guardrails check both input (jailbreak and topic control) and output (leakage, unsafe content); they are a control you keep on, and one of the stages you trace above.</p>
+<p><strong>Network-scope self-hosted endpoints.</strong> A self-hosted NIM exposing an unauthenticated OpenAI-compatible API is an open model to anyone who can reach it. Bind it to a private subnet, put it behind an authenticated gateway, and never expose the raw inference or Triton metrics port (<code>8002</code>) to the public internet. The whole point of self-hosting was to keep data in your network — do not undo that with an open port.</p>
+<hr>
+<h2 id="the-production-checklist">The production checklist</h2>
+<table><caption class="sr-only">The production checklist</caption>
+<thead>
+<tr>
+<th>Area</th>
+<th>Ship-blocker check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Versions</td>
+<td>Model id + NIM container tag pinned; no <code>:latest</code></td>
+</tr>
+<tr>
+<td>Timeouts</td>
+<td>Every client call has an explicit <code>timeout</code></td>
+</tr>
+<tr>
+<td>Retries</td>
+<td><code>max_retries</code> set; <code>tenacity</code> on your own orchestration, transient errors only</td>
+</tr>
+<tr>
+<td>Health</td>
+<td>Readiness probe (<code>/v1/health/ready</code>) checked before routing</td>
+</tr>
+<tr>
+<td>Fallback</td>
+<td>Hosted-burst and canned-answer paths tested, not just written</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td><code>resp.usage</code> logged (hosted); GPU utilization tracked (self-hosted)</td>
+</tr>
+<tr>
+<td>Concurrency</td>
+<td>Client-side limiter/<code>Semaphore</code> under the hosted rate limit</td>
+</tr>
+<tr>
+<td>Metrics</td>
+<td>Triton/NIM Prometheus scraped; per-stage latency + tokens emitted</td>
+</tr>
+<tr>
+<td>Tracing</td>
+<td>Request id carried across retrieve → rerank → guardrails → generate</td>
+</tr>
+<tr>
+<td>Secrets</td>
+<td><code>nvapi-</code>/NGC keys in a secret manager; startup fails if missing</td>
+</tr>
+<tr>
+<td>Guardrails</td>
+<td>NeMo Guardrails on every request, input and output</td>
+</tr>
+<tr>
+<td>Network</td>
+<td>Self-hosted endpoints private/authenticated; metrics port not public</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="wrapping-it-in-a-fastapi-endpoint">Wrapping it in a FastAPI endpoint</h2>
+<p>Everything above composes into a single service. FastAPI exposes the pipeline over HTTP with a health route for your load balancer to probe.</p>
+<pre><code class="language-python">from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+app = FastAPI(title=&quot;nvidia-stack-rag&quot;)
+
+class Query(BaseModel):
+    question: str
+
+@app.get(&quot;/healthz&quot;)
+def healthz() -&gt; dict:
+    return {&quot;ready&quot;: nim_ready()}
+
+@app.post(&quot;/ask&quot;)
+def ask(q: Query) -&gt; dict:
+    try:
+        return {&quot;answer&quot;: handle(q.question)}   # traced + guarded pipeline
+    except Exception:
+        raise HTTPException(status_code=503, detail=&quot;service temporarily unavailable&quot;)
+</code></pre>
+<p>Run it with <code>uvicorn app:app</code>, put the <code>prometheus_client</code> metrics server on its own port, and you have a service with health checks, tracing, metrics, retries, fallback, and guardrails — every piece the checklist demands.</p>
+<hr>
+<h2 id="the-series-arc-in-one-line-of-client-code">The series arc, in one line of client code</h2>
+<p>Step back and look at the path this series walked: a <strong>hosted call</strong> (post 2) → letting the model <strong>use tools</strong> (post 3) → <strong>embeddings and reranking</strong> (post 4) → full <strong>RAG</strong> (post 5) → <strong>guardrails</strong> around it (post 6) → <strong>self-hosting and optimizing</strong> the model (post 7) → <strong>production</strong> (here). That is a complete applied-LLM system, built up one capability at a time.</p>
+<p>The remarkable part is what <em>didn&rsquo;t</em> change. From the first hosted <code>chat.completions.create</code> to a self-hosted NIM behind a FastAPI service with a fallback to the API Catalog, it was the same <code>openai</code> client and the same request shape the whole way. The OpenAI-compatible surface and the <code>pip</code>-installable NeMo packages meant every new capability layered on without a rewrite, and moving between hosted and self-hosted stayed a change of <code>base_url</code> — not a change of architecture. That portability is the reason to build on this stack: you prototype fast on someone else&rsquo;s GPUs and graduate to your own without throwing the code away.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Production is hardening, not rewriting.</strong> Retries, health checks, metrics, and secrets wrap the calls you already have.</li>
+<li><strong>Pin versions.</strong> <code>:latest</code> and unversioned model ids change behavior under you; treat a bump as a tested code change.</li>
+<li><strong>The two cost meters are opposite.</strong> Hosted = tokens (log <code>resp.usage</code>); self-hosted = GPU-hours (maximize utilization, watch queue depth).</li>
+<li><strong>Rate-limit yourself.</strong> Cap concurrency client-side so bursts don&rsquo;t become <code>429</code> storms; the provider&rsquo;s limiter is not your friend.</li>
+<li><strong>Trace the pipeline.</strong> Server-side Prometheus plus your own per-stage metrics and a request id tell you <em>which</em> stage failed.</li>
+<li><strong>Test the fallback.</strong> An unexercised degraded path fails exactly when the outage hits.</li>
+<li><strong>Keep keys out of code and endpoints off the public internet</strong> — and keep guardrails on for every request.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.nvidia.com/nim/large-language-models/latest/observability.html">NVIDIA NIM for LLMs — observability and metrics</a></li>
+<li><a href="https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/metrics.html">Triton Inference Server — metrics and Prometheus</a></li>
+<li><a href="https://build.nvidia.com">NVIDIA API Catalog / build.nvidia.com</a></li>
+<li><a href="https://docs.nvidia.com/ngc/gpu-cloud/ngc-user-guide/index.html">NGC private registry and API keys</a></li>
+<li><a href="https://tenacity.readthedocs.io/">tenacity — retrying library for Python</a></li>
+<li><a href="https://prometheus.github.io/client_python/">prometheus_client — Python metrics library</a></li>
+<li><a href="https://fastapi.tiangolo.com/">FastAPI documentation</a></li>
+<li><a href="https://github.com/openai/openai-python#retries">OpenAI Python SDK — timeouts and retries</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/nvidia-py-07-self-hosting-and-optimization.html">Self-Hosting and Optimizing Inference</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-py-03-tool-calling.html">Tool Calling with NIM</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-py-02-calling-nim.html">Calling NIM from Python</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

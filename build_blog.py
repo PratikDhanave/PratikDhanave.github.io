@@ -159,17 +159,83 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+    "2026-08-06-nvidia-py-01-the-nvidia-ai-stack.md": {
+        "slug": "nvidia-py-01-the-nvidia-ai-stack",
+        "date": "2026-08-06",
+        "tags": ["NVIDIA", "NIM", "LLMs", "Python"],
+        "audience": "Python engineers building LLM/agent apps on NVIDIA's stack",
+        "excerpt": "The opener to a series on building LLM and agent applications on NVIDIA's AI stack from Python: how NIM, the API Catalog, NeMo Retriever, NeMo Guardrails, Triton and TensorRT-LLM fit together — and why the openai client and langchain-nvidia-ai-endpoints make it Python-native.",
+        "series": "NVIDIA AI Stack in Python", "series_position": 1, "series_total": 8,
+        "featured": True,
+    },
+    "2026-08-07-nvidia-py-02-calling-nim.md": {
+        "slug": "nvidia-py-02-calling-nim",
+        "date": "2026-08-07",
+        "tags": ["NVIDIA", "NIM", "LLMs", "Python"],
+        "audience": "Python engineers building LLM/agent apps on NVIDIA's stack",
+        "excerpt": "Make your first NIM calls in Python two ways: the standard openai client pointed at the API Catalog with an nvapi- key, and the official ChatNVIDIA from langchain-nvidia-ai-endpoints — with streaming, token usage, typed errors, and the base_url swap to a self-hosted NIM.",
+        "series": "NVIDIA AI Stack in Python", "series_position": 2, "series_total": 8,
+    },
+    "2026-08-08-nvidia-py-03-tool-calling.md": {
+        "slug": "nvidia-py-03-tool-calling",
+        "date": "2026-08-08",
+        "tags": ["NVIDIA", "NIM", "Tool Use", "Python"],
+        "audience": "Python engineers building LLM/agent apps on NVIDIA's stack",
+        "excerpt": "Function/tool calling against NIM models in Python: the openai round-trip loop (json.loads the arguments string, echo tool_call_id, cap the iterations) and the LangChain ChatNVIDIA.bind_tools path — with the honest caveat that model support varies.",
+        "series": "NVIDIA AI Stack in Python", "series_position": 3, "series_total": 8,
+    },
+    "2026-08-09-nvidia-py-04-embeddings-and-reranking.md": {
+        "slug": "nvidia-py-04-embeddings-and-reranking",
+        "date": "2026-08-09",
+        "tags": ["NVIDIA", "NeMo Retriever", "RAG", "Python"],
+        "audience": "Python engineers building LLM/agent apps on NVIDIA's stack",
+        "excerpt": "Use NeMo Retriever from Python to build RAG's retrieval core: NVIDIAEmbeddings (embed_documents vs embed_query for the asymmetric passage/query distinction) with cosine scoring, and NVIDIARerank.compress_documents for a two-stage retrieve-then-rerank pipeline.",
+        "series": "NVIDIA AI Stack in Python", "series_position": 4, "series_total": 8,
+    },
+    "2026-08-10-nvidia-py-05-rag.md": {
+        "slug": "nvidia-py-05-rag",
+        "date": "2026-08-10",
+        "tags": ["NVIDIA", "NeMo Retriever", "RAG", "Python"],
+        "audience": "Python engineers building LLM/agent apps on NVIDIA's stack",
+        "excerpt": "Build a full RAG pipeline in Python on NVIDIA's stack: chunk and embed with NeMo Retriever, shortlist by cosine, rerank, then generate a grounded, cited answer with ChatNVIDIA — shown both from scratch and the idiomatic LangChain assembly, with notes on scaling to a vector DB.",
+        "series": "NVIDIA AI Stack in Python", "series_position": 5, "series_total": 8,
+    },
+    "2026-08-11-nvidia-py-06-nemo-guardrails.md": {
+        "slug": "nvidia-py-06-nemo-guardrails",
+        "date": "2026-08-11",
+        "tags": ["NVIDIA", "NeMo Guardrails", "AI Safety", "Python"],
+        "audience": "Python engineers building LLM/agent apps on NVIDIA's stack",
+        "excerpt": "Add safety with NeMo Guardrails, in-process in Python: the rail types (input/output/dialog/retrieval), the config.yml + Colang model, loading with RailsConfig/LLMRails backed by a NIM model, and detecting when a rail trips instead of treating a refusal as a normal answer.",
+        "series": "NVIDIA AI Stack in Python", "series_position": 6, "series_total": 8,
+    },
+    "2026-08-12-nvidia-py-07-self-hosting-and-optimization.md": {
+        "slug": "nvidia-py-07-self-hosting-and-optimization",
+        "date": "2026-08-12",
+        "tags": ["NVIDIA", "NIM", "Performance", "Python"],
+        "audience": "Python engineers building LLM/agent apps on NVIDIA's stack",
+        "excerpt": "Move from the hosted API Catalog to self-hosted inference: run a NIM container (your Python client works unchanged by swapping base_url), use Triton directly via tritonclient, and understand the TensorRT-LLM levers — quantization, in-flight batching, paged KV cache, tensor parallelism.",
+        "series": "NVIDIA AI Stack in Python", "series_position": 7, "series_total": 8,
+    },
+    "2026-08-13-nvidia-py-08-production.md": {
+        "slug": "nvidia-py-08-production",
+        "date": "2026-08-13",
+        "tags": ["NVIDIA", "Production", "NIM", "Python"],
+        "audience": "Python engineers building LLM/agent apps on NVIDIA's stack",
+        "excerpt": "Run an NVIDIA-stack LLM system in production from Python: hosted vs self-hosted vs hybrid, reliability (client retries, tenacity backoff, readiness probes, fallback), the GPU-hours cost model, Prometheus observability across the pipeline, and securing nvapi-/NGC keys.",
+        "series": "NVIDIA AI Stack in Python", "series_position": 8, "series_total": 8,
+    },
     "2026-08-06-nvidia-go-01-the-nvidia-ai-stack.md": {
         "slug": "nvidia-go-01-the-nvidia-ai-stack",
+        "redirect_to": "nvidia-py-01-the-nvidia-ai-stack",
         "date": "2026-08-06",
         "tags": ["NVIDIA", "NIM", "LLMs", "Go"],
         "audience": "Go engineers building LLM/agent apps on NVIDIA's stack",
         "excerpt": "The opener to a series on building LLM and agent applications on NVIDIA's AI stack from Go: how NIM, the API Catalog, NeMo Retriever, NeMo Guardrails, Triton and TensorRT-LLM fit together — and why OpenAI-compatible NIM means you call it all with plain net/http.",
         "series": "NVIDIA AI Stack in Go", "series_position": 1, "series_total": 8,
-        "featured": True,
     },
     "2026-08-07-nvidia-go-02-calling-nim-from-go.md": {
         "slug": "nvidia-go-02-calling-nim-from-go",
+        "redirect_to": "nvidia-py-02-calling-nim",
         "date": "2026-08-07",
         "tags": ["NVIDIA", "NIM", "LLMs", "Go"],
         "audience": "Go engineers building LLM/agent apps on NVIDIA's stack",
@@ -178,6 +244,7 @@ POST_META = {
     },
     "2026-08-08-nvidia-go-03-tool-calling.md": {
         "slug": "nvidia-go-03-tool-calling",
+        "redirect_to": "nvidia-py-03-tool-calling",
         "date": "2026-08-08",
         "tags": ["NVIDIA", "NIM", "Tool Use", "Go"],
         "audience": "Go engineers building LLM/agent apps on NVIDIA's stack",
@@ -186,6 +253,7 @@ POST_META = {
     },
     "2026-08-09-nvidia-go-04-embeddings-and-reranking.md": {
         "slug": "nvidia-go-04-embeddings-and-reranking",
+        "redirect_to": "nvidia-py-04-embeddings-and-reranking",
         "date": "2026-08-09",
         "tags": ["NVIDIA", "NeMo Retriever", "RAG", "Go"],
         "audience": "Go engineers building LLM/agent apps on NVIDIA's stack",
@@ -194,6 +262,7 @@ POST_META = {
     },
     "2026-08-10-nvidia-go-05-rag.md": {
         "slug": "nvidia-go-05-rag",
+        "redirect_to": "nvidia-py-05-rag",
         "date": "2026-08-10",
         "tags": ["NVIDIA", "NeMo Retriever", "RAG", "Go"],
         "audience": "Go engineers building LLM/agent apps on NVIDIA's stack",
@@ -202,6 +271,7 @@ POST_META = {
     },
     "2026-08-11-nvidia-go-06-nemo-guardrails.md": {
         "slug": "nvidia-go-06-nemo-guardrails",
+        "redirect_to": "nvidia-py-06-nemo-guardrails",
         "date": "2026-08-11",
         "tags": ["NVIDIA", "NeMo Guardrails", "AI Safety", "Go"],
         "audience": "Go engineers building LLM/agent apps on NVIDIA's stack",
@@ -210,6 +280,7 @@ POST_META = {
     },
     "2026-08-12-nvidia-go-07-self-hosting-and-optimization.md": {
         "slug": "nvidia-go-07-self-hosting-and-optimization",
+        "redirect_to": "nvidia-py-07-self-hosting-and-optimization",
         "date": "2026-08-12",
         "tags": ["NVIDIA", "NIM", "Performance", "Go"],
         "audience": "Go engineers building LLM/agent apps on NVIDIA's stack",
@@ -218,6 +289,7 @@ POST_META = {
     },
     "2026-08-13-nvidia-go-08-production.md": {
         "slug": "nvidia-go-08-production",
+        "redirect_to": "nvidia-py-08-production",
         "date": "2026-08-13",
         "tags": ["NVIDIA", "Production", "NIM", "Go"],
         "audience": "Go engineers building LLM/agent apps on NVIDIA's stack",

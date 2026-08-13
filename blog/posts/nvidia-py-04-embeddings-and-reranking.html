@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Embeddings and Reranking with NeMo Retriever</title>
+<meta name="description" content="Use NeMo Retriever from Python to build RAG&#x27;s retrieval core: NVIDIAEmbeddings (embed_documents vs embed_query for the asymmetric passage/query...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Embeddings and Reranking with NeMo Retriever">
+<meta property="og:description" content="Use NeMo Retriever from Python to build RAG&#x27;s retrieval core: NVIDIAEmbeddings (embed_documents vs embed_query for the asymmetric passage/query distinction) with cosine scoring, and NVIDIARerank.compress_documents for a two-stage retrieve-then-rerank pipeline.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/nvidia-py-04-embeddings-and-reranking.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-09T00:00:00Z">
+<meta property="article:tag" content="NVIDIA">
+<meta property="article:tag" content="NeMo Retriever">
+<meta property="article:tag" content="RAG">
+<meta property="article:tag" content="Python">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Embeddings and Reranking with NeMo Retriever">
+<meta name="twitter:description" content="Use NeMo Retriever from Python to build RAG&#x27;s retrieval core: NVIDIAEmbeddings (embed_documents vs embed_query for the asymmetric passage/query distinction) with cosine scoring, and NVIDIARerank.compress_documents for a two-stage retrieve-then-rerank pipeline.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/nvidia-py-04-embeddings-and-reranking.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Embeddings and Reranking with NeMo Retriever",
+  "description": "Use NeMo Retriever from Python to build RAG's retrieval core: NVIDIAEmbeddings (embed_documents vs embed_query for the asymmetric passage/query distinction) with cosine scoring, and NVIDIARerank.compress_documents for a two-stage retrieve-then-rerank pipeline.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-09",
+  "dateModified": "2026-08-09",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "NVIDIA, NeMo Retriever, RAG, Python",
+  "url": "https://pratikdhanave.com/blog/posts/nvidia-py-04-embeddings-and-reranking.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/nvidia-py-04-embeddings-and-reranking.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Embeddings and Reranking with NeMo Retriever</h1>
+    <p class="post-subtitle">Building RAG&#x27;s retrieval core in Python — turning a corpus and a query into vectors with NeMo Retriever embedding NIMs, scoring by cosine similarity, then sharpening the shortlist with a cross-encoder reranker NIM.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-09">August 09, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/nvidia/" class="tag-link"><span class="tag">#NVIDIA</span></a><a href="/blog/tags/nemo-retriever/" class="tag-link"><span class="tag">#NeMo Retriever</span></a><a href="/blog/tags/rag/" class="tag-link"><span class="tag">#RAG</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 4 of 8</span>
+    <span class="series-title">NVIDIA AI Stack in Python</span>
+    <div class="series-nav"><a href="/blog/posts/nvidia-py-03-tool-calling.html" class="series-prev">&larr; Part 3: Tool Calling with NIM</a>
+<a href="/blog/posts/nvidia-py-05-rag.html" class="series-next">Part 5: RAG on the NVIDIA Stack &rarr;</a></div>
+  </div>
+
+
+
+  <p>Retrieval-augmented generation lives or dies on retrieval. If the passages you hand the model are the wrong ones, no amount of prompt engineering rescues the answer — the model will confidently summarize irrelevant text. The two workhorses that decide <em>which</em> passages reach the model are <strong>embeddings</strong> (fast, approximate recall over the whole corpus) and <strong>reranking</strong> (slow, precise scoring of a small shortlist). NVIDIA ships both as <strong>NeMo Retriever</strong> models, packaged as NIMs — self-hostable inference microservices with an OpenAI-compatible API surface — and exposes them in Python through the <code>langchain-nvidia-ai-endpoints</code> package.</p>
+<p>This post builds the retrieval core end to end: embed a corpus, embed a query, score locally with a few lines of NumPy, then rerank the survivors with a cross-encoder and take the final top-k. Every code sample uses real libraries and real method signatures. Model ids are shown as examples to verify against the live catalog at <a href="https://build.nvidia.com">build.nvidia.com</a> — treat them as placeholders you confirm, not gospel.</p>
+<hr>
+<h2 id="setup-one-client-library-one-api-key">Setup: one client library, one API key</h2>
+<p>Install the LangChain integration. It pulls in what you need to call the hosted NIMs on NVIDIA&rsquo;s API catalog, and the same classes work against a NIM you self-host by pointing <code>base_url</code> at your own endpoint.</p>
+<pre><code class="language-bash">pip install langchain-nvidia-ai-endpoints numpy
+export NVIDIA_API_KEY=&quot;nvapi-...&quot;   # from build.nvidia.com
+</code></pre>
+<p>Two classes carry this whole post:</p>
+<ul>
+<li><code>NVIDIAEmbeddings</code> — the embedding NIM client. Turns text into dense vectors.</li>
+<li><code>NVIDIARerank</code> — the reranking NIM client. Reorders a candidate list by relevance to a query.</li>
+</ul>
+<p>Both read <code>NVIDIA_API_KEY</code> from the environment by default, so you rarely pass the key explicitly.</p>
+<hr>
+<h2 id="part-1-embeddings-text-becomes-geometry">Part 1 — Embeddings: text becomes geometry</h2>
+<p>An embedding model maps a chunk of text to a fixed-length vector of floats. The useful property is that <em>semantic closeness becomes geometric closeness</em>: two passages about the same topic land near each other in the vector space, even when they share no words. That is what lets you find &ldquo;the document about refund windows&rdquo; from a query that says &ldquo;how long do I have to return this&rdquo; — no keyword overlaps, but the vectors are neighbors.</p>
+<p><code>NVIDIAEmbeddings</code> gives you two methods, and the distinction between them is the single most important detail in this post:</p>
+<ul>
+<li><code>embed_documents(list[str])</code> — encode a list of corpus passages. Returns a <code>list[list[float]]</code>, one vector per passage.</li>
+<li><code>embed_query(str)</code> — encode a single search query. Returns one <code>list[float]</code>.</li>
+</ul>
+<pre><code class="language-python">from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
+
+# Example model id — confirm the exact string in the build.nvidia.com catalog.
+embedder = NVIDIAEmbeddings(model=&quot;nvidia/nv-embedqa-e5-v5&quot;)
+
+corpus = [
+    &quot;NIM microservices package a model with an OpenAI-compatible HTTP API.&quot;,
+    &quot;Cosine similarity measures the angle between two vectors, ignoring magnitude.&quot;,
+    &quot;A cross-encoder scores a query and document together in a single forward pass.&quot;,
+    &quot;GPUs accelerate the matrix multiplies at the heart of transformer inference.&quot;,
+]
+
+doc_vectors = embedder.embed_documents(corpus)   # list[list[float]]
+query_vector = embedder.embed_query(&quot;What is a NIM?&quot;)  # list[float]
+
+print(len(doc_vectors), &quot;document vectors&quot;)
+print(&quot;dimensionality:&quot;, len(query_vector))
+</code></pre>
+<h3 id="why-passages-and-queries-are-encoded-differently">Why passages and queries are encoded differently</h3>
+<p>Here is the part people miss. A well-designed retrieval embedding model is <strong>asymmetric</strong>: passages and queries live in the <em>same</em> vector space so you can compare them, but they are <em>encoded differently</em> on the way in. A stored passage is usually a full, self-contained statement; a query is often a short, incomplete question. Retrieval-tuned models (the &ldquo;QA&rdquo; family, hence names like <code>nv-embedqa-*</code>) are trained on query/passage pairs and internally tag each input with its role — frequently by prepending an instruction like &ldquo;represent this passage for retrieval&rdquo; versus &ldquo;represent this question for retrieving passages.&rdquo; That role tag nudges the two kinds of text so that a terse question lands near the fuller passage that answers it.</p>
+<p>You do not construct those tags yourself. <strong>The methods encode the distinction for you</strong>: <code>embed_documents</code> applies the passage role, <code>embed_query</code> applies the query role. This is the entire reason the API has two methods instead of one generic <code>embed(text)</code>. Calling the right method is how you opt into the asymmetric behavior the model was trained to deliver.</p>
+<p><strong>The gotcha:</strong> <code>embed_documents</code> and <code>embed_query</code> are <em>not</em> interchangeable. If you embed your search query with <code>embed_documents</code> (or embed your corpus with <code>embed_query</code>), the call still succeeds, still returns same-length vectors, and still produces plausible-looking similarity scores — but retrieval quality quietly degrades because the query got the passage role and now sits in the wrong neighborhood. There is no exception, no warning. This is the asymmetric-embedding trap, and it is handled for you <em>only if you call the matching method for each side</em>. Corpus goes through <code>embed_documents</code>; live queries go through <code>embed_query</code>. Always.</p>
+<h3 id="scoring-locally-with-cosine-similarity">Scoring locally with cosine similarity</h3>
+<p>Once text is vectors, &ldquo;most relevant&rdquo; becomes &ldquo;nearest neighbor.&rdquo; The standard distance for text embeddings is <strong>cosine similarity</strong> — the cosine of the angle between two vectors, which ranges from -1 (opposite) to 1 (identical direction) and, crucially, ignores vector length so a long passage isn&rsquo;t penalized for being long.</p>
+<p>A few lines of NumPy score a query against the whole corpus:</p>
+<pre><code class="language-python">import numpy as np
+
+def cosine_scores(query_vec, doc_vecs):
+    &quot;&quot;&quot;Cosine similarity of one query vector against a matrix of doc vectors.&quot;&quot;&quot;
+    q = np.asarray(query_vec, dtype=np.float32)
+    m = np.asarray(doc_vecs, dtype=np.float32)
+    # Normalize to unit length, then a dot product IS the cosine.
+    q_norm = q / (np.linalg.norm(q) + 1e-12)
+    m_norm = m / (np.linalg.norm(m, axis=1, keepdims=True) + 1e-12)
+    return m_norm @ q_norm   # shape: (num_docs,)
+
+scores = cosine_scores(query_vector, doc_vectors)
+ranked = np.argsort(scores)[::-1]   # indices, best first
+
+for rank, idx in enumerate(ranked, 1):
+    print(f&quot;{rank}. score={scores[idx]:.3f}  {corpus[idx]}&quot;)
+</code></pre>
+<p>The <code>1e-12</code> guards against a divide-by-zero on a degenerate zero vector. In a real system you would not loop over every document with NumPy — you would push the vectors into a vector database (FAISS, Milvus, pgvector) that does approximate nearest-neighbor search in sub-linear time. But the math is exactly this, and for a few thousand chunks a normalized dot product in memory is perfectly fine and easy to reason about.</p>
+<p><strong>The gotcha:</strong> you <em>must</em> embed your corpus and your queries with the <strong>same</strong> embedding model. Vectors from <code>nv-embedqa-e5-v5</code> and vectors from some other model do not share a coordinate system; comparing across them yields numbers that mean nothing. This also bites on upgrades — the day you switch embedding models, every stored vector is stale and the whole corpus must be re-embedded before it can be compared against new queries. Version your index by the model that produced it.</p>
+<h3 id="the-raw-openai-client-also-works">The raw <code>openai</code> client also works</h3>
+<p>Because a NeMo Retriever embedding NIM speaks the OpenAI embeddings API, you are not locked into LangChain. You can call the exact same model with the plain <code>openai</code> client by pointing <code>base_url</code> at the NIM endpoint:</p>
+<pre><code class="language-python">from openai import OpenAI
+
+client = OpenAI(
+    base_url=&quot;https://integrate.api.nvidia.com/v1&quot;,
+    api_key=&quot;nvapi-...&quot;,
+)
+
+resp = client.embeddings.create(
+    model=&quot;nvidia/nv-embedqa-e5-v5&quot;,
+    input=[&quot;NIM microservices expose an OpenAI-compatible API.&quot;],
+)
+vector = resp.data[0].embedding
+</code></pre>
+<p>The tradeoff: the raw client won&rsquo;t apply the passage-vs-query role for you — some NeMo embedding NIMs accept an <code>input_type</code> field (values along the lines of <code>"passage"</code> / <code>"query"</code>) in the request to express that distinction. <code>NVIDIAEmbeddings</code> sets it via the two methods so you don&rsquo;t have to think about it, which is exactly why the LangChain wrapper is the friendlier default for retrieval. Reach for the raw client when you&rsquo;re integrating into non-LangChain code or want direct control over the request body — but then it&rsquo;s on you to send the right <code>input_type</code>.</p>
+<hr>
+<h2 id="part-2-reranking-precision-after-recall">Part 2 — Reranking: precision after recall</h2>
+<p>Embedding search is fast because it&rsquo;s <em>decoupled</em>: every passage is embedded once, ahead of time, and at query time you compare one query vector against precomputed vectors. That decoupling is also its weakness. The model never sees the query and a passage <em>together</em> — it compressed each passage into a single vector before it knew what anyone would ask. Two texts can look like neighbors in the vector space while missing the specific nuance a query cares about. Embeddings give you good <em>recall</em> (the right answer is probably somewhere in the top 50) but mediocre <em>precision at the very top</em> (it might be ranked 11th, not 1st).</p>
+<p>A <strong>reranker</strong> fixes the top. It&rsquo;s a <strong>cross-encoder</strong>: instead of embedding query and passage separately, it feeds the query and one candidate passage through the model <em>together</em> and outputs a single relevance score. Because the two texts attend to each other inside the model, a cross-encoder judges relevance far more precisely than a dot product of two independent vectors. The cost is that it&rsquo;s <em>not</em> precomputable — you pay a forward pass for every (query, candidate) pair at query time, so you can only afford to run it on a shortlist, never the whole corpus.</p>
+<p>That&rsquo;s the two-stage pattern, and it beats either stage alone:</p>
+<ol>
+<li><strong>Retrieve</strong> a modest shortlist (say, top 20–50) cheaply with embeddings — high recall.</li>
+<li><strong>Rerank</strong> that shortlist with the cross-encoder and keep the final top-k (say, 3–5) — high precision.</li>
+</ol>
+<p><code>NVIDIARerank</code> wraps the NeMo Retriever reranking NIM. Its method is <code>compress_documents(documents, query)</code>, which takes LangChain <code>Document</code> objects plus the query string and returns the documents <strong>reordered by relevance</strong>, most relevant first.</p>
+<pre><code class="language-python">from langchain_nvidia_ai_endpoints import NVIDIARerank
+from langchain_core.documents import Document
+
+# Example model id — confirm the exact string in the catalog.
+reranker = NVIDIARerank(
+    model=&quot;nvidia/nv-rerankqa-mistral-4b-v3&quot;,
+    top_n=3,   # keep only the best 3 after reranking
+)
+
+query = &quot;How does a cross-encoder differ from embedding search?&quot;
+
+# Turn a shortlist of passage strings into Document objects.
+shortlist = [Document(page_content=text) for text in corpus]
+
+reranked = reranker.compress_documents(documents=shortlist, query=query)
+
+for rank, doc in enumerate(reranked, 1):
+    score = doc.metadata.get(&quot;relevance_score&quot;)
+    print(f&quot;{rank}. score={score}  {doc.page_content}&quot;)
+</code></pre>
+<p><code>compress_documents</code> returns a list of <code>Document</code> objects in relevance order; each carries a <code>relevance_score</code> in its <code>metadata</code> so you can threshold or log it. The <code>top_n</code> constructor argument caps how many survive — the &ldquo;compress&rdquo; in the name is literal: it hands back a shorter, sharper list than it received.</p>
+<p><strong>The gotcha:</strong> reranking is a <em>separate model call that scores every candidate you pass it</em>. Its cost and latency scale with the size of the shortlist, so over-retrieving is not free. Pull the top 500 from your vector store &ldquo;to be safe&rdquo; and you&rsquo;ve turned one cheap embedding lookup into 500 cross-encoder forward passes per query — latency and bill both balloon. Over-retrieve <em>modestly</em> (tens, not hundreds), then rerank. The shortlist is a knob you tune against your latency budget, not a place to be generous.</p>
+<hr>
+<h2 id="wiring-it-together">Wiring it together</h2>
+<p>Here is the full retrieval core: embed the corpus once, embed the query, shortlist by cosine, rerank the shortlist, return the final top-k. Error handling wraps every network call, because a NIM request can fail for the ordinary reasons any HTTP call can — bad key, rate limit, transient timeout.</p>
+<pre><code class="language-python">import numpy as np
+from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings, NVIDIARerank
+from langchain_core.documents import Document
+
+EMBED_MODEL = &quot;nvidia/nv-embedqa-e5-v5&quot;       # verify in the catalog
+RERANK_MODEL = &quot;nvidia/nv-rerankqa-mistral-4b-v3&quot;  # verify in the catalog
+
+
+def cosine_scores(query_vec, doc_vecs):
+    q = np.asarray(query_vec, dtype=np.float32)
+    m = np.asarray(doc_vecs, dtype=np.float32)
+    q /= np.linalg.norm(q) + 1e-12
+    m /= np.linalg.norm(m, axis=1, keepdims=True) + 1e-12
+    return m @ q
+
+
+def build_index(corpus, embedder):
+    &quot;&quot;&quot;Embed the corpus once. In production this vector store is persisted.&quot;&quot;&quot;
+    vectors = embedder.embed_documents(corpus)   # passage role
+    return np.asarray(vectors, dtype=np.float32)
+
+
+def retrieve(query, corpus, index, embedder, reranker,
+             shortlist_size=20, final_k=3):
+    # Stage 1: cheap recall via embeddings + cosine.
+    q_vec = embedder.embed_query(query)          # query role — NOT embed_documents
+    scores = cosine_scores(q_vec, index)
+    top_idx = np.argsort(scores)[::-1][:shortlist_size]
+    shortlist = [Document(page_content=corpus[i]) for i in top_idx]
+
+    # Stage 2: precise reordering via the cross-encoder reranker.
+    reranked = reranker.compress_documents(documents=shortlist, query=query)
+    return reranked[:final_k]
+
+
+def main():
+    corpus = [
+        &quot;NIM microservices package a model with an OpenAI-compatible HTTP API.&quot;,
+        &quot;Cosine similarity measures the angle between two vectors, ignoring magnitude.&quot;,
+        &quot;A cross-encoder scores a query and document together in one forward pass.&quot;,
+        &quot;GPUs accelerate the matrix multiplies at the heart of transformer inference.&quot;,
+        &quot;NeMo Retriever provides embedding and reranking models as NIMs.&quot;,
+        &quot;Vector databases do approximate nearest-neighbor search in sub-linear time.&quot;,
+    ]
+    query = &quot;Why add a reranker on top of embedding search?&quot;
+
+    try:
+        embedder = NVIDIAEmbeddings(model=EMBED_MODEL)
+        reranker = NVIDIARerank(model=RERANK_MODEL, top_n=3)
+    except Exception as exc:
+        raise SystemExit(f&quot;Failed to initialize NIM clients: {exc}&quot;)
+
+    try:
+        index = build_index(corpus, embedder)
+        results = retrieve(query, corpus, index, embedder, reranker)
+    except Exception as exc:
+        # Network, auth, or rate-limit failures surface here.
+        raise SystemExit(f&quot;Retrieval failed: {exc}&quot;)
+
+    print(f&quot;Query: {query}\n&quot;)
+    for rank, doc in enumerate(results, 1):
+        score = doc.metadata.get(&quot;relevance_score&quot;)
+        print(f&quot;{rank}. score={score}  {doc.page_content}&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+<p>The flow is worth internalizing because it&rsquo;s the skeleton of essentially every serious RAG pipeline: <strong>embed corpus → store → embed query → shortlist by similarity → rerank → final top-k → feed to the LLM.</strong> Swap the in-memory NumPy index for a vector database and this scales to millions of chunks without changing the shape.</p>
+<p><strong>The gotcha:</strong> don&rsquo;t skip reranking and then blame the LLM for bad RAG. When answers are subtly off-topic, the reflex is to tweak the prompt or swap the generation model — but if stage one handed the LLM the 11th-best passage instead of the 1st, the generator was doomed before it saw a token. Reranking is the cheapest, highest-leverage quality win in most RAG systems precisely because it fixes the input the LLM never gets to see you got wrong. Measure retrieval quality (is the gold passage in your final top-k?) before you touch generation.</p>
+<hr>
+<h2 id="embeddings-vs-reranking-at-a-glance">Embeddings vs. reranking at a glance</h2>
+<table><caption class="sr-only">Embeddings vs. reranking at a glance</caption>
+<thead>
+<tr>
+<th></th>
+<th>Embeddings (bi-encoder)</th>
+<th>Reranking (cross-encoder)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sees query + passage together</td>
+<td>No — encoded separately</td>
+<td>Yes — one joint forward pass</td>
+</tr>
+<tr>
+<td>Precomputable</td>
+<td>Yes — embed corpus once</td>
+<td>No — runs per query at query time</td>
+</tr>
+<tr>
+<td>Speed</td>
+<td>Fast; scales to millions</td>
+<td>Slow; run on a shortlist only</td>
+</tr>
+<tr>
+<td>Strength</td>
+<td>Recall (finds the neighborhood)</td>
+<td>Precision (nails the top ranks)</td>
+</tr>
+<tr>
+<td>Python method</td>
+<td><code>embed_documents</code> / <code>embed_query</code></td>
+<td><code>compress_documents(documents, query)</code></td>
+</tr>
+<tr>
+<td>Role in the pipeline</td>
+<td>Stage 1: shortlist the corpus</td>
+<td>Stage 2: reorder the shortlist</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Two methods, on purpose.</strong> <code>embed_documents</code> encodes passages, <code>embed_query</code> encodes queries — the model is asymmetric, and calling the matching method is how you opt into the retrieval-tuned behavior. Mixing them silently wrecks quality with no error.</li>
+<li><strong>Same model, both sides.</strong> Corpus and queries must be embedded by the same model, or the vectors don&rsquo;t share a coordinate system. Re-embed the whole corpus when you upgrade models.</li>
+<li><strong>Cosine on unit vectors is just a dot product.</strong> A few lines of NumPy score a query against a corpus; a vector DB does the same math at scale.</li>
+<li><strong>Two stages beat one.</strong> Embeddings give recall, the cross-encoder reranker gives precision. Retrieve a modest shortlist, then <code>compress_documents</code> to sharpen the top-k.</li>
+<li><strong>Over-retrieve modestly.</strong> Reranking cost scales with shortlist size — tens of candidates, not hundreds.</li>
+<li><strong>Fix retrieval before generation.</strong> Bad RAG is usually bad retrieval. Reranking is the highest-leverage fix, and it lives entirely upstream of the LLM.</li>
+<li><strong>OpenAI-compatible either way.</strong> Use <code>NVIDIAEmbeddings</code> for the free passage/query handling, or the raw <code>openai</code> client against the NIM <code>base_url</code> when you want direct control — just remember to send the right <code>input_type</code> yourself.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.nvidia.com/nemo/retriever/">NeMo Retriever documentation</a> — the embedding and reranking NIMs, deployment, and model catalog.</li>
+<li><a href="https://python.langchain.com/docs/integrations/text_embedding/nvidia_ai_endpoints/"><code>langchain-nvidia-ai-endpoints</code> — text embeddings</a> — <code>NVIDIAEmbeddings</code>, <code>embed_documents</code>, and <code>embed_query</code>.</li>
+<li><a href="https://python.langchain.com/docs/integrations/retrievers/nvidia_rerank/"><code>langchain-nvidia-ai-endpoints</code> — reranking</a> — <code>NVIDIARerank</code> and <code>compress_documents</code>.</li>
+<li><a href="https://build.nvidia.com">build.nvidia.com</a> — the live catalog; confirm the exact embedding and reranking model ids and dimensions.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/nvidia-py-05-rag.html">RAG on the NVIDIA Stack</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-py-08-production.html">Production on the NVIDIA Stack</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-py-07-self-hosting-and-optimization.html">Self-Hosting and Optimizing Inference</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

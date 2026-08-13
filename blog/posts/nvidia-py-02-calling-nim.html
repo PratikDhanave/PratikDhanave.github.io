@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Calling NIM from Python — Pratik Dhanave</title>
+<meta name="description" content="Make your first NIM calls in Python two ways: the standard openai client pointed at the API Catalog with an nvapi- key, and the official ChatNVIDIA...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Calling NIM from Python — Pratik Dhanave">
+<meta property="og:description" content="Make your first NIM calls in Python two ways: the standard openai client pointed at the API Catalog with an nvapi- key, and the official ChatNVIDIA from langchain-nvidia-ai-endpoints — with streaming, token usage, typed errors, and the base_url swap to a self-hosted NIM.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/nvidia-py-02-calling-nim.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-07T00:00:00Z">
+<meta property="article:tag" content="NVIDIA">
+<meta property="article:tag" content="NIM">
+<meta property="article:tag" content="LLMs">
+<meta property="article:tag" content="Python">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Calling NIM from Python — Pratik Dhanave">
+<meta name="twitter:description" content="Make your first NIM calls in Python two ways: the standard openai client pointed at the API Catalog with an nvapi- key, and the official ChatNVIDIA from langchain-nvidia-ai-endpoints — with streaming, token usage, typed errors, and the base_url swap to a self-hosted NIM.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/nvidia-py-02-calling-nim.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Calling NIM from Python",
+  "description": "Make your first NIM calls in Python two ways: the standard openai client pointed at the API Catalog with an nvapi- key, and the official ChatNVIDIA from langchain-nvidia-ai-endpoints \u2014 with streaming, token usage, typed errors, and the base_url swap to a self-hosted NIM.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-07",
+  "dateModified": "2026-08-07",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "NVIDIA, NIM, LLMs, Python",
+  "url": "https://pratikdhanave.com/blog/posts/nvidia-py-02-calling-nim.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/nvidia-py-02-calling-nim.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Calling NIM from Python</h1>
+    <p class="post-subtitle">Your first real NVIDIA NIM calls in Python, two idiomatic ways: the plain OpenAI SDK pointed at NVIDIA&#x27;s endpoint, and the official LangChain integration — with error handling, streaming, and the one change that makes the same code run against a self-hosted model.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-07">August 07, 2026</time>
+      <span>·</span>
+      <span>10 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/nvidia/" class="tag-link"><span class="tag">#NVIDIA</span></a><a href="/blog/tags/nim/" class="tag-link"><span class="tag">#NIM</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 2 of 8</span>
+    <span class="series-title">NVIDIA AI Stack in Python</span>
+    <div class="series-nav"><a href="/blog/posts/nvidia-py-01-the-nvidia-ai-stack.html" class="series-prev">&larr; Part 1: The NVIDIA AI Stack</a>
+<a href="/blog/posts/nvidia-py-03-tool-calling.html" class="series-next">Part 3: Tool Calling with NIM &rarr;</a></div>
+  </div>
+
+
+
+  <p>NVIDIA NIM (NVIDIA Inference Microservices) exposes large language models behind an <strong>OpenAI-compatible REST API</strong>. That single design decision is the reason this post is short: you do not learn a bespoke SDK. You reuse the same request shape you already know from <code>chat.completions.create</code>, and you point it at NVIDIA&rsquo;s endpoint instead of OpenAI&rsquo;s.</p>
+<p>There are two paths worth knowing, and this post walks both end to end:</p>
+<ol>
+<li><strong>The <code>openai</code> SDK, pointed at NVIDIA.</strong> Fewest dependencies, full control over the request, and typed exceptions you can catch precisely.</li>
+<li><strong>The official <code>langchain-nvidia-ai-endpoints</code> package.</strong> The <code>ChatNVIDIA</code> chat model, for when you want to drop NIM into a LangChain chain, retriever, or agent and keep the surrounding ecosystem.</li>
+</ol>
+<p>Both talk to the same models. The deciding factor is what surrounds the call, not the call itself. We will finish on the property that makes NIM worth the trouble: <strong>portability</strong> — moving from NVIDIA&rsquo;s hosted catalog to a self-hosted NIM container is a one-line change.</p>
+<hr>
+<h2 id="getting-a-key-and-finding-a-model">Getting a key and finding a model</h2>
+<p>Everything below assumes two things.</p>
+<p>First, an API key. Create one at <a href="https://build.nvidia.com">build.nvidia.com</a> — keys are prefixed <code>nvapi-</code>. Put it in an environment variable rather than a source file:</p>
+<pre><code class="language-bash">export NVIDIA_API_KEY=&quot;nvapi-...&quot;
+</code></pre>
+<p>Second, a model id. NIM model ids are <strong>catalog strings</strong> like <code>meta/llama-3.1-8b-instruct</code>, not friendly aliases. The exact set of available ids and their spelling changes over time, so treat any id in this post as an example and confirm the current one in the model catalog on <a href="https://build.nvidia.com">build.nvidia.com</a> before you run.</p>
+<pre><code class="language-bash">pip install openai langchain-nvidia-ai-endpoints
+</code></pre>
+<hr>
+<h2 id="1-the-openai-sdk-pointed-at-nvidia">1. The OpenAI SDK, pointed at NVIDIA</h2>
+<p>The <code>openai</code> Python package does not hardcode OpenAI&rsquo;s URL. Construct the client with <code>base_url</code> set to NVIDIA&rsquo;s integration endpoint and <code>api_key</code> set to your <code>nvapi-</code> key, and every method on the client now talks to NIM.</p>
+<pre><code class="language-python">import os
+from openai import OpenAI
+
+client = OpenAI(
+    base_url=&quot;https://integrate.api.nvidia.com/v1&quot;,
+    api_key=os.environ[&quot;NVIDIA_API_KEY&quot;],
+)
+
+resp = client.chat.completions.create(
+    model=&quot;meta/llama-3.1-8b-instruct&quot;,  # confirm the id in the catalog
+    messages=[
+        {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;You are a concise assistant.&quot;},
+        {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Explain what an inference microservice is in two sentences.&quot;},
+    ],
+    temperature=0.2,
+    max_tokens=256,
+    stream=False,
+)
+
+print(resp.choices[0].message.content)
+</code></pre>
+<p>The response object is the standard chat-completion shape. The generated text lives at <code>resp.choices[0].message.content</code>. There can be more than one choice if you ask for several completions, but with the default you read index <code>0</code>.</p>
+<p><strong>The gotcha:</strong> <code>base_url</code> must end in <code>/v1</code>. The path segment is part of the OpenAI-compatible contract, and leaving it off (<code>https://integrate.api.nvidia.com</code>) sends your request to a route that does not exist — you get a 404 that looks like an outage but is really a URL typo.</p>
+<h3 id="reading-token-usage">Reading token usage</h3>
+<p>Every non-streaming response carries a <code>usage</code> object. Read it to track cost and to catch prompts that are quietly ballooning.</p>
+<pre><code class="language-python">usage = resp.usage
+print(&quot;prompt tokens:    &quot;, usage.prompt_tokens)
+print(&quot;completion tokens:&quot;, usage.completion_tokens)
+print(&quot;total tokens:     &quot;, usage.total_tokens)
+</code></pre>
+<p>Those three fields — <code>prompt_tokens</code>, <code>completion_tokens</code>, <code>total_tokens</code> — are the whole story for a single call. Sum <code>total_tokens</code> across a session and you have a running meter.</p>
+<h3 id="error-handling-with-typed-exceptions">Error handling with typed exceptions</h3>
+<p>The <code>openai</code> package raises a <strong>hierarchy of typed exceptions</strong>, all subclasses of <code>openai.APIError</code>. Catching them by type lets you react differently to a rate limit than to a bad request. The ones you will meet most often:</p>
+<ul>
+<li><code>openai.APIConnectionError</code> — the request never reached the server (DNS, TLS, network). It has a <code>.__cause__</code> with the underlying error.</li>
+<li><code>openai.APITimeoutError</code> — a subclass of the connection error, raised when the request exceeds the configured timeout.</li>
+<li><code>openai.RateLimitError</code> — HTTP 429; you are sending too fast. Back off and retry.</li>
+<li><code>openai.AuthenticationError</code> — HTTP 401; a missing or wrong <code>nvapi-</code> key.</li>
+<li><code>openai.BadRequestError</code> — HTTP 400; a malformed request, e.g. an unknown model id or an oversized prompt.</li>
+<li><code>openai.APIStatusError</code> — the base class for any non-2xx response, carrying <code>.status_code</code> and <code>.response</code>. Catch it last as a fallback.</li>
+</ul>
+<pre><code class="language-python">import openai
+
+def ask(prompt: str) -&gt; str:
+    try:
+        resp = client.chat.completions.create(
+            model=&quot;meta/llama-3.1-8b-instruct&quot;,
+            messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: prompt}],
+            max_tokens=256,
+        )
+        return resp.choices[0].message.content
+    except openai.AuthenticationError:
+        raise SystemExit(&quot;Check NVIDIA_API_KEY — the server rejected the credential.&quot;)
+    except openai.RateLimitError:
+        raise RuntimeError(&quot;Rate limited (429). Slow down or add backoff.&quot;)
+    except openai.BadRequestError as e:
+        raise RuntimeError(f&quot;Bad request (400): {e}&quot;)
+    except openai.APIStatusError as e:
+        raise RuntimeError(f&quot;Server returned {e.status_code}: {e.response}&quot;)
+    except openai.APIConnectionError as e:
+        raise RuntimeError(f&quot;Could not reach the endpoint: {e.__cause__}&quot;)
+</code></pre>
+<p>Order matters: the specific exceptions come first, <code>APIStatusError</code> and <code>APIConnectionError</code> last, because the specific ones are subclasses and Python matches the first <code>except</code> that fits.</p>
+<p><strong>The gotcha:</strong> the client&rsquo;s retry and timeout behavior is <strong>configurable — so configure it</strong> rather than assuming the defaults suit your workload. The SDK retries certain errors (connection errors, 429s, 5xx) a small number of times with backoff. You can raise or lower that with <code>max_retries</code>, and set a request deadline with <code>timeout</code>, either on the whole client or per call.</p>
+<pre><code class="language-python">from openai import OpenAI
+
+# Client-wide defaults.
+client = OpenAI(
+    base_url=&quot;https://integrate.api.nvidia.com/v1&quot;,
+    api_key=os.environ[&quot;NVIDIA_API_KEY&quot;],
+    max_retries=4,
+    timeout=30.0,  # seconds
+)
+
+# Or override for one call that you know is slow.
+resp = client.with_options(timeout=120.0).chat.completions.create(
+    model=&quot;meta/llama-3.1-8b-instruct&quot;,
+    messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Write a long essay on caching.&quot;}],
+    max_tokens=2048,
+)
+</code></pre>
+<h3 id="streaming-guard-the-none-deltas">Streaming: guard the None deltas</h3>
+<p>For an interactive UI you want tokens as they arrive, not one block at the end. Pass <code>stream=True</code> and iterate. Each chunk carries a partial message on <code>chunk.choices[0].delta</code>, and the new text (if any) is at <code>.delta.content</code>.</p>
+<pre><code class="language-python">stream = client.chat.completions.create(
+    model=&quot;meta/llama-3.1-8b-instruct&quot;,
+    messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Count slowly from one to five.&quot;}],
+    max_tokens=128,
+    stream=True,
+)
+
+pieces = []
+for chunk in stream:
+    delta = chunk.choices[0].delta.content
+    if delta:                     # may be None on some chunks — skip those
+        pieces.append(delta)
+        print(delta, end=&quot;&quot;, flush=True)
+print()
+
+full_text = &quot;&quot;.join(pieces)
+</code></pre>
+<p><strong>The gotcha:</strong> <code>chunk.choices[0].delta.content</code> is often <code>None</code>, not just an empty string. The first chunk may carry only the assistant role, and the final chunk (the one that signals completion) carries no text at all. A bare <code>pieces.append(delta)</code> without the <code>if delta:</code> guard appends <code>None</code> and blows up your <code>"".join(...)</code>. Always check truthiness before using the delta.</p>
+<p>One more streaming note: when you stream over the OpenAI-compatible endpoint, the usage totals are not attached to the intermediate content chunks the way they are on a non-streaming response. If you need exact token accounting, prefer a non-streaming call, or count locally — do not assume <code>usage</code> is populated mid-stream.</p>
+<hr>
+<h2 id="2-the-official-langchain-integration-chatnvidia">2. The official LangChain integration: ChatNVIDIA</h2>
+<p>NVIDIA maintains <code>langchain-nvidia-ai-endpoints</code>, which exposes NIM as a first-class LangChain chat model called <code>ChatNVIDIA</code>. If your application is already built on LangChain — chains, retrievers, output parsers, agents — this is the path that fits, because <code>ChatNVIDIA</code> behaves like any other LangChain chat model.</p>
+<p>It reads <code>NVIDIA_API_KEY</code> from the environment automatically, so construction is just the model id.</p>
+<pre><code class="language-python">from langchain_nvidia_ai_endpoints import ChatNVIDIA
+
+llm = ChatNVIDIA(
+    model=&quot;meta/llama-3.1-8b-instruct&quot;,  # confirm the id in the catalog
+    temperature=0.2,
+    max_tokens=256,
+)
+
+result = llm.invoke(&quot;Explain what an inference microservice is in two sentences.&quot;)
+print(result.content)
+</code></pre>
+<p><code>invoke</code> returns an <code>AIMessage</code>; the text is on <code>.content</code>. That is the same return type you get from any LangChain chat model, which is the whole point — swap <code>ChatNVIDIA</code> in wherever a chat model is expected and the rest of the chain does not change.</p>
+<h3 id="passing-structured-messages">Passing structured messages</h3>
+<p>Instead of a bare string you can pass a list of messages, either as LangChain message objects or as role/content tuples. Both are accepted.</p>
+<pre><code class="language-python">from langchain_core.messages import SystemMessage, HumanMessage
+
+messages = [
+    SystemMessage(content=&quot;You are a concise assistant.&quot;),
+    HumanMessage(content=&quot;Name three benefits of an OpenAI-compatible API.&quot;),
+]
+print(llm.invoke(messages).content)
+
+# Equivalent, using tuples:
+print(llm.invoke([
+    (&quot;system&quot;, &quot;You are a concise assistant.&quot;),
+    (&quot;human&quot;, &quot;Name three benefits of an OpenAI-compatible API.&quot;),
+]).content)
+</code></pre>
+<h3 id="streaming-with-chatnvidia">Streaming with ChatNVIDIA</h3>
+<p>Streaming uses the standard LangChain <code>.stream(...)</code> method, which yields message chunks. Concatenate <code>.content</code> as they arrive.</p>
+<pre><code class="language-python">pieces = []
+for chunk in llm.stream(&quot;Count slowly from one to five.&quot;):
+    if chunk.content:            # guard here too — chunks can be empty
+        pieces.append(chunk.content)
+        print(chunk.content, end=&quot;&quot;, flush=True)
+print()
+
+full_text = &quot;&quot;.join(pieces)
+</code></pre>
+<p>The LangChain layer already smooths over empty chunks better than the raw client, but keeping the <code>if chunk.content:</code> guard costs nothing and keeps the two code paths symmetric.</p>
+<h3 id="when-to-reach-for-which">When to reach for which</h3>
+<table><caption class="sr-only">When to reach for which</caption>
+<thead>
+<tr>
+<th>You want</th>
+<th>Use</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fewest dependencies, full request control</td>
+<td><code>openai</code> client</td>
+<td>One package, typed exceptions, raw <code>usage</code></td>
+</tr>
+<tr>
+<td>Precise error handling by HTTP status</td>
+<td><code>openai</code> client</td>
+<td><code>RateLimitError</code>, <code>APIStatusError</code>, etc.</td>
+</tr>
+<tr>
+<td>Drop NIM into an existing LangChain app</td>
+<td><code>ChatNVIDIA</code></td>
+<td>Behaves like any LangChain chat model</td>
+</tr>
+<tr>
+<td>Chains, retrievers, agents, output parsers</td>
+<td><code>ChatNVIDIA</code></td>
+<td>Composes with the LangChain ecosystem</td>
+</tr>
+<tr>
+<td>A thin script or microservice</td>
+<td><code>openai</code> client</td>
+<td>Nothing to learn, nothing extra to ship</td>
+</tr>
+</tbody>
+</table>
+<p>There is no wrong choice here — they hit the same models. Pick the raw client when the LLM call is the whole program, and <code>ChatNVIDIA</code> when the call is one node in a larger LangChain graph.</p>
+<hr>
+<h2 id="3-portability-the-same-code-a-self-hosted-nim">3. Portability: the same code, a self-hosted NIM</h2>
+<p>The reason NIM&rsquo;s OpenAI compatibility matters is that it decouples your code from <em>where</em> the model runs. NVIDIA ships NIM as a container you can run on your own GPU. That container serves the <strong>same OpenAI-compatible API</strong> on its own host and port. To move your application from the hosted catalog to your own hardware, you change one thing: the <code>base_url</code>.</p>
+<pre><code class="language-python">import os
+from openai import OpenAI
+
+# Hosted NVIDIA catalog:
+# base_url = &quot;https://integrate.api.nvidia.com/v1&quot;
+
+# Self-hosted NIM container on your network:
+base_url = os.environ.get(&quot;NIM_BASE_URL&quot;, &quot;http://localhost:8000/v1&quot;)
+
+client = OpenAI(
+    base_url=base_url,
+    api_key=os.environ.get(&quot;NVIDIA_API_KEY&quot;, &quot;not-needed-for-local&quot;),
+)
+
+resp = client.chat.completions.create(
+    model=&quot;meta/llama-3.1-8b-instruct&quot;,
+    messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Ping.&quot;}],
+    max_tokens=32,
+)
+print(resp.choices[0].message.content)
+</code></pre>
+<p><code>ChatNVIDIA</code> supports the same move through its <code>base_url</code> parameter:</p>
+<pre><code class="language-python">from langchain_nvidia_ai_endpoints import ChatNVIDIA
+
+llm = ChatNVIDIA(
+    base_url=&quot;http://localhost:8000/v1&quot;,
+    model=&quot;meta/llama-3.1-8b-instruct&quot;,
+)
+</code></pre>
+<p><strong>The gotcha:</strong> a self-hosted NIM may not need an API key at all — access is often controlled by the network (a private VPC, a Kubernetes service, a firewall) rather than a per-request credential. The <code>openai</code> client still insists on <em>some</em> <code>api_key</code> value being present, so pass a harmless placeholder. Never do the reverse: do not hardcode your real <code>nvapi-</code> key to reach a local endpoint, and never commit any key. Keep it in an environment variable or a secret store, and let the local URL fall back to no real credential.</p>
+<hr>
+<h2 id="a-complete-runnable-example">A complete, runnable example</h2>
+<p>Putting the OpenAI-client pieces together: non-streaming with usage, error handling, then streaming — one self-contained script.</p>
+<pre><code class="language-python">import os
+import openai
+from openai import OpenAI
+
+MODEL = &quot;meta/llama-3.1-8b-instruct&quot;  # confirm in the catalog
+
+client = OpenAI(
+    base_url=os.environ.get(&quot;NIM_BASE_URL&quot;, &quot;https://integrate.api.nvidia.com/v1&quot;),
+    api_key=os.environ.get(&quot;NVIDIA_API_KEY&quot;, &quot;not-needed-for-local&quot;),
+    max_retries=3,
+    timeout=30.0,
+)
+
+
+def complete(prompt: str) -&gt; None:
+    try:
+        resp = client.chat.completions.create(
+            model=MODEL,
+            messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: prompt}],
+            temperature=0.3,
+            max_tokens=200,
+        )
+    except openai.RateLimitError:
+        print(&quot;Rate limited (429) — back off and retry.&quot;)
+        return
+    except openai.APIStatusError as e:
+        print(f&quot;Server error {e.status_code}: {e.response}&quot;)
+        return
+    except openai.APIConnectionError as e:
+        print(f&quot;Connection failed: {e.__cause__}&quot;)
+        return
+
+    print(resp.choices[0].message.content)
+    u = resp.usage
+    print(f&quot;[tokens] prompt={u.prompt_tokens} completion={u.completion_tokens} total={u.total_tokens}&quot;)
+
+
+def stream(prompt: str) -&gt; None:
+    events = client.chat.completions.create(
+        model=MODEL,
+        messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: prompt}],
+        max_tokens=200,
+        stream=True,
+    )
+    for chunk in events:
+        delta = chunk.choices[0].delta.content
+        if delta:
+            print(delta, end=&quot;&quot;, flush=True)
+    print()
+
+
+if __name__ == &quot;__main__&quot;:
+    complete(&quot;Give one reason OpenAI-compatible APIs simplify vendor migration.&quot;)
+    stream(&quot;Now say the same thing as a haiku.&quot;)
+</code></pre>
+<p>Run it against the hosted catalog by setting <code>NVIDIA_API_KEY</code>, or against a local container by setting <code>NIM_BASE_URL</code> to your NIM&rsquo;s <code>/v1</code> URL. The code does not change.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>NIM is OpenAI-compatible</strong>, so the plain <code>openai</code> client works — set <code>base_url</code> to <code>https://integrate.api.nvidia.com/v1</code> and <code>api_key</code> to your <code>nvapi-</code> key.</li>
+<li><strong>Read <code>resp.choices[0].message.content</code> for text and <code>resp.usage</code> for <code>prompt_tokens</code> / <code>completion_tokens</code> / <code>total_tokens</code>.</strong> Usage is reliable on non-streaming calls.</li>
+<li><strong>Streaming deltas can be <code>None</code>.</strong> Guard <code>if chunk.choices[0].delta.content:</code> before using them, or the final/role-only chunks will break your accumulator.</li>
+<li><strong>Catch typed exceptions</strong> — <code>RateLimitError</code>, <code>AuthenticationError</code>, <code>BadRequestError</code>, and the <code>APIStatusError</code> / <code>APIConnectionError</code> base classes — and set <code>max_retries</code> and <code>timeout</code> deliberately instead of trusting defaults.</li>
+<li><strong><code>ChatNVIDIA</code> is the LangChain-native path</strong> — <code>invoke</code> and <code>stream</code> behave like any LangChain chat model. Prefer it inside chains and agents; prefer the raw client for thin scripts.</li>
+<li><strong>Portability is a one-line change.</strong> Point <code>base_url</code> at a self-hosted NIM to run the identical code on your own GPU — and remember a local NIM may need no key, only network access.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.nvidia.com/nim/large-language-models/latest/api-reference.html">NVIDIA NIM for LLMs — API reference</a></li>
+<li><a href="https://build.nvidia.com">build.nvidia.com — model catalog and API keys</a></li>
+<li><a href="https://github.com/openai/openai-python">openai-python — the official OpenAI Python SDK</a></li>
+<li><a href="https://pypi.org/project/langchain-nvidia-ai-endpoints/">langchain-nvidia-ai-endpoints on PyPI</a></li>
+<li><a href="https://python.langchain.com/docs/integrations/chat/nvidia_ai_endpoints/">ChatNVIDIA integration docs (LangChain)</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/nvidia-py-01-the-nvidia-ai-stack.html">The NVIDIA AI Stack</a>
+      <span class="related-date">Aug 06</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-py-08-production.html">Production on the NVIDIA Stack</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-py-07-self-hosting-and-optimization.html">Self-Hosting and Optimizing Inference</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

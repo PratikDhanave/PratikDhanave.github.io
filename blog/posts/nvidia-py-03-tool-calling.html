@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Tool Calling with NIM — Pratik Dhanave</title>
+<meta name="description" content="Function/tool calling against NIM models in Python: the openai round-trip loop (json.loads the arguments string, echo tool_call_id, cap the iterations)...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Tool Calling with NIM — Pratik Dhanave">
+<meta property="og:description" content="Function/tool calling against NIM models in Python: the openai round-trip loop (json.loads the arguments string, echo tool_call_id, cap the iterations) and the LangChain ChatNVIDIA.bind_tools path — with the honest caveat that model support varies.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/nvidia-py-03-tool-calling.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-08T00:00:00Z">
+<meta property="article:tag" content="NVIDIA">
+<meta property="article:tag" content="NIM">
+<meta property="article:tag" content="Tool Use">
+<meta property="article:tag" content="Python">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tool Calling with NIM — Pratik Dhanave">
+<meta name="twitter:description" content="Function/tool calling against NIM models in Python: the openai round-trip loop (json.loads the arguments string, echo tool_call_id, cap the iterations) and the LangChain ChatNVIDIA.bind_tools path — with the honest caveat that model support varies.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/nvidia-py-03-tool-calling.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Tool Calling with NIM",
+  "description": "Function/tool calling against NIM models in Python: the openai round-trip loop (json.loads the arguments string, echo tool_call_id, cap the iterations) and the LangChain ChatNVIDIA.bind_tools path \u2014 with the honest caveat that model support varies.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-08",
+  "dateModified": "2026-08-08",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "NVIDIA, NIM, Tool Use, Python",
+  "url": "https://pratikdhanave.com/blog/posts/nvidia-py-03-tool-calling.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/nvidia-py-03-tool-calling.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Tool Calling with NIM</h1>
+    <p class="post-subtitle">Driving function calling against NVIDIA NIM models from Python — the full request-execute-respond loop with the plain `openai` client, then the same thing automated by `ChatNVIDIA.bind_tools`.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-08">August 08, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/nvidia/" class="tag-link"><span class="tag">#NVIDIA</span></a><a href="/blog/tags/nim/" class="tag-link"><span class="tag">#NIM</span></a><a href="/blog/tags/tool-use/" class="tag-link"><span class="tag">#Tool Use</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 3 of 8</span>
+    <span class="series-title">NVIDIA AI Stack in Python</span>
+    <div class="series-nav"><a href="/blog/posts/nvidia-py-02-calling-nim.html" class="series-prev">&larr; Part 2: Calling NIM from Python</a>
+<a href="/blog/posts/nvidia-py-04-embeddings-and-reranking.html" class="series-next">Part 4: Embeddings and Reranking with NeMo Retriever &rarr;</a></div>
+  </div>
+
+
+
+  <p>A chat model can tell you, in fluent prose, exactly how to look up today&rsquo;s weather. What it cannot do is open a socket, hit a weather API, and read back a real number. <strong>Tool calling</strong> — function calling, if you prefer that name — is the protocol that bridges that gap. You describe the functions that exist and the arguments they take; the model decides when one is needed and hands you a structured request; <em>you</em> run the actual Python; and you feed the result back so the model can finish its answer with real data in hand.</p>
+<p>NVIDIA NIM (NVIDIA Inference Microservices) serves chat completions over an <strong>OpenAI-compatible API</strong>. In <a href="/blog/">post 2</a> we called NIM two ways: the plain <code>openai</code> Python client pointed at <code>https://integrate.api.nvidia.com/v1</code> with an <code>nvapi-...</code> key, and LangChain&rsquo;s <code>ChatNVIDIA</code>. Both carry straight over to tool calling, and this post builds the round-trip on each. Because the wire format is the OpenAI shape, everything here transfers to any other OpenAI-compatible endpoint with only a base URL and key change.</p>
+<p>One honest caveat before we start: <strong>not every model in the catalog supports tool calling.</strong> It is a per-model capability. Check the model card on <a href="https://build.nvidia.com/">build.nvidia.com</a> before you depend on it — a model that doesn&rsquo;t support tools will simply ignore your <code>tools</code> array and answer in prose, which is a failure mode you catch by inspecting <code>finish_reason</code>, not by staring at empty output.</p>
+<hr>
+<h2 id="the-shape-of-the-round-trip">The shape of the round-trip</h2>
+<p>Tool calling is a conversation, not a single request. The flow is always the same four beats:</p>
+<ol>
+<li>You send the message history <strong>plus</strong> a list of tool definitions (each a name, a description, and a JSON-schema <code>parameters</code> object).</li>
+<li>The model either answers normally, or comes back with <code>finish_reason == "tool_calls"</code> and a list of calls it wants made — each with an <code>id</code>, a function <code>name</code>, and an <code>arguments</code> field that is a <strong>JSON string</strong>.</li>
+<li>For each requested call you decode the arguments, run the matching Python function, and append a message with <code>role: "tool"</code>, the exact <code>tool_call_id</code>, and the result as its <code>content</code>.</li>
+<li>You send the whole history again. The model answers, or asks for more tools. You loop until it answers.</li>
+</ol>
+<p>That loop — with a hard iteration cap — is the heart of this post.</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant App as Your Python program
+    participant NIM as NIM (OpenAI-compatible)
+    App-&gt;&gt;NIM: messages + tools
+    NIM--&gt;&gt;App: finish_reason=tool_calls, tool_calls[]
+    App-&gt;&gt;App: json.loads(arguments), run functions
+    App-&gt;&gt;NIM: messages + role:tool results (by id)
+    NIM--&gt;&gt;App: finish_reason=stop, final answer
+</code></pre>
+<hr>
+<h2 id="the-raw-path-the-openai-client">The raw path: the <code>openai</code> client</h2>
+<p>Start from the client we built in post 2. The <code>openai</code> package works unchanged against NIM — you only change the <code>base_url</code> and pass your NVIDIA key.</p>
+<pre><code class="language-python">import os
+from openai import OpenAI
+
+client = OpenAI(
+    base_url=&quot;https://integrate.api.nvidia.com/v1&quot;,
+    api_key=os.environ[&quot;NVIDIA_API_KEY&quot;],  # an nvapi-... key
+)
+
+MODEL = &quot;meta/llama-3.1-70b-instruct&quot;  # a tool-capable model; check the card
+</code></pre>
+<h3 id="declaring-a-tool-as-a-schema-dict">Declaring a tool as a schema dict</h3>
+<p>A tool declaration is a plain Python dict — no schema library required. The <code>type</code> is always <code>"function"</code> today, and <code>parameters</code> is a JSON Schema object describing the arguments. Here are two tools: a weather lookup and a calculator, each paired with the real function that backs it.</p>
+<pre><code class="language-python">tools = [
+    {
+        &quot;type&quot;: &quot;function&quot;,
+        &quot;function&quot;: {
+            &quot;name&quot;: &quot;get_current_weather&quot;,
+            &quot;description&quot;: (
+                &quot;Get the current weather for a city. &quot;
+                &quot;Returns temperature and conditions.&quot;
+            ),
+            &quot;parameters&quot;: {
+                &quot;type&quot;: &quot;object&quot;,
+                &quot;properties&quot;: {
+                    &quot;city&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;City name, e.g. 'Pune' or 'Munich'.&quot;,
+                    },
+                    &quot;unit&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;enum&quot;: [&quot;celsius&quot;, &quot;fahrenheit&quot;],
+                        &quot;description&quot;: &quot;Temperature unit. Defaults to celsius.&quot;,
+                    },
+                },
+                &quot;required&quot;: [&quot;city&quot;],
+            },
+        },
+    },
+    {
+        &quot;type&quot;: &quot;function&quot;,
+        &quot;function&quot;: {
+            &quot;name&quot;: &quot;calculate&quot;,
+            &quot;description&quot;: &quot;Perform exact arithmetic on two numbers.&quot;,
+            &quot;parameters&quot;: {
+                &quot;type&quot;: &quot;object&quot;,
+                &quot;properties&quot;: {
+                    &quot;op&quot;: {&quot;type&quot;: &quot;string&quot;, &quot;enum&quot;: [&quot;add&quot;, &quot;sub&quot;, &quot;mul&quot;, &quot;div&quot;]},
+                    &quot;a&quot;: {&quot;type&quot;: &quot;number&quot;},
+                    &quot;b&quot;: {&quot;type&quot;: &quot;number&quot;},
+                },
+                &quot;required&quot;: [&quot;op&quot;, &quot;a&quot;, &quot;b&quot;],
+            },
+        },
+    },
+]
+</code></pre>
+<p>Two design notes sit right there in the schema. The <code>description</code> on the function <em>and</em> on each property is not decoration — it is the only text the model reads to decide which tool to call and how to fill the arguments. Invest in it. And <code>required</code> lists the properties the model must supply; because <code>unit</code> is left out of <code>required</code> and given an <code>enum</code>, the model will either omit it or pick a valid value.</p>
+<p>Now the real functions. In production <code>get_current_weather</code> would hit a weather API; here it returns a deterministic stub so the loop stays legible. Both return a JSON string, which is the most robust thing to hand back as tool <code>content</code>.</p>
+<pre><code class="language-python">import json
+
+def get_current_weather(city: str, unit: str = &quot;celsius&quot;) -&gt; str:
+    temp = 75 if unit == &quot;fahrenheit&quot; else 24
+    return json.dumps(
+        {&quot;city&quot;: city, &quot;unit&quot;: unit, &quot;temp&quot;: temp, &quot;conditions&quot;: &quot;clear&quot;}
+    )
+
+def calculate(op: str, a: float, b: float) -&gt; str:
+    if op == &quot;add&quot;:
+        r = a + b
+    elif op == &quot;sub&quot;:
+        r = a - b
+    elif op == &quot;mul&quot;:
+        r = a * b
+    elif op == &quot;div&quot;:
+        if b == 0:
+            raise ValueError(&quot;division by zero&quot;)
+        r = a / b
+    else:
+        raise ValueError(f&quot;unknown op {op!r}&quot;)
+    return json.dumps({&quot;result&quot;: r})
+
+DISPATCH = {&quot;get_current_weather&quot;: get_current_weather, &quot;calculate&quot;: calculate}
+</code></pre>
+<h3 id="dispatching-a-tool-call-defensively">Dispatching a tool call defensively</h3>
+<p>Between &ldquo;the model asked for <code>calculate</code>&rdquo; and &ldquo;the function ran&rdquo; sits the decode step, and that is where most bugs live. The model returns <code>tool_call.function.arguments</code> as a <strong>string</strong> containing JSON — you must parse it before you can call anything.</p>
+<pre><code class="language-python">def run_tool_call(tool_call) -&gt; dict:
+    &quot;&quot;&quot;Execute one requested call, return a role:'tool' message dict.&quot;&quot;&quot;
+    name = tool_call.function.name
+    fn = DISPATCH.get(name)
+
+    try:
+        # arguments is a JSON *string* — parse it into a dict of kwargs.
+        args = json.loads(tool_call.function.arguments or &quot;{}&quot;)
+    except json.JSONDecodeError as exc:
+        content = json.dumps({&quot;error&quot;: f&quot;could not parse arguments: {exc}&quot;})
+        return {&quot;role&quot;: &quot;tool&quot;, &quot;tool_call_id&quot;: tool_call.id, &quot;content&quot;: content}
+
+    if fn is None:
+        content = json.dumps({&quot;error&quot;: f&quot;unknown tool {name!r}&quot;})
+    else:
+        try:
+            content = fn(**args)
+        except Exception as exc:  # surface tool errors to the model, don't crash
+            content = json.dumps({&quot;error&quot;: str(exc)})
+
+    return {&quot;role&quot;: &quot;tool&quot;, &quot;tool_call_id&quot;: tool_call.id, &quot;content&quot;: content}
+</code></pre>
+<p><strong>The gotcha:</strong> <code>tool_call.function.arguments</code> is a <strong>JSON string</strong>, not a parsed dict. The wire literally contains something like <code>"arguments": "{\"city\": \"Pune\"}"</code> — a string you must <code>json.loads</code> a second time before you can use it. If you call <code>fn(**tool_call.function.arguments)</code> directly you&rsquo;ll splat a string, not keyword arguments, and get a <code>TypeError</code>. Parse first, and wrap the parse in its own <code>try/except</code>: a model can emit malformed or truncated JSON, and you&rsquo;d rather report that back as a tool error than crash the loop.</p>
+<p><strong>The gotcha:</strong> every tool result <strong>must</strong> echo the exact <code>tool_call_id</code> from the call it answers. NIM pairs each <code>role:"tool"</code> message to the assistant&rsquo;s pending call by that id. Drop it, swap two ids, or send fewer results than there were calls, and the next request is malformed — the model can&rsquo;t continue. Return one tool message per tool call, each with its own id; never merge several results into a single message.</p>
+<h3 id="the-loop-with-a-cap">The loop, with a cap</h3>
+<p>Now assemble it. Seed the conversation, then loop: call the API, and if the finish reason is <code>"tool_calls"</code>, append the assistant&rsquo;s message, run every requested call, append each result, and go around again. Stop when the model answers normally — or when you hit the cap.</p>
+<pre><code class="language-python">def run_conversation(user_prompt: str, max_iters: int = 6) -&gt; str:
+    messages = [
+        {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;You are a helpful assistant. Use tools when they help.&quot;},
+        {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: user_prompt},
+    ]
+
+    for _ in range(max_iters):
+        resp = client.chat.completions.create(
+            model=MODEL,
+            messages=messages,
+            tools=tools,
+        )
+        choice = resp.choices[0]
+
+        # Normal answer: we're done.
+        if choice.finish_reason != &quot;tool_calls&quot;:
+            return choice.message.content
+
+        # Tool round: append the assistant's request, then every result.
+        # model_dump() turns the SDK object into a plain dict for the history.
+        messages.append(choice.message.model_dump(exclude_none=True))
+        for tool_call in choice.message.tool_calls:
+            messages.append(run_tool_call(tool_call))
+
+    raise RuntimeError(f&quot;gave up after {max_iters} tool iterations&quot;)
+</code></pre>
+<p><strong>The gotcha:</strong> always bound the loop. The model may legitimately call tools several times in a row, but a bad prompt, a confusing tool description, or a model that keeps re-asking for the same call can loop forever and burn tokens. A hard <code>max_iters</code> cap that fails loudly is cheap insurance.</p>
+<p>Note the ordering inside the tool round. You append the <strong>assistant&rsquo;s own message</strong> (the one carrying <code>tool_calls</code>) <em>first</em>, then the tool replies. The history the model sees must read: user asked → assistant requested tools → tools returned results. Skip the assistant message and the tool replies dangle with no call to attach to, and the next request is rejected. Using <code>choice.message.model_dump(exclude_none=True)</code> preserves the <code>tool_calls</code> structure exactly as the model sent it — don&rsquo;t hand-rebuild that message, or you risk dropping a field the API expects.</p>
+<hr>
+<h2 id="handling-multiple-tool-calls-in-one-turn">Handling multiple tool calls in one turn</h2>
+<p>A capable model can ask for several tools at once. &ldquo;What&rsquo;s the weather in Pune and Munich, and what&rsquo;s 19% of 4200?&rdquo; may come back as three entries in a single <code>tool_calls</code> array. The loop above already handles this — the inner <code>for tool_call in choice.message.tool_calls</code> runs each one and appends its own <code>role:"tool"</code> message. The rule is that <em>all</em> of them must be answered before the next API call, each keyed to its own id.</p>
+<p>On the wire, one such assistant turn looks like this:</p>
+<pre><code class="language-json">{
+  &quot;choices&quot;: [{
+    &quot;finish_reason&quot;: &quot;tool_calls&quot;,
+    &quot;message&quot;: {
+      &quot;role&quot;: &quot;assistant&quot;,
+      &quot;content&quot;: null,
+      &quot;tool_calls&quot;: [
+        {&quot;id&quot;: &quot;call_a1&quot;, &quot;type&quot;: &quot;function&quot;,
+         &quot;function&quot;: {&quot;name&quot;: &quot;get_current_weather&quot;,
+                      &quot;arguments&quot;: &quot;{\&quot;city\&quot;: \&quot;Pune\&quot;}&quot;}},
+        {&quot;id&quot;: &quot;call_b2&quot;, &quot;type&quot;: &quot;function&quot;,
+         &quot;function&quot;: {&quot;name&quot;: &quot;calculate&quot;,
+                      &quot;arguments&quot;: &quot;{\&quot;op\&quot;: \&quot;mul\&quot;, \&quot;a\&quot;: 4200, \&quot;b\&quot;: 0.19}&quot;}}
+      ]
+    }
+  }]
+}
+</code></pre>
+<p>You reply with two messages — <code>{"role": "tool", "tool_call_id": "call_a1", ...}</code> and <code>{"role": "tool", "tool_call_id": "call_b2", ...}</code> — and send the lot back. Notice <code>content</code> on the assistant message is <code>null</code>; that is normal for a pure tool request. If the tools are independent and slow, run them concurrently (a <code>ThreadPoolExecutor</code>, or <code>asyncio</code> with <code>AsyncOpenAI</code>) and collect the results — just preserve the id pairing when you assemble the messages, because order in the list doesn&rsquo;t rescue a wrong id.</p>
+<hr>
+<h2 id="the-langchain-path-chatnvidiabind_tools">The LangChain path: <code>ChatNVIDIA.bind_tools</code></h2>
+<p>The raw loop shows exactly what&rsquo;s happening on the wire, but LangChain automates most of the plumbing. With <code>langchain-nvidia-ai-endpoints</code>, you decorate a Python function with <code>@tool</code>, <code>bind_tools</code> it onto <code>ChatNVIDIA</code>, and the framework builds the JSON schema from your signature and docstring for you.</p>
+<pre><code class="language-python">from langchain_core.tools import tool
+from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
+
+@tool
+def get_current_weather(city: str, unit: str = &quot;celsius&quot;) -&gt; str:
+    &quot;&quot;&quot;Get the current weather for a city. Returns temperature and conditions.&quot;&quot;&quot;
+    temp = 75 if unit == &quot;fahrenheit&quot; else 24
+    return json.dumps({&quot;city&quot;: city, &quot;unit&quot;: unit, &quot;temp&quot;: temp, &quot;conditions&quot;: &quot;clear&quot;})
+
+@tool
+def calculate(op: str, a: float, b: float) -&gt; str:
+    &quot;&quot;&quot;Perform exact arithmetic (add, sub, mul, div) on two numbers.&quot;&quot;&quot;
+    ops = {&quot;add&quot;: a + b, &quot;sub&quot;: a - b, &quot;mul&quot;: a * b}
+    if op == &quot;div&quot;:
+        if b == 0:
+            raise ValueError(&quot;division by zero&quot;)
+        return json.dumps({&quot;result&quot;: a / b})
+    if op not in ops:
+        raise ValueError(f&quot;unknown op {op!r}&quot;)
+    return json.dumps({&quot;result&quot;: ops[op]})
+
+llm = ChatNVIDIA(model=&quot;meta/llama-3.1-70b-instruct&quot;)
+llm_with_tools = llm.bind_tools([get_current_weather, calculate])
+</code></pre>
+<p>The <code>@tool</code> decorator reads the function&rsquo;s type hints to build the <code>parameters</code> schema and its <strong>docstring</strong> to build the description — the same two fields you wrote by hand above, now derived automatically. The loop is the same shape, but you work with message objects instead of dicts:</p>
+<pre><code class="language-python">tool_registry = {&quot;get_current_weather&quot;: get_current_weather, &quot;calculate&quot;: calculate}
+
+def run_conversation_lc(user_prompt: str, max_iters: int = 6) -&gt; str:
+    messages = [HumanMessage(user_prompt)]
+
+    for _ in range(max_iters):
+        ai_msg = llm_with_tools.invoke(messages)
+        messages.append(ai_msg)
+
+        if not ai_msg.tool_calls:  # no calls requested -&gt; final answer
+            return ai_msg.content
+
+        for call in ai_msg.tool_calls:
+            # LangChain already parsed the arguments into a dict for you.
+            selected = tool_registry[call[&quot;name&quot;]]
+            result = selected.invoke(call[&quot;args&quot;])
+            messages.append(ToolMessage(result, tool_call_id=call[&quot;id&quot;]))
+
+    raise RuntimeError(f&quot;gave up after {max_iters} tool iterations&quot;)
+</code></pre>
+<p><strong>The gotcha:</strong> LangChain parses <code>arguments</code> for you — <code>call["args"]</code> is already a dict, so there is no <code>json.loads</code> step and no double-decode. That&rsquo;s the main convenience <code>bind_tools</code> buys. But the id discipline is identical under the hood: <code>ToolMessage(..., tool_call_id=call["id"])</code> must echo the id LangChain surfaced, and you still append the <code>AIMessage</code> before the <code>ToolMessage</code>s. The framework hides the JSON string; it does not remove the pairing rule.</p>
+<hr>
+<h2 id="when-a-model-ignores-your-tools">When a model ignores your tools</h2>
+<p>Because tool support varies by model, treat &ldquo;the model answered in prose&rdquo; as a normal branch, not an error. With the raw client, any <code>finish_reason</code> other than <code>"tool_calls"</code> — <code>"stop"</code>, <code>"length"</code>, a content filter — means the model chose to answer directly, and <code>choice.message.content</code> holds that answer. With LangChain, an empty <code>ai_msg.tool_calls</code> list means the same thing. Both loops above return in exactly that case.</p>
+<p><strong>The gotcha:</strong> a model that <em>doesn&rsquo;t support</em> tool calling won&rsquo;t raise an error. It just never emits <code>tool_calls</code> and answers from its own knowledge — which may be confidently wrong about your weather or your arithmetic. The only signal is behavioural: no tool call arrives. Branch on <code>finish_reason</code> (or the empty <code>tool_calls</code> list), and if your logic <em>requires</em> a tool to have run, verify it explicitly rather than assuming the array will be populated. Confirm the model card lists function-calling support before you depend on it in production.</p>
+<hr>
+<h2 id="same-shape-everywhere">Same shape everywhere</h2>
+<table><caption class="sr-only">Same shape everywhere</caption>
+<thead>
+<tr>
+<th>Piece</th>
+<th>Raw <code>openai</code> client</th>
+<th>LangChain <code>ChatNVIDIA</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Declare tools</td>
+<td><code>tools=[{"type":"function", ...}]</code> dicts</td>
+<td><code>@tool</code> functions + <code>bind_tools([...])</code></td>
+</tr>
+<tr>
+<td>Model wants a call</td>
+<td><code>finish_reason == "tool_calls"</code></td>
+<td>non-empty <code>ai_msg.tool_calls</code></td>
+</tr>
+<tr>
+<td>Arguments</td>
+<td><code>tool_call.function.arguments</code> — JSON <strong>string</strong>, <code>json.loads</code> it</td>
+<td><code>call["args"]</code> — already a dict</td>
+</tr>
+<tr>
+<td>Send result</td>
+<td><code>{"role":"tool", "tool_call_id", "content"}</code></td>
+<td><code>ToolMessage(result, tool_call_id=...)</code></td>
+</tr>
+<tr>
+<td>Terminate</td>
+<td>any other <code>finish_reason</code></td>
+<td>empty <code>tool_calls</code></td>
+</tr>
+<tr>
+<td>Loop safety</td>
+<td>hard <code>max_iters</code> cap</td>
+<td>hard <code>max_iters</code> cap</td>
+</tr>
+</tbody>
+</table>
+<p>None of this is NVIDIA-specific in structure — it is the OpenAI tool-calling contract, which NIM implements. Point the same <code>OpenAI</code> client (or the same LangChain code, swapping the chat model) at another OpenAI-compatible endpoint and the tools, the loop, and the id rules work unchanged. That portability is the payoff of building against the wire format directly.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>NIM speaks the OpenAI tool-calling shape.</strong> Send <code>tools=[{"type":"function", "function":{...}}]</code>, watch for <code>finish_reason == "tool_calls"</code>, answer with <code>role:"tool"</code> messages — nothing NVIDIA-specific in the mechanics.</li>
+<li><strong><code>arguments</code> is a JSON string, decoded twice.</strong> With the raw client, <code>json.loads</code> it into kwargs and wrap the parse in <code>try/except</code>. LangChain hands you a parsed dict, which is the main convenience <code>bind_tools</code> buys.</li>
+<li><strong>Every tool result must echo its <code>tool_call_id</code>.</strong> One message per call; a missing or mismatched id makes the next turn malformed. Append the assistant&rsquo;s message before the tool replies.</li>
+<li><strong>Always loop with a hard cap.</strong> The model may call tools several times, and a bad prompt can loop forever — bound the iterations and fail loudly.</li>
+<li><strong>Branch on <code>finish_reason</code>.</strong> Tool support is per-model; a model that ignores tools just answers in prose. Check the model card, and verify a tool actually ran if your logic depends on it.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.nvidia.com/nim/large-language-models/latest/function-calling.html">NVIDIA NIM for LLMs — Function Calling</a> — the official NIM function-calling reference, including per-model support notes.</li>
+<li><a href="https://build.nvidia.com/">NVIDIA API Catalog (build.nvidia.com)</a> — model cards; confirm a model&rsquo;s tool-calling support before relying on it.</li>
+<li><a href="https://github.com/openai/openai-python">OpenAI Python library — function calling</a> — the client whose <code>chat.completions.create</code> tool interface NIM implements.</li>
+<li><a href="https://pypi.org/project/langchain-nvidia-ai-endpoints/">langchain-nvidia-ai-endpoints on PyPI</a> — <code>ChatNVIDIA</code> and its <code>bind_tools</code> interface.</li>
+<li><a href="https://python.langchain.com/docs/how_to/tool_calling/">LangChain — how to use chat models to call tools</a> — the <code>bind_tools</code> / <code>@tool</code> round-trip in depth.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/nvidia-py-08-production.html">Production on the NVIDIA Stack</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-py-07-self-hosting-and-optimization.html">Self-Hosting and Optimizing Inference</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-py-02-calling-nim.html">Calling NIM from Python</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
