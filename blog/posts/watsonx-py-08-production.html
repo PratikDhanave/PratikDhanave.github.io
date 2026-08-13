@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Production on watsonx — Pratik Dhanave</title>
+<meta name="description" content="Run a watsonx system in production from Python: IBM Cloud vs Cloud Pak for Data, project_id vs deployment spaces, reliability (tenacity retries, IAM...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Production on watsonx — Pratik Dhanave">
+<meta property="og:description" content="Run a watsonx system in production from Python: IBM Cloud vs Cloud Pak for Data, project_id vs deployment spaces, reliability (tenacity retries, IAM token refresh, fallback), token-based cost, observability wired to watsonx.governance monitors, and securing IAM credentials.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/watsonx-py-08-production.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-13T00:00:00Z">
+<meta property="article:tag" content="IBM watsonx">
+<meta property="article:tag" content="Production">
+<meta property="article:tag" content="Granite">
+<meta property="article:tag" content="Python">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Production on watsonx — Pratik Dhanave">
+<meta name="twitter:description" content="Run a watsonx system in production from Python: IBM Cloud vs Cloud Pak for Data, project_id vs deployment spaces, reliability (tenacity retries, IAM token refresh, fallback), token-based cost, observability wired to watsonx.governance monitors, and securing IAM credentials.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/watsonx-py-08-production.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Production on watsonx",
+  "description": "Run a watsonx system in production from Python: IBM Cloud vs Cloud Pak for Data, project_id vs deployment spaces, reliability (tenacity retries, IAM token refresh, fallback), token-based cost, observability wired to watsonx.governance monitors, and securing IAM credentials.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-13",
+  "dateModified": "2026-08-13",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "IBM watsonx, Production, Granite, Python",
+  "url": "https://pratikdhanave.com/blog/posts/watsonx-py-08-production.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/watsonx-py-08-production.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Production on watsonx</h1>
+    <p class="post-subtitle">Taking a watsonx.ai system from a notebook to production in Python — deployment spaces, reliability with retries and fallbacks, cost and throughput control, observability wired to watsonx.governance, and a hardening checklist.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-13">August 13, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ibm-watsonx/" class="tag-link"><span class="tag">#IBM watsonx</span></a><a href="/blog/tags/production/" class="tag-link"><span class="tag">#Production</span></a><a href="/blog/tags/granite/" class="tag-link"><span class="tag">#Granite</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 8 of 8</span>
+    <span class="series-title">IBM watsonx in Python</span>
+    <div class="series-nav"><a href="/blog/posts/watsonx-py-07-governance-and-monitoring.html" class="series-prev">&larr; Part 7: Governance and Monitoring with watsonx.governance</a></div>
+  </div>
+
+
+
+  <p>Everything in this series so far has run against a <strong>development project</strong>: a <code>project_id</code>, an API key in your shell, and a <code>ModelInference</code> call in a script. That is exactly right for building. It is not what you run in production. This finale is about the gap between the two — the choices, the failure modes, and the Python patterns that keep a watsonx.ai system dependable, affordable, observable, and secure once real traffic hits it.</p>
+<p>We will lean on everything the earlier posts built: calling models (post 2), tool calling with Granite (post 3), embeddings and reranking (post 4), RAG with Docling (post 5), guardrails and Granite Guardian (post 6), and watsonx.governance (post 7). Production is where those pieces stop being separate demos and become one traced, monitored request path.</p>
+<hr>
+<h2 id="from-project-to-space-how-prod-differs-from-dev">From project to space: how prod differs from dev</h2>
+<p>In development you scope work to a <strong>project</strong> and pass <code>project_id</code>. In production you promote the asset — a deployed prompt template, a deployed model, or an AI service — into a <strong>deployment space</strong> and address it by <code>space_id</code>. A space is watsonx.ai&rsquo;s production container: it holds deployed assets, controls who can invoke them, and separates a running service from the experimentation that produced it.</p>
+<p>The SDK addresses one or the other on the same <code>APIClient</code>.</p>
+<pre><code class="language-python">from ibm_watsonx_ai import APIClient, Credentials
+
+credentials = Credentials(
+    url=os.environ[&quot;WATSONX_URL&quot;],
+    api_key=os.environ[&quot;WATSONX_APIKEY&quot;],
+)
+client = APIClient(credentials)
+
+# development
+client.set.default_project(os.environ[&quot;WATSONX_PROJECT_ID&quot;])
+
+# production — the same client, a different scope
+client.set.default_space(os.environ[&quot;WATSONX_SPACE_ID&quot;])
+</code></pre>
+<p>Once a prompt template or model is deployed into a space, you invoke it through the deployment rather than naming a raw <code>model_id</code>, which lets the platform version and govern what actually runs.</p>
+<pre><code class="language-python"># invoke a deployed asset by its deployment id, not a bare model_id
+resp = client.deployments.generate(
+    deployment_id=os.environ[&quot;WATSONX_DEPLOYMENT_ID&quot;],
+    params={&quot;prompt_variables&quot;: {&quot;question&quot;: user_question}},
+)
+</code></pre>
+<p>Beyond deployed prompt templates, watsonx.ai lets you deploy an <strong>AI service</strong> — your own Python function, packaged and run inside the space — so orchestration like &ldquo;retrieve, rerank, guard, generate&rdquo; lives behind one governed endpoint instead of in a client script. Check the <code>ibm-watsonx-ai</code> deployment docs for the exact packaging call in your SDK version, since the AI-service surface is still evolving.</p>
+<p><strong>The gotcha:</strong> promoting from dev to prod is <strong>not</strong> swapping <code>project_id</code> for <code>space_id</code> in a string. The asset itself has to be <em>moved</em> — promoted or deployed into the space — before a <code>space_id</code> can reach it. A space with no deployed asset returns nothing no matter how correct your credentials are. Treat &ldquo;promote the asset into the space&rdquo; as a real deployment step, not a config edit.</p>
+<hr>
+<h2 id="saas-or-cloud-pak-for-data-where-watsonx-runs">SaaS or Cloud Pak for Data: where watsonx runs</h2>
+<p>Where your production endpoint physically lives is a first-class decision, and it changes only the <code>url</code> and the operational model — the SDK calls stay the same.</p>
+<ul>
+<li><strong>IBM Cloud (SaaS).</strong> watsonx.ai as a managed service, addressed by a regional URL like <code>https://us-south.ml.cloud.ibm.com</code>. IBM runs the infrastructure; you pick the region, which fixes where inference happens and where data is processed.</li>
+<li><strong>Cloud Pak for Data (CPD).</strong> watsonx.ai running on OpenShift in your own environment — on-premises or in your cloud tenancy — for hybrid deployments and stricter <strong>data residency</strong> or isolation requirements. Here the <code>url</code> points at your CPD cluster, and authentication uses your CPD credentials rather than an IBM Cloud IAM key.</li>
+</ul>
+<p>Region and deployment flavor together decide data residency. If a workload must keep data inside a jurisdiction, choosing the right region (SaaS) or hosting on CPD is the control — not anything you can patch later in code. Decide it before you build the endpoint, because moving a production space across regions or platforms is a migration, not a setting.</p>
+<hr>
+<h2 id="reliability-timeouts-retries-and-fallback">Reliability: timeouts, retries, and fallback</h2>
+<p>Networks are unreliable, services rate-limit, and models occasionally return errors. A production caller assumes every request can fail and decides in advance what happens next.</p>
+<p>The SDK exposes its failures through the hierarchy post 2 introduced: <code>WMLClientError</code> for client-side and configuration problems, and its subclass <code>ApiRequestFailure</code> when the service returns a non-success status (the message carries the HTTP status and the server&rsquo;s error payload). Retry the transient ones — timeouts, 429 rate limits, 5xx — and fail fast on the permanent ones like a bad <code>model_id</code> or missing access.</p>
+<p><code>tenacity</code> handles the retry loop cleanly. Use <strong>exponential backoff with jitter</strong> so many clients backing off at once do not synchronize into a thundering herd.</p>
+<pre><code class="language-python">from tenacity import (
+    retry, stop_after_attempt, wait_exponential_jitter,
+    retry_if_exception, before_sleep_log,
+)
+from ibm_watsonx_ai.wml_client_error import ApiRequestFailure
+import logging
+
+log = logging.getLogger(&quot;watsonx&quot;)
+
+def is_transient(exc: BaseException) -&gt; bool:
+    # retry rate limits and server errors; give up on client mistakes
+    if isinstance(exc, ApiRequestFailure):
+        status = getattr(exc, &quot;response&quot;, None) and getattr(exc.response, &quot;status_code&quot;, None)
+        return status in (429, 500, 502, 503, 504)
+    return isinstance(exc, (TimeoutError, ConnectionError))
+
+@retry(
+    retry=retry_if_exception(is_transient),
+    wait=wait_exponential_jitter(initial=1, max=30),
+    stop=stop_after_attempt(5),
+    before_sleep=before_sleep_log(log, logging.WARNING),
+    reraise=True,
+)
+def generate_with_retry(model, prompt: str) -&gt; dict:
+    return model.generate(prompt=prompt)
+</code></pre>
+<p>Two more reliability habits. First, <strong>bound every call with a timeout</strong> — the SDK accepts request timeouts, and an unbounded call is a hung worker waiting to happen. Second, <strong>have a fallback</strong>: when the primary path is exhausted, degrade gracefully rather than 500 the user. A smaller Granite model, a cached previous answer, or a plain &ldquo;try again shortly&rdquo; is almost always better than an error page.</p>
+<pre><code class="language-python">from ibm_watsonx_ai.foundation_models import ModelInference
+
+def answer(prompt: str) -&gt; str:
+    try:
+        return generate_with_retry(primary_model, prompt)[&quot;results&quot;][0][&quot;generated_text&quot;]
+    except ApiRequestFailure:
+        log.warning(&quot;primary model failed after retries; falling back&quot;)
+        cached = cache.get(prompt)
+        if cached:
+            return cached
+        # a smaller, cheaper model as a last resort
+        return fallback_model.generate_text(prompt=prompt)
+</code></pre>
+<p><strong>The gotcha:</strong> the IAM bearer token behind your API key is short-lived, and the SDK refreshes it for you — you never write token-refresh code (post 2). What you <em>do</em> own is the long-lived <strong>API key</strong> itself, which expires or gets rotated on your organization&rsquo;s schedule. Store it in a secret manager, not in code or a baked image, and read it at startup so a rotation is a secret update and a restart, not a redeploy. Do not try to &ldquo;help&rdquo; the SDK by caching tokens yourself; you will only reintroduce the expiry bug it already solved.</p>
+<hr>
+<h2 id="cost-and-throughput">Cost and throughput</h2>
+<p>watsonx.ai bills on <strong>tokens processed</strong>, so cost control starts with token accounting. As post 2 showed, <code>generate()</code> returns per-call counts and <code>chat()</code> returns a <code>usage</code> object — read them on every production call and record them.</p>
+<pre><code class="language-python">resp = model.generate(prompt=prompt)
+r = resp[&quot;results&quot;][0]
+input_tokens = r[&quot;input_token_count&quot;]
+output_tokens = r[&quot;generated_token_count&quot;]
+# chat(): resp[&quot;usage&quot;][&quot;prompt_tokens&quot;] / [&quot;completion_tokens&quot;] / [&quot;total_tokens&quot;]
+</code></pre>
+<p>From there, four levers move the bill and the latency:</p>
+<ul>
+<li><strong>Right-size the model.</strong> A <code>granite-3-8b-instruct</code> answers most tasks; reserve a larger model for the queries that genuinely need it. Routing simple traffic to the smaller model is usually the biggest single saving.</li>
+<li><strong>Trim the input.</strong> In a RAG path (post 5), fewer, better-reranked chunks (post 4) mean fewer input tokens per call — reranking pays for itself in prompt size.</li>
+<li><strong>Batch where the API allows it</strong> instead of firing one request per item in a Python loop.</li>
+<li><strong>Cap concurrency client-side.</strong> Do not let a burst of users translate into an unbounded fan-out at the service; a semaphore keeps you inside your plan&rsquo;s limits and turns 429s into short waits.</li>
+</ul>
+<pre><code class="language-python">import asyncio
+
+sem = asyncio.Semaphore(8)  # at most 8 in-flight calls
+
+async def bounded_generate(model, prompt: str) -&gt; str:
+    async with sem:
+        # ModelInference calls are synchronous; run them off the event loop
+        resp = await asyncio.to_thread(generate_with_retry, model, prompt)
+        return resp[&quot;results&quot;][0][&quot;generated_text&quot;]
+</code></pre>
+<p>On actual prices: watsonx.ai pricing is <strong>plan- and region-specific</strong> and changes over time, so this post cites the pricing page rather than quoting a number — check it for your plan and region and compute your own per-request cost from the token counts above.</p>
+<p><strong>The gotcha:</strong> pin your <strong>model version and prompt-template version</strong>. Foundation models are updated and eventually deprecated on a published schedule (post 2), and a prompt template evolves as you tune it. If production silently floats to a new model build or an edited template, your outputs — and your token usage — shift underneath you with no code change. Pin the versions you validated, and treat a model or template upgrade as a change you test and roll out deliberately, not a surprise.</p>
+<hr>
+<h2 id="observability-and-governance">Observability and governance</h2>
+<p>You cannot operate what you cannot see. Two layers matter: your own telemetry, and watsonx.governance.</p>
+<p><strong>Structured logging and metrics.</strong> Give every request a correlation id and log each stage of the pipeline with it, so one line of <code>grep</code> reconstructs a full RAG → rerank → guardrail → generate trace. Record latency, token counts, and outcome as structured fields, and derive your operational metrics — p95 latency, tokens per request, error rate — from them.</p>
+<pre><code class="language-python">import logging, time, uuid
+
+log = logging.getLogger(&quot;watsonx&quot;)
+
+def handle(question: str) -&gt; str:
+    rid = uuid.uuid4().hex[:12]
+    t0 = time.monotonic()
+    log.info(&quot;request start&quot;, extra={&quot;rid&quot;: rid, &quot;stage&quot;: &quot;start&quot;})
+
+    chunks = retrieve(question)                       # post 5: RAG
+    log.info(&quot;retrieved&quot;, extra={&quot;rid&quot;: rid, &quot;stage&quot;: &quot;retrieve&quot;, &quot;n&quot;: len(chunks)})
+
+    top = rerank(question, chunks)                    # post 4: rerank
+    if not guardrails_ok(question, top):              # post 6: Granite Guardian
+        log.warning(&quot;blocked by guardrail&quot;, extra={&quot;rid&quot;: rid, &quot;stage&quot;: &quot;guard&quot;})
+        return &quot;I can't help with that request.&quot;
+
+    resp = model.generate(prompt=build_prompt(question, top))
+    r = resp[&quot;results&quot;][0]
+    log.info(&quot;generated&quot;, extra={
+        &quot;rid&quot;: rid, &quot;stage&quot;: &quot;generate&quot;,
+        &quot;input_tokens&quot;: r[&quot;input_token_count&quot;],
+        &quot;output_tokens&quot;: r[&quot;generated_token_count&quot;],
+        &quot;latency_ms&quot;: round((time.monotonic() - t0) * 1000),
+    })
+    return r[&quot;generated_text&quot;]
+</code></pre>
+<p><strong>watsonx.governance.</strong> Post 7 covered factsheets and monitors; production is where they earn their keep. A <strong>factsheet</strong> records the model, prompt template, and evaluation lineage of what you deployed — auditable evidence of <em>what</em> is running. <strong>Monitors</strong> (via watsonx.governance / OpenScale) watch the live endpoint for quality, drift, and generative-AI risks like toxicity or hallucination, so a regression shows up as an alert instead of a customer complaint. The <code>ibm-aigov-facts-client</code> package (<code>AIGovFactsClient</code>) is the Python entry point for wiring factsheets to a deployment; consult the watsonx.governance docs for the monitor configuration that matches your evaluation setup.</p>
+<p><strong>The gotcha:</strong> shipping without governance monitors wired to the production endpoint means you are <strong>blind to drift and hallucination in prod</strong>. Local guardrails (post 6) block bad inputs and outputs request-by-request, but only continuous monitoring tells you the <em>aggregate</em> quality is sliding — a model update degrading answers, inputs drifting away from what you evaluated on. In a governance-first platform, connecting monitors is not an optional nicety; it is the difference between knowing your system&rsquo;s health and hoping.</p>
+<hr>
+<h2 id="security">Security</h2>
+<p>The threats in production are credential leaks and injection, and both have concrete Python-side defenses.</p>
+<ul>
+<li><strong>Secrets belong in a secret manager, never in code.</strong> The IAM API key and the project/space id should be read from IBM Cloud Secrets Manager, a Kubernetes secret, HashiCorp Vault, or the platform&rsquo;s equivalent — injected as environment variables or fetched at startup. No key in git, no key in a container image, no key in a log line.</li>
+<li><strong>Least privilege.</strong> Provision the production API key (or service id) with only the access the endpoint needs — invoke a specific space and its deployments, nothing more. A key scoped to one space cannot be used to wander the account if it leaks.</li>
+<li><strong>Injection is a live surface.</strong> RAG (post 5) puts retrieved document text into the prompt, and tool calling (post 3) lets model output trigger actions — both are paths for prompt injection and untrusted content. Keep the guardrails from post 6 on the input <em>and</em> the output, treat tool arguments as untrusted (validate before executing, gate side effects), and never let retrieved text silently override your system instructions.</li>
+</ul>
+<p>Least privilege plus a secret manager plus guardrails on both ends is the baseline; none of the three substitutes for the others.</p>
+<hr>
+<h2 id="wrapping-it-in-a-fastapi-endpoint">Wrapping it in a FastAPI endpoint</h2>
+<p>Putting the pieces together, a minimal production endpoint reads config from the environment at startup, applies the retry/fallback logic, and returns a clean response.</p>
+<pre><code class="language-python">from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from ibm_watsonx_ai.wml_client_error import WMLClientError
+
+app = FastAPI()
+
+class Query(BaseModel):
+    question: str
+
+@app.post(&quot;/ask&quot;)
+async def ask(q: Query):
+    try:
+        return {&quot;answer&quot;: await bounded_generate(primary_model, q.question)}
+    except WMLClientError as exc:
+        log.error(&quot;request failed&quot;, exc_info=exc)
+        raise HTTPException(status_code=502, detail=&quot;Model service unavailable&quot;)
+
+@app.get(&quot;/healthz&quot;)
+def healthz():
+    return {&quot;status&quot;: &quot;ok&quot;}
+</code></pre>
+<p>The health check lets your orchestrator restart a stuck worker; the <code>WMLClientError</code> catch turns SDK failures into a proper HTTP status instead of a stack trace on the wire.</p>
+<hr>
+<h2 id="production-checklist">Production checklist</h2>
+<table><caption class="sr-only">Production checklist</caption>
+<thead>
+<tr>
+<th>Area</th>
+<th>Do this before you ship</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Scope</td>
+<td>Deploy the asset into a <strong>space</strong>; call by <code>space_id</code> / deployment id, not <code>project_id</code></td>
+</tr>
+<tr>
+<td>Placement</td>
+<td>Choose SaaS region or Cloud Pak for Data to satisfy data residency</td>
+</tr>
+<tr>
+<td>Versions</td>
+<td>Pin model and prompt-template versions you validated</td>
+</tr>
+<tr>
+<td>Reliability</td>
+<td>Timeouts on every call; retry transient errors with backoff + jitter</td>
+</tr>
+<tr>
+<td>Fallback</td>
+<td>Smaller model or cached answer when the primary path is exhausted</td>
+</tr>
+<tr>
+<td>Secrets</td>
+<td>API key + space id in a secret manager; SDK refreshes IAM tokens</td>
+</tr>
+<tr>
+<td>Access</td>
+<td>Least-privilege key scoped to the one space it needs</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td>Record token counts; right-size the model; cap concurrency</td>
+</tr>
+<tr>
+<td>Guardrails</td>
+<td>Input and output guardrails on; validate tool arguments</td>
+</tr>
+<tr>
+<td>Governance</td>
+<td>Factsheets recorded; quality/drift monitors wired to the live endpoint</td>
+</tr>
+<tr>
+<td>Observability</td>
+<td>Correlation id per request; log latency, tokens, error rate</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Dev is a project; prod is a space.</strong> Promote the asset into a deployment space and invoke it by <code>space_id</code> / deployment id — moving the asset is a real step, not a string swap.</li>
+<li><strong>Placement is a design decision.</strong> SaaS region or Cloud Pak for Data fixes data residency, and only the <code>url</code> and auth model change in code.</li>
+<li><strong>Assume every call fails.</strong> Timeouts, <code>tenacity</code> retries with backoff and jitter for transient errors, and a smaller-model or cached fallback keep the endpoint up.</li>
+<li><strong>The SDK refreshes IAM tokens; you protect the API key.</strong> Store it in a secret manager, scoped least-privilege, and rotate it out of band.</li>
+<li><strong>Cost tracks tokens.</strong> Read <code>input_token_count</code> / <code>generated_token_count</code>, right-size the model, cap concurrency, and compute price from the region-specific pricing page — never a guessed number.</li>
+<li><strong>Governance is not optional in production.</strong> Wire factsheets and drift/quality monitors, or you are blind to regressions that request-level guardrails cannot see.</li>
+</ul>
+<p>This is the last post in the series, so here is the whole arc: we started with the <strong>watsonx platform</strong> (post 1), made real inference calls with <code>ModelInference</code> and <code>ChatWatsonx</code> (post 2), gave Granite <strong>tools</strong> (post 3), added <strong>embeddings and reranking</strong> (post 4), built <strong>RAG with Docling</strong> (post 5), put <strong>guardrails and Granite Guardian</strong> around it (post 6), brought it under <strong>watsonx.governance</strong> (post 7), and now run it in <strong>production</strong>. The through-line is watsonx&rsquo;s enterprise, governance-first posture: the platform is built so the same system you demo can be deployed, secured, monitored, and audited — which is exactly what production asks of it.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://www.ibm.com/docs/en/watsonx/saas?topic=deployments-deploying-assets">Deploying assets and deployment spaces in watsonx.ai</a> — spaces, deployed prompt templates, and AI services.</li>
+<li><a href="https://www.ibm.com/docs/en/cloud-paks/cp-data">IBM Cloud Pak for Data documentation</a> — on-premises and hybrid watsonx deployment.</li>
+<li><a href="https://www.ibm.com/products/watsonx-ai/pricing">watsonx.ai pricing</a> — plan- and region-specific rates; compute your own per-request cost.</li>
+<li><a href="https://ibm.github.io/watsonx-ai-python-sdk/">ibm-watsonx-ai SDK documentation</a> — <code>APIClient</code>, <code>set.default_space</code>, deployments, and error classes.</li>
+<li><a href="https://www.ibm.com/docs/en/watsonx/watsonxgov">IBM watsonx.governance documentation</a> — factsheets and production model monitors.</li>
+<li><a href="https://tenacity.readthedocs.io/">tenacity documentation</a> — retry, <code>wait_exponential_jitter</code>, and stop conditions.</li>
+<li><a href="https://fastapi.tiangolo.com/">FastAPI documentation</a> — building and serving the endpoint.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/watsonx-py-06-guardrails-and-granite-guardian.html">Guardrails and Granite Guardian</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    <li>
+      <a href="/blog/posts/watsonx-py-05-rag.html">RAG on watsonx</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/watsonx-py-03-tool-calling.html">Tool Calling with watsonx</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

@@ -159,6 +159,71 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+    "2026-08-06-watsonx-py-01-the-ibm-watsonx-platform.md": {
+        "slug": "watsonx-py-01-the-ibm-watsonx-platform",
+        "date": "2026-08-06",
+        "tags": ["IBM watsonx", "Granite", "LLMs", "Python"],
+        "audience": "Python engineers building LLM/agent apps on IBM watsonx",
+        "excerpt": "The opener to a series on building LLM and agent applications on IBM watsonx from Python: how watsonx.ai (Granite + third-party models), watsonx.governance, watsonx.data and Orchestrate fit together, and why the ibm-watsonx-ai SDK and langchain-ibm make it Python-native.",
+        "series": "IBM watsonx in Python", "series_position": 1, "series_total": 8,
+        "featured": True,
+    },
+    "2026-08-07-watsonx-py-02-calling-watsonx-ai.md": {
+        "slug": "watsonx-py-02-calling-watsonx-ai",
+        "date": "2026-08-07",
+        "tags": ["IBM watsonx", "Granite", "LLMs", "Python"],
+        "audience": "Python engineers building LLM/agent apps on IBM watsonx",
+        "excerpt": "Make your first watsonx.ai calls in Python: credentials (IAM key + project_id + regional url), ModelInference with generate_text vs the modern chat API, decoding methods and parameters, streaming, token usage, and the langchain-ibm ChatWatsonx path.",
+        "series": "IBM watsonx in Python", "series_position": 2, "series_total": 8,
+    },
+    "2026-08-08-watsonx-py-03-tool-calling.md": {
+        "slug": "watsonx-py-03-tool-calling",
+        "date": "2026-08-08",
+        "tags": ["IBM watsonx", "Granite", "Tool Use", "Python"],
+        "audience": "Python engineers building LLM/agent apps on IBM watsonx",
+        "excerpt": "Function/tool calling against watsonx.ai Granite models in Python: the chat() round-trip loop (json.loads the arguments, echo tool_call_id, cap iterations), handling multiple tool calls, and the LangChain ChatWatsonx.bind_tools path — Granite models are tool-trained.",
+        "series": "IBM watsonx in Python", "series_position": 3, "series_total": 8,
+    },
+    "2026-08-09-watsonx-py-04-embeddings-and-reranking.md": {
+        "slug": "watsonx-py-04-embeddings-and-reranking",
+        "date": "2026-08-09",
+        "tags": ["IBM watsonx", "RAG", "Embeddings", "Python"],
+        "audience": "Python engineers building LLM/agent apps on IBM watsonx",
+        "excerpt": "Use watsonx.ai's slate embedding models and reranking from Python to build RAG's retrieval core: embed_documents vs embed_query, numpy cosine scoring, and a two-stage retrieve-then-rerank pipeline — plus the langchain-ibm WatsonxEmbeddings/WatsonxRerank path.",
+        "series": "IBM watsonx in Python", "series_position": 4, "series_total": 8,
+    },
+    "2026-08-10-watsonx-py-05-rag.md": {
+        "slug": "watsonx-py-05-rag",
+        "date": "2026-08-10",
+        "tags": ["IBM watsonx", "RAG", "Granite", "Python"],
+        "audience": "Python engineers building LLM/agent apps on IBM watsonx",
+        "excerpt": "Build a full RAG pipeline in Python on watsonx: chunk (with Docling for parsing), embed and store, retrieve, rerank, and generate a grounded, cited answer with a Granite model — shown both from scratch and via the idiomatic langchain-ibm assembly, with notes on scaling to watsonx.data/Milvus.",
+        "series": "IBM watsonx in Python", "series_position": 5, "series_total": 8,
+    },
+    "2026-08-11-watsonx-py-06-guardrails-and-granite-guardian.md": {
+        "slug": "watsonx-py-06-guardrails-and-granite-guardian",
+        "date": "2026-08-11",
+        "tags": ["IBM watsonx", "AI Safety", "Granite", "Python"],
+        "audience": "Python engineers building LLM/agent apps on IBM watsonx",
+        "excerpt": "Add safety to a watsonx app in Python with two layers: built-in HAP/PII moderations on generation, and Granite Guardian — IBM's dedicated risk models — run as a classifier to screen input and check RAG groundedness, wrapped in a guarded-generate flow.",
+        "series": "IBM watsonx in Python", "series_position": 6, "series_total": 8,
+    },
+    "2026-08-12-watsonx-py-07-governance-and-monitoring.md": {
+        "slug": "watsonx-py-07-governance-and-monitoring",
+        "date": "2026-08-12",
+        "tags": ["IBM watsonx", "AI Governance", "Compliance", "Python"],
+        "audience": "Python engineers building LLM/agent apps on IBM watsonx",
+        "excerpt": "Governance is why many enterprises pick watsonx: model inventory, automated factsheets, monitoring (quality, drift, bias, and generative metrics like faithfulness), explainability, and EU AI Act-aligned risk workflows — with the ibm-watsonx-gov evaluation SDK and what to log.",
+        "series": "IBM watsonx in Python", "series_position": 7, "series_total": 8,
+    },
+    "2026-08-13-watsonx-py-08-production.md": {
+        "slug": "watsonx-py-08-production",
+        "date": "2026-08-13",
+        "tags": ["IBM watsonx", "Production", "Granite", "Python"],
+        "audience": "Python engineers building LLM/agent apps on IBM watsonx",
+        "excerpt": "Run a watsonx system in production from Python: IBM Cloud vs Cloud Pak for Data, project_id vs deployment spaces, reliability (tenacity retries, IAM token refresh, fallback), token-based cost, observability wired to watsonx.governance monitors, and securing IAM credentials.",
+        "series": "IBM watsonx in Python", "series_position": 8, "series_total": 8,
+    },
     "2026-08-06-nvidia-py-01-the-nvidia-ai-stack.md": {
         "slug": "nvidia-py-01-the-nvidia-ai-stack",
         "date": "2026-08-06",
@@ -4350,11 +4415,13 @@ NAV_HTML = """<nav>
     <ul class="nav-links">
       <li><a href="/about/">About</a></li>
       <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
       <li><a href="/open-source/">Open Source</a></li>
       <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
       <li><a href="/recommendations/">Recommendations</a></li>
       <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
       <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
       <li><a href="/gsoc/">GSoC</a></li>
       <li><a href="/resume/">Resume</a></li>
       <li><a href="/certifications/">Certifications</a></li>

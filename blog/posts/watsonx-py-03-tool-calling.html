@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Tool Calling with watsonx — Pratik Dhanave</title>
+<meta name="description" content="Function/tool calling against watsonx.ai Granite models in Python: the chat() round-trip loop (json.loads the arguments, echo tool_call_id, cap...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Tool Calling with watsonx — Pratik Dhanave">
+<meta property="og:description" content="Function/tool calling against watsonx.ai Granite models in Python: the chat() round-trip loop (json.loads the arguments, echo tool_call_id, cap iterations), handling multiple tool calls, and the LangChain ChatWatsonx.bind_tools path — Granite models are tool-trained.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/watsonx-py-03-tool-calling.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-08T00:00:00Z">
+<meta property="article:tag" content="IBM watsonx">
+<meta property="article:tag" content="Granite">
+<meta property="article:tag" content="Tool Use">
+<meta property="article:tag" content="Python">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tool Calling with watsonx — Pratik Dhanave">
+<meta name="twitter:description" content="Function/tool calling against watsonx.ai Granite models in Python: the chat() round-trip loop (json.loads the arguments, echo tool_call_id, cap iterations), handling multiple tool calls, and the LangChain ChatWatsonx.bind_tools path — Granite models are tool-trained.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/watsonx-py-03-tool-calling.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Tool Calling with watsonx",
+  "description": "Function/tool calling against watsonx.ai Granite models in Python: the chat() round-trip loop (json.loads the arguments, echo tool_call_id, cap iterations), handling multiple tool calls, and the LangChain ChatWatsonx.bind_tools path \u2014 Granite models are tool-trained.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-08",
+  "dateModified": "2026-08-08",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "IBM watsonx, Granite, Tool Use, Python",
+  "url": "https://pratikdhanave.com/blog/posts/watsonx-py-03-tool-calling.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/watsonx-py-03-tool-calling.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Tool Calling with watsonx</h1>
+    <p class="post-subtitle">Letting a Granite model on watsonx.ai invoke your Python functions — the full request-and-response loop with the first-party `ibm-watsonx-ai` chat API, plus the shorter LangChain path with `ChatWatsonx.bind_tools`.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-08">August 08, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ibm-watsonx/" class="tag-link"><span class="tag">#IBM watsonx</span></a><a href="/blog/tags/granite/" class="tag-link"><span class="tag">#Granite</span></a><a href="/blog/tags/tool-use/" class="tag-link"><span class="tag">#Tool Use</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 3 of 8</span>
+    <span class="series-title">IBM watsonx in Python</span>
+    <div class="series-nav"><a href="/blog/posts/watsonx-py-02-calling-watsonx-ai.html" class="series-prev">&larr; Part 2: Calling watsonx.ai from Python</a>
+<a href="/blog/posts/watsonx-py-04-embeddings-and-reranking.html" class="series-next">Part 4: Embeddings and Reranking with watsonx &rarr;</a></div>
+  </div>
+
+
+
+  <p>The last post got a Granite model on watsonx.ai talking to us through the <code>chat()</code> API — messages in, an assistant reply out. That reply is always <em>text</em>. A model, on its own, cannot check today&rsquo;s weather, query your database, or add two numbers reliably. <strong>Tool calling</strong> is how you close that gap: you describe the functions the model is allowed to invoke, and instead of guessing an answer the model asks <em>you</em> to run one and hand back the result.</p>
+<p>watsonx.ai speaks the same tool-calling shape you may know from other chat APIs — an OpenAI-style <code>tools</code> array, <code>tool_choice</code>, and an assistant message that can carry <code>tool_calls</code>. IBM&rsquo;s Granite instruct models are explicitly trained for this: given a well-described tool, they will emit a structured call rather than hallucinate the answer. This post builds the whole round-trip in the first-party SDK, then shows the compressed LangChain version. Everything here assumes the credentials from the earlier posts: an IAM API key, a <code>project_id</code>, and a regional <code>url</code>.</p>
+<hr>
+<h2 id="what-tool-calling-actually-is">What &ldquo;tool calling&rdquo; actually is</h2>
+<p>It helps to be precise, because the name oversells the magic. The model never runs your code. The loop is entirely yours:</p>
+<ol>
+<li>You send the conversation <strong>plus a catalog of tools</strong> (each a name, a description, and a JSON-schema description of its arguments).</li>
+<li>The model replies. Either it answers in prose (done), <strong>or</strong> it returns one or more <code>tool_calls</code> — each naming a tool and supplying arguments.</li>
+<li><strong>You</strong> parse those arguments, call the real Python function, and append the result to the conversation as a <code>tool</code>-role message.</li>
+<li>You call <code>chat()</code> again with the extended conversation. Now the model can use the results — to answer, or to call another tool.</li>
+</ol>
+<p>That is a loop, and loops need a cap. The model can chain several tool calls before it is satisfied, so you iterate until it stops asking or until you hit a sane iteration ceiling.</p>
+<hr>
+<h2 id="step-1-describe-a-tool-as-a-json-schema">Step 1: describe a tool as a JSON schema</h2>
+<p>A tool declaration is a plain Python dict in the shape watsonx.ai expects. The <code>parameters</code> field is a standard JSON Schema object — the model reads it to decide <em>whether</em> to call the tool and <em>what</em> to pass.</p>
+<pre><code class="language-python">GET_WEATHER_TOOL = {
+    &quot;type&quot;: &quot;function&quot;,
+    &quot;function&quot;: {
+        &quot;name&quot;: &quot;get_weather&quot;,
+        &quot;description&quot;: &quot;Get the current temperature for a city, in Celsius.&quot;,
+        &quot;parameters&quot;: {
+            &quot;type&quot;: &quot;object&quot;,
+            &quot;properties&quot;: {
+                &quot;city&quot;: {
+                    &quot;type&quot;: &quot;string&quot;,
+                    &quot;description&quot;: &quot;City name, e.g. 'Pune' or 'Frankfurt'.&quot;,
+                },
+                &quot;unit&quot;: {
+                    &quot;type&quot;: &quot;string&quot;,
+                    &quot;enum&quot;: [&quot;celsius&quot;, &quot;fahrenheit&quot;],
+                    &quot;description&quot;: &quot;Temperature unit to report in.&quot;,
+                },
+            },
+            &quot;required&quot;: [&quot;city&quot;],
+        },
+    },
+}
+</code></pre>
+<p>The description fields are not decoration — they are the entire interface the model reasons over. A vague description (&ldquo;gets weather&rdquo;) produces vague tool use; a specific one, with the units and an example city, produces reliable calls. Treat these strings the way you would treat a docstring another engineer depends on.</p>
+<p>Behind each declared tool sits an ordinary Python function. Nothing about it is special — it takes normal arguments and returns a normal value:</p>
+<pre><code class="language-python">def get_weather(city: str, unit: str = &quot;celsius&quot;) -&gt; dict:
+    &quot;&quot;&quot;Look up the current temperature. Stubbed here with fixed data.&quot;&quot;&quot;
+    table = {&quot;pune&quot;: 31, &quot;frankfurt&quot;: 9, &quot;dallas&quot;: 24}
+    celsius = table.get(city.strip().lower(), 20)
+    temp = celsius if unit == &quot;celsius&quot; else round(celsius * 9 / 5 + 32)
+    return {&quot;city&quot;: city, &quot;temperature&quot;: temp, &quot;unit&quot;: unit}
+</code></pre>
+<p>In a real system this would hit a weather API. The point of the loop is identical either way: the model asks, you execute, you report back.</p>
+<hr>
+<h2 id="step-2-run-the-round-trip-loop-by-hand">Step 2: run the round-trip loop by hand</h2>
+<p>Here is the complete loop against the first-party <code>chat()</code> API. Read it once, then we will pull apart the three fiddly bits.</p>
+<pre><code class="language-python">import json
+import os
+from ibm_watsonx_ai import Credentials
+from ibm_watsonx_ai.foundation_models import ModelInference
+
+credentials = Credentials(
+    url=&quot;https://us-south.ml.cloud.ibm.com&quot;,
+    api_key=os.environ[&quot;WATSONX_API_KEY&quot;],
+)
+
+model = ModelInference(
+    model_id=&quot;ibm/granite-3-8b-instruct&quot;,   # a tool-capable Granite instruct model; verify the id
+    credentials=credentials,
+    project_id=os.environ[&quot;WATSONX_PROJECT_ID&quot;],
+)
+
+# Map the declared tool names to the real callables.
+TOOLS = [GET_WEATHER_TOOL]
+DISPATCH = {&quot;get_weather&quot;: get_weather}
+
+
+def run_conversation(user_prompt: str, max_iterations: int = 5) -&gt; str:
+    messages = [
+        {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;You are a concise assistant. Use tools when they help.&quot;},
+        {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: user_prompt},
+    ]
+
+    for _ in range(max_iterations):
+        response = model.chat(messages=messages, tools=TOOLS, tool_choice=&quot;auto&quot;)
+        assistant_msg = response[&quot;choices&quot;][0][&quot;message&quot;]
+        messages.append(assistant_msg)   # keep the model's turn in the history
+
+        tool_calls = assistant_msg.get(&quot;tool_calls&quot;)
+        if not tool_calls:
+            # No tool requested: this is the final natural-language answer.
+            return assistant_msg.get(&quot;content&quot;, &quot;&quot;)
+
+        # The model asked for one or more tools. Run each and report back.
+        for call in tool_calls:
+            name = call[&quot;function&quot;][&quot;name&quot;]
+            result = execute_tool(name, call[&quot;function&quot;][&quot;arguments&quot;])
+            messages.append({
+                &quot;role&quot;: &quot;tool&quot;,
+                &quot;tool_call_id&quot;: call[&quot;id&quot;],       # must match the call exactly
+                &quot;content&quot;: json.dumps(result),
+            })
+
+    return &quot;Stopped: reached the tool-call iteration cap without a final answer.&quot;
+</code></pre>
+<p>Three things in that loop carry all the weight.</p>
+<p><strong>Arguments arrive as a JSON string, not a dict.</strong> The <code>arguments</code> field on each tool call is a string of JSON — the model serialized them for transport. You must decode before use, and you must decode <em>defensively</em>, because a model can occasionally emit malformed or empty JSON:</p>
+<pre><code class="language-python">def execute_tool(name: str, raw_arguments: str) -&gt; dict:
+    fn = DISPATCH.get(name)
+    if fn is None:
+        return {&quot;error&quot;: f&quot;unknown tool: {name}&quot;}
+    try:
+        kwargs = json.loads(raw_arguments) if raw_arguments else {}
+    except (json.JSONDecodeError, TypeError):
+        return {&quot;error&quot;: &quot;could not parse tool arguments&quot;, &quot;raw&quot;: raw_arguments}
+    try:
+        return fn(**kwargs)
+    except TypeError as exc:
+        # Wrong or missing arguments — hand the error back so the model can retry.
+        return {&quot;error&quot;: f&quot;bad arguments for {name}: {exc}&quot;}
+</code></pre>
+<p>Notice that failures are <em>returned as data</em>, not raised. Feeding the error back into the conversation lets the model correct itself on the next turn — often it will re-call the tool with fixed arguments. Raising would just crash your loop.</p>
+<p><strong>Every tool result must echo the exact <code>tool_call_id</code>.</strong> When the model requests several tools in one turn, it disambiguates the results purely by id. A <code>tool</code> message with a wrong or missing <code>tool_call_id</code> breaks the pairing and confuses the model on the next call. Copy <code>call["id"]</code> straight through — never regenerate it.</p>
+<p><strong>You append the assistant turn <em>and</em> the tool turns.</strong> The history you send back must contain the assistant message that made the calls, followed by one <code>tool</code> message per call. Skip the assistant turn and the tool results dangle with nothing to attach to.</p>
+<p><strong>The gotcha:</strong> <code>tool_choice</code> controls <em>whether</em> the model is allowed, or forced, to call a tool. <code>"auto"</code> lets the model decide (the usual choice); you can also force a specific function when your flow demands one first. But the important half is the branch in the loop: <strong>you must check whether <code>tool_calls</code> is present at all.</strong> A non-tool-trained model — or a tool-trained one that judges no tool is needed — simply answers in prose, and <code>assistant_msg.get("tool_calls")</code> is empty. Code that assumes a tool call always comes back will crash on the most common, healthy case: a direct answer.</p>
+<hr>
+<h2 id="multiple-tool-calls-in-one-turn">Multiple tool calls in one turn</h2>
+<p>The loop above already handles it, but it is worth seeing why the inner <code>for</code> matters. Ask <em>&ldquo;Compare the temperature in Pune and Frankfurt&rdquo;</em> and a capable Granite model will return <strong>two</strong> <code>tool_calls</code> in a single assistant message — one <code>get_weather</code> for each city — rather than taking two round-trips. Your job is to run both and append <strong>both</strong> results (each with its own <code>tool_call_id</code>) before calling <code>chat()</code> again:</p>
+<pre><code class="language-json">{
+  &quot;role&quot;: &quot;assistant&quot;,
+  &quot;tool_calls&quot;: [
+    {&quot;id&quot;: &quot;call_a1&quot;, &quot;type&quot;: &quot;function&quot;,
+     &quot;function&quot;: {&quot;name&quot;: &quot;get_weather&quot;, &quot;arguments&quot;: &quot;{\&quot;city\&quot;: \&quot;Pune\&quot;}&quot;}},
+    {&quot;id&quot;: &quot;call_b2&quot;, &quot;type&quot;: &quot;function&quot;,
+     &quot;function&quot;: {&quot;name&quot;: &quot;get_weather&quot;, &quot;arguments&quot;: &quot;{\&quot;city\&quot;: \&quot;Frankfurt\&quot;}&quot;}}
+  ]
+}
+</code></pre>
+<p>The two <code>tool</code> messages you append carry <code>tool_call_id</code> <code>"call_a1"</code> and <code>"call_b2"</code> respectively. Get one id wrong and the model may attribute Frankfurt&rsquo;s weather to Pune. This is exactly why you copy the id verbatim rather than counting on order.</p>
+<p><strong>The gotcha:</strong> the response shape shown here — <code>response["choices"][0]["message"]</code>, and each call&rsquo;s <code>id</code> / <code>function.name</code> / <code>function.arguments</code> — follows watsonx.ai&rsquo;s OpenAI-compatible chat contract. Field names and nesting can shift between SDK versions, so before you ship, print one raw <code>chat()</code> response and confirm the exact keys against the version of <code>ibm-watsonx-ai</code> you installed. Keep your extraction in one small helper (like <code>execute_tool</code>) so there is a single place to adjust if a key moves.</p>
+<hr>
+<h2 id="not-every-model-calls-tools">Not every model calls tools</h2>
+<p>Tool calling is a <em>model capability</em>, not a universal feature of the endpoint. Passing <code>tools=[...]</code> to a model that was not trained for function calling does not error — the model just ignores the catalog and answers in prose, and your <code>tool_calls</code> branch never fires. IBM&rsquo;s <strong>Granite instruct</strong> models are trained for tool and function calling, which is why they are the natural pick here. Other tool-capable models hosted on watsonx.ai work too.</p>
+<p>The practical rule: check the model card for the specific id you are using before you rely on tool calls, and always write the loop so a prose-only answer is a valid, expected outcome rather than a bug. Your <code>if not tool_calls: return ...</code> line is that safety valve.</p>
+<hr>
+<h2 id="the-langchain-path-bind_tools">The LangChain path: <code>bind_tools</code></h2>
+<p>If your application already lives in LangChain, <code>ChatWatsonx</code> from <code>langchain-ibm</code> wraps the same machinery and hides the JSON plumbing. You declare a tool with the <code>@tool</code> decorator (LangChain reads the type hints and docstring to build the schema for you), bind it, and let LangChain marshal the calls.</p>
+<pre><code class="language-python">import os
+from langchain_core.tools import tool
+from langchain_ibm import ChatWatsonx
+
+
+@tool
+def get_weather(city: str, unit: str = &quot;celsius&quot;) -&gt; dict:
+    &quot;&quot;&quot;Get the current temperature for a city, in Celsius or Fahrenheit.&quot;&quot;&quot;
+    table = {&quot;pune&quot;: 31, &quot;frankfurt&quot;: 9, &quot;dallas&quot;: 24}
+    celsius = table.get(city.strip().lower(), 20)
+    temp = celsius if unit == &quot;celsius&quot; else round(celsius * 9 / 5 + 32)
+    return {&quot;city&quot;: city, &quot;temperature&quot;: temp, &quot;unit&quot;: unit}
+
+
+chat = ChatWatsonx(
+    model_id=&quot;ibm/granite-3-8b-instruct&quot;,   # verify the id in the docs
+    url=&quot;https://us-south.ml.cloud.ibm.com&quot;,
+    project_id=os.environ[&quot;WATSONX_PROJECT_ID&quot;],
+)
+
+llm_with_tools = chat.bind_tools([get_weather])
+</code></pre>
+<p>The response is a LangChain <code>AIMessage</code>. Its <code>.tool_calls</code> attribute is a list of dicts with the arguments <strong>already parsed into a Python dict</strong> — LangChain does the <code>json.loads</code> for you. The manual loop becomes a handful of lines:</p>
+<pre><code class="language-python">from langchain_core.messages import HumanMessage, ToolMessage
+
+messages = [HumanMessage(&quot;What's the temperature in Pune?&quot;)]
+ai_msg = llm_with_tools.invoke(messages)
+messages.append(ai_msg)
+
+for call in ai_msg.tool_calls:                 # args already decoded to a dict
+    result = get_weather.invoke(call[&quot;args&quot;])
+    messages.append(ToolMessage(content=str(result), tool_call_id=call[&quot;id&quot;]))
+
+final = llm_with_tools.invoke(messages)
+print(final.content)
+</code></pre>
+<p>Same four steps — ask, execute, report, ask again — but LangChain absorbs the JSON decoding and message formatting. The <code>tool_call_id</code> discipline is still yours: <code>ToolMessage</code> requires it, and it must match <code>call["id"]</code>.</p>
+<p><strong>The gotcha:</strong> the two paths differ in exactly one place that bites people. In the raw SDK, <code>call["function"]["arguments"]</code> is a <strong>JSON string you must <code>json.loads</code> yourself</strong>; in LangChain, <code>call["args"]</code> is <strong>already a dict</strong>. Mix them up — calling <code>json.loads</code> on the LangChain dict, or <code>**</code> a string from the raw SDK — and you get an immediate <code>TypeError</code>. Know which layer you are in.</p>
+<hr>
+<h2 id="raw-sdk-vs-langchain-at-a-glance">Raw SDK vs. LangChain at a glance</h2>
+<table><caption class="sr-only">Raw SDK vs. LangChain at a glance</caption>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Raw <code>ibm-watsonx-ai</code></th>
+<th><code>ChatWatsonx.bind_tools</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Declare a tool</td>
+<td>Hand-written JSON-schema dict</td>
+<td><code>@tool</code> on a Python function</td>
+</tr>
+<tr>
+<td>Attach tools</td>
+<td><code>chat(messages=..., tools=[...])</code></td>
+<td><code>chat.bind_tools([...])</code></td>
+</tr>
+<tr>
+<td>Where the call sits</td>
+<td><code>response["choices"][0]["message"]["tool_calls"]</code></td>
+<td><code>ai_msg.tool_calls</code></td>
+</tr>
+<tr>
+<td>Arguments format</td>
+<td>JSON <strong>string</strong> — <code>json.loads</code> it</td>
+<td>Python <strong>dict</strong> — already parsed</td>
+</tr>
+<tr>
+<td>Report a result</td>
+<td><code>{"role": "tool", "tool_call_id": ..., "content": ...}</code></td>
+<td><code>ToolMessage(content=..., tool_call_id=...)</code></td>
+</tr>
+<tr>
+<td>Control choice</td>
+<td><code>tool_choice="auto"</code> / forced</td>
+<td><code>bind_tools(..., tool_choice=...)</code></td>
+</tr>
+</tbody>
+</table>
+<p>Reach for the raw SDK when you want full control of the message stream or are not otherwise on LangChain; reach for <code>bind_tools</code> when your app is already a LangChain application and you would rather not hand-marshal JSON.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>The model asks, you execute.</strong> watsonx.ai never runs your code — it returns <code>tool_calls</code>, and your loop parses them, calls the real function, appends a <code>tool</code> message, and calls <code>chat()</code> again until a prose answer comes back.</li>
+<li><strong>Arguments are a JSON string in the raw SDK.</strong> <code>json.loads</code> them defensively and return errors as data so the model can retry; LangChain hands you an already-parsed dict instead.</li>
+<li><strong>Echo the exact <code>tool_call_id</code>.</strong> Multiple tools can be requested in one turn, and the model pairs results to calls by id alone — copy it verbatim, never regenerate or rely on order.</li>
+<li><strong>Always branch on whether <code>tool_calls</code> is present.</strong> A prose-only reply is the normal, healthy case; tool calling is a <em>model</em> capability, so pick a tool-trained Granite instruct model and let a direct answer be a valid outcome.</li>
+<li><strong>Cap the loop.</strong> The model can chain several tool calls; iterate to a ceiling so a confused model can never spin forever.</li>
+<li><strong>Verify field names against your SDK version.</strong> The response shape here follows watsonx.ai&rsquo;s OpenAI-compatible contract; print one raw response and confirm the keys before you ship.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://www.ibm.com/docs/en/watsonx/saas?topic=lab-chat-function-calling">Adding tools to a chat request (watsonx.ai docs)</a> — official guidance on function calling with the chat API.</li>
+<li><a href="https://ibm.github.io/watsonx-ai-python-sdk/"><code>ibm-watsonx-ai</code> SDK reference</a> — API reference for <code>ModelInference</code>, including the <code>chat()</code> method and its parameters.</li>
+<li><a href="https://pypi.org/project/ibm-watsonx-ai/"><code>ibm-watsonx-ai</code> on PyPI</a> — the first-party Python SDK and its release notes.</li>
+<li><a href="https://www.ibm.com/granite/docs/">IBM Granite documentation</a> — model cards and capability details, including tool/function calling support per model.</li>
+<li><a href="https://python.langchain.com/docs/integrations/chat/ibm_watsonx/"><code>ChatWatsonx</code> in the LangChain docs</a> — the <code>langchain-ibm</code> chat model, including <code>bind_tools</code>.</li>
+<li><a href="https://github.com/langchain-ai/langchain-ibm"><code>langchain-ibm</code> on GitHub</a> — source and examples for <code>ChatWatsonx</code> and the rest of the integration.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/watsonx-py-08-production.html">Production on watsonx</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/watsonx-py-06-guardrails-and-granite-guardian.html">Guardrails and Granite Guardian</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    <li>
+      <a href="/blog/posts/watsonx-py-05-rag.html">RAG on watsonx</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

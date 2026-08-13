@@ -91,6 +91,8 @@ def collect_main_pages():
         ("/blog/archive/", "blog/archive/index.html", "weekly", "0.85"),
         ("/articles/", "articles/index.html", "weekly", "0.9"),
         ("/projects/", "projects/index.html", "weekly", "0.8"),
+        ("/architecture/", "architecture/index.html", "monthly", "0.8"),
+        ("/emotional-intelligence/", "emotional-intelligence/index.html", "monthly", "0.6"),
         ("/resume/", "resume/index.html", "monthly", "0.7"),
         ("/about/", "about/index.html", "monthly", "0.7"),
         ("/speaking/", "speaking/index.html", "monthly", "0.7"),

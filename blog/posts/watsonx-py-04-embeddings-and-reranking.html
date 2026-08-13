@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Embeddings and Reranking with watsonx — Pratik Dhanave</title>
+<meta name="description" content="Use watsonx.ai&#x27;s slate embedding models and reranking from Python to build RAG&#x27;s retrieval core: embed_documents vs embed_query, numpy cosine scoring,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Embeddings and Reranking with watsonx — Pratik Dhanave">
+<meta property="og:description" content="Use watsonx.ai&#x27;s slate embedding models and reranking from Python to build RAG&#x27;s retrieval core: embed_documents vs embed_query, numpy cosine scoring, and a two-stage retrieve-then-rerank pipeline — plus the langchain-ibm WatsonxEmbeddings/WatsonxRerank path.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/watsonx-py-04-embeddings-and-reranking.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-09T00:00:00Z">
+<meta property="article:tag" content="IBM watsonx">
+<meta property="article:tag" content="RAG">
+<meta property="article:tag" content="Embeddings">
+<meta property="article:tag" content="Python">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Embeddings and Reranking with watsonx — Pratik Dhanave">
+<meta name="twitter:description" content="Use watsonx.ai&#x27;s slate embedding models and reranking from Python to build RAG&#x27;s retrieval core: embed_documents vs embed_query, numpy cosine scoring, and a two-stage retrieve-then-rerank pipeline — plus the langchain-ibm WatsonxEmbeddings/WatsonxRerank path.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/watsonx-py-04-embeddings-and-reranking.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Embeddings and Reranking with watsonx",
+  "description": "Use watsonx.ai's slate embedding models and reranking from Python to build RAG's retrieval core: embed_documents vs embed_query, numpy cosine scoring, and a two-stage retrieve-then-rerank pipeline \u2014 plus the langchain-ibm WatsonxEmbeddings/WatsonxRerank path.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-09",
+  "dateModified": "2026-08-09",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "IBM watsonx, RAG, Embeddings, Python",
+  "url": "https://pratikdhanave.com/blog/posts/watsonx-py-04-embeddings-and-reranking.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/watsonx-py-04-embeddings-and-reranking.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Embeddings and Reranking with watsonx</h1>
+    <p class="post-subtitle">Building RAG&#x27;s retrieval core with watsonx.ai from Python — turning a corpus into vectors with IBM&#x27;s slate embedding models, scoring a query against them, and then sharpening the shortlist with a reranking model so the LLM gets the right passages, not just plausible ones.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-09">August 09, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ibm-watsonx/" class="tag-link"><span class="tag">#IBM watsonx</span></a><a href="/blog/tags/rag/" class="tag-link"><span class="tag">#RAG</span></a><a href="/blog/tags/embeddings/" class="tag-link"><span class="tag">#Embeddings</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 4 of 8</span>
+    <span class="series-title">IBM watsonx in Python</span>
+    <div class="series-nav"><a href="/blog/posts/watsonx-py-03-tool-calling.html" class="series-prev">&larr; Part 3: Tool Calling with watsonx</a>
+<a href="/blog/posts/watsonx-py-05-rag.html" class="series-next">Part 5: RAG on watsonx &rarr;</a></div>
+  </div>
+
+
+
+  <p>Retrieval-augmented generation lives or dies on one question: <em>did the right passages reach the model?</em> Everything downstream — the prompt, the temperature, the model choice — is wasted if the context you stuffed in was the wrong context. That first hop, from a user&rsquo;s question to a small set of genuinely relevant chunks, is the retrieval core, and watsonx.ai gives you two purpose-built model families to construct it: an <strong>embedding</strong> model to turn text into vectors, and a <strong>reranking</strong> model to reorder candidates by true relevance.</p>
+<p>This post builds that core with the first-party <code>ibm-watsonx-ai</code> SDK. We embed a corpus, embed a query, score them with a few lines of numpy, and then do the thing most tutorials skip — feed the shortlist to a reranker and take the top-k. By the end you will have a complete <code>retrieve → rerank</code> pipeline and, more importantly, a feel for <em>why two stages beat one</em>.</p>
+<hr>
+<h2 id="part-1-embeddings-text-becomes-geometry">Part 1: Embeddings — text becomes geometry</h2>
+<p>An embedding model maps a piece of text to a fixed-length vector of floats. Texts that mean similar things land near each other in that vector space, so &ldquo;how do I reset my password&rdquo; and &ldquo;I forgot my login credentials&rdquo; end up close even though they share almost no words. That proximity is what makes semantic search work: you compare <em>meaning</em>, not keywords.</p>
+<p>IBM&rsquo;s <strong>slate</strong> family are encoder models built specifically for retrieval — the &ldquo;rtrvr&rdquo; in an id like <code>ibm/slate-125m-english-rtrvr</code> signals a <em>retriever</em> variant tuned to produce vectors good for search, rather than a general-purpose encoder. Treat that id as an example to confirm against the current watsonx.ai model catalog; available embedding models and their exact ids change by region and over time.</p>
+<p>The SDK surfaces embeddings through a dedicated class:</p>
+<pre><code class="language-python">import os
+from ibm_watsonx_ai import Credentials
+from ibm_watsonx_ai.foundation_models import Embeddings
+
+credentials = Credentials(
+    url=&quot;https://us-south.ml.cloud.ibm.com&quot;,   # your regional endpoint
+    api_key=os.environ[&quot;WATSONX_API_KEY&quot;],
+)
+
+embedder = Embeddings(
+    model_id=&quot;ibm/slate-125m-english-rtrvr&quot;,   # example slate retriever id — verify in the docs
+    credentials=credentials,
+    project_id=os.environ[&quot;WATSONX_PROJECT_ID&quot;],
+)
+</code></pre>
+<p>The construction is the same three-part shape as any watsonx.ai client: a regional <code>url</code> plus IAM <code>api_key</code> in <code>Credentials</code>, a <code>model_id</code>, and the workspace <code>project_id</code> (or <code>space_id</code>). Nothing new to learn — just a different class bound to an embedding model instead of a generative one.</p>
+<h3 id="two-methods-two-roles">Two methods, two roles</h3>
+<p><code>Embeddings</code> gives you two methods, and the distinction between them is not cosmetic:</p>
+<ul>
+<li><strong><code>embed_documents(texts: list[str])</code></strong> — embeds your <em>corpus</em>: a list of passages you will store and search over. Returns a list of vectors, one per input text.</li>
+<li><strong><code>embed_query(text: str)</code></strong> — embeds a <em>single query</em>: the user&rsquo;s question you want to match against the corpus. Returns one vector.</li>
+</ul>
+<pre><code class="language-python">corpus = [
+    &quot;watsonx.ai runs foundation models for inference, tuning, and deployment.&quot;,
+    &quot;watsonx.governance tracks model drift, quality metrics, and factsheets.&quot;,
+    &quot;watsonx.data is an open lakehouse for the documents you retrieve over.&quot;,
+    &quot;IBM Granite models ship under a permissive open license.&quot;,
+]
+
+corpus_vectors = embedder.embed_documents(texts=corpus)   # list[list[float]]
+query_vector = embedder.embed_query(text=&quot;Which watsonx product watches for model drift?&quot;)
+</code></pre>
+<p>Each returned vector is a plain Python list of floats. The length is fixed by the model (every vector from one model has the same dimensionality), which is exactly what lets you compare them with straight linear algebra.</p>
+<p><strong>The gotcha:</strong> <code>embed_documents</code> and <code>embed_query</code> exist to express the <em>corpus role</em> versus the <em>query role</em> — retriever models can encode the two sides asymmetrically for better matching, so use the method that matches what the text <em>is</em>. Do not run your whole corpus through <code>embed_query</code> in a loop, and do not wrap a single question in a list just to call <code>embed_documents</code>. The methods are the API&rsquo;s way of telling the model which side of the search it is looking at.</p>
+<h3 id="scoring-locally-with-cosine-similarity">Scoring locally with cosine similarity</h3>
+<p>Once query and corpus are vectors, &ldquo;most relevant&rdquo; becomes &ldquo;nearest in vector space.&rdquo; The standard measure is <strong>cosine similarity</strong> — the cosine of the angle between two vectors, which ignores their magnitude and looks only at direction. It runs from -1 (opposite) to 1 (identical direction); higher means more similar. A dozen lines of numpy is all you need for a local shortlist:</p>
+<pre><code class="language-python">import numpy as np
+
+def cosine_shortlist(query_vec, doc_vecs, texts, top_n=3):
+    &quot;&quot;&quot;Return the top_n (score, text) pairs by cosine similarity.&quot;&quot;&quot;
+    q = np.asarray(query_vec, dtype=np.float32)
+    m = np.asarray(doc_vecs, dtype=np.float32)
+
+    # Normalize each vector to unit length; cosine sim is then a dot product.
+    q_norm = q / (np.linalg.norm(q) + 1e-10)
+    m_norm = m / (np.linalg.norm(m, axis=1, keepdims=True) + 1e-10)
+
+    scores = m_norm @ q_norm            # one score per document
+    order = np.argsort(scores)[::-1]    # highest score first
+    return [(float(scores[i]), texts[i]) for i in order[:top_n]]
+
+shortlist = cosine_shortlist(query_vector, corpus_vectors, corpus, top_n=3)
+for score, text in shortlist:
+    print(f&quot;{score:.3f}  {text}&quot;)
+</code></pre>
+<p>The <code>+ 1e-10</code> guards against a divide-by-zero on an all-zero vector. For four documents this is overkill — you could eyeball it — but the pattern scales: in a real system the corpus vectors live in a vector database (FAISS, Milvus, Elasticsearch, watsonx.data, or another store) that does this nearest-neighbor search for you across millions of chunks. The math is identical; only the index changes.</p>
+<p><strong>The gotcha:</strong> you must use the <strong>same embedding model</strong> for the corpus and for every query. Vectors from two different models live in two different, incomparable spaces — cosine similarity between them is noise dressed up as a number, and it fails <em>silently</em>: you still get scores, they are just meaningless. If you re-embed your corpus with a new model, re-embed all queries with that same model too, and if you upgrade the model, you must re-index the whole corpus. Pin the embedding <code>model_id</code> in one place in your config and read it from there for both sides.</p>
+<hr>
+<h2 id="part-2-reranking-precision-after-recall">Part 2: Reranking — precision after recall</h2>
+<p>Embedding search is fast and approximate. Each document is compressed into a single vector <em>once, ahead of time, without knowing the query</em>, so retrieval at query time is just cheap vector math. That speed is the point — it lets you search millions of chunks in milliseconds. But the compression loses information: a single vector cannot capture every way a passage might be relevant, so the top of your cosine shortlist is <em>usually</em> right and <em>often</em> slightly wrong — a near-miss ranked above the real answer, a keyword-y decoy that scored high.</p>
+<p>A <strong>reranker</strong> fixes this. It is a different kind of model: instead of encoding query and document separately, it looks at the <strong>query and one candidate passage together</strong> and scores how well that specific passage answers that specific query. That joint view is far more precise than comparing two pre-computed vectors — and far more expensive, because it is a fresh model call per candidate. You cannot run it over a million documents. You do not have to: you run it over the <em>shortlist</em> the embeddings already narrowed down. This is the two-stage pattern — <strong>embeddings for cheap recall, reranking for expensive precision</strong> — and it is why serious RAG systems use both.</p>
+<p>watsonx.ai exposes reranking through a dedicated class:</p>
+<pre><code class="language-python">from ibm_watsonx_ai.foundation_models import Rerank
+
+reranker = Rerank(
+    model_id=&quot;cross-encoder/ms-marco-minilm-l-12-v2&quot;,   # example rerank id — verify in the docs
+    credentials=credentials,
+    project_id=os.environ[&quot;WATSONX_PROJECT_ID&quot;],
+)
+</code></pre>
+<p>Same construction shape again — the only thing that changes is that the <code>model_id</code> names a reranking model. As with every id in this series, confirm the exact reranking model ids available to you against the current watsonx.ai docs rather than hard-coding the example above.</p>
+<h3 id="the-rerank-call-at-the-requestresponse-level">The rerank call, at the request/response level</h3>
+<p>Conceptually a rerank call takes a <strong>query</strong> and a <strong>list of candidate passages</strong> and returns those candidates <strong>reordered by relevance</strong>, each with a relevance score and an index back into the input list. You send N candidates; you get back a ranking over those same N, best first. From there you slice the top-k and pass only those to your LLM.</p>
+<p>The important honesty here: the <em>exact</em> method name and the <em>exact</em> field names in the response are things to confirm against the SDK&rsquo;s reranking documentation for the version you installed — do not trust a shape invented from memory. What is stable and safe to rely on is the request/response <em>contract</em>: query in, candidate passages in, a relevance-ordered result with per-candidate scores and original indices out. Write your code against that contract and read the precise call signature and response keys from the docs. A defensive wrapper that does not assume field names looks like this:</p>
+<pre><code class="language-python">def rerank_top_k(reranker, query, candidate_texts, k=3):
+    &quot;&quot;&quot;Rerank candidate_texts against query, return the top k texts.
+
+    The rerank response contains, per candidate, a relevance score and the
+    index of that candidate in the input list. Field names vary by SDK
+    version — confirm them in the reranking docs and adjust the parsing.
+    &quot;&quot;&quot;
+    response = reranker.rerank(query=query, inputs=candidate_texts)
+
+    # The response carries a ranked list of results; each result points back
+    # to its position in candidate_texts and carries a relevance score.
+    results = response[&quot;results&quot;] if isinstance(response, dict) else response
+    ranked = sorted(results, key=lambda r: r[&quot;score&quot;], reverse=True)
+
+    top = []
+    for r in ranked[:k]:
+        top.append(candidate_texts[r[&quot;index&quot;]])
+    return top
+</code></pre>
+<p>Read that snippet as <em>the shape of the parsing</em>, not as verbatim API. The <code>query=</code>/<code>inputs=</code> argument names and the <code>results</code>/<code>score</code>/<code>index</code> keys are placeholders you replace with whatever the current SDK actually uses — the point is that a rerank response is a relevance-ordered set of results you sort and slice, and you should never invent those names when the docs state them precisely.</p>
+<p><strong>The gotcha:</strong> reranking is a <strong>separate model call over N candidates for every query</strong> — its cost and latency scale with N. The whole economic logic of the two-stage design collapses if you over-retrieve wildly: sending the reranker your top 500 cosine hits defeats the purpose and can dominate your request latency and bill. Over-retrieve <em>modestly</em> — pull maybe 20 to 50 candidates from the embedding stage, then rerank those down to the 3 to 5 you actually pass to the LLM. Tune those two numbers deliberately; they are the main dial on the recall-versus-cost trade-off.</p>
+<hr>
+<h2 id="wiring-the-two-stages-together">Wiring the two stages together</h2>
+<p>Here is the full retrieval core with error handling. The flow is: embed the corpus once (offline, ideally), then per query — embed the query, shortlist by cosine, rerank the shortlist, take the final top-k.</p>
+<pre><code class="language-python">import os
+import numpy as np
+from ibm_watsonx_ai import Credentials
+from ibm_watsonx_ai.foundation_models import Embeddings, Rerank
+from ibm_watsonx_ai.wml_client_error import WMLClientError
+
+EMBED_MODEL_ID = &quot;ibm/slate-125m-english-rtrvr&quot;       # verify in the docs
+RERANK_MODEL_ID = &quot;cross-encoder/ms-marco-minilm-l-12-v2&quot;  # verify in the docs
+
+credentials = Credentials(
+    url=os.environ.get(&quot;WATSONX_URL&quot;, &quot;https://us-south.ml.cloud.ibm.com&quot;),
+    api_key=os.environ[&quot;WATSONX_API_KEY&quot;],
+)
+project_id = os.environ[&quot;WATSONX_PROJECT_ID&quot;]
+
+embedder = Embeddings(model_id=EMBED_MODEL_ID, credentials=credentials, project_id=project_id)
+reranker = Rerank(model_id=RERANK_MODEL_ID, credentials=credentials, project_id=project_id)
+
+
+def build_index(corpus):
+    &quot;&quot;&quot;Embed the corpus once. In production, persist these vectors.&quot;&quot;&quot;
+    try:
+        vectors = embedder.embed_documents(texts=corpus)
+    except WMLClientError as exc:
+        raise RuntimeError(f&quot;Corpus embedding failed: {exc}&quot;) from exc
+    return np.asarray(vectors, dtype=np.float32), corpus
+
+
+def cosine_shortlist(query_vec, matrix, texts, n):
+    q = np.asarray(query_vec, dtype=np.float32)
+    q /= np.linalg.norm(q) + 1e-10
+    m = matrix / (np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-10)
+    order = np.argsort(m @ q)[::-1][:n]
+    return [texts[i] for i in order]
+
+
+def retrieve(query, matrix, texts, recall_n=20, final_k=3):
+    &quot;&quot;&quot;Two-stage retrieval: cosine recall, then rerank for precision.&quot;&quot;&quot;
+    try:
+        query_vec = embedder.embed_query(text=query)
+    except WMLClientError as exc:
+        raise RuntimeError(f&quot;Query embedding failed: {exc}&quot;) from exc
+
+    candidates = cosine_shortlist(query_vec, matrix, texts, recall_n)
+
+    try:
+        response = reranker.rerank(query=query, inputs=candidates)
+        results = response[&quot;results&quot;] if isinstance(response, dict) else response
+        ranked = sorted(results, key=lambda r: r[&quot;score&quot;], reverse=True)
+        return [candidates[r[&quot;index&quot;]] for r in ranked[:final_k]]
+    except WMLClientError as exc:
+        # Reranking is a refinement — if it fails, degrade to cosine order
+        # rather than returning nothing.
+        return candidates[:final_k]
+
+
+if __name__ == &quot;__main__&quot;:
+    corpus = [
+        &quot;watsonx.ai runs foundation models for inference, tuning, and deployment.&quot;,
+        &quot;watsonx.governance tracks model drift, quality metrics, and factsheets.&quot;,
+        &quot;watsonx.data is an open lakehouse for the documents you retrieve over.&quot;,
+        &quot;IBM Granite models ship under a permissive open license.&quot;,
+    ]
+    matrix, texts = build_index(corpus)
+    for passage in retrieve(&quot;Which product watches models for drift?&quot;, matrix, texts, recall_n=4, final_k=2):
+        print(passage)
+</code></pre>
+<p>Note the small resilience decision in <code>retrieve</code>: reranking is a <em>refinement</em> over an already-decent cosine order, so if the rerank call fails we fall back to the embedding order instead of returning an empty result. Embedding failures, by contrast, are fatal — with no vectors there is nothing to search — so those propagate. The exact exception type to catch is worth confirming against the SDK; <code>WMLClientError</code> is the SDK&rsquo;s general client-error base, and catching it keeps a transient service error from taking down the whole request.</p>
+<p><strong>The gotcha:</strong> do not skip the rerank stage and then blame the LLM when your RAG answers are weak. A huge share of &ldquo;the model hallucinated&rdquo; and &ldquo;it ignored my documents&rdquo; complaints are really <em>retrieval</em> failures — the right passage never made it into the context because cosine similarity ranked a near-miss above it. Adding a reranker over a modest shortlist is often the single highest-leverage fix for a mediocre RAG system, and it is a few lines of code, not a model swap.</p>
+<hr>
+<h2 id="the-langchain-path">The LangChain path</h2>
+<p>If your application already lives in LangChain, the <code>langchain-ibm</code> package wraps both capabilities so they slot into retrievers and chains you already have. <code>WatsonxEmbeddings</code> is a drop-in embeddings backend for any LangChain vector store, and <code>WatsonxRerank</code> is a document compressor you place in front of a base retriever so the two-stage pattern happens automatically.</p>
+<pre><code class="language-python">from langchain_ibm import WatsonxEmbeddings, WatsonxRerank
+
+embeddings = WatsonxEmbeddings(
+    model_id=&quot;ibm/slate-125m-english-rtrvr&quot;,   # verify in the docs
+    url=&quot;https://us-south.ml.cloud.ibm.com&quot;,
+    project_id=os.environ[&quot;WATSONX_PROJECT_ID&quot;],
+)
+
+reranker = WatsonxRerank(
+    model_id=&quot;cross-encoder/ms-marco-minilm-l-12-v2&quot;,   # verify in the docs
+    url=&quot;https://us-south.ml.cloud.ibm.com&quot;,
+    project_id=os.environ[&quot;WATSONX_PROJECT_ID&quot;],
+)
+# WatsonxRerank plugs into a ContextualCompressionRetriever wrapping your
+# vector-store retriever, so retrieve-then-rerank runs as one retriever call.
+</code></pre>
+<p>Same engine, familiar steering wheel: <code>WatsonxEmbeddings</code> and <code>WatsonxRerank</code> call the same watsonx.ai models as the first-party classes, just packaged for LangChain&rsquo;s retriever abstractions. Confirm the constructor arguments and the recommended wiring against the <code>langchain-ibm</code> docs, since the integration layer tracks LangChain&rsquo;s own conventions.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Embeddings turn text into comparable geometry.</strong> Use <code>Embeddings</code> from <code>ibm-watsonx-ai</code> with a slate retriever model; <code>embed_documents</code> for the corpus, <code>embed_query</code> for the question — the two methods encode the two roles.</li>
+<li><strong>Cosine similarity is the local scorer.</strong> Normalize, dot-product, sort. At scale a vector database does this for you; the math is unchanged.</li>
+<li><strong>Use one embedding model for both sides, always.</strong> Mismatched models produce incomparable vectors and fail silently — pin the id in config and re-index if you ever change it.</li>
+<li><strong>Reranking buys precision that embeddings cannot.</strong> A reranker scores query and passage <em>together</em>, so it corrects the near-misses at the top of a cosine shortlist. Confirm the exact method and response fields in the SDK reranking docs rather than inventing them.</li>
+<li><strong>Two stages, tuned numbers.</strong> Over-retrieve modestly (tens of candidates), rerank down to a handful. Skipping the rerank stage is the most common hidden cause of weak RAG.</li>
+<li><strong>LangChain users get the same power via <code>WatsonxEmbeddings</code> and <code>WatsonxRerank</code></strong> — the identical models, wrapped for retrievers and chains.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://ibm.github.io/watsonx-ai-python-sdk/fm_embeddings.html"><code>ibm-watsonx-ai</code> SDK — Embeddings</a></li>
+<li><a href="https://ibm.github.io/watsonx-ai-python-sdk/fm_rerank.html"><code>ibm-watsonx-ai</code> SDK — Rerank / reranking</a></li>
+<li><a href="https://ibm.github.io/watsonx-ai-python-sdk/"><code>ibm-watsonx-ai</code> SDK — API reference</a></li>
+<li><a href="https://www.ibm.com/docs/en/watsonx/saas?topic=models-supported-embedding">IBM watsonx.ai — supported embedding models</a></li>
+<li><a href="https://www.ibm.com/docs/en/watsonx/saas?topic=models-supported-reranker">IBM watsonx.ai — supported reranker models</a></li>
+<li><a href="https://www.ibm.com/granite/docs/">IBM Granite and slate model documentation</a></li>
+<li><a href="https://python.langchain.com/docs/integrations/text_embedding/ibm_watsonx/"><code>langchain-ibm</code> — WatsonxEmbeddings</a></li>
+<li><a href="https://python.langchain.com/docs/integrations/document_transformers/ibm_watsonx_ranker/"><code>langchain-ibm</code> — WatsonxRerank</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/watsonx-py-05-rag.html">RAG on watsonx</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/watsonx-py-08-production.html">Production on watsonx</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/watsonx-py-07-governance-and-monitoring.html">Governance and Monitoring with watsonx.governance</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

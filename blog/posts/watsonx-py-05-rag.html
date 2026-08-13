@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>RAG on watsonx — Pratik Dhanave</title>
+<meta name="description" content="Build a full RAG pipeline in Python on watsonx: chunk (with Docling for parsing), embed and store, retrieve, rerank, and generate a grounded, cited...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="RAG on watsonx — Pratik Dhanave">
+<meta property="og:description" content="Build a full RAG pipeline in Python on watsonx: chunk (with Docling for parsing), embed and store, retrieve, rerank, and generate a grounded, cited answer with a Granite model — shown both from scratch and via the idiomatic langchain-ibm assembly, with notes on scaling to watsonx.data/Milvus.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/watsonx-py-05-rag.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-10T00:00:00Z">
+<meta property="article:tag" content="IBM watsonx">
+<meta property="article:tag" content="RAG">
+<meta property="article:tag" content="Granite">
+<meta property="article:tag" content="Python">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="RAG on watsonx — Pratik Dhanave">
+<meta name="twitter:description" content="Build a full RAG pipeline in Python on watsonx: chunk (with Docling for parsing), embed and store, retrieve, rerank, and generate a grounded, cited answer with a Granite model — shown both from scratch and via the idiomatic langchain-ibm assembly, with notes on scaling to watsonx.data/Milvus.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/watsonx-py-05-rag.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "RAG on watsonx",
+  "description": "Build a full RAG pipeline in Python on watsonx: chunk (with Docling for parsing), embed and store, retrieve, rerank, and generate a grounded, cited answer with a Granite model \u2014 shown both from scratch and via the idiomatic langchain-ibm assembly, with notes on scaling to watsonx.data/Milvus.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-10",
+  "dateModified": "2026-08-10",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "IBM watsonx, RAG, Granite, Python",
+  "url": "https://pratikdhanave.com/blog/posts/watsonx-py-05-rag.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/watsonx-py-05-rag.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>RAG on watsonx</h1>
+    <p class="post-subtitle">Assembling a full retrieval-augmented generation pipeline in Python on watsonx.ai — ingest and chunk documents, embed them with slate, retrieve by cosine, rerank for precision, then generate a grounded, cited answer with a Granite model, shown both from scratch and with langchain-ibm.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-10">August 10, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ibm-watsonx/" class="tag-link"><span class="tag">#IBM watsonx</span></a><a href="/blog/tags/rag/" class="tag-link"><span class="tag">#RAG</span></a><a href="/blog/tags/granite/" class="tag-link"><span class="tag">#Granite</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 5 of 8</span>
+    <span class="series-title">IBM watsonx in Python</span>
+    <div class="series-nav"><a href="/blog/posts/watsonx-py-04-embeddings-and-reranking.html" class="series-prev">&larr; Part 4: Embeddings and Reranking with watsonx</a>
+<a href="/blog/posts/watsonx-py-06-guardrails-and-granite-guardian.html" class="series-next">Part 6: Guardrails and Granite Guardian &rarr;</a></div>
+  </div>
+
+
+
+  <p>The two previous posts built the pieces. Post 2 got you making inference calls — <code>ModelInference.chat</code> for grounded generation and <code>ChatWatsonx</code> when watsonx.ai is one swappable part of a LangChain app. Post 4 built the retrieval core — <code>Embeddings.embed_documents</code> for a corpus, <code>embed_query</code> for a question, cosine similarity for a shortlist, and a reranker to sharpen it. This post wires all of that into one pipeline: <strong>retrieval-augmented generation</strong>.</p>
+<p>RAG exists to solve a specific problem. A foundation model only knows what was in its training data, frozen at a cutoff, with no access to your private documents and no way to cite a source. RAG fixes that by <em>retrieving</em> the relevant passages from your own corpus at query time and <em>augmenting</em> the prompt with them, so the model answers from evidence you supply rather than from parametric memory alone. The shape is always the same four stages — <strong>ingest, retrieve, rerank, generate</strong> — and every one of them is concrete Python you can run against your own watsonx.ai project.</p>
+<hr>
+<h2 id="stage-1-ingest-documents-become-searchable-chunks">Stage 1: Ingest — documents become searchable chunks</h2>
+<p>You cannot embed a 40-page PDF as one vector; the meaning smears and retrieval returns nothing useful. Ingestion splits each document into <strong>chunks</strong> small enough that one chunk is about one idea, embeds each chunk, and stores the vectors. Two decisions dominate: how you get <em>clean text</em> out of the source files, and how you <em>split</em> that text.</p>
+<p>For real documents — PDFs, Word files, slide decks, HTML — parsing is where quality is won or lost. IBM&rsquo;s open-source <strong>Docling</strong> project (<code>github.com/docling-project/docling</code>) converts those formats into clean, structured text (and Markdown), preserving reading order, tables, and layout that a naive PDF text-dump mangles. It is the accurate front door for messy source material. For plain text you already have, you skip straight to splitting.</p>
+<p>The splitter that follows keeps chunks bounded and adds <strong>overlap</strong> — repeating a tail of each chunk at the head of the next so a sentence cut across a boundary still appears whole in one chunk:</p>
+<pre><code class="language-python">def chunk_text(text: str, chunk_size: int = 800, overlap: int = 120) -&gt; list[str]:
+    &quot;&quot;&quot;Split text into overlapping character windows.
+
+    chunk_size caps how much text an embedding must summarize into one
+    vector; overlap repeats a tail of each chunk at the start of the next
+    so an idea split across a boundary still lands whole in one chunk.
+    &quot;&quot;&quot;
+    text = &quot; &quot;.join(text.split())          # collapse whitespace
+    if len(text) &lt;= chunk_size:
+        return [text]
+
+    chunks, start = [], 0
+    while start &lt; len(text):
+        end = start + chunk_size
+        chunks.append(text[start:end])
+        if end &gt;= len(text):
+            break
+        start = end - overlap              # step back by overlap
+    return chunks
+</code></pre>
+<p>This character splitter is deliberately simple so you can see the mechanism. In practice LangChain&rsquo;s <code>RecursiveCharacterTextSplitter</code> is the workhorse: it tries to break on paragraph, then sentence, then word boundaries before falling back to a hard cut, so chunks stay readable.</p>
+<pre><code class="language-python">from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=120)
+chunks = splitter.split_text(document_text)
+</code></pre>
+<p>With chunks in hand, embed them with the exact <code>Embeddings</code> class from post 4 and keep each chunk&rsquo;s text next to its vector so you can quote it later:</p>
+<pre><code class="language-python">import os
+from ibm_watsonx_ai import Credentials
+from ibm_watsonx_ai.foundation_models import Embeddings
+
+EMBED_MODEL_ID = &quot;ibm/slate-125m-english-rtrvr&quot;   # verify in the docs
+
+credentials = Credentials(
+    url=os.environ.get(&quot;WATSONX_URL&quot;, &quot;https://us-south.ml.cloud.ibm.com&quot;),
+    api_key=os.environ[&quot;WATSONX_APIKEY&quot;],
+)
+project_id = os.environ[&quot;WATSONX_PROJECT_ID&quot;]
+
+embedder = Embeddings(
+    model_id=EMBED_MODEL_ID, credentials=credentials, project_id=project_id
+)
+
+def build_index(chunks: list[str], sources: list[str]):
+    &quot;&quot;&quot;Embed chunks once. Returns parallel arrays of vectors + metadata.&quot;&quot;&quot;
+    import numpy as np
+    vectors = embedder.embed_documents(texts=chunks)         # list[list[float]]
+    return {
+        &quot;matrix&quot;: np.asarray(vectors, dtype=np.float32),
+        &quot;texts&quot;: chunks,
+        &quot;sources&quot;: sources,          # e.g. &quot;handbook.pdf#p12&quot; per chunk
+    }
+</code></pre>
+<p><strong>The gotcha:</strong> embed the corpus with <code>embed_documents</code> and <em>only</em> the query with <code>embed_query</code> (post 4). Slate retriever models can encode the corpus side and the query side asymmetrically for better matching, so running your whole corpus through <code>embed_query</code> in a loop — or wrapping one question in a list to call <code>embed_documents</code> — silently degrades retrieval. Same model on both sides, matching method per role.</p>
+<hr>
+<h2 id="stage-2-retrieve-the-query-finds-its-neighbors">Stage 2: Retrieve — the query finds its neighbors</h2>
+<p>Retrieval embeds the incoming question with <code>embed_query</code> and finds the chunks whose vectors point in the most similar direction. This is the same normalized-dot-product cosine from post 4, returning indices so we can carry each chunk&rsquo;s source metadata through:</p>
+<pre><code class="language-python">import numpy as np
+
+def cosine_shortlist(query_vec, matrix, n: int):
+    &quot;&quot;&quot;Return indices of the top-n chunks by cosine similarity.&quot;&quot;&quot;
+    q = np.asarray(query_vec, dtype=np.float32)
+    q /= np.linalg.norm(q) + 1e-10
+    m = matrix / (np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-10)
+    scores = m @ q
+    return np.argsort(scores)[::-1][:n]        # highest score first
+
+def retrieve_candidates(index, query: str, recall_n: int = 25):
+    query_vec = embedder.embed_query(text=query)
+    idx = cosine_shortlist(query_vec, index[&quot;matrix&quot;], recall_n)
+    return [(index[&quot;texts&quot;][i], index[&quot;sources&quot;][i]) for i in idx]
+</code></pre>
+<p>Cosine recall is fast and approximate — each chunk was compressed to one vector <em>before</em> the query existed, so it is cheap to search but blurry. Over-retrieve <em>modestly</em> here: pull a few dozen candidates, not five and not five hundred. Those few dozen are the input to the stage that actually gets the order right.</p>
+<hr>
+<h2 id="stage-3-rerank-precision-where-it-matters">Stage 3: Rerank — precision where it matters</h2>
+<p>A reranker looks at the <strong>query and one candidate together</strong> and scores how well that passage answers that question — a far more precise judgment than comparing two pre-computed vectors, and far more expensive, which is exactly why you run it over the shortlist and not the whole corpus. This is the <code>Rerank</code> class from post 4. As that post stressed, the <em>exact</em> method name and response field names are things to confirm against the SDK reranking docs for your installed version — write against the request/response <em>contract</em> (query in, candidate passages in, a relevance-ordered result with per-candidate scores and original indices out) and read the precise keys from the docs.</p>
+<pre><code class="language-python">from ibm_watsonx_ai.foundation_models import Rerank
+
+RERANK_MODEL_ID = &quot;cross-encoder/ms-marco-minilm-l-12-v2&quot;   # verify in the docs
+
+reranker = Rerank(
+    model_id=RERANK_MODEL_ID, credentials=credentials, project_id=project_id
+)
+
+def rerank_top_k(query: str, candidates: list[tuple[str, str]], k: int = 4):
+    &quot;&quot;&quot;Reorder (text, source) candidates by joint relevance, keep top k.
+
+    Field names below (results / score / index) follow the shape post 4
+    used — confirm them against the reranking docs and adjust the parse.
+    &quot;&quot;&quot;
+    texts = [text for text, _ in candidates]
+    response = reranker.rerank(query=query, inputs=texts)
+    results = response[&quot;results&quot;] if isinstance(response, dict) else response
+    ranked = sorted(results, key=lambda r: r[&quot;score&quot;], reverse=True)
+    return [candidates[r[&quot;index&quot;]] for r in ranked[:k]]
+</code></pre>
+<p><strong>The gotcha:</strong> reranking is where most of RAG&rsquo;s answer quality comes from — do not skip it. A large share of &ldquo;the model ignored my documents&rdquo; and &ldquo;it hallucinated&rdquo; complaints are really <em>retrieval</em> failures: cosine ranked a keyword-y near-miss above the passage that actually held the answer, so the answer never reached the prompt. Adding a reranker over a modest shortlist is usually the single highest-leverage fix for a mediocre RAG system, and it is a few lines, not a model swap.</p>
+<hr>
+<h2 id="stage-4-augment-and-generate-a-grounded-cited-answer">Stage 4: Augment and generate — a grounded, cited answer</h2>
+<p>Now the top-k chunks become <strong>context</strong> in a prompt, and a Granite model answers from that context. This is <code>ModelInference.chat</code> from post 2. Two things make or break this stage: the context is clearly delimited and tagged with source labels so the model can cite them, and the system message <em>forbids</em> answering from anything but the supplied context.</p>
+<pre><code class="language-python">from ibm_watsonx_ai.foundation_models import ModelInference
+from ibm_watsonx_ai.foundation_models.schema import TextChatParameters
+
+chat_model = ModelInference(
+    model_id=&quot;ibm/granite-3-8b-instruct&quot;,   # verify a live id for your region
+    credentials=credentials,
+    project_id=project_id,
+)
+
+SYSTEM_PROMPT = (
+    &quot;You are a question-answering assistant. Answer ONLY using the numbered &quot;
+    &quot;context passages provided. Cite the passages you use by their [n] label. &quot;
+    &quot;If the context does not contain the answer, reply exactly: &quot;
+    &quot;\&quot;I don't know based on the provided documents.\&quot; Do not use outside knowledge.&quot;
+)
+
+def build_context(top_chunks: list[tuple[str, str]]) -&gt; tuple[str, list[str]]:
+    &quot;&quot;&quot;Render numbered, source-labelled context and return the citation list.&quot;&quot;&quot;
+    blocks, citations = [], []
+    for n, (text, source) in enumerate(top_chunks, start=1):
+        blocks.append(f&quot;[{n}] (source: {source})\n{text}&quot;)
+        citations.append(f&quot;[{n}] {source}&quot;)
+    return &quot;\n\n&quot;.join(blocks), citations
+
+def generate_answer(query: str, top_chunks: list[tuple[str, str]]):
+    context, citations = build_context(top_chunks)
+    messages = [
+        {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: SYSTEM_PROMPT},
+        {&quot;role&quot;: &quot;user&quot;,
+         &quot;content&quot;: f&quot;Context:\n{context}\n\nQuestion: {query}&quot;},
+    ]
+    params = TextChatParameters(max_tokens=400, temperature=0.0)
+    response = chat_model.chat(messages=messages, params=params)
+    answer = response[&quot;choices&quot;][0][&quot;message&quot;][&quot;content&quot;]
+    return answer, citations
+</code></pre>
+<p>Note <code>temperature=0.0</code>: a grounded answer should be reproducible and faithful to the context, not creative. The response shape is the same <code>choices[0].message.content</code> from post 2, and <code>response["usage"]</code> still carries the token counts if you want to track cost.</p>
+<p><strong>The gotcha:</strong> you must <em>instruct</em> the model to ground itself and to say &ldquo;I don&rsquo;t know&rdquo; when the context is silent — otherwise it happily fills gaps from parametric memory, and a confident answer sourced from training data instead of your documents is exactly the failure RAG was meant to prevent. The <code>[n]</code> labels in the context plus a system rule to cite them give you traceable answers; without the &ldquo;I don&rsquo;t know&rdquo; escape hatch, the model has no permitted way to admit the retrieval missed.</p>
+<hr>
+<h2 id="the-whole-pipeline-end-to-end">The whole pipeline, end to end</h2>
+<p>The four stages compose into one function. Ingest runs once (offline, ideally); retrieve, rerank, and generate run per query.</p>
+<pre><code class="language-python">def rag_answer(index, query: str, recall_n: int = 25, final_k: int = 4):
+    candidates = retrieve_candidates(index, query, recall_n=recall_n)
+    top_chunks = rerank_top_k(query, candidates, k=final_k)
+    return generate_answer(query, top_chunks)
+
+if __name__ == &quot;__main__&quot;:
+    docs = {
+        &quot;watsonx-overview.md&quot;: (
+            &quot;watsonx.ai runs foundation models for inference, tuning, and &quot;
+            &quot;deployment. watsonx.governance tracks model drift, quality &quot;
+            &quot;metrics, and factsheets. watsonx.data is an open lakehouse for &quot;
+            &quot;the documents you retrieve over.&quot;
+        ),
+        &quot;granite.md&quot;: &quot;IBM Granite models ship under a permissive open license.&quot;,
+    }
+    chunks, sources = [], []
+    for name, text in docs.items():
+        for i, ch in enumerate(chunk_text(text, chunk_size=200, overlap=40)):
+            chunks.append(ch)
+            sources.append(f&quot;{name}#chunk{i}&quot;)
+
+    index = build_index(chunks, sources)
+    answer, citations = rag_answer(index, &quot;Which product watches models for drift?&quot;)
+    print(answer)
+    print(&quot;\nSources:&quot;)
+    for c in citations:
+        print(&quot; &quot;, c)
+</code></pre>
+<p>That is a complete RAG system in one file: chunk, embed, store, retrieve, rerank, generate, cite. The numbers to tune are <code>recall_n</code> (how many the embeddings hand the reranker) and <code>final_k</code> (how many reach the model) — the main dial on the recall-versus-cost trade-off from post 4.</p>
+<hr>
+<h2 id="the-idiomatic-langchain-ibm-assembly">The idiomatic langchain-ibm assembly</h2>
+<p>If your app already lives in LangChain, the same four stages assemble from off-the-shelf components: <code>WatsonxEmbeddings</code> and <code>WatsonxRerank</code> (post 4) plus <code>ChatWatsonx</code> (post 2), wired through a vector store and a compression retriever. The exact chain-construction helpers evolve with LangChain&rsquo;s own conventions, so treat the wiring below as the accurate <em>shape</em> and confirm the current constructor and chain APIs in the langchain-ibm and LangChain docs.</p>
+<pre><code class="language-python">import os
+from langchain_ibm import WatsonxEmbeddings, WatsonxRerank, ChatWatsonx
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain.retrievers import ContextualCompressionRetriever
+
+url = os.environ[&quot;WATSONX_URL&quot;]
+project_id = os.environ[&quot;WATSONX_PROJECT_ID&quot;]
+
+embeddings = WatsonxEmbeddings(
+    model_id=&quot;ibm/slate-125m-english-rtrvr&quot;, url=url, project_id=project_id,
+)
+reranker = WatsonxRerank(
+    model_id=&quot;cross-encoder/ms-marco-minilm-l-12-v2&quot;, url=url, project_id=project_id,
+)
+llm = ChatWatsonx(
+    model_id=&quot;ibm/granite-3-8b-instruct&quot;, url=url, project_id=project_id,
+    apikey=os.environ[&quot;WATSONX_APIKEY&quot;],
+)
+
+# Ingest: split, embed, and store in a vector index.
+splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=120)
+docs = splitter.create_documents([document_text])
+vector_store = FAISS.from_documents(docs, embeddings)
+
+# Retrieve + rerank as one call: the compression retriever pulls a wide
+# cosine shortlist, then WatsonxRerank compresses it to the best few.
+base_retriever = vector_store.as_retriever(search_kwargs={&quot;k&quot;: 25})
+retriever = ContextualCompressionRetriever(
+    base_compressor=reranker, base_retriever=base_retriever,
+)
+</code></pre>
+<p><code>WatsonxEmbeddings</code> is a drop-in backend for any LangChain vector store; <code>WatsonxRerank</code> is a <em>document compressor</em> that plugs into a <code>ContextualCompressionRetriever</code> wrapping your base retriever, so retrieve-then-rerank happens in one retriever call. From there you feed the retrieved documents and your grounding prompt into <code>ChatWatsonx</code> — the same model as the native path, wrapped for LangChain&rsquo;s interface. The engine is identical to the from-scratch pipeline; LangChain just supplies the plumbing.</p>
+<hr>
+<h2 id="storage-in-memory-to-learn-a-vector-db-to-ship">Storage: in-memory to learn, a vector DB to ship</h2>
+<p>Everything above kept vectors in a numpy array. That is the right way to <em>learn</em> the pipeline — you can see every step — and it is fine for a few thousand chunks. It does not survive a restart, it holds everything in RAM, and a full-scan cosine over millions of vectors is too slow for interactive use.</p>
+<p>Production moves the vectors into a <strong>vector database</strong> that persists them and does approximate nearest-neighbor search in sublinear time. Named accurately, without inventing APIs: on the IBM stack, <strong>watsonx.data</strong> integrates the <strong>Milvus</strong> vector engine, so your retrieval store lives alongside the lakehouse your documents came from; standalone, <strong>Milvus</strong> runs on its own, and <strong>Chroma</strong> and <strong>FAISS</strong> are common lighter-weight options (FAISS is an in-process index library; Chroma is an embeddable store). LangChain has integrations for all of them, so the <code>FAISS.from_documents(...)</code> line above becomes a <code>Milvus</code> or <code>Chroma</code> constructor with the same downstream retriever code.</p>
+<p><strong>The gotcha:</strong> the in-memory numpy index is a teaching tool, not a deployment target — move to a vector DB for anything real. But do not over-rebuild when you do: the pipeline <em>shape</em> is invariant. Ingest → embed → store, then retrieve → rerank → generate is identical whether the store is a numpy array, FAISS, Chroma, or Milvus inside watsonx.data. You are swapping the index, not redesigning the system, and the embedding model, reranker, and grounding prompt do not change at all.</p>
+<hr>
+<h2 id="native-vs-langchain-ibm-at-a-glance">Native vs. langchain-ibm at a glance</h2>
+<table><caption class="sr-only">Native vs. langchain-ibm at a glance</caption>
+<thead>
+<tr>
+<th>Stage</th>
+<th>From scratch (<code>ibm-watsonx-ai</code>)</th>
+<th>langchain-ibm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Chunk</td>
+<td>your splitter / <code>RecursiveCharacterTextSplitter</code></td>
+<td><code>RecursiveCharacterTextSplitter</code></td>
+</tr>
+<tr>
+<td>Embed</td>
+<td><code>Embeddings.embed_documents</code> / <code>embed_query</code></td>
+<td><code>WatsonxEmbeddings</code></td>
+</tr>
+<tr>
+<td>Store</td>
+<td>numpy array → vector DB</td>
+<td>vector store (FAISS / Chroma / Milvus)</td>
+</tr>
+<tr>
+<td>Retrieve</td>
+<td>cosine over the matrix</td>
+<td><code>vector_store.as_retriever(...)</code></td>
+</tr>
+<tr>
+<td>Rerank</td>
+<td><code>Rerank.rerank</code></td>
+<td><code>WatsonxRerank</code> in <code>ContextualCompressionRetriever</code></td>
+</tr>
+<tr>
+<td>Generate</td>
+<td><code>ModelInference.chat</code></td>
+<td><code>ChatWatsonx</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>RAG is four stages: ingest, retrieve, rerank, generate.</strong> Each is concrete watsonx.ai Python, and the shape never changes regardless of scale or framework.</li>
+<li><strong>Chunk with overlap, parse cleanly.</strong> Bounded overlapping chunks keep one idea per vector; use Docling to turn PDFs and office files into clean text, and <code>RecursiveCharacterTextSplitter</code> to split it.</li>
+<li><strong>Embed the corpus and the query with their matching methods</strong> — <code>embed_documents</code> vs. <code>embed_query</code>, same model both sides — or retrieval silently degrades.</li>
+<li><strong>Rerank; do not skip it.</strong> Cosine recall is blurry, and reranking a modest shortlist is where most RAG answer quality comes from — the highest-leverage fix for weak results.</li>
+<li><strong>Ground the generation and allow &ldquo;I don&rsquo;t know.&rdquo;</strong> Delimit and label the context, instruct the model to answer only from it and cite <code>[n]</code> sources; without that it hallucinates from parametric memory.</li>
+<li><strong>In-memory to learn, a vector DB to ship.</strong> Move to Milvus (standalone or in watsonx.data), Chroma, or FAISS for production — the retrieve → rerank → generate shape is identical; you swap the index, not the design.</li>
+<li><strong>langchain-ibm assembles the same pipeline</strong> from <code>WatsonxEmbeddings</code>, <code>WatsonxRerank</code>, and <code>ChatWatsonx</code> when watsonx.ai is one component of a larger LangChain app.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://ibm.github.io/watsonx-ai-python-sdk/fm_embeddings.html"><code>ibm-watsonx-ai</code> SDK — Embeddings</a></li>
+<li><a href="https://ibm.github.io/watsonx-ai-python-sdk/fm_rerank.html"><code>ibm-watsonx-ai</code> SDK — Rerank / reranking</a></li>
+<li><a href="https://ibm.github.io/watsonx-ai-python-sdk/fm_model_inference.html"><code>ibm-watsonx-ai</code> SDK — ModelInference (chat)</a></li>
+<li><a href="https://github.com/docling-project/docling">Docling — document parsing for RAG</a></li>
+<li><a href="https://python.langchain.com/docs/how_to/recursive_text_splitter/">LangChain — RecursiveCharacterTextSplitter</a></li>
+<li><a href="https://python.langchain.com/docs/integrations/chat/ibm_watsonx/"><code>langchain-ibm</code> — ChatWatsonx</a></li>
+<li><a href="https://python.langchain.com/docs/integrations/document_transformers/ibm_watsonx_ranker/"><code>langchain-ibm</code> — WatsonxRerank</a></li>
+<li><a href="https://www.ibm.com/docs/en/watsonx/watsonxdata/2.1.x?topic=components-milvus">IBM watsonx.data — Milvus vector database</a></li>
+<li><a href="https://milvus.io/docs">Milvus vector database documentation</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/watsonx-py-08-production.html">Production on watsonx</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/watsonx-py-06-guardrails-and-granite-guardian.html">Guardrails and Granite Guardian</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    <li>
+      <a href="/blog/posts/watsonx-py-04-embeddings-and-reranking.html">Embeddings and Reranking with watsonx</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

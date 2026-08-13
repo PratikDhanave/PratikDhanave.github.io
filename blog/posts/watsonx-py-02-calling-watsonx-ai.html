@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Calling watsonx.ai from Python — Pratik Dhanave</title>
+<meta name="description" content="Make your first watsonx.ai calls in Python: credentials (IAM key + project_id + regional url), ModelInference with generate_text vs the modern chat...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Calling watsonx.ai from Python — Pratik Dhanave">
+<meta property="og:description" content="Make your first watsonx.ai calls in Python: credentials (IAM key + project_id + regional url), ModelInference with generate_text vs the modern chat API, decoding methods and parameters, streaming, token usage, and the langchain-ibm ChatWatsonx path.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/watsonx-py-02-calling-watsonx-ai.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-07T00:00:00Z">
+<meta property="article:tag" content="IBM watsonx">
+<meta property="article:tag" content="Granite">
+<meta property="article:tag" content="LLMs">
+<meta property="article:tag" content="Python">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Calling watsonx.ai from Python — Pratik Dhanave">
+<meta name="twitter:description" content="Make your first watsonx.ai calls in Python: credentials (IAM key + project_id + regional url), ModelInference with generate_text vs the modern chat API, decoding methods and parameters, streaming, token usage, and the langchain-ibm ChatWatsonx path.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/watsonx-py-02-calling-watsonx-ai.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Calling watsonx.ai from Python",
+  "description": "Make your first watsonx.ai calls in Python: credentials (IAM key + project_id + regional url), ModelInference with generate_text vs the modern chat API, decoding methods and parameters, streaming, token usage, and the langchain-ibm ChatWatsonx path.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-07",
+  "dateModified": "2026-08-07",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "IBM watsonx, Granite, LLMs, Python",
+  "url": "https://pratikdhanave.com/blog/posts/watsonx-py-02-calling-watsonx-ai.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/watsonx-py-02-calling-watsonx-ai.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Calling watsonx.ai from Python</h1>
+    <p class="post-subtitle">Your first real inference calls with the ibm-watsonx-ai SDK — credentials, ModelInference, the generate and chat APIs, streaming, token usage, error handling, and the langchain-ibm path.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-07">August 07, 2026</time>
+      <span>·</span>
+      <span>10 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ibm-watsonx/" class="tag-link"><span class="tag">#IBM watsonx</span></a><a href="/blog/tags/granite/" class="tag-link"><span class="tag">#Granite</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 2 of 8</span>
+    <span class="series-title">IBM watsonx in Python</span>
+    <div class="series-nav"><a href="/blog/posts/watsonx-py-01-the-ibm-watsonx-platform.html" class="series-prev">&larr; Part 1: The IBM watsonx Platform</a>
+<a href="/blog/posts/watsonx-py-03-tool-calling.html" class="series-next">Part 3: Tool Calling with watsonx &rarr;</a></div>
+  </div>
+
+
+
+  <p>Once you have a watsonx.ai project provisioned, the interesting part starts: sending a prompt to a foundation model from Python and getting text back. IBM ships a first-party SDK, <code>ibm-watsonx-ai</code>, that wraps the REST inference endpoints so you never assemble a raw HTTP request or juggle bearer tokens yourself. This post walks through making real calls — from the three pieces of authentication every request needs, through the two families of generation APIs, to streaming, usage accounting, and the LangChain integration when you want a portable interface.</p>
+<p>Everything below is ordinary Python you can run against your own project once your credentials are in the environment.</p>
+<hr>
+<h2 id="install-and-authenticate">Install and authenticate</h2>
+<p>Install the SDK. If you plan to use the LangChain path later, add <code>langchain-ibm</code> too.</p>
+<pre><code class="language-bash">pip install ibm-watsonx-ai
+pip install langchain-ibm   # only if you want the LangChain wrapper
+</code></pre>
+<p>Every call to watsonx.ai carries three things: an IAM <strong>API key</strong> that proves who you are, a <strong>regional service URL</strong> that says which data center hosts the models, and a <strong>project_id</strong> (or a <strong>space_id</strong>) that scopes billing and asset access. Read all three from the environment — never paste an API key into source that lands in git.</p>
+<pre><code class="language-python">import os
+from ibm_watsonx_ai import Credentials
+from ibm_watsonx_ai.foundation_models import ModelInference
+
+credentials = Credentials(
+    url=os.environ[&quot;WATSONX_URL&quot;],          # e.g. https://us-south.ml.cloud.ibm.com
+    api_key=os.environ[&quot;WATSONX_APIKEY&quot;],
+)
+
+model = ModelInference(
+    model_id=&quot;ibm/granite-3-8b-instruct&quot;,
+    credentials=credentials,
+    project_id=os.environ[&quot;WATSONX_PROJECT_ID&quot;],
+)
+</code></pre>
+<p>The regional URL is not cosmetic — <code>us-south</code>, <code>eu-de</code>, <code>eu-gb</code>, <code>jp-tok</code>, <code>au-syd</code>, and the others are distinct endpoints, and a project created in one region is not reachable through another region&rsquo;s URL. Set <code>WATSONX_URL</code> to match the region where you created your project.</p>
+<p><strong>The gotcha:</strong> you need <strong>both</strong> an API key <strong>and</strong> a project_id (or space_id) — a perfectly valid API key with no project attached still fails. The API key authenticates <em>you</em>; the project_id tells watsonx.ai <em>which workspace</em> the request runs against, and that is where model access and token consumption are tracked. If you are deploying assets rather than developing, pass <code>space_id=...</code> instead of <code>project_id=...</code>; you supply one or the other, not both.</p>
+<hr>
+<h2 id="the-generate-family-text-in-text-out">The generate family: text in, text out</h2>
+<p>The oldest and simplest surface is text generation. <code>ModelInference</code> gives you two closely related methods.</p>
+<p><code>generate_text()</code> returns just the generated string — nothing else. It is the right choice when all you want is the completion.</p>
+<pre><code class="language-python">prompt = &quot;Write one sentence explaining what a vector database is.&quot;
+answer = model.generate_text(prompt=prompt)
+print(answer)
+</code></pre>
+<p><code>generate()</code> returns the full response dictionary. That includes the generated text plus the metadata watsonx.ai reports for the call — most usefully the token counts. Reach for it whenever you need to know how many tokens the request consumed.</p>
+<pre><code class="language-python">response = model.generate(prompt=prompt)
+
+results = response[&quot;results&quot;][0]
+print(&quot;text:&quot;, results[&quot;generated_text&quot;])
+print(&quot;input tokens:&quot;, results[&quot;input_token_count&quot;])
+print(&quot;output tokens:&quot;, results[&quot;generated_token_count&quot;])
+print(&quot;stop reason:&quot;, results[&quot;stop_reason&quot;])
+</code></pre>
+<p>The shape is a dict with a <code>results</code> list; each entry carries <code>generated_text</code>, <code>input_token_count</code>, <code>generated_token_count</code>, and <code>stop_reason</code>. Token counts matter for cost — watsonx.ai bills on tokens processed — and for staying inside a model&rsquo;s context window, so a habit of reading them early pays off.</p>
+<p><strong>The gotcha:</strong> <code>generate_text</code> returns a plain string while <code>generate</code> returns the full dict with usage. Pick based on whether you need the numbers. If you call <code>generate_text</code> and later wish you had the token counts, you have to make the request again — there is no usage hiding on the string. When in doubt during development, use <code>generate</code> and read <code>results["generated_text"]</code>.</p>
+<hr>
+<h2 id="the-chat-api-the-forward-path">The chat API: the forward path</h2>
+<p>The generate family sends a single flat prompt. Modern instruction-tuned models are trained on <strong>conversations</strong> — sequences of messages with roles — and watsonx.ai exposes a chat surface built for exactly that. This is the API to prefer for new work.</p>
+<pre><code class="language-python">messages = [
+    {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;You are a concise assistant for software engineers.&quot;},
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;What is idempotency in an HTTP API?&quot;},
+]
+
+response = model.chat(messages=messages)
+print(response[&quot;choices&quot;][0][&quot;message&quot;][&quot;content&quot;])
+</code></pre>
+<p>The message list uses <code>system</code>, <code>user</code>, and <code>assistant</code> roles, and the response follows the familiar chat-completion shape: a <code>choices</code> list whose entries hold a <code>message</code> with <code>role</code> and <code>content</code>. Usage rides along under a <code>usage</code> object.</p>
+<pre><code class="language-python">usage = response[&quot;usage&quot;]
+print(&quot;prompt tokens:&quot;, usage[&quot;prompt_tokens&quot;])
+print(&quot;completion tokens:&quot;, usage[&quot;completion_tokens&quot;])
+print(&quot;total tokens:&quot;, usage[&quot;total_tokens&quot;])
+</code></pre>
+<p>To hold a multi-turn conversation, append the assistant&rsquo;s reply and the next user turn to <code>messages</code> and call <code>chat()</code> again — the model sees the whole history each time. The system message is where you put durable instructions about tone, format, and role.</p>
+<p>When should you use which? Use <strong>chat</strong> for anything conversational, anything multi-turn, and anything where a system message helps — it is the direction IBM and the wider ecosystem are moving. The <strong>generate</strong> family still fits single-shot completion tasks and older prompt templates, and it is a touch simpler when you genuinely have one prompt and want one string back. For new code, default to chat.</p>
+<hr>
+<h2 id="setting-parameters">Setting parameters</h2>
+<p>Left alone, a model uses its defaults. To control output length, randomness, and the decoding strategy, pass parameters. For the generate family, the SDK gives you named constants so you do not have to memorize raw key strings.</p>
+<pre><code class="language-python">from ibm_watsonx_ai.foundation_models import ModelInference
+from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
+
+params = {
+    GenParams.DECODING_METHOD: &quot;greedy&quot;,
+    GenParams.MAX_NEW_TOKENS: 200,
+    GenParams.MIN_NEW_TOKENS: 1,
+}
+
+model = ModelInference(
+    model_id=&quot;ibm/granite-3-8b-instruct&quot;,
+    credentials=credentials,
+    project_id=os.environ[&quot;WATSONX_PROJECT_ID&quot;],
+    params=params,
+)
+</code></pre>
+<p>Two decoding methods matter. <strong>Greedy</strong> decoding always takes the highest-probability next token, so it is deterministic — the same prompt yields the same output. <strong>Sampling</strong> introduces randomness, and only then do <code>TEMPERATURE</code>, <code>TOP_P</code>, and <code>TOP_K</code> have any effect.</p>
+<pre><code class="language-python">sampling_params = {
+    GenParams.DECODING_METHOD: &quot;sample&quot;,
+    GenParams.MAX_NEW_TOKENS: 300,
+    GenParams.TEMPERATURE: 0.7,
+    GenParams.TOP_P: 0.9,
+}
+</code></pre>
+<p>You can attach <code>params</code> at construction time as above, or pass them per call: <code>model.generate_text(prompt=prompt, params=sampling_params)</code>. A per-call <code>params</code> overrides the constructor default for that request.</p>
+<p>For the chat API, use <code>TextChatParameters</code> rather than <code>GenParams</code> — the chat surface has its own parameter model (covering things like <code>max_tokens</code>, <code>temperature</code>, and <code>top_p</code>), passed via the <code>params</code> argument on <code>chat()</code>.</p>
+<pre><code class="language-python">from ibm_watsonx_ai.foundation_models.schema import TextChatParameters
+
+chat_params = TextChatParameters(max_tokens=300, temperature=0.5, top_p=0.9)
+response = model.chat(messages=messages, params=chat_params)
+</code></pre>
+<p><strong>The gotcha:</strong> the decoding method decides which other parameters do anything. Set <code>TEMPERATURE</code> while <code>DECODING_METHOD</code> is <code>"greedy"</code> and it is silently ignored — greedy has no randomness to tune. If you want reproducible output, use greedy; if you want varied or creative output, switch to sampling and <em>then</em> tune temperature and top-p. Mixing the two mental models is the most common reason &ldquo;my temperature setting does nothing.&rdquo;</p>
+<hr>
+<h2 id="streaming">Streaming</h2>
+<p>For anything a human reads as it arrives — a chat UI, a long generation — stream the tokens instead of waiting for the whole response. Both API families have a streaming variant that returns a generator you iterate.</p>
+<p>For the generate family, <code>generate_text_stream</code> yields text chunks:</p>
+<pre><code class="language-python">for chunk in model.generate_text_stream(prompt=&quot;List three benefits of unit testing.&quot;):
+    print(chunk, end=&quot;&quot;, flush=True)
+print()
+</code></pre>
+<p>For the chat API, <code>chat_stream</code> yields incremental response objects; pull the partial content out of each delta:</p>
+<pre><code class="language-python">for chunk in model.chat_stream(messages=messages):
+    choices = chunk.get(&quot;choices&quot;, [])
+    if choices:
+        delta = choices[0].get(&quot;delta&quot;, {})
+        piece = delta.get(&quot;content&quot;)
+        if piece:
+            print(piece, end=&quot;&quot;, flush=True)
+print()
+</code></pre>
+<p>Streaming does not change what the model produces — the same prompt and parameters give the same result — it only changes <em>when</em> the bytes reach you. Each chat stream event carries a <code>delta</code> rather than a full <code>message</code>, and you accumulate the <code>content</code> pieces yourself to rebuild the whole reply.</p>
+<hr>
+<h2 id="error-handling">Error handling</h2>
+<p>Real calls fail: a wrong region URL, an expired or malformed API key, a project the key cannot access, a model_id that is not deployed where you are calling. The SDK surfaces these as exceptions from its own error hierarchy rather than leaving you to parse HTTP status codes.</p>
+<pre><code class="language-python">from ibm_watsonx_ai.wml_client_error import WMLClientError, ApiRequestFailure
+
+try:
+    answer = model.generate_text(prompt=prompt)
+    print(answer)
+except ApiRequestFailure as exc:
+    # the service accepted the request but returned an error status
+    print(&quot;watsonx.ai request failed:&quot;, exc)
+except WMLClientError as exc:
+    # client-side / configuration problems, including auth setup
+    print(&quot;client error:&quot;, exc)
+</code></pre>
+<p><code>WMLClientError</code> is the base for the SDK&rsquo;s client errors, and <code>ApiRequestFailure</code> (a subclass) is raised when the service returns a non-success response — its message includes the status and the server&rsquo;s error payload, which usually names the exact problem (invalid model, missing project access, bad parameters). Catch <code>ApiRequestFailure</code> for service-side rejections and fall back to <code>WMLClientError</code> for broader configuration issues.</p>
+<p>One thing you do <strong>not</strong> have to handle: IAM token lifecycle. Your API key is exchanged for a short-lived bearer token behind the scenes, and the SDK refreshes it when it nears expiry. You supply the long-lived API key once; token rotation is the SDK&rsquo;s job, not yours.</p>
+<p><strong>The gotcha:</strong> a <code>model_id</code> string is region- and version-specific. A model available in <code>us-south</code> may not be available in <code>eu-de</code>, and IBM deprecates and retires model versions on a published schedule, so a hard-coded id that worked last quarter can start returning errors. Before assuming your code is broken, confirm the model is actually available in <em>your</em> region and project — list what your setup can reach:</p>
+<pre><code class="language-python">from ibm_watsonx_ai.foundation_models import ModelInference
+
+# APIClient.foundation_models.get_model_specs() enumerates available models;
+# check the SDK docs for the exact call in your version, then pick a live model_id.
+</code></pre>
+<hr>
+<h2 id="the-langchain-ibm-path">The langchain-ibm path</h2>
+<p>If your application is built on LangChain — chains, agents, retrievers — you probably want a chat model object that speaks LangChain&rsquo;s interface instead of watsonx.ai&rsquo;s native dicts. The <code>langchain-ibm</code> package provides <code>ChatWatsonx</code>, a drop-in <code>BaseChatModel</code>.</p>
+<pre><code class="language-python">import os
+from langchain_ibm import ChatWatsonx
+
+chat = ChatWatsonx(
+    model_id=&quot;ibm/granite-3-8b-instruct&quot;,
+    url=os.environ[&quot;WATSONX_URL&quot;],
+    project_id=os.environ[&quot;WATSONX_PROJECT_ID&quot;],
+    apikey=os.environ[&quot;WATSONX_APIKEY&quot;],
+)
+
+result = chat.invoke(&quot;Explain the CAP theorem in two sentences.&quot;)
+print(result.content)
+</code></pre>
+<p><code>ChatWatsonx</code> takes the same four pieces of configuration — <code>model_id</code>, <code>url</code>, <code>project_id</code>, <code>apikey</code> — and gives you the standard LangChain methods. <code>.invoke()</code> returns an <code>AIMessage</code> whose <code>.content</code> is the text; <code>.stream()</code> yields message chunks the same way LangChain streams every chat model.</p>
+<pre><code class="language-python">for chunk in chat.stream(&quot;Name three sorting algorithms.&quot;):
+    print(chunk.content, end=&quot;&quot;, flush=True)
+print()
+</code></pre>
+<p>You can pass LangChain message objects too:</p>
+<pre><code class="language-python">from langchain_core.messages import SystemMessage, HumanMessage
+
+messages = [
+    SystemMessage(content=&quot;You answer as briefly as possible.&quot;),
+    HumanMessage(content=&quot;What port does HTTPS use by default?&quot;),
+]
+print(chat.invoke(messages).content)
+</code></pre>
+<p>When would you prefer <code>ChatWatsonx</code> over the native <code>ModelInference</code>? When watsonx.ai is one interchangeable piece of a larger LangChain application — you want to compose it into chains, swap it for another provider by changing one constructor, or reuse LangChain tooling for prompts, output parsing, and agents. When you are writing a small, direct integration or need watsonx.ai features not surfaced through the LangChain abstraction, the native SDK is the more transparent choice.</p>
+<hr>
+<h2 id="native-sdk-vs-langchain-at-a-glance">Native SDK vs. LangChain at a glance</h2>
+<table><caption class="sr-only">Native SDK vs. LangChain at a glance</caption>
+<thead>
+<tr>
+<th>Concern</th>
+<th><code>ModelInference</code> (native)</th>
+<th><code>ChatWatsonx</code> (langchain-ibm)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Interface</td>
+<td>watsonx.ai dict responses</td>
+<td>LangChain <code>BaseChatModel</code></td>
+</tr>
+<tr>
+<td>Text call</td>
+<td><code>generate_text</code> / <code>generate</code> / <code>chat</code></td>
+<td><code>.invoke()</code></td>
+</tr>
+<tr>
+<td>Streaming</td>
+<td><code>generate_text_stream</code> / <code>chat_stream</code></td>
+<td><code>.stream()</code></td>
+</tr>
+<tr>
+<td>Parameters</td>
+<td><code>GenParams</code> / <code>TextChatParameters</code></td>
+<td>constructor + <code>params</code> kwargs</td>
+</tr>
+<tr>
+<td>Best when</td>
+<td>direct integration, full feature access</td>
+<td>part of a larger LangChain app</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Every request needs three things:</strong> an IAM API key, a regional URL that matches your project&rsquo;s region, and a project_id (or space_id). Read them from the environment; a valid key with no project still fails.</li>
+<li><strong><code>generate_text</code> returns a string, <code>generate</code> returns the dict with token counts.</strong> Use <code>generate</code> when you need usage; you cannot recover it from a bare string after the fact.</li>
+<li><strong>Prefer the chat API for new work.</strong> Messages with <code>system</code>/<code>user</code>/<code>assistant</code> roles match how modern models are trained, and usage arrives under <code>usage</code> in the response.</li>
+<li><strong>Decoding method gates the other parameters.</strong> Greedy is deterministic; sampling is where temperature and top-p do anything.</li>
+<li><strong>Stream for human-facing output</strong> with <code>generate_text_stream</code> or <code>chat_stream</code>; the content is identical, only the timing changes.</li>
+<li><strong>Errors come through <code>WMLClientError</code> / <code>ApiRequestFailure</code>,</strong> and the SDK refreshes IAM tokens for you — you never manage bearer-token expiry.</li>
+<li><strong>Reach for <code>ChatWatsonx</code></strong> when watsonx.ai is one swappable component inside a LangChain application.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://ibm.github.io/watsonx-ai-python-sdk/">ibm-watsonx-ai SDK documentation</a> — full reference for <code>Credentials</code>, <code>ModelInference</code>, and parameter metanames.</li>
+<li><a href="https://ibm.github.io/watsonx-ai-python-sdk/fm_model_inference.html">ModelInference API reference</a> — <code>generate_text</code>, <code>generate</code>, <code>chat</code>, and the streaming variants.</li>
+<li><a href="https://www.ibm.com/products/watsonx-ai">IBM watsonx.ai product documentation</a> — foundation models, regions, and platform concepts.</li>
+<li><a href="https://python.langchain.com/docs/integrations/chat/ibm_watsonx/">langchain-ibm ChatWatsonx reference</a> — the LangChain chat integration, invoke and stream usage.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/watsonx-py-01-the-ibm-watsonx-platform.html">The IBM watsonx Platform</a>
+      <span class="related-date">Aug 06</span>
+    </li>
+    <li>
+      <a href="/blog/posts/watsonx-py-08-production.html">Production on watsonx</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/watsonx-py-06-guardrails-and-granite-guardian.html">Guardrails and Granite Guardian</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
