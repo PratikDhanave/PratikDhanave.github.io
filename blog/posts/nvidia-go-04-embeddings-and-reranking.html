@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Embeddings and Reranking with NeMo Retriever</title>
+<meta name="description" content="Use NeMo Retriever&#x27;s embedding and reranking NIMs from Go to build RAG&#x27;s retrieval core: OpenAI-compatible embeddings with the asymmetric query/passage...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Embeddings and Reranking with NeMo Retriever">
+<meta property="og:description" content="Use NeMo Retriever&#x27;s embedding and reranking NIMs from Go to build RAG&#x27;s retrieval core: OpenAI-compatible embeddings with the asymmetric query/passage input_type, cosine scoring, and a two-stage retrieve-then-rerank pipeline for far better precision.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/nvidia-go-04-embeddings-and-reranking.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-09T00:00:00Z">
+<meta property="article:tag" content="NVIDIA">
+<meta property="article:tag" content="NeMo Retriever">
+<meta property="article:tag" content="RAG">
+<meta property="article:tag" content="Go">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Embeddings and Reranking with NeMo Retriever">
+<meta name="twitter:description" content="Use NeMo Retriever&#x27;s embedding and reranking NIMs from Go to build RAG&#x27;s retrieval core: OpenAI-compatible embeddings with the asymmetric query/passage input_type, cosine scoring, and a two-stage retrieve-then-rerank pipeline for far better precision.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/nvidia-go-04-embeddings-and-reranking.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Embeddings and Reranking with NeMo Retriever",
+  "description": "Use NeMo Retriever's embedding and reranking NIMs from Go to build RAG's retrieval core: OpenAI-compatible embeddings with the asymmetric query/passage input_type, cosine scoring, and a two-stage retrieve-then-rerank pipeline for far better precision.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-09",
+  "dateModified": "2026-08-09",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "NVIDIA, NeMo Retriever, RAG, Go",
+  "url": "https://pratikdhanave.com/blog/posts/nvidia-go-04-embeddings-and-reranking.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/nvidia-go-04-embeddings-and-reranking.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Embeddings and Reranking with NeMo Retriever</h1>
+    <p class="post-subtitle">Building the retrieval core of RAG in Go by calling NeMo Retriever embedding and reranking NIMs over plain net/http, with asymmetric input types and a two-stage retrieve-then-rerank pipeline.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-09">August 09, 2026</time>
+      <span>·</span>
+      <span>14 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/nvidia/" class="tag-link"><span class="tag">#NVIDIA</span></a><a href="/blog/tags/nemo-retriever/" class="tag-link"><span class="tag">#NeMo Retriever</span></a><a href="/blog/tags/rag/" class="tag-link"><span class="tag">#RAG</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 4 of 8</span>
+    <span class="series-title">NVIDIA AI Stack in Go</span>
+    <div class="series-nav"><a href="/blog/posts/nvidia-go-03-tool-calling.html" class="series-prev">&larr; Part 3: Tool Calling with NIM</a></div>
+  </div>
+
+
+
+  <p>Retrieval-augmented generation lives or dies on one question: when a user asks something, can you pull the <em>right</em> passages out of your corpus and hand them to the model? Get that wrong and no amount of prompt engineering saves the answer. NVIDIA&rsquo;s NeMo Retriever ships the two models that make this work — an <strong>embedding</strong> model and a <strong>reranking</strong> model — packaged as NIMs (NVIDIA Inference Microservices) you call over HTTP.</p>
+<p>There is no NVIDIA Go SDK. Every example in this series talks to NVIDIA services the same way: a small REST client built on <code>net/http</code>. That is a feature, not a limitation — you see exactly what goes over the wire, and the two NeMo Retriever endpoints have very different request shapes that a wrapper would only hide.</p>
+<p>This post builds the <em>retrieval core</em> of a RAG pipeline in Go. Part 1 turns text into vectors with the embedding NIM and scores them with a from-scratch cosine similarity. Part 2 adds a reranking NIM that re-scores a shortlist far more precisely. Then we wire them into the pattern every serious RAG system uses: <strong>embed → shortlist by cosine → rerank → take top-k</strong>.</p>
+<hr>
+<h2 id="the-client-we-reuse">The client we reuse</h2>
+<p>Earlier in this series we built a tiny REST client — a base URL, an API key, and an <code>*http.Client</code> with a sane timeout. Here is the minimal version, so this post stands on its own:</p>
+<pre><code class="language-go">package retriever
+
+import (
+    &quot;bytes&quot;
+    &quot;context&quot;
+    &quot;encoding/json&quot;
+    &quot;fmt&quot;
+    &quot;io&quot;
+    &quot;net/http&quot;
+    &quot;time&quot;
+)
+
+type Client struct {
+    BaseURL string       // e.g. https://integrate.api.nvidia.com/v1, or your self-hosted NIM
+    APIKey  string       // from https://build.nvidia.com; sent as a Bearer token
+    HTTP    *http.Client
+}
+
+func NewClient(baseURL, apiKey string) *Client {
+    return &amp;Client{
+        BaseURL: baseURL,
+        APIKey:  apiKey,
+        HTTP:    &amp;http.Client{Timeout: 60 * time.Second},
+    }
+}
+
+// postJSON marshals body, POSTs to {BaseURL}{path}, and decodes the JSON reply into out.
+func (c *Client) postJSON(ctx context.Context, path string, body, out any) error {
+    raw, err := json.Marshal(body)
+    if err != nil {
+        return fmt.Errorf(&quot;marshal request: %w&quot;, err)
+    }
+    req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(raw))
+    if err != nil {
+        return fmt.Errorf(&quot;build request: %w&quot;, err)
+    }
+    req.Header.Set(&quot;Authorization&quot;, &quot;Bearer &quot;+c.APIKey)
+    req.Header.Set(&quot;Content-Type&quot;, &quot;application/json&quot;)
+    req.Header.Set(&quot;Accept&quot;, &quot;application/json&quot;)
+
+    resp, err := c.HTTP.Do(req)
+    if err != nil {
+        return fmt.Errorf(&quot;do request: %w&quot;, err)
+    }
+    defer resp.Body.Close()
+
+    data, _ := io.ReadAll(resp.Body)
+    if resp.StatusCode != http.StatusOK {
+        return fmt.Errorf(&quot;nvidia api %s: status %d: %s&quot;, path, resp.StatusCode, string(data))
+    }
+    if err := json.Unmarshal(data, out); err != nil {
+        return fmt.Errorf(&quot;decode response: %w&quot;, err)
+    }
+    return nil
+}
+</code></pre>
+<p>Whichever NeMo Retriever NIM you target — the hosted endpoints on <code>build.nvidia.com</code> or a container you run yourself — only <code>BaseURL</code> changes. The wire protocol is identical.</p>
+<hr>
+<h2 id="part-1-embeddings-text-becomes-vectors">Part 1 — Embeddings: text becomes vectors</h2>
+<p>An embedding model maps a string to a fixed-length vector of floats. Texts that mean similar things land near each other in that vector space, so &ldquo;how do I reset my password&rdquo; and &ldquo;forgot login credentials&rdquo; end up close even though they share no keywords. That is what lets you search by <em>meaning</em> instead of exact terms.</p>
+<p>NeMo Retriever&rsquo;s embedding NIM is <strong>OpenAI-compatible</strong>: you <code>POST {baseURL}/embeddings</code> with a JSON body containing a <code>model</code>, an <code>input</code> list of strings, and — the NVIDIA-specific part — an <code>input_type</code>. The reply carries a <code>data</code> array (one entry per input, each with an <code>embedding</code> of floats) plus a <code>usage</code> block.</p>
+<h3 id="why-input_type-matters-asymmetric-embeddings">Why input_type matters: asymmetric embeddings</h3>
+<p>This is the detail people miss, and it quietly wrecks retrieval quality. NVIDIA&rsquo;s retrieval embedding models are <strong>asymmetric</strong>: they were trained to embed <em>documents</em> and <em>questions</em> into the same space using two different modes. You select the mode with <code>input_type</code>:</p>
+<ul>
+<li>Embed the passages you store with <code>input_type: "passage"</code>.</li>
+<li>Embed the user&rsquo;s search query with <code>input_type: "query"</code>.</li>
+</ul>
+<p>The model applies a different internal treatment to each so that a short question and the long passage that answers it land close together. If you embed everything as <code>"passage"</code> (or everything as <code>"query"</code>), the vectors still come back — no error — but they are living in the wrong halves of the space, and your similarity scores become noise.</p>
+<p>Here is the Go for it. Note the two thin wrappers over one core function, so the call site can never forget which mode it is in:</p>
+<pre><code class="language-go">type embedRequest struct {
+    Model     string   `json:&quot;model&quot;`
+    Input     []string `json:&quot;input&quot;`
+    InputType string   `json:&quot;input_type&quot;` // &quot;query&quot; or &quot;passage&quot; — NVIDIA-specific
+}
+
+type embedData struct {
+    Index     int       `json:&quot;index&quot;`
+    Embedding []float32 `json:&quot;embedding&quot;`
+}
+
+type embedResponse struct {
+    Data  []embedData `json:&quot;data&quot;`
+    Usage struct {
+        PromptTokens int `json:&quot;prompt_tokens&quot;`
+        TotalTokens  int `json:&quot;total_tokens&quot;`
+    } `json:&quot;usage&quot;`
+}
+
+// embed is the core call. inputType must be &quot;query&quot; or &quot;passage&quot;.
+func (c *Client) embed(ctx context.Context, model, inputType string, texts []string) ([][]float32, error) {
+    if len(texts) == 0 {
+        return nil, nil
+    }
+    var out embedResponse
+    req := embedRequest{Model: model, Input: texts, InputType: inputType}
+    if err := c.postJSON(ctx, &quot;/embeddings&quot;, req, &amp;out); err != nil {
+        return nil, fmt.Errorf(&quot;embed (%s): %w&quot;, inputType, err)
+    }
+    if len(out.Data) != len(texts) {
+        return nil, fmt.Errorf(&quot;embed: asked for %d vectors, got %d&quot;, len(texts), len(out.Data))
+    }
+    // The API is not required to return data in input order — sort by Index.
+    vectors := make([][]float32, len(texts))
+    for _, d := range out.Data {
+        if d.Index &lt; 0 || d.Index &gt;= len(vectors) {
+            return nil, fmt.Errorf(&quot;embed: index %d out of range&quot;, d.Index)
+        }
+        vectors[d.Index] = d.Embedding
+    }
+    return vectors, nil
+}
+
+// EmbedPassages embeds documents you will store and search over.
+func (c *Client) EmbedPassages(ctx context.Context, model string, docs []string) ([][]float32, error) {
+    return c.embed(ctx, model, &quot;passage&quot;, docs)
+}
+
+// EmbedQuery embeds a single user query.
+func (c *Client) EmbedQuery(ctx context.Context, model, query string) ([]float32, error) {
+    vecs, err := c.embed(ctx, model, &quot;query&quot;, []string{query})
+    if err != nil {
+        return nil, err
+    }
+    return vecs[0], nil
+}
+</code></pre>
+<p>For <code>model</code>, pass a NeMo Retriever embedding NIM id — for example <code>nvidia/nv-embedqa-e5-v5</code> or <code>nvidia/llama-3.2-nv-embedqa-1b-v2</code>. <strong>Treat those as examples to verify</strong> against the model catalog on <code>build.nvidia.com</code>; ids and their availability change, and each model has its own vector dimension.</p>
+<p><strong>The gotcha:</strong> NVIDIA retrieval embeddings are asymmetric — embedding a query with <code>input_type: "passage"</code> (or a passage with <code>"query"</code>) returns perfectly valid-looking vectors and <em>silently</em> tanks retrieval quality. There is no exception to catch. If your relevance suddenly looks random, check this first. And embed both sides with the <strong>same model</strong> — vectors from two different embedding models are not comparable, so your stored passages and your live queries must share one model for their whole lifetime.</p>
+<h3 id="cosine-similarity-from-scratch">Cosine similarity, from scratch</h3>
+<p>To rank passages against a query you compare vectors. The standard measure is <strong>cosine similarity</strong>: the cosine of the angle between two vectors, which ignores their magnitude and rewards pointing the same direction. It runs from -1 (opposite) to 1 (identical direction). No library needed:</p>
+<pre><code class="language-go">import &quot;math&quot;
+
+// CosineSimilarity returns the cosine of the angle between a and b, in [-1, 1].
+func CosineSimilarity(a, b []float32) (float64, error) {
+    if len(a) != len(b) {
+        return 0, fmt.Errorf(&quot;cosine: dimension mismatch %d vs %d&quot;, len(a), len(b))
+    }
+    var dot, normA, normB float64
+    for i := range a {
+        x, y := float64(a[i]), float64(b[i])
+        dot += x * y
+        normA += x * x
+        normB += y * y
+    }
+    if normA == 0 || normB == 0 {
+        return 0, fmt.Errorf(&quot;cosine: zero-magnitude vector&quot;)
+    }
+    return dot / (math.Sqrt(normA) * math.Sqrt(normB)), nil
+}
+</code></pre>
+<p>That dimension check is your safety net: if it ever fires, you have accidentally mixed vectors from two different embedding models, and the invariant above just caught the bug.</p>
+<hr>
+<h2 id="part-2-reranking-precision-after-recall">Part 2 — Reranking: precision after recall</h2>
+<p>Embeddings are fast but <em>approximate</em>. Each passage is squeezed into one vector ahead of time, so scoring a query against a whole corpus is cheap — but the model never sees the query and a passage <em>together</em>. It compares two independent summaries. That is great for recall (pulling back a rough shortlist of plausible matches) and mediocre for precision (ordering that shortlist correctly).</p>
+<p>A <strong>reranker</strong> is a different kind of model — a cross-encoder. It takes the query and one passage <em>as a single input</em> and outputs a relevance score, so it can weigh how the exact words of the query line up against the exact words of the passage. That is far more precise, and far more expensive: one model call per passage, no precomputation. You would never run a cross-encoder over your whole corpus. You run it over the shortlist that embeddings already narrowed down.</p>
+<p>That is the two-stage pattern: <strong>embeddings for cheap recall, a reranker for precise ordering.</strong></p>
+<p>NeMo Retriever&rsquo;s reranking NIM exposes a <strong>ranking</strong> endpoint. You send it a query plus a list of candidate passages; it returns a relevance score for each, from which you reorder and keep the top-k. The request carries the model id, the query text, and the passages; the response carries, for each passage, its original index and a relevance score.</p>
+<blockquote>
+<p><strong>Confirm the exact path and field names in the docs.</strong> The shape below matches the NeMo Retriever reranking (ranking) API at the time of writing — a <code>query</code> object with a <code>text</code>, a <code>passages</code> array of <code>{text}</code> objects, and a <code>rankings</code> array of <code>{index, logit}</code> in the reply. But reranking request/response fields have varied across NIM versions. Before you ship, verify the endpoint path and every JSON field name against the NeMo Retriever reranking API reference for the specific NIM you deploy. Do not assume the shape below is exact for your version.</p>
+</blockquote>
+<pre><code class="language-go">type rankQuery struct {
+    Text string `json:&quot;text&quot;`
+}
+
+type rankPassage struct {
+    Text string `json:&quot;text&quot;`
+}
+
+// rankRequest mirrors the documented reranking (ranking) request shape.
+// VERIFY every field name and the endpoint path against the NIM's API docs.
+type rankRequest struct {
+    Model    string        `json:&quot;model&quot;`
+    Query    rankQuery     `json:&quot;query&quot;`
+    Passages []rankPassage `json:&quot;passages&quot;`
+}
+
+// ranking is one scored result. &quot;logit&quot; is the model's raw relevance score;
+// a higher value means more relevant. The exact field name may differ by version.
+type ranking struct {
+    Index int     `json:&quot;index&quot;` // position in the passages array we sent
+    Logit float64 `json:&quot;logit&quot;`
+}
+
+type rankResponse struct {
+    Rankings []ranking `json:&quot;rankings&quot;`
+}
+
+// Scored pairs a passage with its reranker relevance score.
+type Scored struct {
+    Text  string
+    Score float64
+}
+
+// Rerank scores each passage against the query and returns them ordered
+// most-relevant first. topK &lt;= 0 returns all of them.
+func (c *Client) Rerank(ctx context.Context, model, query string, passages []string, topK int) ([]Scored, error) {
+    if len(passages) == 0 {
+        return nil, nil
+    }
+    body := rankRequest{Model: model, Query: rankQuery{Text: query}}
+    for _, p := range passages {
+        body.Passages = append(body.Passages, rankPassage{Text: p})
+    }
+
+    var out rankResponse
+    // NOTE: confirm this path (&quot;/ranking&quot;) against the reranking NIM's API docs.
+    if err := c.postJSON(ctx, &quot;/ranking&quot;, body, &amp;out); err != nil {
+        return nil, fmt.Errorf(&quot;rerank: %w&quot;, err)
+    }
+    if len(out.Rankings) == 0 {
+        return nil, fmt.Errorf(&quot;rerank: no rankings returned&quot;)
+    }
+
+    scored := make([]Scored, 0, len(out.Rankings))
+    for _, r := range out.Rankings {
+        if r.Index &lt; 0 || r.Index &gt;= len(passages) {
+            return nil, fmt.Errorf(&quot;rerank: index %d out of range&quot;, r.Index)
+        }
+        scored = append(scored, Scored{Text: passages[r.Index], Score: r.Logit})
+    }
+
+    sort.Slice(scored, func(i, j int) bool {
+        return scored[i].Score &gt; scored[j].Score
+    })
+    if topK &gt; 0 &amp;&amp; topK &lt; len(scored) {
+        scored = scored[:topK]
+    }
+    return scored, nil
+}
+</code></pre>
+<p>The reranker returns results keyed by the <em>index we sent</em>, so we map each score back onto its original passage before sorting — never assume the response is already ordered, and never assume it is in input order. For <code>model</code>, use a reranking NIM id such as <code>nvidia/nv-rerankqa-mistral-4b-v3</code> or <code>nvidia/llama-3.2-nv-rerankqa-1b-v2</code> — again, <strong>examples to verify</strong> in the catalog.</p>
+<p><strong>The gotcha:</strong> reranking is a <em>separate model call per query</em>, and it scores every candidate you send. Send 500 passages and you pay for 500 cross-encoder comparisons on every single query — latency and cost explode. The whole point of the two-stage design is to over-retrieve only <em>modestly</em> with embeddings (say a shortlist of 20–50), then rerank that shortlist. And the opposite failure is just as common: teams skip reranking, feed the LLM the raw cosine top-5, get mushy answers, and blame the LLM. Nine times out of ten the retrieval was the problem — the reranker is what turns &ldquo;roughly relevant&rdquo; into &ldquo;actually the right passage.&rdquo;</p>
+<hr>
+<h2 id="wiring-it-together-the-retrieval-core">Wiring it together: the retrieval core</h2>
+<p>Now assemble the pipeline. Offline (or at ingest time) you embed every passage as <code>"passage"</code> and store the vectors. At query time you embed the query as <code>"query"</code>, shortlist by cosine, rerank that shortlist, and return the final top-k. Here is a self-contained in-memory version — swap the slice for a real vector store when you scale:</p>
+<pre><code class="language-go">// Store is a trivial in-memory index. In production, back this with a
+// vector database; the retrieval logic is identical.
+type Store struct {
+    Passages []string
+    Vectors  [][]float32
+}
+
+func (c *Client) Index(ctx context.Context, embedModel string, docs []string) (*Store, error) {
+    vecs, err := c.EmbedPassages(ctx, embedModel, docs) // input_type = &quot;passage&quot;
+    if err != nil {
+        return nil, err
+    }
+    return &amp;Store{Passages: docs, Vectors: vecs}, nil
+}
+
+// Retrieve runs the two-stage pipeline: cosine shortlist, then rerank.
+func (c *Client) Retrieve(
+    ctx context.Context,
+    embedModel, rerankModel, query string,
+    s *Store, shortlist, topK int,
+) ([]Scored, error) {
+    // 1. Embed the query — as a QUERY, matching the passages' embedding model.
+    qVec, err := c.EmbedQuery(ctx, embedModel, query) // input_type = &quot;query&quot;
+    if err != nil {
+        return nil, err
+    }
+
+    // 2. Cheap recall: cosine-score every stored passage, keep the shortlist.
+    rough := make([]Scored, 0, len(s.Passages))
+    for i, v := range s.Vectors {
+        sim, err := CosineSimilarity(qVec, v)
+        if err != nil {
+            return nil, fmt.Errorf(&quot;scoring passage %d: %w&quot;, i, err)
+        }
+        rough = append(rough, Scored{Text: s.Passages[i], Score: sim})
+    }
+    sort.Slice(rough, func(i, j int) bool { return rough[i].Score &gt; rough[j].Score })
+    if shortlist &gt; 0 &amp;&amp; shortlist &lt; len(rough) {
+        rough = rough[:shortlist]
+    }
+
+    // 3. Precise reordering: rerank the shortlist, keep top-k.
+    candidates := make([]string, len(rough))
+    for i, r := range rough {
+        candidates[i] = r.Text
+    }
+    return c.Rerank(ctx, rerankModel, query, candidates, topK)
+}
+</code></pre>
+<p>A caller ties it off:</p>
+<pre><code class="language-go">func main() {
+    c := retriever.NewClient(
+        &quot;https://integrate.api.nvidia.com/v1&quot;,
+        os.Getenv(&quot;NVIDIA_API_KEY&quot;),
+    )
+    ctx := context.Background()
+
+    const embedModel = &quot;nvidia/nv-embedqa-e5-v5&quot;        // verify in the catalog
+    const rerankModel = &quot;nvidia/nv-rerankqa-mistral-4b-v3&quot; // verify in the catalog
+
+    docs := []string{
+        &quot;NeMo Retriever provides embedding and reranking models as NIMs.&quot;,
+        &quot;Cosine similarity measures the angle between two vectors.&quot;,
+        &quot;A cross-encoder reranker scores a query and passage together.&quot;,
+        // ... your corpus ...
+    }
+
+    store, err := c.Index(ctx, embedModel, docs)
+    if err != nil {
+        log.Fatalf(&quot;index: %v&quot;, err)
+    }
+
+    results, err := c.Retrieve(ctx, embedModel, rerankModel,
+        &quot;How does NeMo Retriever help RAG?&quot;, store, 20, 3)
+    if err != nil {
+        log.Fatalf(&quot;retrieve: %v&quot;, err)
+    }
+    for i, r := range results {
+        fmt.Printf(&quot;%d. (%.3f) %s\n&quot;, i+1, r.Score, r.Text)
+    }
+}
+</code></pre>
+<p>You now have the retrieval core of a RAG system in a few hundred lines of Go, talking to NeMo Retriever over nothing but <code>net/http</code>. Feed <code>results</code> into your generation step and the LLM finally has passages worth reasoning over.</p>
+<p><strong>The gotcha:</strong> the cosine <code>Score</code> and the reranker <code>Score</code> are on <em>different, incomparable scales</em> — cosine is bounded in [-1, 1], the reranker returns raw model scores. Don&rsquo;t average them or threshold them with one number. Use cosine only to <em>order the shortlist</em>, then let the reranker&rsquo;s scores decide the final order. They are two stages, not two votes.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>No Go SDK, no problem.</strong> Both NeMo Retriever NIMs are plain JSON over HTTP; one small <code>net/http</code> client handles the embedding and ranking endpoints alike — only <code>BaseURL</code> changes between hosted and self-hosted.</li>
+<li><strong>Respect <code>input_type</code>.</strong> Embed stored documents as <code>"passage"</code> and live queries as <code>"query"</code>. Getting this wrong fails silently and destroys relevance.</li>
+<li><strong>One embedding model, both sides, forever.</strong> Passage vectors and query vectors are only comparable if they came from the same model; a dimension check in cosine catches accidental mixing.</li>
+<li><strong>Two stages beat one.</strong> Embeddings give cheap approximate recall; a cross-encoder reranker gives expensive precise ordering. Over-retrieve modestly, then rerank the shortlist.</li>
+<li><strong>Don&rsquo;t skip the reranker and blame the LLM.</strong> Most &ldquo;bad RAG&rdquo; is bad retrieval. The reranker is what turns roughly-relevant into actually-right.</li>
+<li><strong>Verify ids and field names.</strong> Model ids and the reranking request/response shape drift between versions — confirm both against the catalog and API docs before you ship.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://docs.nvidia.com/nim/nemo-retriever/text-embedding/latest/overview.html">NeMo Retriever Text Embedding NIM — documentation</a></li>
+<li><a href="https://docs.nvidia.com/nim/nemo-retriever/text-reranking/latest/overview.html">NeMo Retriever Text Reranking NIM — documentation</a></li>
+<li><a href="https://docs.nvidia.com/nim/index.html">NVIDIA NIM documentation hub</a></li>
+<li><a href="https://build.nvidia.com/">build.nvidia.com — model catalog and API keys</a></li>
+<li><a href="https://pkg.go.dev/net/http">Go <code>net/http</code> package reference</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/bedrock-go-05-rag-knowledge-bases.html">Retrieval-Augmented Generation with Knowledge Bases</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-go-03-tool-calling.html">Tool Calling with NIM</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/nvidia-go-02-calling-nim-from-go.html">Calling NIM from Go</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

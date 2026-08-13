@@ -159,6 +159,39 @@ RSS_FEED_LIMIT = 50
 # so the blog index shows a sensible chronology — they are NOT manufactured to
 # pre-date real events.
 POST_META = {
+    "2026-08-06-nvidia-go-01-the-nvidia-ai-stack.md": {
+        "slug": "nvidia-go-01-the-nvidia-ai-stack",
+        "date": "2026-08-06",
+        "tags": ["NVIDIA", "NIM", "LLMs", "Go"],
+        "audience": "Go engineers building LLM/agent apps on NVIDIA's stack",
+        "excerpt": "The opener to a series on building LLM and agent applications on NVIDIA's AI stack from Go: how NIM, the API Catalog, NeMo Retriever, NeMo Guardrails, Triton and TensorRT-LLM fit together — and why OpenAI-compatible NIM means you call it all with plain net/http.",
+        "series": "NVIDIA AI Stack in Go", "series_position": 1, "series_total": 8,
+        "featured": True,
+    },
+    "2026-08-07-nvidia-go-02-calling-nim-from-go.md": {
+        "slug": "nvidia-go-02-calling-nim-from-go",
+        "date": "2026-08-07",
+        "tags": ["NVIDIA", "NIM", "LLMs", "Go"],
+        "audience": "Go engineers building LLM/agent apps on NVIDIA's stack",
+        "excerpt": "Build a typed Go client for NVIDIA NIM from scratch with net/http: the OpenAI-compatible chat request/response, a Bearer nvapi- key from the environment, token usage, error handling, and SSE streaming — the same code running against the API Catalog or a self-hosted NIM.",
+        "series": "NVIDIA AI Stack in Go", "series_position": 2, "series_total": 8,
+    },
+    "2026-08-08-nvidia-go-03-tool-calling.md": {
+        "slug": "nvidia-go-03-tool-calling",
+        "date": "2026-08-08",
+        "tags": ["NVIDIA", "NIM", "Tool Use", "Go"],
+        "audience": "Go engineers building LLM/agent apps on NVIDIA's stack",
+        "excerpt": "Function/tool calling against NIM models from Go: declaring tools with a JSON schema, the round-trip loop, unmarshaling the arguments JSON string, echoing tool_call_id, handling multiple tool calls per turn — and the honest caveat that model support varies.",
+        "series": "NVIDIA AI Stack in Go", "series_position": 3, "series_total": 8,
+    },
+    "2026-08-09-nvidia-go-04-embeddings-and-reranking.md": {
+        "slug": "nvidia-go-04-embeddings-and-reranking",
+        "date": "2026-08-09",
+        "tags": ["NVIDIA", "NeMo Retriever", "RAG", "Go"],
+        "audience": "Go engineers building LLM/agent apps on NVIDIA's stack",
+        "excerpt": "Use NeMo Retriever's embedding and reranking NIMs from Go to build RAG's retrieval core: OpenAI-compatible embeddings with the asymmetric query/passage input_type, cosine scoring, and a two-stage retrieve-then-rerank pipeline for far better precision.",
+        "series": "NVIDIA AI Stack in Go", "series_position": 4, "series_total": 8,
+    },
     "2026-08-05-bedrock-go-01-what-is-amazon-bedrock.md": {
         "slug": "bedrock-go-01-what-is-amazon-bedrock",
         "date": "2026-08-05",
