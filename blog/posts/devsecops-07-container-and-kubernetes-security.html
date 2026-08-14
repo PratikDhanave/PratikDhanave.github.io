@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Container and Kubernetes Security — Pratik Dhanave</title>
+<meta name="description" content="Securing the runtime platform: minimal non-root images scanned for CVEs, the container isolation model and hardening (drop caps, read-only FS,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Container and Kubernetes Security — Pratik Dhanave">
+<meta property="og:description" content="Securing the runtime platform: minimal non-root images scanned for CVEs, the container isolation model and hardening (drop caps, read-only FS, seccomp), and Kubernetes — Pod Security Standards, RBAC, default-deny NetworkPolicies, and admission control (Gatekeeper/Kyverno).">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/devsecops-07-container-and-kubernetes-security.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-13T00:00:00Z">
+<meta property="article:tag" content="DevSecOps">
+<meta property="article:tag" content="Kubernetes">
+<meta property="article:tag" content="Containers">
+<meta property="article:tag" content="Security">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Container and Kubernetes Security — Pratik Dhanave">
+<meta name="twitter:description" content="Securing the runtime platform: minimal non-root images scanned for CVEs, the container isolation model and hardening (drop caps, read-only FS, seccomp), and Kubernetes — Pod Security Standards, RBAC, default-deny NetworkPolicies, and admission control (Gatekeeper/Kyverno).">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/devsecops-07-container-and-kubernetes-security.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Container and Kubernetes Security",
+  "description": "Securing the runtime platform: minimal non-root images scanned for CVEs, the container isolation model and hardening (drop caps, read-only FS, seccomp), and Kubernetes \u2014 Pod Security Standards, RBAC, default-deny NetworkPolicies, and admission control (Gatekeeper/Kyverno).",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-13",
+  "dateModified": "2026-08-13",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "DevSecOps, Kubernetes, Containers, Security",
+  "url": "https://pratikdhanave.com/blog/posts/devsecops-07-container-and-kubernetes-security.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/devsecops-07-container-and-kubernetes-security.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Container and Kubernetes Security</h1>
+    <p class="post-subtitle">Securing the runtime platform end to end — hardened images, least-privilege workloads, default-deny networks, and admission control as the gate that decides what is ever allowed to run.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-13">August 13, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/devsecops/" class="tag-link"><span class="tag">#DevSecOps</span></a><a href="/blog/tags/kubernetes/" class="tag-link"><span class="tag">#Kubernetes</span></a><a href="/blog/tags/containers/" class="tag-link"><span class="tag">#Containers</span></a><a href="/blog/tags/security/" class="tag-link"><span class="tag">#Security</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 7 of 8</span>
+    <span class="series-title">DevSecOps</span>
+    <div class="series-nav"><a href="/blog/posts/devsecops-06-iac-security-and-policy-as-code.html" class="series-prev">&larr; Part 6: Infrastructure as Code Security and Policy as Code</a>
+<a href="/blog/posts/devsecops-08-continuous-security.html" class="series-next">Part 8: Continuous Security: Monitoring, Compliance, and Culture &rarr;</a></div>
+  </div>
+
+
+
+  <p>Everything a DevSecOps pipeline does before deployment — scanning source, signing artifacts, writing policy — buys you nothing if the runtime happily accepts whatever shows up. The runtime platform is where an attacker actually lives: inside a running container, on a shared kernel, one misconfigured <code>securityContext</code> away from the node. This post walks the platform layer in the order it fails: the <strong>image</strong> you ship, the <strong>container</strong> it becomes, the <strong>Kubernetes</strong> workload that schedules it, the <strong>admission gate</strong> that decides whether it runs at all, and the <strong>runtime detection</strong> that catches what slips through.</p>
+<p>The through-line is four verbs: <strong>harden the image, least-privilege the workload, default-deny the network, enforce at admission.</strong> Each layer assumes the one before it failed.</p>
+<hr>
+<h2 id="image-security-ship-the-smallest-thing-that-works">Image security: ship the smallest thing that works</h2>
+<p>An image is your attack surface frozen in time. Every package, shell, and interpreter you bake in is something an attacker can use after they get code execution. The single highest-leverage move is to ship less.</p>
+<p><strong>Minimal and distroless base images.</strong> A full <code>ubuntu</code> or <code>debian</code> base carries a package manager, a shell, coreutils, and hundreds of libraries your app never calls — each a potential CVE and a ready-made toolkit for post-exploitation. Google&rsquo;s <code>distroless</code> images (<code>gcr.io/distroless/...</code>) strip all of that: no shell, no <code>apt</code>, just your runtime and its direct dependencies. <code>alpine</code> is a middle ground — tiny, but it still ships <code>busybox</code> and a shell. Fewer packages means fewer CVEs to scan, patch, and lose sleep over.</p>
+<p><strong>Multi-stage builds.</strong> Compile in a fat builder stage, then copy only the finished artifact into a minimal final stage. Your compiler, build tools, and source never reach production. For a Go binary this is nearly free; for interpreted languages you copy the app plus its resolved dependencies into a slim runtime.</p>
+<p><strong>Run as non-root.</strong> By default a container process runs as UID 0. If that process is compromised, the attacker is root <em>inside</em> the container — and root inside is far closer to root on the host than most people assume (more on that below). Create an unprivileged user and switch to it.</p>
+<p><strong>No secrets baked in.</strong> A secret in a <code>Dockerfile</code>, a build <code>ARG</code>, or a bundled config file is permanent — it lives in the image layers forever, readable by anyone who can <code>docker pull</code> and <code>docker history</code>. Inject secrets at runtime instead (covered in the secrets section).</p>
+<p>Here is a hardened multi-stage image that pulls all of this together:</p>
+<pre><code class="language-dockerfile"># ---- build stage: has the toolchain, never ships ----
+FROM golang:1.23 AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+# static binary so the final stage needs no libc
+RUN CGO_ENABLED=0 go build -o /out/app ./cmd/server
+
+# ---- final stage: distroless, non-root, minimal ----
+FROM gcr.io/distroless/static-debian12:nonroot
+# the :nonroot tag runs as an unprivileged UID by default
+COPY --from=build /out/app /app
+USER nonroot:nonroot
+EXPOSE 8080
+ENTRYPOINT [&quot;/app&quot;]
+</code></pre>
+<p><strong>The gotcha:</strong> pin base images by digest, not by a moving tag. <code>golang:1.23</code> and even <code>distroless/static-debian12:nonroot</code> are mutable — the same tag points at different bytes next week. An attacker (or a compromised upstream) who repoints a tag changes what you build without changing your <code>Dockerfile</code>. Pin the immutable digest — <code>FROM golang:1.23@sha256:&lt;digest&gt;</code> — so your build is reproducible and a poisoned tag can&rsquo;t silently swap your base out from under you. Update the digest deliberately, through review.</p>
+<h3 id="scan-images-for-cves-in-ci-and-at-the-registry">Scan images for CVEs in CI and at the registry</h3>
+<p>A pinned, minimal image still contains dependencies with known vulnerabilities — and new CVEs get published for images you built months ago. Scan continuously with a real scanner: <strong>Trivy</strong> (Aqua) and <strong>Grype</strong> (Anchore) both read the image&rsquo;s package manifest and OS metadata, match it against vulnerability databases, and report CVEs by severity. This is the recap of the supply-chain post (post 4): the scan belongs in CI so a vulnerable build never merges, <em>and</em> in the registry so newly disclosed CVEs in already-published images surface without a rebuild.</p>
+<pre><code class="language-bash"># fail the CI build if fixable HIGH/CRITICAL vulns are present
+trivy image --severity HIGH,CRITICAL --ignore-unfixed \
+  --exit-code 1 registry.example.com/app@sha256:&lt;digest&gt;
+
+# Grype does the equivalent; both also read SBOMs and filesystems
+grype registry.example.com/app@sha256:&lt;digest&gt;
+</code></pre>
+<p>Scanning tells you what&rsquo;s wrong. It does not stop a vulnerable image from running — that&rsquo;s a job for admission control, later in this post.</p>
+<hr>
+<h2 id="the-container-isolation-model-a-container-is-not-a-vm">The container isolation model: a container is not a VM</h2>
+<p>This is the mental model that everything else depends on. A container is <strong>not</strong> a security boundary in the way a virtual machine is. A VM has its own kernel and is isolated by the hypervisor. A container is just a normal Linux process on the host, dressed up by two kernel features:</p>
+<ul>
+<li><strong>Namespaces</strong> give the process an isolated <em>view</em> — its own PID space, network interfaces, mount table, hostname. It sees a private world.</li>
+<li><strong>cgroups</strong> limit what it can <em>consume</em> — CPU, memory, PIDs, I/O.</li>
+</ul>
+<p>Both are enforced by the <strong>host&rsquo;s single, shared kernel</strong>. Every container on a node runs against the same kernel as the host and every other container. That is the crucial difference from a VM: there is no second kernel between the container and the machine.</p>
+<p><strong>The gotcha:</strong> because the kernel is shared, a <strong>privileged or root container that escapes owns the node</strong> — and often the cluster. A <code>--privileged</code> container, a container with dangerous Linux capabilities, or one that mounts the host filesystem or Docker socket has a short path from &ldquo;code execution in the container&rdquo; to &ldquo;root on the host.&rdquo; A kernel vulnerability that a normal process couldn&rsquo;t reach becomes exploitable from inside a container with enough privileges. Treat container escape as a <em>when</em>, not an <em>if</em>, and make the escaped process as weak as possible.</p>
+<p>You weaken it with four levers, all available in the container runtime and in Kubernetes:</p>
+<ul>
+<li><strong>Drop capabilities.</strong> Linux splits root&rsquo;s power into ~40 capabilities. Most workloads need none of them. Drop <code>ALL</code>, then add back only what you truly need (rarely anything).</li>
+<li><strong>Read-only root filesystem.</strong> If the process can&rsquo;t write to its own filesystem, an attacker can&rsquo;t drop a binary, tamper with config, or persist. Mount specific writable paths (a temp dir) as <code>emptyDir</code> volumes.</li>
+<li><strong>No privilege escalation.</strong> Set <code>allowPrivilegeEscalation: false</code> so a child process can&rsquo;t gain more privileges than its parent via setuid binaries.</li>
+<li><strong>Seccomp and AppArmor/SELinux.</strong> Seccomp filters which <em>syscalls</em> the process may make — the <code>RuntimeDefault</code> profile blocks dozens of dangerous ones. AppArmor (or SELinux) adds mandatory access control on files and capabilities. Together they shrink the kernel surface an escaped process can attack.</li>
+</ul>
+<hr>
+<h2 id="kubernetes-least-privilege-the-workload">Kubernetes: least-privilege the workload</h2>
+<p>Kubernetes doesn&rsquo;t change the isolation model — it orchestrates it at scale, which means every weak default is now a weak default replicated across a fleet. Four areas need deliberate hardening.</p>
+<h3 id="pod-security-standards">Pod Security Standards</h3>
+<p>Kubernetes defines three built-in <strong>Pod Security Standards</strong> that codify the container levers above:</p>
+<ul>
+<li><strong>Privileged</strong> — no restrictions. Never for application workloads.</li>
+<li><strong>Baseline</strong> — blocks the widely-known bad stuff: no privileged containers, no host namespaces, no host ports. A sane floor.</li>
+<li><strong>Restricted</strong> — the hardened target: non-root, <code>allowPrivilegeEscalation: false</code>, drop <code>ALL</code> capabilities, <code>seccompProfile: RuntimeDefault</code>, read-only where possible.</li>
+</ul>
+<p>The built-in <strong>Pod Security Admission</strong> controller enforces these per-namespace via labels, in three modes: <code>enforce</code> (reject violating pods), <code>audit</code> (log them), and <code>warn</code> (return a warning to the user). Start with <code>warn</code>/<code>audit</code> to find violations, then flip to <code>enforce</code>.</p>
+<p>Here is a Deployment pod spec that satisfies the <strong>restricted</strong> standard:</p>
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: app }
+  template:
+    metadata:
+      labels: { app: app }
+    spec:
+      automountServiceAccountToken: false   # don't hand every pod an API token
+      serviceAccountName: app-sa            # a dedicated, least-privilege identity
+      securityContext:                      # pod-level defaults
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: registry.example.com/app@sha256:&lt;digest&gt;   # pinned by digest
+          securityContext:                  # container-level hardening
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [&quot;ALL&quot;]
+          resources:                        # cgroup limits — cap blast radius
+            requests: { cpu: &quot;100m&quot;, memory: &quot;128Mi&quot; }
+            limits:   { cpu: &quot;500m&quot;, memory: &quot;256Mi&quot; }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp } # writable scratch, since root FS is RO
+      volumes:
+        - name: tmp
+          emptyDir: {}
+</code></pre>
+<h3 id="rbac-least-privilege">RBAC least-privilege</h3>
+<p>Kubernetes RBAC controls what identities can do against the API server. The recurring failure is convenience-driven over-permissioning: binding a ServiceAccount to <code>cluster-admin</code> because a narrower Role was annoying to write. Don&rsquo;t. Grant each ServiceAccount only the verbs (<code>get</code>, <code>list</code>, <code>watch</code>, <code>create</code>…) on only the resources it needs, scoped to a namespace with a <code>Role</code>/<code>RoleBinding</code> rather than a cluster-wide <code>ClusterRole</code> wherever possible. Most application pods need <strong>no</strong> API access at all — which is why the spec above sets <code>automountServiceAccountToken: false</code>. A stolen token that can do nothing is a much smaller problem than one that can create pods anywhere.</p>
+<h3 id="networkpolicies-default-deny">NetworkPolicies: default-deny</h3>
+<p><strong>The gotcha:</strong> the default Kubernetes network is flat — <strong>any pod can reach any other pod</strong> in the cluster, across namespaces, with no restriction. A single compromised pod can then scan and pivot to your database, your internal APIs, everything. The fix is a <strong>default-deny</strong> posture: apply a NetworkPolicy that denies all ingress and egress in a namespace, then add narrow allow-rules for the traffic that must flow. Egress deny matters as much as ingress — it&rsquo;s what stops a compromised pod from phoning home or exfiltrating data.</p>
+<pre><code class="language-yaml">apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: payments
+spec:
+  podSelector: {}                 # every pod in the namespace
+  policyTypes: [&quot;Ingress&quot;, &quot;Egress&quot;]
+  # no ingress/egress rules = deny everything; add explicit allows separately
+</code></pre>
+<p>Note that NetworkPolicies are only enforced if your CNI plugin supports them (Calico, Cilium, and others do; some do not). A policy with no enforcing CNI is a comment, not a control.</p>
+<h3 id="secrets-handling">Secrets handling</h3>
+<p><strong>The gotcha:</strong> Kubernetes Secrets are <strong>base64-encoded, not encrypted</strong>. <code>base64</code> is an encoding, trivially reversible — anyone with read access to the Secret object, or to the underlying <code>etcd</code> datastore, reads the plaintext. By default etcd stores them unencrypted at rest. Two fixes, ideally both: enable <strong>encryption at rest</strong> for Secrets in the API server (backed by a real KMS provider — cloud KMS, HashiCorp Vault Transit — so the encryption key isn&rsquo;t itself sitting in the cluster), and pull secrets from a dedicated secrets manager using <strong>External Secrets Operator</strong> or the <strong>Secrets Store CSI Driver</strong> rather than committing Secret manifests to Git. This is the recap of the secrets post (post 5): the store is the source of truth, Kubernetes just projects a short-lived copy into the pod. Also lock down RBAC on Secret objects — <code>get</code>/<code>list</code> on secrets is a credential-theft primitive.</p>
+<hr>
+<h2 id="admission-control-the-policy-as-code-gate">Admission control: the policy-as-code gate</h2>
+<p>Here is the leak that undoes everything above. <strong>The gotcha:</strong> if you scan images in CI but let the cluster run whatever image is referenced, the gate leaks. Someone applies a manifest pointing at an unscanned, unsigned, or <code>:latest</code> image — or a pod with <code>privileged: true</code> — and CI never sees it. Enforcement has to live where pods are <em>actually admitted</em>: the Kubernetes API server&rsquo;s admission phase.</p>
+<p><strong>Admission controllers</strong> intercept every create/update request to the API server <em>before</em> the object is persisted, and can reject it. This is where policy-as-code (post 6) meets the runtime: instead of hoping every manifest author remembers the rules, you encode them as policy and the cluster enforces them uniformly. Two tools dominate:</p>
+<ul>
+<li><strong>OPA Gatekeeper</strong> — a validating admission webhook built on Open Policy Agent. You write policies in <strong>Rego</strong> as reusable <code>ConstraintTemplate</code>s, then instantiate <code>Constraint</code>s. Powerful and expressive; Rego has a learning curve.</li>
+<li><strong>Kyverno</strong> — a Kubernetes-native policy engine where policies are YAML <code>ClusterPolicy</code> resources. No new language; it can <strong>validate</strong>, <strong>mutate</strong> (inject secure defaults), and <strong>generate</strong> resources, and it has built-in image-verification for checking signatures.</li>
+</ul>
+<p>Typical policies to enforce at admission, tying the whole post together:</p>
+<ul>
+<li><strong>No privileged / no root</strong> — reject pods with <code>privileged: true</code>, <code>hostNetwork</code>, missing <code>runAsNonRoot</code>, or non-dropped capabilities. (Pod Security Admission covers much of this; Gatekeeper/Kyverno extend it to custom rules.)</li>
+<li><strong>Signed images only</strong> — verify the image&rsquo;s cryptographic signature (Cosign/Sigstore, from post 4) against your trusted key. Unsigned image, rejected.</li>
+<li><strong>Scanned-clean images only</strong> — require an attestation that the image passed scanning below your severity threshold, or restrict pulls to registries/digests known to be clean.</li>
+<li><strong>No mutable tags</strong> — require images be referenced by digest, not <code>:latest</code>.</li>
+</ul>
+<p>Conceptually, a Kyverno validate policy reads: <em>&ldquo;for every Pod, <code>spec.containers[*].securityContext.privileged</code> must be <code>false</code> or absent; otherwise deny with this message.&rdquo;</em> A Gatekeeper equivalent is a <code>ConstraintTemplate</code> whose Rego emits a violation when the field is <code>true</code>. Run policies in <code>audit</code>/<code>warn</code> first to see what would break, then switch to <code>enforce</code>. The exact CRD fields differ between the two — consult the current docs rather than trusting a remembered snippet.</p>
+<p>Admission control is the single most important runtime control because it&rsquo;s the <em>only</em> one that decides what is ever allowed to exist in the cluster. Every other control hardens what&rsquo;s already running; this one keeps the bad thing out.</p>
+<hr>
+<h2 id="runtime-threat-detection-assume-something-got-through">Runtime threat detection: assume something got through</h2>
+<p>Even a hardened, admission-gated cluster can be breached — a zero-day, a supply-chain compromise, a leaked credential. Runtime detection is your last layer: watching <em>behavior</em> and alerting when a running container does something it shouldn&rsquo;t. <strong>Falco</strong> (a CNCF project) is the standard open-source tool. It taps kernel syscalls (via eBPF or a kernel module) and evaluates them against rules, flagging things like:</p>
+<ul>
+<li>a shell spawned inside a container (<code>/bin/sh</code> in a distroless image should be impossible — a strong compromise signal),</li>
+<li>a process reading <code>/etc/shadow</code> or writing to a system binary directory,</li>
+<li>an unexpected outbound network connection,</li>
+<li>a write below a read-only path, or a container suddenly running as root.</li>
+</ul>
+<p>Falco turns your hardening assumptions into detections: because you shipped distroless and read-only, <em>any</em> shell or unexpected write is high-signal, not noise. Wire its alerts into your incident response so a detection triggers a human, or an automated response (kill the pod, cordon the node), fast.</p>
+<hr>
+<h2 id="the-layered-picture">The layered picture</h2>
+<table><caption class="sr-only">The layered picture</caption>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Control</th>
+<th>What it stops</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Image</td>
+<td>Distroless, multi-stage, non-root, pin by digest</td>
+<td>Bloated attack surface, poisoned base tags</td>
+</tr>
+<tr>
+<td>Image</td>
+<td>Trivy / Grype scan in CI + registry</td>
+<td>Known CVEs shipping to prod</td>
+</tr>
+<tr>
+<td>Container</td>
+<td>Drop caps, read-only FS, no privileged, seccomp/AppArmor</td>
+<td>A compromised process escaping to the node</td>
+</tr>
+<tr>
+<td>Kubernetes</td>
+<td>Pod Security Standards (restricted)</td>
+<td>Insecure pod configs across the fleet</td>
+</tr>
+<tr>
+<td>Kubernetes</td>
+<td>RBAC least-privilege</td>
+<td>A stolen token doing damage</td>
+</tr>
+<tr>
+<td>Kubernetes</td>
+<td>Default-deny NetworkPolicies</td>
+<td>Lateral movement and exfiltration</td>
+</tr>
+<tr>
+<td>Kubernetes</td>
+<td>KMS encryption / External Secrets</td>
+<td>Plaintext secret theft from etcd</td>
+</tr>
+<tr>
+<td>Admission</td>
+<td>OPA Gatekeeper / Kyverno</td>
+<td>Unsigned, unscanned, privileged workloads running</td>
+</tr>
+<tr>
+<td>Runtime</td>
+<td>Falco</td>
+<td>Post-breach behavior in a live container</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Ship the smallest image.</strong> Distroless base, multi-stage build, non-root user, no baked-in secrets, pinned by digest. Less image is less attack surface and fewer CVEs.</li>
+<li><strong>A container is not a VM.</strong> It&rsquo;s a process on a shared kernel, isolated only by namespaces and cgroups. Assume escape is possible and make the escaped process powerless — drop capabilities, read-only root FS, never privileged.</li>
+<li><strong>Least-privilege the workload.</strong> Restricted Pod Security Standard, scoped RBAC (not <code>cluster-admin</code>), and a dedicated ServiceAccount with <code>automountServiceAccountToken: false</code>.</li>
+<li><strong>The network is flat by default.</strong> Apply default-deny NetworkPolicies for both ingress and egress; egress control is what stops exfiltration.</li>
+<li><strong>Kubernetes Secrets are base64, not encrypted.</strong> Enable KMS-backed encryption at rest and pull from a real secrets store via External Secrets.</li>
+<li><strong>Enforce at admission.</strong> Scanning in CI without an admission gate leaks. Use OPA Gatekeeper or Kyverno to admit only signed, scanned-clean, non-privileged, digest-pinned images — this is policy-as-code where it counts.</li>
+<li><strong>Detect at runtime with Falco.</strong> Assume something gets through; hardened images make anomalous behavior high-signal.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://www.cisecurity.org/benchmark/kubernetes">CIS Kubernetes Benchmark</a> — consensus hardening checklist for clusters.</li>
+<li><a href="https://www.cisecurity.org/benchmark/docker">CIS Docker Benchmark</a> — the equivalent for container hosts and images.</li>
+<li><a href="https://kubernetes.io/docs/concepts/security/pod-security-standards/">Kubernetes Pod Security Standards</a> — official Baseline/Restricted definitions.</li>
+<li><a href="https://kubernetes.io/docs/concepts/services-networking/network-policies/">Kubernetes Network Policies</a> — including default-deny examples.</li>
+<li><a href="https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/">Encrypting Confidential Data at Rest</a> — enabling KMS-backed Secret encryption.</li>
+<li><a href="https://open-policy-agent.github.io/gatekeeper/website/docs/">OPA Gatekeeper</a> — policy-as-code admission with Rego.</li>
+<li><a href="https://kyverno.io/docs/">Kyverno</a> — Kubernetes-native validate/mutate/generate policies and image verification.</li>
+<li><a href="https://falco.org/docs/">Falco</a> — CNCF runtime threat detection.</li>
+<li><a href="https://trivy.dev/">Trivy</a> — image, filesystem, and IaC vulnerability scanning.</li>
+<li><a href="https://github.com/GoogleContainerTools/distroless">Distroless images</a> — minimal base images with no shell or package manager.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-security-07-securing-the-ai-pipeline.html">Securing the AI Pipeline</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/devsecops-05-secrets-management.html">Secrets Management: Keeping Credentials Out of Code and Under Control</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    <li>
+      <a href="/blog/posts/devsecops-01-what-is-devsecops.html">What DevSecOps Is</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

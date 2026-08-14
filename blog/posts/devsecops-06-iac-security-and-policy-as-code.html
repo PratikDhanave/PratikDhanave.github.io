@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Infrastructure as Code Security and Policy as Code</title>
+<meta name="description" content="Securing infrastructure definitions and enforcing guardrails automatically: IaC scanning (Checkov/tfsec/Trivy) for misconfig, drift detection, and...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Infrastructure as Code Security and Policy as Code">
+<meta property="og:description" content="Securing infrastructure definitions and enforcing guardrails automatically: IaC scanning (Checkov/tfsec/Trivy) for misconfig, drift detection, and policy-as-code with OPA/Rego + Conftest so org rules block bad infra before apply — not in a wiki.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/devsecops-06-iac-security-and-policy-as-code.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-12T00:00:00Z">
+<meta property="article:tag" content="DevSecOps">
+<meta property="article:tag" content="IaC">
+<meta property="article:tag" content="Policy as Code">
+<meta property="article:tag" content="OPA">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Infrastructure as Code Security and Policy as Code">
+<meta name="twitter:description" content="Securing infrastructure definitions and enforcing guardrails automatically: IaC scanning (Checkov/tfsec/Trivy) for misconfig, drift detection, and policy-as-code with OPA/Rego + Conftest so org rules block bad infra before apply — not in a wiki.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/devsecops-06-iac-security-and-policy-as-code.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Infrastructure as Code Security and Policy as Code",
+  "description": "Securing infrastructure definitions and enforcing guardrails automatically: IaC scanning (Checkov/tfsec/Trivy) for misconfig, drift detection, and policy-as-code with OPA/Rego + Conftest so org rules block bad infra before apply \u2014 not in a wiki.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-12",
+  "dateModified": "2026-08-12",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "DevSecOps, IaC, Policy as Code, OPA",
+  "url": "https://pratikdhanave.com/blog/posts/devsecops-06-iac-security-and-policy-as-code.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/devsecops-06-iac-security-and-policy-as-code.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Infrastructure as Code Security and Policy as Code</h1>
+    <p class="post-subtitle">Why your Terraform is a security control point, how misconfiguration scanners catch public buckets and open ingress before apply, and how to encode org guardrails as executable policy with OPA/Rego, Conftest, and Sentinel instead of a wiki page nobody reads.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-12">August 12, 2026</time>
+      <span>·</span>
+      <span>15 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/devsecops/" class="tag-link"><span class="tag">#DevSecOps</span></a><a href="/blog/tags/iac/" class="tag-link"><span class="tag">#IaC</span></a><a href="/blog/tags/policy-as-code/" class="tag-link"><span class="tag">#Policy as Code</span></a><a href="/blog/tags/opa/" class="tag-link"><span class="tag">#OPA</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 6 of 8</span>
+    <span class="series-title">DevSecOps</span>
+    <div class="series-nav"><a href="/blog/posts/devsecops-05-secrets-management.html" class="series-prev">&larr; Part 5: Secrets Management: Keeping Credentials Out of Code and Under Control</a>
+<a href="/blog/posts/devsecops-07-container-and-kubernetes-security.html" class="series-next">Part 7: Container and Kubernetes Security &rarr;</a></div>
+  </div>
+
+
+
+  <p>When infrastructure was provisioned by hand — a console click here, an SSH session there — a mistake was usually a <em>one-off</em>. Someone forgot to tick &ldquo;encrypt this volume,&rdquo; and one volume shipped unencrypted. Infrastructure as Code changed the blast radius. Now the mistake lives in a file, that file gets reviewed once, merged, and then <strong>reused across every environment and every team that imports the module</strong>. A single wrong default doesn&rsquo;t produce one incident; it produces N identical incidents, deployed faster and more reliably than any human could manage.</p>
+<p>That is the uncomfortable truth about IaC: the same properties that make it good engineering — repeatability, version control, reuse — make it a <em>force multiplier for misconfiguration</em>. A public S3 bucket, a security group open to <code>0.0.0.0/0</code>, an IAM role with <code>*</code> permissions — these are no longer accidents you find in an audit. They are code, and code scales. Which means IaC is also the best place in your whole stack to <em>catch</em> those problems: earlier, cheaper, and before anything real exists to exploit. This post is about treating your infrastructure definitions as a security control point, and enforcing the rules automatically rather than hoping reviewers remember them.</p>
+<hr>
+<h2 id="why-iac-is-a-security-control-point">Why IaC is a security control point</h2>
+<p>The design principle here is <strong>shift left</strong>: move security checks as close to the developer&rsquo;s keyboard as you can, because the cost of fixing a problem grows the further right it travels. Catching a public bucket in a pull request costs a review comment. Catching it in production costs an incident, a disclosure timeline, and a postmortem.</p>
+<p>IaC makes this shift possible because the desired state of your infrastructure is now a static, machine-readable artifact <em>before</em> it exists. A Terraform plan, a CloudFormation template, a Kubernetes manifest — these can be read, parsed, and judged against rules without touching a cloud account. Compare that to runtime security, where you can only detect the open port after it&rsquo;s already open and reachable. IaC lets you ask &ldquo;is this configuration safe?&rdquo; at the point where the answer still costs nothing to act on.</p>
+<p>The categories of misconfiguration are remarkably consistent across organizations, and they map directly onto well-documented baselines like the CIS Benchmarks and NIST SP 800-53. The usual suspects:</p>
+<ul>
+<li><strong>Public storage</strong> — object storage (S3, GCS, Azure Blob) with public-read ACLs or policies, or block-public-access disabled.</li>
+<li><strong>Overly permissive network ingress</strong> — security groups or firewall rules allowing <code>0.0.0.0/0</code> on administrative ports (SSH 22, RDP 3389) or databases.</li>
+<li><strong>Unencrypted data at rest</strong> — volumes, buckets, databases, and snapshots created without encryption, or without a customer-managed key where policy requires one.</li>
+<li><strong>Over-broad IAM</strong> — roles and policies granting <code>*</code> actions on <code>*</code> resources, wildcard principals, or <code>iam:PassRole</code> without constraints.</li>
+<li><strong>Missing logging and audit trails</strong> — resources created without access logging, flow logs, or a CloudTrail/audit sink, so an incident later has no forensic record.</li>
+</ul>
+<p>None of these are exotic. That&rsquo;s the point — they&rsquo;re common precisely because the insecure option is often the <em>default</em>, and IaC faithfully reproduces defaults.</p>
+<p><strong>The gotcha:</strong> a single insecure module is deployed everywhere it&rsquo;s reused. If your <code>terraform-aws-s3-bucket</code> module ships with public access allowed and forty teams import it, you don&rsquo;t have one finding — you have forty, and they&rsquo;ll keep multiplying every time someone runs <code>terraform apply</code>. Fix the vulnerability at the <em>module source</em>, then track down every consumer; scanning only the leaf configurations means you patch symptoms while the root keeps spreading.</p>
+<hr>
+<h2 id="scanning-iac-for-misconfiguration-in-ci">Scanning IaC for misconfiguration in CI</h2>
+<p>The first line of defense is a static analysis scanner that reads your infrastructure definitions and flags known-bad patterns. Several mature open-source tools do this, and it&rsquo;s worth knowing what each is:</p>
+<ul>
+<li><strong>Checkov</strong> (by Bridgecrew/Prisma Cloud) — a Python-based scanner with a large library of built-in policies covering Terraform, CloudFormation, Kubernetes, Helm, ARM, and more. Findings are keyed by stable check IDs (e.g. <code>CKV_AWS_18</code>), which makes suppression and tracking sane.</li>
+<li><strong>tfsec</strong> — originally a dedicated Terraform static analyzer with fast, Terraform-aware checks. Its checks and engine have been folded into <strong>Trivy</strong>, so new work generally targets Trivy directly.</li>
+<li><strong>Trivy</strong> (by Aqua Security) — a broad scanner that covers container images, filesystems, and IaC/misconfiguration in one tool, which is convenient when you want a single binary across your pipeline.</li>
+</ul>
+<p>These tools are complementary to policy-as-code, not a replacement — they ship <em>opinionated, maintained rule sets</em> derived from public benchmarks so you don&rsquo;t have to author every rule yourself. Run them in CI on every pull request that touches infrastructure, and fail the build on findings above a severity threshold you choose.</p>
+<p>Here&rsquo;s the shape of what a scanner catches. This Terraform is the kind of thing that looks fine at a glance and is quietly dangerous:</p>
+<pre><code class="language-hcl"># INSECURE — do not ship this
+resource &quot;aws_s3_bucket&quot; &quot;reports&quot; {
+  bucket = &quot;acme-quarterly-reports&quot;
+}
+
+resource &quot;aws_s3_bucket_public_access_block&quot; &quot;reports&quot; {
+  bucket                  = aws_s3_bucket.reports.id
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource &quot;aws_security_group&quot; &quot;db&quot; {
+  name = &quot;db-sg&quot;
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = &quot;tcp&quot;
+    cidr_blocks = [&quot;0.0.0.0/0&quot;] # database open to the entire internet
+  }
+}
+</code></pre>
+<p>A scanner flags the disabled public-access block and the wide-open ingress immediately. The remediated version closes both, adds encryption, and turns on logging:</p>
+<pre><code class="language-hcl"># SECURE
+resource &quot;aws_s3_bucket&quot; &quot;reports&quot; {
+  bucket = &quot;acme-quarterly-reports&quot;
+  tags   = { owner = &quot;data-platform&quot;, environment = &quot;prod&quot; }
+}
+
+resource &quot;aws_s3_bucket_public_access_block&quot; &quot;reports&quot; {
+  bucket                  = aws_s3_bucket.reports.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource &quot;aws_s3_bucket_server_side_encryption_configuration&quot; &quot;reports&quot; {
+  bucket = aws_s3_bucket.reports.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = &quot;aws:kms&quot;
+    }
+  }
+}
+
+resource &quot;aws_s3_bucket_logging&quot; &quot;reports&quot; {
+  bucket        = aws_s3_bucket.reports.id
+  target_bucket = aws_s3_bucket.audit_logs.id
+  target_prefix = &quot;reports/&quot;
+}
+
+resource &quot;aws_security_group&quot; &quot;db&quot; {
+  name = &quot;db-sg&quot;
+  ingress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = &quot;tcp&quot;
+    security_groups = [aws_security_group.app.id] # only the app tier
+  }
+}
+</code></pre>
+<p>The secure version isn&rsquo;t cleverer — it just doesn&rsquo;t take the dangerous default. That&rsquo;s most of IaC security: refusing the easy wrong thing, consistently, everywhere.</p>
+<p><strong>The gotcha:</strong> scanners read the <em>code</em>, and code isn&rsquo;t always the whole truth. A finding can be a genuine false positive (a bucket that&rsquo;s public on purpose because it serves a static website) or a suppression someone added six months ago and forgot. Use the tool&rsquo;s inline suppression syntax with a required justification, review suppressions in code review like any other change, and periodically audit what&rsquo;s been silenced — an ignored finding is a decision, and decisions decay.</p>
+<hr>
+<h2 id="drift-when-reality-diverges-from-the-code">Drift: when reality diverges from the code</h2>
+<p>Scanning proves your <em>code</em> is safe. It says nothing about whether the running infrastructure still matches that code. <strong>Drift</strong> is what happens when someone changes infrastructure out-of-band — a hotfix in the console at 2 a.m., a support engineer widening a security group to debug, a resource created manually and never captured. The code says one thing; the cloud says another.</p>
+<p>Drift is corrosive to IaC security specifically because your whole safety argument rests on &ldquo;the code is the source of truth.&rdquo; Once reality diverges, your green CI runs are checking a fiction. The public-access block your Terraform enforces means nothing if someone toggled it off directly in the console and Terraform hasn&rsquo;t reconciled.</p>
+<p>Terraform detects drift through its plan mechanism: <code>terraform plan</code> refreshes state against the real provider and shows you the delta between declared and actual. A scheduled plan (often called a <em>detect-drift</em> job) that runs on a cadence and alerts when the plan is non-empty turns drift from an invisible slow leak into a monitored signal. Some teams run this hourly on production workspaces; the exact cadence matters less than having one at all.</p>
+<p><strong>The gotcha:</strong> scanning your code while allowing manual console changes gives you <em>false confidence</em>. You&rsquo;ve secured the artifact and left the door to bypass it wide open — every out-of-band change silently reintroduces the risk your pipeline was built to prevent. Drift detection is only half the fix; the other half is <em>forbidding</em> out-of-band changes, which is an IAM and process problem covered below.</p>
+<hr>
+<h2 id="policy-as-code-turning-org-rules-into-executable-checks">Policy as Code: turning org rules into executable checks</h2>
+<p>Off-the-shelf scanners enforce <em>industry</em> baselines. But every organization also has its own rules: &ldquo;every resource must carry an <code>owner</code> tag,&rdquo; &ldquo;production databases must use customer-managed KMS keys,&rdquo; &ldquo;no security group may allow ingress from another account&rsquo;s VPC.&rdquo; These live, in most companies, in a wiki page or a Confluence doc — which is to say they live nowhere, because a rule that isn&rsquo;t executable is a suggestion.</p>
+<p><strong>Policy as Code</strong> is the practice of writing those rules as programs that run in your pipeline and return pass/fail. The two dominant approaches:</p>
+<ul>
+<li><strong>Open Policy Agent (OPA)</strong> with its policy language <strong>Rego</strong>, typically invoked over IaC via <strong>Conftest</strong>, which runs Rego policies against structured config files (Terraform plan JSON, Kubernetes YAML, Dockerfiles). OPA is a CNCF-graduated, general-purpose policy engine — the same Rego you write for Terraform can later gate Kubernetes admission (more on that below).</li>
+<li><strong>HashiCorp Sentinel</strong>, a policy-as-code framework embedded in Terraform Cloud/Enterprise that evaluates policies against a plan before apply, with enforcement levels (advisory, soft-mandatory, hard-mandatory).</li>
+</ul>
+<p>Here&rsquo;s a Rego policy that denies any S3 bucket whose public-access block isn&rsquo;t fully locked down. Conftest evaluates this against the JSON output of <code>terraform show -json plan.out</code>:</p>
+<pre><code class="language-rego">package main
+
+# Deny any public-access-block resource that leaves a gate open.
+deny contains msg if {
+    resource := input.resource_changes[_]
+    resource.type == &quot;aws_s3_bucket_public_access_block&quot;
+    after := resource.change.after
+
+    # any of the four guards being false means the bucket can be made public
+    guards := [&quot;block_public_acls&quot;, &quot;block_public_policy&quot;,
+               &quot;ignore_public_acls&quot;, &quot;restrict_public_buckets&quot;]
+    guard := guards[_]
+    after[guard] == false
+
+    msg := sprintf(
+        &quot;S3 bucket '%s' has '%s' disabled — public access is possible; all four guards must be true&quot;,
+        [resource.address, guard],
+    )
+}
+</code></pre>
+<p>And a companion rule enforcing the org&rsquo;s tagging standard, because &ldquo;who owns this?&rdquo; is a security question the day something goes wrong:</p>
+<pre><code class="language-rego"># Every taggable resource must declare an owner.
+deny contains msg if {
+    resource := input.resource_changes[_]
+    tags := object.get(resource.change.after, &quot;tags&quot;, {})
+    not tags.owner
+    msg := sprintf(&quot;Resource '%s' is missing the required 'owner' tag&quot;, [resource.address])
+}
+</code></pre>
+<p>The value here is that the rule <em>is</em> the documentation. There&rsquo;s no gap between &ldquo;what the policy says&rdquo; and &ldquo;what the pipeline enforces,&rdquo; because they&rsquo;re the same artifact, versioned alongside the code it governs.</p>
+<p><strong>The gotcha:</strong> policy-as-code in the pipeline only guards what <em>goes through</em> the pipeline. If a human can <code>terraform apply</code> from a laptop, or click in the console, they apply around your policies entirely — the guardrail exists but nobody&rsquo;s obliged to walk through the gate. Pipeline enforcement must be paired with admission-time enforcement (evaluating the same policies at the cluster or cloud-control-plane boundary) and with IAM that makes the pipeline the <em>only</em> path to change. Enforcing in one place and leaving the others open is enforcing nowhere.</p>
+<hr>
+<h2 id="guardrails-vs-gates-prevent-dont-just-report">Guardrails vs. gates: prevent, don&rsquo;t just report</h2>
+<p>There&rsquo;s an important distinction in how policy runs. A <strong>gate</strong> is a check that reports a verdict — it can pass or fail a build, but it&rsquo;s fundamentally <em>detective</em>. A <strong>guardrail</strong> is <em>preventive</em>: it stops the bad infrastructure from ever being created, ideally before <code>apply</code> runs. The strongest posture combines both, and the design goal is to push enforcement as early and as unavoidable as possible.</p>
+<p>In practice this is a spectrum:</p>
+<table><caption class="sr-only">Guardrails vs. gates: prevent, don&rsquo;t just report</caption>
+<thead>
+<tr>
+<th>Where enforcement happens</th>
+<th>Type</th>
+<th>What it catches</th>
+<th>Bypass risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pre-commit hook / local scan</td>
+<td>Advisory</td>
+<td>Obvious issues, fast feedback</td>
+<td>High — trivially skipped</td>
+</tr>
+<tr>
+<td>CI pull-request check</td>
+<td>Gate</td>
+<td>Everything scannable, blocks merge</td>
+<td>Medium — needs branch protection</td>
+</tr>
+<tr>
+<td>Pre-apply policy (Sentinel / Conftest on plan)</td>
+<td>Guardrail</td>
+<td>Policy violations before provisioning</td>
+<td>Low — if apply only runs in the pipeline</td>
+</tr>
+<tr>
+<td>Admission control (OPA/Gatekeeper, cloud policy)</td>
+<td>Guardrail</td>
+<td>Anything reaching the control plane, incl. out-of-band</td>
+<td>Lowest — enforced at the boundary</td>
+</tr>
+</tbody>
+</table>
+<p>The lesson is that no single layer is sufficient. Pre-commit hooks give fast feedback but are trivially skipped. CI gates are solid but only bind if branch protection requires them and applies run in the pipeline. Pre-apply guardrails stop bad plans, but only for plans that go through the pipeline. Admission control at the control plane catches what everything upstream missed — including manual changes. <strong>Defense in depth means the same rule enforced at multiple layers</strong>, so a bypass at one is caught at the next.</p>
+<hr>
+<h2 id="least-privilege-for-the-iac-pipeline-itself">Least privilege for the IaC pipeline itself</h2>
+<p>Here&rsquo;s a blind spot that shows up constantly. Teams spend weeks hardening the infrastructure their pipeline <em>produces</em>, and give the pipeline itself a god-mode credential — an IAM role that can create, modify, and delete essentially anything, sitting in a CI system reachable by anyone who can open a pull request.</p>
+<p>Think about what that credential is. Your CI runner is now the single most powerful identity in your cloud account, and it executes code from every branch. A compromised dependency in your build, a malicious pull request that runs during plan, a leaked CI token — any of these inherits the ability to create <em>anything</em>. The pipeline that enforces least privilege everywhere else is often the one place it isn&rsquo;t applied.</p>
+<p>The remediation follows standard least-privilege principles from NIST and the CIS Benchmarks, applied to the automation identity:</p>
+<ul>
+<li><strong>Scope the role to what the code actually manages.</strong> If a pipeline only manages networking, it doesn&rsquo;t need IAM-write or the ability to create databases. Grant the specific actions on the specific resource scopes, not <code>*</code>.</li>
+<li><strong>Separate plan from apply.</strong> <code>plan</code> needs only read/describe permissions; <code>apply</code> needs write. Running plan under a read-only identity means the vast majority of pipeline executions — every PR — never hold write credentials at all.</li>
+<li><strong>Use short-lived, federated credentials</strong> (OIDC from the CI provider to the cloud) rather than long-lived static keys stored as secrets. A credential that expires in an hour and is minted per-run is far less useful to an attacker than a key that lives in a settings page.</li>
+<li><strong>Constrain by environment.</strong> The role that can touch production should be assumable only from the protected pipeline on the protected branch, not from a feature branch or a developer&rsquo;s machine.</li>
+</ul>
+<p><strong>The gotcha:</strong> the IaC pipeline&rsquo;s credentials are often the most over-privileged identity in the whole account precisely because &ldquo;it needs to create infrastructure&rdquo; is treated as a blank check. It isn&rsquo;t — it needs to create <em>specific</em> infrastructure. An attacker who lands code execution in your pipeline doesn&rsquo;t need to find a privilege escalation if the pipeline already has every privilege there is.</p>
+<hr>
+<h2 id="immutable-infrastructure-and-reviewed-plans">Immutable infrastructure and reviewed plans</h2>
+<p>The final pillar is process, and it&rsquo;s what makes everything above hold together. Two disciplines:</p>
+<p><strong>Reviewed plans.</strong> The <code>terraform plan</code> output is a security artifact — it&rsquo;s the precise, reviewable statement of what&rsquo;s about to change. Requiring that a plan be reviewed and approved before <code>apply</code> (as a mandatory step, not a courtesy) means a human and your policy engine both see the diff before it touches reality. This is where policy-as-code and human review reinforce each other: the machine catches the rules it knows, the human catches the intent it can&rsquo;t encode.</p>
+<p><strong>Immutable infrastructure and no manual changes.</strong> The strongest defense against drift is to make out-of-band change <em>impossible</em> rather than merely discouraged. Immutable infrastructure — where you replace resources rather than mutating them in place, and where the pipeline is the only identity with write access — closes the console-change loophole structurally. If nobody <em>can</em> click in the console (because interactive human roles are read-only in production), there&rsquo;s nothing to drift toward. Combined with drift detection as a backstop, out-of-band change stops being a routine risk and becomes an alarm.</p>
+<p>The through-line of this whole post: security controls that depend on people remembering things fail quietly and at scale. Controls encoded as code — scanned, gated, and enforced by the pipeline — fail loudly, in a pull request, before anything real is at stake.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>IaC is a security control point, for better and worse.</strong> Reuse makes one misconfiguration into N incidents — and also makes one fix protect N deployments. Fix vulnerabilities at the module source, not just the leaf.</li>
+<li><strong>Scan every infrastructure change in CI.</strong> Checkov, tfsec, and Trivy ship maintained rule sets derived from CIS/NIST baselines; catch public storage, open ingress, missing encryption, over-broad IAM, and absent logging before apply.</li>
+<li><strong>Drift breaks your source-of-truth assumption.</strong> Detect it with scheduled plans, and — more importantly — prevent it by forbidding manual changes.</li>
+<li><strong>Policy as Code puts org rules where they&rsquo;re enforced, not where they&rsquo;re forgotten.</strong> Rego with Conftest, or Sentinel in Terraform Cloud, makes &ldquo;no public buckets, must be encrypted, must have an owner&rdquo; executable.</li>
+<li><strong>Prefer preventive guardrails over detective gates, at multiple layers.</strong> Enforce in the pipeline <em>and</em> at admission, because pipeline-only policy is bypassed the moment someone applies around it.</li>
+<li><strong>Scope the pipeline&rsquo;s own credentials.</strong> The identity that provisions everything is your highest-value target — separate plan from apply, use short-lived federated credentials, and constrain by environment.</li>
+<li><strong>Require reviewed plans and immutable infra.</strong> Make out-of-band change structurally impossible, and let the plan diff be the security review.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://www.checkov.io/">Checkov documentation</a> — checks, suppression syntax, and supported frameworks.</li>
+<li><a href="https://trivy.dev/latest/docs/scanner/misconfiguration/">Trivy misconfiguration scanning</a> — IaC/misconfig scanning, which now incorporates the tfsec engine.</li>
+<li><a href="https://github.com/aquasecurity/tfsec">tfsec (Aqua Security)</a> — the original Terraform scanner and its migration into Trivy.</li>
+<li><a href="https://www.openpolicyagent.org/">Open Policy Agent</a> and the <a href="https://www.openpolicyagent.org/docs/latest/policy-language/">Rego policy language reference</a>.</li>
+<li><a href="https://www.conftest.dev/">Conftest</a> — running Rego policies against structured configuration files.</li>
+<li><a href="https://developer.hashicorp.com/sentinel">HashiCorp Sentinel</a> — policy as code for Terraform Cloud/Enterprise, including enforcement levels.</li>
+<li><a href="https://developer.hashicorp.com/terraform/language/state/sensitive-data">Terraform recommended practices and security</a> — handling sensitive data and state safely.</li>
+<li><a href="https://www.cisecurity.org/cis-benchmarks">CIS Benchmarks</a> — the configuration baselines most IaC scanners encode.</li>
+<li><a href="https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final">NIST SP 800-53</a> — the control catalog behind least-privilege and audit-logging requirements.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/devsecops-08-continuous-security.html">Continuous Security: Monitoring, Compliance, and Culture</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-08-secure-api-lifecycle.html">The Secure API Lifecycle</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/devsecops-07-container-and-kubernetes-security.html">Container and Kubernetes Security</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

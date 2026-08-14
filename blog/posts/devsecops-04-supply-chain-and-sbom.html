@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Software Supply Chain Security and SBOMs — Pratik Dhanave</title>
+<meta name="description" content="Securing everything you didn&#x27;t write: SCA for known-vulnerable dependencies, the supply-chain threat model (typosquatting, dependency confusion, build...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Software Supply Chain Security and SBOMs — Pratik Dhanave">
+<meta property="og:description" content="Securing everything you didn&#x27;t write: SCA for known-vulnerable dependencies, the supply-chain threat model (typosquatting, dependency confusion, build compromise), SBOMs (SPDX/CycloneDX), and provenance/integrity with SLSA and Sigstore signing.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/devsecops-04-supply-chain-and-sbom.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-10T00:00:00Z">
+<meta property="article:tag" content="DevSecOps">
+<meta property="article:tag" content="Supply Chain">
+<meta property="article:tag" content="SBOM">
+<meta property="article:tag" content="SLSA">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Software Supply Chain Security and SBOMs — Pratik Dhanave">
+<meta name="twitter:description" content="Securing everything you didn&#x27;t write: SCA for known-vulnerable dependencies, the supply-chain threat model (typosquatting, dependency confusion, build compromise), SBOMs (SPDX/CycloneDX), and provenance/integrity with SLSA and Sigstore signing.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/devsecops-04-supply-chain-and-sbom.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Software Supply Chain Security and SBOMs",
+  "description": "Securing everything you didn't write: SCA for known-vulnerable dependencies, the supply-chain threat model (typosquatting, dependency confusion, build compromise), SBOMs (SPDX/CycloneDX), and provenance/integrity with SLSA and Sigstore signing.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-10",
+  "dateModified": "2026-08-10",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "DevSecOps, Supply Chain, SBOM, SLSA",
+  "url": "https://pratikdhanave.com/blog/posts/devsecops-04-supply-chain-and-sbom.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/devsecops-04-supply-chain-and-sbom.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Software Supply Chain Security and SBOMs</h1>
+    <p class="post-subtitle">Securing everything you didn&#x27;t write — from finding known-vulnerable dependencies with SCA, to generating an SBOM you actually act on, to proving provenance with signatures and SLSA so you know and verify what you ship.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-10">August 10, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/devsecops/" class="tag-link"><span class="tag">#DevSecOps</span></a><a href="/blog/tags/supply-chain/" class="tag-link"><span class="tag">#Supply Chain</span></a><a href="/blog/tags/sbom/" class="tag-link"><span class="tag">#SBOM</span></a><a href="/blog/tags/slsa/" class="tag-link"><span class="tag">#SLSA</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 4 of 8</span>
+    <span class="series-title">DevSecOps</span>
+    <div class="series-nav"><a href="/blog/posts/devsecops-03-sast-dast-and-security-testing.html" class="series-prev">&larr; Part 3: SAST, DAST, and Security Testing in CI</a>
+<a href="/blog/posts/devsecops-05-secrets-management.html" class="series-next">Part 5: Secrets Management: Keeping Credentials Out of Code and Under Control &rarr;</a></div>
+  </div>
+
+
+
+  <p>Open any modern application and read the code you actually wrote. It&rsquo;s the small part. The rest — the framework, the HTTP client, the JSON parser, the crypto library, the logging shim, and the hundreds of packages <em>those</em> pull in — is code you inherited. A typical service ships thousands of third-party components, most of them arriving as <strong>transitive dependencies</strong>: the libraries your libraries depend on, several levels deep, that you never chose and often can&rsquo;t name.</p>
+<p>That inherited code is your attack surface. Software supply chain security is the discipline of defending it — not by rewriting everything from scratch, but by knowing exactly what you ship, proving where it came from, and refusing to ship anything you can&rsquo;t account for. This post walks the full chain: finding vulnerable components (SCA), pinning and updating them, the threat model that makes this urgent, the SBOM that inventories it all, and the provenance and signing that let you <em>verify</em> rather than merely <em>hope</em>.</p>
+<hr>
+<h2 id="the-modern-app-is-mostly-dependencies">The modern app is mostly dependencies</h2>
+<p>Software Composition Analysis (SCA) is the practice of inventorying your dependencies and matching them against known-vulnerability databases. When a CVE is published against a library — say a deserialization flaw in a widely used parser — an SCA scanner tells you whether that library is in your dependency graph, at what version, and whether a fixed version exists.</p>
+<p>Three tools dominate the open-source SCA space:</p>
+<ul>
+<li><strong>Trivy</strong> (Aqua Security) — scans filesystems, container images, and repositories for vulnerable OS packages and language dependencies, and flags license issues.</li>
+<li><strong>Grype</strong> (Anchore) — a vulnerability scanner that pairs naturally with Syft&rsquo;s inventory output.</li>
+<li><strong>Dependabot</strong> (GitHub) — runs continuously against your repository, opens pull requests to bump vulnerable or outdated dependencies, and surfaces alerts in the security tab.</li>
+</ul>
+<p>A first scan is usually sobering. Run one against an established codebase and you&rsquo;ll see findings you didn&rsquo;t introduce and can&rsquo;t easily trace to code you wrote:</p>
+<pre><code class="language-bash"># Scan a container image for known-vulnerable packages and misconfigurations
+trivy image myorg/payments-api:1.4.2
+
+# Scan the current project's dependency manifests directly
+trivy fs .
+
+# Grype reading an image, filtered to fixable findings only
+grype myorg/payments-api:1.4.2 --only-fixed
+</code></pre>
+<p><strong>The gotcha:</strong> your transitive dependencies are your attack surface too. It&rsquo;s tempting to scan only your direct dependencies — the ones in your <code>package.json</code>, <code>go.mod</code>, or <code>requirements.txt</code> — but a vulnerability three levels deep still gets compiled into your binary and shipped in your image. The exploit doesn&rsquo;t care that you never typed the package name. SCA is only useful when it walks the <em>full resolved graph</em>, including everything the resolver pulled in on your behalf.</p>
+<hr>
+<h2 id="pinning-lockfiles-and-updating-discipline">Pinning, lockfiles, and updating discipline</h2>
+<p>Knowing what&rsquo;s vulnerable is step one. Step two is controlling <em>which exact versions</em> you build against — because &ldquo;we depend on version 4.x&rdquo; is not a fact, it&rsquo;s a range, and ranges float.</p>
+<p>A <strong>lockfile</strong> records the exact resolved version (and usually a content hash) of every dependency, direct and transitive. <code>package-lock.json</code>, <code>poetry.lock</code>, <code>Cargo.lock</code>, <code>go.sum</code>, and <code>uv.lock</code> all serve this role: they turn &ldquo;some compatible version&rdquo; into &ldquo;this precise version, verified by hash.&rdquo; Commit the lockfile, and every build — yours, your teammate&rsquo;s, your CI runner&rsquo;s — resolves to the identical graph.</p>
+<p>Pinning creates an obvious tension with staying current. Pin too loosely and a malicious or broken update slips in silently; pin too tightly and you fall behind on security fixes. The resolution is <strong>updating discipline</strong>, not paralysis:</p>
+<ul>
+<li>Pin exact versions via lockfiles so builds are reproducible.</li>
+<li>Let Dependabot (or Renovate) propose upgrades continuously as small, reviewable PRs.</li>
+<li>Gate those PRs behind your test suite and SCA scan so a bump can&rsquo;t merge if it breaks tests or introduces a new CVE.</li>
+<li>Treat a security patch differently from a feature bump — the former is urgent, the latter can batch.</li>
+</ul>
+<p>The goal is a codebase that updates <em>often and safely</em>, not one frozen out of fear or one that auto-merges everything blindly.</p>
+<hr>
+<h2 id="the-supply-chain-threat-model">The supply-chain threat model</h2>
+<p>Vulnerable dependencies are the accidental risk — a maintainer shipped a bug, someone found it, a CVE was filed. The <em>deliberate</em> risk is more interesting and harder to catch, because the attacker is targeting the path between the code and your build, not the code&rsquo;s logic. The main classes:</p>
+<ul>
+<li><strong>Typosquatting</strong> — a malicious package published under a name a hair&rsquo;s breadth from a popular one (<code>reqeusts</code> for <code>requests</code>, a hyphen swapped for an underscore). One typo in a manifest and you install the attacker&rsquo;s package.</li>
+<li><strong>Dependency confusion</strong> — an attacker publishes a package to a <em>public</em> registry using the name of one of your <em>internal</em> private packages. If your resolver checks the public registry and prefers the higher version number, it pulls the attacker&rsquo;s code instead of yours.</li>
+<li><strong>Compromised maintainer or package</strong> — an attacker gains control of a legitimate, trusted package (through stolen credentials, a hijacked account, or social engineering into maintainer status) and ships malware in a routine-looking update. Everyone who upgrades inherits it.</li>
+<li><strong>Malicious install hooks</strong> — package managers run scripts at install time (<code>postinstall</code>, <code>setup.py</code>). Code that runs <em>during installation</em> executes on developer laptops and CI runners with whatever privileges those have, before any of your tests get a chance to look at it.</li>
+<li><strong>Compromised build system</strong> — the attacker doesn&rsquo;t touch the source at all. They subvert the machine that <em>builds</em> the artifact, injecting malicious code between clean source and the shipped binary. The published source stays innocent; the artifact is poisoned.</li>
+</ul>
+<p>The last two categories are the ones that have produced the most consequential real-world incidents. The class of attack where a long-trusted, widely embedded component is quietly backdoored — as seen in the compromise of the <strong>xz/liblzma</strong> compression library — shows how a single trusted dependency deep in the stack can become a system-wide threat. And the class where a <strong>build/distribution pipeline itself is subverted</strong> — the pattern behind the <strong>SolarWinds</strong> compromise — shows that you can review every line of source and still ship malware, because the poison entered <em>after</em> the source was clean. These are categories worth internalizing, not incident post-mortems to recite: they&rsquo;re precisely why the rest of this post shifts from <em>detecting</em> bad code to <em>proving</em> good provenance.</p>
+<hr>
+<h2 id="sbom-a-bill-of-materials-for-software">SBOM: a bill of materials for software</h2>
+<p>You can&rsquo;t secure what you can&rsquo;t enumerate. A <strong>Software Bill of Materials (SBOM)</strong> is a formal, machine-readable inventory of every component in a piece of software — names, versions, suppliers, hashes, and often license and relationship data. It&rsquo;s the &ldquo;ingredients label&rdquo; for your build.</p>
+<p>Two standards dominate, and both are widely supported:</p>
+<ul>
+<li><strong>SPDX</strong> — an ISO-standardized format originally focused on license compliance, now a general-purpose SBOM format.</li>
+<li><strong>CycloneDX</strong> — an OWASP project designed from the start around security use cases, with strong support for vulnerability and dependency relationships.</li>
+</ul>
+<p>You generate SBOMs from tools rather than by hand. <strong>Syft</strong> (Anchore) is a common choice — it inspects a filesystem or container image and emits an SBOM in either format:</p>
+<pre><code class="language-bash"># Generate a CycloneDX SBOM from a container image
+syft myorg/payments-api:1.4.2 -o cyclonedx-json &gt; sbom.cdx.json
+
+# Or SPDX from the current source tree
+syft dir:. -o spdx-json &gt; sbom.spdx.json
+
+# Then feed the SBOM straight into a vulnerability scan
+grype sbom:sbom.cdx.json
+</code></pre>
+<p>Why the sudden urgency? Customers and regulators now <em>require</em> SBOMs. Enterprise procurement increasingly asks vendors for one before purchase, and public-sector guidance — notably the U.S. executive direction that drove NIST&rsquo;s secure-software work — has pushed SBOMs from nice-to-have toward baseline expectation. When the next <code>xz</code>-class disclosure lands, the organizations that can answer &ldquo;are we affected, and where?&rdquo; in minutes are the ones with SBOMs on file for everything they run.</p>
+<p><strong>The gotcha:</strong> an SBOM you generate but never scan or act on is compliance theater. A JSON file sitting in an artifact bucket does nothing. The value is realized only when you <em>feed it back</em> — re-scan stored SBOMs against fresh vulnerability data as new CVEs are published, so that a component which was clean at build time gets re-flagged the day a flaw in it goes public. An SBOM is a living query surface, not a checkbox you tick at release.</p>
+<hr>
+<h2 id="provenance-and-integrity-prove-where-it-came-from">Provenance and integrity: prove where it came from</h2>
+<p>Detection tells you whether <em>known</em> bad things are present. It says nothing about whether the artifact in your registry is the one your pipeline actually produced from your actual source. That&rsquo;s the job of <strong>provenance</strong> (a verifiable record of how and from what an artifact was built) and <strong>integrity</strong> (cryptographic proof the artifact hasn&rsquo;t changed since).</p>
+<p><strong>SLSA</strong> (Supply-chain Levels for Software Artifacts, pronounced &ldquo;salsa&rdquo;) is a framework that grades build integrity in escalating levels. At an intuition level, rather than memorizing the exact tier definitions:</p>
+<ul>
+<li><strong>Lower levels</strong> ask you to produce <em>provenance</em> — a signed statement describing what was built, from which source, by which builder.</li>
+<li><strong>Higher levels</strong> demand that provenance be generated by the <em>build platform itself</em> (not something a developer can forge), on <strong>hardened, isolated builders</strong>, so the provenance is trustworthy and the build is resistant to tampering.</li>
+</ul>
+<p>The direction of travel matters more than the numbers: you move from &ldquo;we assert this is legit&rdquo; toward &ldquo;the platform cryptographically proves it, and a compromised individual can&rsquo;t fake it.&rdquo;</p>
+<p><strong>Signing</strong> is how integrity gets attached. <strong>Sigstore</strong> and its <code>cosign</code> tool let you sign artifacts and, notably, do it with <strong>keyless signing</strong> — short-lived certificates tied to an OIDC identity (your CI&rsquo;s workload identity, say) instead of a long-lived private key someone can steal:</p>
+<pre><code class="language-bash"># Sign a container image (keyless, using the pipeline's OIDC identity)
+cosign sign myorg/payments-api@sha256:9f2a...c1
+
+# Verify a signature before you deploy
+cosign verify \
+  --certificate-identity-regexp '.*@myorg\.com' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  myorg/payments-api@sha256:9f2a...c1
+</code></pre>
+<p>Notice both commands reference the image by its <code>sha256:</code> <strong>digest</strong>, not by a tag. That&rsquo;s deliberate.</p>
+<p><strong>The gotcha:</strong> pinning to a floating tag means your &ldquo;verified&rdquo; build can change under you. A tag like <code>:latest</code> — or even <code>:1.4</code> — is a mutable pointer; whoever controls the registry can repoint it at a different image after you&rsquo;ve reviewed and signed the one you meant. Pin by <strong>digest</strong> (<code>@sha256:...</code>), which names the exact content and cannot be repointed, and verify the signature against that digest. This is the same lesson that runs through container and CI security generally: a name you can move is not an identity you can trust. Verify content, not labels.</p>
+<hr>
+<h2 id="harden-the-build-system-itself">Harden the build system itself</h2>
+<p>Signing and provenance are only as trustworthy as the machine that produces them. If your build runner is long-lived, shared, and writable, an attacker who gets a foothold on it can sit and wait.</p>
+<p><strong>The gotcha:</strong> the build system is part of the supply chain — a compromised CI runner signs malware with your key. Once the attacker controls the environment where signing happens, every downstream verification <em>passes</em>, because the artifact really was signed by your legitimate identity. Your consumers can&rsquo;t tell the difference. The defense is to make the builder hard to compromise and impossible to persist in:</p>
+<ul>
+<li><strong>Ephemeral builders</strong> — spin up a fresh, clean environment per build and destroy it after. Nothing an attacker plants survives to the next run.</li>
+<li><strong>Isolation</strong> — builds shouldn&rsquo;t share mutable state, caches an attacker can poison, or network access they don&rsquo;t need.</li>
+<li><strong>Least privilege for signing identities</strong> — use short-lived, workload-scoped credentials (the keyless model above) so there&rsquo;s no durable signing key to exfiltrate.</li>
+<li><strong>Provenance from the platform</strong> — have the build platform, not a user-controllable step, emit the provenance, so a compromised job step can&rsquo;t forge a clean record.</li>
+</ul>
+<p>This is exactly what SLSA&rsquo;s higher levels are pushing you toward, and it&rsquo;s why &ldquo;we sign our artifacts&rdquo; is a weaker claim than &ldquo;we sign our artifacts on ephemeral, isolated builders with platform-generated provenance.&rdquo;</p>
+<hr>
+<h2 id="policy-fail-the-build">Policy: fail the build</h2>
+<p>None of this helps if the results are advisory. The payoff comes from turning findings into <strong>gates</strong> — conditions that make the pipeline fail and stop a release. A reasonable baseline: fail on high-severity known-vulnerable dependencies, fail if the SBOM can&rsquo;t be generated, and refuse to deploy anything whose signature doesn&rsquo;t verify against the expected identity and digest.</p>
+<p>Here&rsquo;s a CI sketch tying the pieces together — SCA scan, SBOM generation, and a signature-verify gate:</p>
+<pre><code class="language-yaml"># Illustrative CI pipeline — adjust tool invocations to your runners
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. SCA gate: fail the build on high/critical known vulns
+      - name: Scan source for vulnerable dependencies
+        run: trivy fs --severity HIGH,CRITICAL --exit-code 1 .
+
+      - name: Build image
+        run: docker build -t myorg/payments-api:${{ github.sha }} .
+
+      # 2. Generate an SBOM and keep it as a release artifact
+      - name: Generate SBOM
+        run: syft myorg/payments-api:${{ github.sha }} -o cyclonedx-json &gt; sbom.cdx.json
+
+      - name: Re-scan the SBOM against current vuln data
+        run: grype sbom:sbom.cdx.json --fail-on high
+
+      # 3. Sign the image by digest (keyless, via the pipeline identity)
+      - name: Sign image
+        run: cosign sign $(cat image.digest)
+
+  deploy:
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+    steps:
+      # 4. Verify gate: refuse to deploy anything unsigned or unexpected
+      - name: Verify signature before deploy
+        run: |
+          cosign verify \
+            --certificate-identity-regexp '.*@myorg\.com' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            $(cat image.digest)
+</code></pre>
+<p>The exact flags vary by tool version — check the current docs rather than copying these verbatim — but the <em>shape</em> is the point: scan, inventory, sign by digest, and verify before deploy, with each step able to fail the pipeline.</p>
+<hr>
+<h2 id="provenance-beats-detection">Provenance beats detection</h2>
+<p>If there&rsquo;s one idea to carry out of here, it&rsquo;s this: <strong>provenance beats detection</strong>. Scanning for known-vulnerable components is necessary and you should absolutely do it — but it&rsquo;s inherently a game of catch-up. It can only find the <em>known</em> bad, and it can&rsquo;t tell you whether the artifact in front of you is the one your pipeline actually built. A deliberate attacker, the xz or SolarWinds kind, produces something that looks clean to a scanner precisely because the badness was introduced outside the source a scanner reads.</p>
+<p>Provenance flips the question from &ldquo;is anything wrong with this?&rdquo; to &ldquo;can I prove this is exactly what I meant to ship, built the way I meant to build it, from the source I reviewed?&rdquo; When you can answer that — SBOM in hand, signature verified against a pinned digest, provenance emitted by a hardened builder — you&rsquo;re no longer hoping the scanner caught everything. You <em>know and verify what you ship</em>.</p>
+<table><caption class="sr-only">Provenance beats detection</caption>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Question it answers</th>
+<th>Tools</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SCA</td>
+<td>Do I ship any <em>known</em>-vulnerable components?</td>
+<td>Trivy, Grype, Dependabot</td>
+</tr>
+<tr>
+<td>Pinning / lockfiles</td>
+<td>Am I building the <em>exact</em> versions I reviewed?</td>
+<td>lockfiles, digest pinning</td>
+</tr>
+<tr>
+<td>SBOM</td>
+<td><em>What</em>, precisely, is in this artifact?</td>
+<td>Syft (SPDX / CycloneDX)</td>
+</tr>
+<tr>
+<td>Signing / integrity</td>
+<td>Has the artifact changed since I built it?</td>
+<td>Sigstore / cosign</td>
+</tr>
+<tr>
+<td>Provenance</td>
+<td><em>How and from what</em> was it built, provably?</td>
+<td>SLSA, cosign attestations</td>
+</tr>
+<tr>
+<td>Build hardening</td>
+<td>Can the build itself be trusted?</td>
+<td>ephemeral, isolated builders</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Most of your code is inherited, and all of it is attack surface.</strong> Scan the full transitive graph, not just direct dependencies — a vuln three levels deep still ships.</li>
+<li><strong>Pin exact versions and update on discipline, not fear.</strong> Lockfiles make builds reproducible; automated PRs gated by tests and SCA keep you current safely.</li>
+<li><strong>Know the deliberate threats.</strong> Typosquatting, dependency confusion, compromised maintainers, malicious install hooks, and build-system compromise (xz-, SolarWinds-class) are why detection alone isn&rsquo;t enough.</li>
+<li><strong>An SBOM is only useful if you act on it.</strong> Generate with Syft in SPDX or CycloneDX, and re-scan stored SBOMs as new CVEs land — otherwise it&rsquo;s compliance theater.</li>
+<li><strong>Pin by digest and verify signatures.</strong> A floating tag can be repointed under you; sign and verify by <code>sha256:</code> digest so &ldquo;verified&rdquo; stays verified.</li>
+<li><strong>The build system is part of the supply chain.</strong> Ephemeral, isolated builders and platform-generated provenance stop a compromised runner from signing malware with your key.</li>
+<li><strong>Provenance beats detection.</strong> Prove what you ship; don&rsquo;t just scan for what you already know is bad.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://slsa.dev/">SLSA — Supply-chain Levels for Software Artifacts</a> — the framework, levels, and provenance model.</li>
+<li><a href="https://www.sigstore.dev/">Sigstore</a> and <a href="https://docs.sigstore.dev/cosign/signing/overview/">cosign</a> — keyless signing and verification of artifacts.</li>
+<li><a href="https://cyclonedx.org/">CycloneDX</a> and <a href="https://spdx.dev/">SPDX</a> — the two dominant SBOM formats.</li>
+<li><a href="https://github.com/anchore/syft">Syft</a>, <a href="https://github.com/anchore/grype">Grype</a>, and <a href="https://trivy.dev/">Trivy</a> — SBOM generation and vulnerability scanning.</li>
+<li><a href="https://csrc.nist.gov/Projects/ssdf">NIST Secure Software Development Framework (SSDF, SP 800-218)</a> — the U.S. baseline for secure development and supply-chain practices.</li>
+<li><a href="https://openssf.org/">OpenSSF</a> — cross-industry open-source supply-chain security guidance and tooling.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/devsecops-08-continuous-security.html">Continuous Security: Monitoring, Compliance, and Culture</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-08-secure-api-lifecycle.html">The Secure API Lifecycle</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/devsecops-07-container-and-kubernetes-security.html">Container and Kubernetes Security</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
