@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Monitoring and Drift in Production — Pratik Dhanave</title>
+<meta name="description" content="Governance doesn&#x27;t stop at deploy — the Manage function in production: what to monitor (operational, quality, safety), detecting drift including silent...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Monitoring and Drift in Production — Pratik Dhanave">
+<meta property="og:description" content="Governance doesn&#x27;t stop at deploy — the Manage function in production: what to monitor (operational, quality, safety), detecting drift including silent provider-model drift behind moving aliases, and the audit trail (versions + retrieved context, PII-redacted) that becomes regulatory evidence.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-governance-06-monitoring-and-drift.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-11T00:00:00Z">
+<meta property="article:tag" content="AI Governance">
+<meta property="article:tag" content="Monitoring">
+<meta property="article:tag" content="MLOps">
+<meta property="article:tag" content="LLMs">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Monitoring and Drift in Production — Pratik Dhanave">
+<meta name="twitter:description" content="Governance doesn&#x27;t stop at deploy — the Manage function in production: what to monitor (operational, quality, safety), detecting drift including silent provider-model drift behind moving aliases, and the audit trail (versions + retrieved context, PII-redacted) that becomes regulatory evidence.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-governance-06-monitoring-and-drift.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Monitoring and Drift in Production",
+  "description": "Governance doesn't stop at deploy \u2014 the Manage function in production: what to monitor (operational, quality, safety), detecting drift including silent provider-model drift behind moving aliases, and the audit trail (versions + retrieved context, PII-redacted) that becomes regulatory evidence.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-11",
+  "dateModified": "2026-08-11",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Governance, Monitoring, MLOps, LLMs",
+  "url": "https://pratikdhanave.com/blog/posts/ai-governance-06-monitoring-and-drift.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-governance-06-monitoring-and-drift.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Monitoring and Drift in Production</h1>
+    <p class="post-subtitle">Governance doesn&#x27;t stop at deploy. This is the NIST RMF MANAGE function in practice: what to monitor for an LLM system, how to detect the drift — including the silent kind where a provider swaps the model under you — and why the audit trail you log is the regulatory deliverable, not a debugging convenience.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-11">August 11, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-governance/" class="tag-link"><span class="tag">#AI Governance</span></a><a href="/blog/tags/monitoring/" class="tag-link"><span class="tag">#Monitoring</span></a><a href="/blog/tags/mlops/" class="tag-link"><span class="tag">#MLOps</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 6 of 8</span>
+    <span class="series-title">AI Governance for Engineers</span>
+    <div class="series-nav"><a href="/blog/posts/ai-governance-05-bias-fairness-explainability.html" class="series-prev">&larr; Part 5: Bias, Fairness, and Explainability</a>
+<a href="/blog/posts/ai-governance-07-regulatory-landscape.html" class="series-next">Part 7: The AI Regulatory Landscape &rarr;</a></div>
+  </div>
+
+
+
+  <p>Earlier in this series we mapped an AI risk register (post 2), wrote a model card (post 3), and built an offline evaluation harness (post 4). All of that describes the system <em>at the moment you shipped it</em>. Production is a moving target. Inputs shift, users find edge cases you never tested, and — uniquely for LLM systems — the model itself can change underneath you without a single line of your code changing.</p>
+<p>The NIST AI Risk Management Framework organizes governance into four functions: GOVERN, MAP, MEASURE, and MANAGE. Monitoring lives in MANAGE — the function that says risks must be tracked, responded to, and reviewed <em>over the deployment lifetime</em>, not signed off once. This post is where offline MEASURE becomes online MEASURE, and where the risk register stops being a document and starts being a live feed.</p>
+<p>The core discipline: <strong>decide what to watch, watch it continuously, alert when it moves, and log enough to explain any single decision after the fact.</strong> Everything below is a variation on those four verbs.</p>
+<hr>
+<h2 id="four-things-to-monitor">Four things to monitor</h2>
+<p>An LLM system fails in more ways than a traditional service, so the monitoring surface is wider. Group it into four buckets and you can reason about coverage.</p>
+<h3 id="operational-signals">Operational signals</h3>
+<p>The classic service-health metrics, and the cheapest to collect because your infrastructure already emits most of them:</p>
+<ul>
+<li><strong>Latency</strong> — p50/p95/p99 end-to-end, and separately for retrieval vs. generation so you know which stage is slow.</li>
+<li><strong>Error rate</strong> — provider 429/500s, timeouts, JSON-parse failures on structured outputs, tool-call failures.</li>
+<li><strong>Cost and tokens</strong> — input/output tokens per request and rolled up per day. Token count is a leading indicator: a creeping prompt or a retriever returning more chunks shows up here before it shows up on the invoice.</li>
+</ul>
+<h3 id="quality-signals">Quality signals</h3>
+<p>Operational health tells you the system <em>responded</em>, not that it responded <em>well</em>. Quality has to be sampled, because you cannot run an expensive judge on every request:</p>
+<ul>
+<li><strong>Online faithfulness / groundedness</strong> — for RAG, sample a percentage of live traffic and score whether the answer is supported by the retrieved context. This is the same faithfulness check from the offline harness (post 4), now run against real inputs.</li>
+<li><strong>Task success</strong> — did the agent complete what the user asked? For structured tasks you can measure this directly (did the booking go through); for open-ended ones you approximate it with an LLM judge or human review.</li>
+<li><strong>User feedback</strong> — thumbs up/down, explicit ratings, and implicit signals like edits, retries, and abandonment.</li>
+<li><strong>Deflection / containment</strong> — for support use cases, the share of conversations resolved without escalation to a human. A falling deflection rate is a quality regression even when every individual metric looks fine.</li>
+</ul>
+<h3 id="safety-signals">Safety signals</h3>
+<p>The guardrails you put in front of and behind the model (post 5, the security series) are also a monitoring source:</p>
+<ul>
+<li><strong>Guardrail trips</strong> — how often input filters, prompt-injection detectors, or output moderators fire, broken down by rule.</li>
+<li><strong>Flagged content</strong> — refusals, PII detections, toxicity hits. A sudden spike often means an attack or a prompt regression, not organic traffic.</li>
+</ul>
+<h3 id="drift">Drift</h3>
+<p>The category that is specific to statistical systems and the reason this post exists — covered in its own section below.</p>
+<p><strong>The gotcha:</strong> monitoring you don&rsquo;t <em>alert</em> on is just expensive logging. A dashboard nobody looks at catches nothing. Every metric that matters needs a threshold and a named owner who gets paged when it crosses. If you can&rsquo;t say who responds when faithfulness drops below 0.8, you are not monitoring faithfulness — you are collecting it.</p>
+<hr>
+<h2 id="drift-the-same-word-for-three-different-problems">Drift: the same word for three different problems</h2>
+<p>&ldquo;Drift&rdquo; gets used loosely. Pulling it apart matters because the three kinds have different causes and different detection methods.</p>
+<p><strong>Data drift (input distribution shift).</strong> The distribution of inputs moves away from what you saw at training/evaluation time. A new customer segment starts using the product, a marketing campaign changes the question mix, a new product line introduces vocabulary your retriever has never indexed. The model hasn&rsquo;t changed; the world feeding it has. Detection: statistical distance between a reference window and a current window of inputs.</p>
+<p><strong>Concept drift.</strong> The relationship between inputs and the <em>correct</em> output changes, even if the inputs look the same. A policy update means last month&rsquo;s correct answer is now wrong; &ldquo;current CEO&rdquo; has a different right answer than it did a year ago. This is insidious because your inputs can look statistically identical while your accuracy quietly collapses. Detection is harder — it usually requires ground-truth labels or a judge scoring correctness, not just input statistics.</p>
+<p><strong>Silent model drift (the LLM-specific one).</strong> You pinned nothing and pointed your client at a moving alias like <code>gpt-4o</code> or <code>claude-3-5-sonnet-latest</code>. The provider ships an update behind that alias. Your prompts, your code, and your eval set are byte-for-byte identical, and the behavior changes anyway — sometimes better, sometimes a regression in exactly the formatting or reasoning your downstream parsing depends on. Nothing in <em>your</em> diff explains it, so nobody thinks to look.</p>
+<p><strong>The gotcha:</strong> a model behind a moving alias drifts silently when the provider updates it. Pin an explicit, dated model version in production (most providers publish snapshot identifiers for exactly this reason), record that version in every log line, and watch your quality metrics for <em>step changes</em> — a discontinuity on a specific date is the fingerprint of a model swap, whereas a gradual slope is usually input drift. Treat a provider version bump like any other dependency upgrade: stage it, re-run the offline eval set, and promote deliberately.</p>
+<hr>
+<h2 id="detecting-drift">Detecting drift</h2>
+<p>Three complementary techniques, roughly in order of cost.</p>
+<p><strong>Distribution tests on features you can measure cheaply.</strong> For numeric or categorical features — input length, language, detected topic, retrieval score, token count — compare a reference window to the current window. Two standard measures:</p>
+<ul>
+<li><strong>Population Stability Index (PSI)</strong> bins both distributions and sums <code>(current% - reference%) * ln(current% / reference%)</code> across bins. A common rule of thumb from credit-risk practice treats PSI below 0.1 as stable, 0.1–0.25 as moderate shift worth investigating, and above 0.25 as significant drift. It is a rule of thumb, not a law — calibrate the thresholds to your own baseline.</li>
+<li><strong>KL divergence</strong> measures how much one distribution diverges from another; it is asymmetric and unbounded, which makes PSI&rsquo;s symmetric, bounded-in-practice behavior easier to threshold for alerting.</li>
+</ul>
+<p><strong>Embedding-distribution shift.</strong> Free text has no natural numeric feature to bin, so embed the inputs (or outputs) and track the distribution in vector space — for example the mean distance of recent inputs from a reference centroid, or a divergence between reference and current embedding clusters. This is how you catch &ldquo;users are suddenly asking about a topic we never indexed&rdquo; without hand-defining topics.</p>
+<p><strong>Metric-trend tracking.</strong> Drift often shows up first as a slow slide in a downstream metric — faithfulness, task success, thumbs-up rate — before any single request looks anomalous. Rolling windows and trend alerts on the quality metrics above are drift detection, just measured on outcomes instead of inputs.</p>
+<p><strong>Sampling for judgement.</strong> For anything a formula can&rsquo;t score — nuance, tone, subtle wrongness — sample a slice of production traffic and route it to an LLM judge or a human reviewer. This closes the loop on concept drift, which pure input statistics will miss entirely.</p>
+<p><strong>The gotcha:</strong> offline eval scores expire. The 0.92 faithfulness you measured at launch describes your <em>eval set</em>, and production input distribution drifts away from that set over time. A green offline number and a red production reality can coexist. Monitor online, and periodically fold real production inputs (the failures especially) back into the eval set so it keeps describing the traffic you actually get.</p>
+<hr>
+<h2 id="a-lightweight-monitor">A lightweight monitor</h2>
+<p>Here is a self-contained monitor that does the four verbs: log a structured record per request, maintain a rolling window of a quality metric, compute a simple drift signal (PSI) on an input feature, and raise an alert when either crosses a threshold. It has no external dependencies so you can read the whole mechanism; the next section maps each piece to the production tools you would actually reach for.</p>
+<pre><code class="language-python">import json
+import math
+import time
+import uuid
+from collections import deque
+from dataclasses import dataclass, asdict, field
+
+
+@dataclass
+class RequestRecord:
+    &quot;&quot;&quot;One row of the audit trail. Everything needed to reconstruct a decision.&quot;&quot;&quot;
+    request_id: str
+    timestamp: float
+    model_version: str          # PINNED snapshot id, never a moving alias
+    prompt_version: str         # the prompt template revision in effect
+    input_text: str             # redact PII before this reaches storage
+    output_text: str
+    retrieved_context_ids: list[str] = field(default_factory=list)
+    input_tokens: int = 0
+    output_tokens: int = 0
+    latency_ms: float = 0.0
+    quality_score: float | None = None   # e.g. sampled faithfulness in [0, 1]
+    guardrail_trips: list[str] = field(default_factory=list)
+
+
+def population_stability_index(reference: list[float],
+                               current: list[float],
+                               bins: int = 10) -&gt; float:
+    &quot;&quot;&quot;PSI between a reference and current numeric distribution.
+
+    Higher means more drift. Common rule of thumb: &lt;0.1 stable,
+    0.1-0.25 moderate, &gt;0.25 significant. Calibrate to your baseline.
+    &quot;&quot;&quot;
+    if not reference or not current:
+        return 0.0
+    lo, hi = min(reference), max(reference)
+    if hi == lo:
+        return 0.0
+    width = (hi - lo) / bins
+    edges = [lo + i * width for i in range(bins + 1)]
+
+    def histogram(values: list[float]) -&gt; list[float]:
+        counts = [0] * bins
+        for v in values:
+            idx = min(int((v - lo) / width), bins - 1) if v &gt;= lo else 0
+            idx = max(0, min(idx, bins - 1))
+            counts[idx] += 1
+        total = len(values)
+        # floor each bucket so we never take log(0)
+        return [max(c / total, 1e-6) for c in counts]
+
+    ref_pct, cur_pct = histogram(reference), histogram(current)
+    return sum((c - r) * math.log(c / r) for r, c in zip(ref_pct, cur_pct))
+
+
+class ProductionMonitor:
+    &quot;&quot;&quot;Logs per-request records, tracks a rolling quality metric, and
+    watches an input feature for drift. Alerts when either crosses a
+    threshold. Deliberately small; wire the real pieces in production.&quot;&quot;&quot;
+
+    def __init__(self,
+                 log_path: str,
+                 reference_feature: list[float],
+                 quality_floor: float = 0.80,
+                 psi_ceiling: float = 0.25,
+                 window: int = 200):
+        self._log_path = log_path
+        self._reference_feature = reference_feature
+        self._quality_floor = quality_floor
+        self._psi_ceiling = psi_ceiling
+        self._recent_quality: deque[float] = deque(maxlen=window)
+        self._recent_feature: deque[float] = deque(maxlen=window)
+
+    def record(self, rec: RequestRecord, drift_feature: float) -&gt; list[str]:
+        &quot;&quot;&quot;Append the audit row, update rolling state, return any alerts.&quot;&quot;&quot;
+        self._append(rec)
+        self._recent_feature.append(drift_feature)
+        if rec.quality_score is not None:
+            self._recent_quality.append(rec.quality_score)
+        return self._evaluate()
+
+    def _append(self, rec: RequestRecord) -&gt; None:
+        # One JSON object per line: cheap to write, trivial to ship to a
+        # log pipeline, and queryable after the fact for an audit.
+        with open(self._log_path, &quot;a&quot;, encoding=&quot;utf-8&quot;) as fh:
+            fh.write(json.dumps(asdict(rec)) + &quot;\n&quot;)
+
+    def _evaluate(self) -&gt; list[str]:
+        alerts: list[str] = []
+
+        if len(self._recent_quality) &gt;= 30:
+            avg = sum(self._recent_quality) / len(self._recent_quality)
+            if avg &lt; self._quality_floor:
+                alerts.append(
+                    f&quot;QUALITY: rolling faithfulness {avg:.3f} &quot;
+                    f&quot;below floor {self._quality_floor:.2f}&quot;)
+
+        if len(self._recent_feature) &gt;= 30:
+            psi = population_stability_index(
+                self._reference_feature, list(self._recent_feature))
+            if psi &gt; self._psi_ceiling:
+                alerts.append(
+                    f&quot;DRIFT: input-feature PSI {psi:.3f} &quot;
+                    f&quot;above ceiling {self._psi_ceiling:.2f}&quot;)
+
+        return alerts
+
+
+def notify(owner: str, alerts: list[str]) -&gt; None:
+    &quot;&quot;&quot;Stand-in for paging. A threshold without an owner is not an alert.&quot;&quot;&quot;
+    for a in alerts:
+        print(f&quot;[PAGE -&gt; {owner}] {a}&quot;)
+</code></pre>
+<p>Wiring it into a request path looks like this. Note that scoring quality is sampled — you decide the rate — while the audit record is written for <em>every</em> request:</p>
+<pre><code class="language-python">import random
+
+monitor = ProductionMonitor(
+    log_path=&quot;audit_trail.jsonl&quot;,
+    reference_feature=baseline_input_lengths,   # captured at launch
+    quality_floor=0.80,
+    psi_ceiling=0.25,
+)
+
+def handle(user_input: str) -&gt; str:
+    started = time.perf_counter()
+    redacted = redact_pii(user_input)           # from the security series
+    context = retriever.search(redacted)
+    answer, usage = model.generate(redacted, context)  # pinned model version
+    latency = (time.perf_counter() - started) * 1000
+
+    # Score only a sample; judging every request is too expensive.
+    score = faithfulness_judge(answer, context) if random.random() &lt; 0.05 else None
+
+    rec = RequestRecord(
+        request_id=str(uuid.uuid4()),
+        timestamp=time.time(),
+        model_version=&quot;my-provider/model-2026-05-13&quot;,   # PINNED, dated
+        prompt_version=&quot;rag-answer-v7&quot;,
+        input_text=redacted,
+        output_text=answer,
+        retrieved_context_ids=[c.id for c in context],
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        latency_ms=latency,
+        quality_score=score,
+    )
+    alerts = monitor.record(rec, drift_feature=float(len(redacted)))
+    if alerts:
+        notify(owner=&quot;rag-oncall@example.com&quot;, alerts=alerts)
+    return answer
+</code></pre>
+<p>The functions <code>redact_pii</code>, <code>retriever.search</code>, <code>model.generate</code>, and <code>faithfulness_judge</code> are placeholders for your own components — the monitor doesn&rsquo;t care how they&rsquo;re implemented, only that the record captures the versions, the retrieved context, and (sometimes) a score.</p>
+<p><strong>The gotcha:</strong> the audit trail is the regulatory deliverable, not a debugging convenience. Capture the <em>pinned</em> model version, the prompt version, and the retrieved context IDs on every record — without them you cannot reconstruct why a decision was made, and &ldquo;we can&rsquo;t reproduce it&rdquo; is not an answer to a regulator or an affected user. And redact PII <em>before</em> the text reaches storage (cross-reference the security series): an audit log full of raw personal data is itself a compliance liability, not evidence.</p>
+<hr>
+<h2 id="use-the-ecosystem-dont-rebuild-it">Use the ecosystem, don&rsquo;t rebuild it</h2>
+<p>The monitor above exists to make the mechanism legible. In production you compose real tools, each strong at one layer:</p>
+<ul>
+<li><strong>Prometheus</strong> — the de facto standard for operational time-series: latency histograms, error counters, token and cost gauges, with alerting rules via Alertmanager. This is where the operational bucket lives.</li>
+<li><strong>OpenTelemetry</strong> — vendor-neutral tracing/metrics/logs. Its <strong>GenAI semantic conventions</strong> define standard attribute names for model calls (model, tokens, and related fields), so you emit spans in a portable shape rather than a bespoke schema. Instrument once, export anywhere.</li>
+<li><strong>Evidently</strong> — an open-source library focused on ML/LLM monitoring and data/prediction drift: it implements distribution tests (including PSI and others), text and embedding drift checks, and report/test-suite generation. Reach for it instead of hand-rolling PSI.</li>
+<li><strong>Langfuse</strong> and <strong>Arize Phoenix</strong> — LLM observability platforms built around tracing every request, prompt, and retrieval step, with online evaluation and dataset/experiment tracking. They are the natural home for the quality bucket and the sampled-judgement loop, and both integrate with OpenTelemetry-style tracing.</li>
+</ul>
+<p>A realistic stack: OpenTelemetry for portable instrumentation, Prometheus/Alertmanager for operational alerting, Evidently for scheduled drift reports on inputs and embeddings, and Langfuse or Phoenix for per-request traces plus online quality evaluation. The hand-written monitor is what those tools are doing under the hood — knowing the mechanism helps you configure them and read their output critically.</p>
+<hr>
+<h2 id="closing-the-governance-loop">Closing the governance loop</h2>
+<p>Monitoring is only valuable if it feeds back into the governance artifacts from earlier posts:</p>
+<ul>
+<li>When a metric threshold is crossed, that is a <strong>risk event</strong> — it belongs in the risk register (post 2) with its trigger, response, and owner, so MANAGE has a record of what fired and what you did.</li>
+<li>When you observe production behavior — a new failure mode, a revised operating range, a version pin — update the <strong>model card</strong> (post 3) so it keeps describing the deployed system, not the launch-day one.</li>
+<li>The <strong>audit trail</strong> is the raw material for the accountability and reporting obligations coming in post 7: the evidence that lets you explain, reconstruct, and defend any individual decision the system made.</li>
+</ul>
+<p>Governance that ends at deploy is a snapshot of a system that no longer exists. The MANAGE function is the standing commitment to keep the snapshot true.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Monitoring is the MANAGE function.</strong> Governance is a lifecycle commitment, not a launch checklist — watch the system for as long as it runs.</li>
+<li><strong>Four buckets:</strong> operational (latency, errors, cost/tokens), quality (sampled faithfulness, task success, user feedback, deflection), safety (guardrail trips, flagged content), and drift.</li>
+<li><strong>Three drifts, three detections.</strong> Data drift → distribution tests on inputs; concept drift → labels or a judge on outputs; silent model drift → pin versions and watch for step-changes on a date.</li>
+<li><strong>Alert or it&rsquo;s just logging.</strong> Every metric that matters needs a threshold <em>and</em> a named owner.</li>
+<li><strong>The audit trail is the deliverable.</strong> Log pinned model + prompt versions, retrieved context, and scores per request — and redact PII before it lands.</li>
+<li><strong>Compose the ecosystem.</strong> Prometheus, OpenTelemetry (GenAI semconv), Evidently, and Langfuse/Phoenix each own a layer; the hand-rolled monitor just shows what they do.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf">NIST AI Risk Management Framework (AI RMF 1.0)</a> — see the MANAGE and MEASURE functions.</li>
+<li><a href="https://airc.nist.gov/airmf-resources/playbook/">NIST AI RMF Playbook</a> — actionable guidance per function.</li>
+<li><a href="https://docs.evidentlyai.com/">Evidently AI documentation</a> — data/LLM drift metrics and test suites.</li>
+<li><a href="https://langfuse.com/docs">Langfuse documentation</a> — LLM tracing and online evaluation.</li>
+<li><a href="https://arize.com/docs/phoenix">Arize Phoenix documentation</a> — open-source LLM observability and evaluation.</li>
+<li><a href="https://opentelemetry.io/docs/specs/semconv/gen-ai/">OpenTelemetry GenAI semantic conventions</a> — standard attributes for instrumenting model calls.</li>
+<li><a href="https://prometheus.io/docs/introduction/overview/">Prometheus documentation</a> — metrics collection and alerting.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-governance-08-building-a-governance-program.html">Building an AI Governance Program</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-governance-04-evaluation-and-quality-gates.html">Evaluation and Quality Gates</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-governance-01-what-is-ai-governance.html">What AI Governance Is</a>
+      <span class="related-date">Aug 06</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
