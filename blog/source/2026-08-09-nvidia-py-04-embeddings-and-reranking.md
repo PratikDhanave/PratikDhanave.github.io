@@ -174,8 +174,8 @@ RERANK_MODEL = "nvidia/nv-rerankqa-mistral-4b-v3"  # verify in the catalog
 def cosine_scores(query_vec, doc_vecs):
     q = np.asarray(query_vec, dtype=np.float32)
     m = np.asarray(doc_vecs, dtype=np.float32)
-    q /= np.linalg.norm(q) + 1e-12
-    m /= np.linalg.norm(m, axis=1, keepdims=True) + 1e-12
+    q = q / (np.linalg.norm(q) + 1e-12)
+    m = m / (np.linalg.norm(m, axis=1, keepdims=True) + 1e-12)  # new array — don't mutate the caller's index
     return m @ q
 
 

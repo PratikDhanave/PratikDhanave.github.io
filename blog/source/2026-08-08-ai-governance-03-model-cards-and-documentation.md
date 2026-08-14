@@ -258,5 +258,5 @@ That reframes the whole exercise. The documentation is not a nice-to-have you pr
 - [Model Cards for Model Reporting — Mitchell et al., 2019 (arXiv 1810.03993)](https://arxiv.org/abs/1810.03993)
 - [Datasheets for Datasets — Gebru et al. (arXiv 1803.09010)](https://arxiv.org/abs/1803.09010)
 - [Hugging Face — Model Cards documentation](https://huggingface.co/docs/hub/model-cards)
-- [IBM Research — AI FactSheets 360](https://aifs360.res.ibm.com/)
+- [FactSheets: Increasing Trust in AI Services (Arnold et al., 2019)](https://arxiv.org/abs/1808.07261) — the origin of the AI FactSheets approach
 - [EU AI Act — Annex IV, Technical documentation](https://artificialintelligenceact.eu/annex/4/)

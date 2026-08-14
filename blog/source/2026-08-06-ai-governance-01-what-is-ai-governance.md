@@ -182,7 +182,7 @@ Treat the rest of this series as a way to make governance executable: policy you
 ## Further reading
 
 - [NIST AI Risk Management Framework (AI RMF 1.0)](https://www.nist.gov/itl/ai-risk-management-framework) — the Govern/Map/Measure/Manage framework and its companion playbook.
-- [EU AI Act — official portal](https://artificial-intelligence-act.europa.eu/) — the risk-tiered regulation; see also the [EUR-Lex legal text](https://eur-lex.europa.eu/eli/reg/2024/1689/oj) for the authoritative wording.
+- [EU AI Act — regulatory framework (European Commission)](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai) — the risk-tiered regulation; see also the [EUR-Lex legal text](https://eur-lex.europa.eu/eli/reg/2024/1689/oj) for the authoritative wording.
 - [ISO/IEC 42001 — AI management system standard](https://www.iso.org/standard/81230.html) — the certifiable AIMS standard.
 - [OECD AI Principles](https://oecd.ai/en/ai-principles) — the widely referenced responsible-AI principles.
 - [Model Cards for Model Reporting (Mitchell et al., 2019)](https://arxiv.org/abs/1810.03993) — the original model-card proposal.

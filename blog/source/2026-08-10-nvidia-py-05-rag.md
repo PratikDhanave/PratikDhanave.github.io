@@ -85,8 +85,8 @@ At query time you embed the question with `embed_query` and score it against eve
 def cosine_scores(query_vec, doc_matrix) -> np.ndarray:
     q = np.asarray(query_vec, dtype=np.float32)
     m = np.asarray(doc_matrix, dtype=np.float32)
-    q /= np.linalg.norm(q) + 1e-12
-    m /= np.linalg.norm(m, axis=1, keepdims=True) + 1e-12
+    q = q / (np.linalg.norm(q) + 1e-12)
+    m = m / (np.linalg.norm(m, axis=1, keepdims=True) + 1e-12)  # new array — don't mutate the caller's index
     return m @ q   # shape: (num_chunks,)
 
 def shortlist(query: str, chunks, index, k: int = 20) -> list[dict]:

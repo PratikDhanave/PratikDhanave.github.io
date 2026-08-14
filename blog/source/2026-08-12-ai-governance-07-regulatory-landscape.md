@@ -160,7 +160,7 @@ One requirement deserves its own emphasis because engineers often under-scope it
 
 ## Further reading
 
-- [EU Artificial Intelligence Act — official portal](https://artificial-intelligence-act.eu/) and the legal text on [EUR-Lex](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)
+- [EU AI Act — regulatory framework (European Commission)](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai) and the legal text on [EUR-Lex](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)
 - [ISO/IEC 42001 — Artificial intelligence management system](https://www.iso.org/standard/81230.html)
 - [NIST AI Risk Management Framework (AI RMF)](https://www.nist.gov/itl/ai-risk-management-framework)
 - [OECD AI Policy Observatory](https://oecd.ai/)
