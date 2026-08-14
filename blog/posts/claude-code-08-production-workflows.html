@@ -109,7 +109,7 @@
       <span>·</span>
       <time datetime="2026-08-14">August 14, 2026</time>
       <span>·</span>
-      <span>5 min read</span>
+      <span>6 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/claude-code/" class="tag-link"><span class="tag">#Claude Code</span></a><a href="/blog/tags/ci/cd/" class="tag-link"><span class="tag">#CI/CD</span></a><a href="/blog/tags/automation/" class="tag-link"><span class="tag">#Automation</span></a><a href="/blog/tags/ai/" class="tag-link"><span class="tag">#AI</span></a></div>
   </header>
@@ -152,6 +152,20 @@
 <li><strong>Reliability.</strong> Non-deterministic output means an automated job can produce something unexpected — build in verification (run the tests the agent&rsquo;s change should pass; fail the job if they don&rsquo;t) rather than trusting the run blindly.</li>
 <li><strong>Observability.</strong> Log what automated runs did — inputs, actions, outputs — so you can debug a bad result and keep an audit trail (a hook, post 6, is a natural place for this).</li>
 </ul>
+<h2 id="a-worked-example-an-automated-pr-review-job">A worked example: an automated PR-review job</h2>
+<p>A common first production use is an AI first-pass review on every pull request. The shape:</p>
+<pre><code class="language-text">on: pull_request
+job:
+  - check out the PR branch (ephemeral CI runner, sandboxed)
+  - claude -p &quot;Review this diff against our checklist (authz, money units,
+      tests, secrets). Post findings as review comments. Do NOT modify code.&quot;
+    with:
+      permissions: read the repo + comment on the PR   # least privilege
+      no access to: deploy creds, prod, package publish
+  - a human still approves and merges
+</code></pre>
+<p>Everything the interactive setup gives you carries over: the CLAUDE.md checklist (post 3), a <code>/review</code>-style prompt (post 7), and hooks (post 6) all apply in the headless run. But the safety model changes — there&rsquo;s no per-action approval, so the control moves to the boundaries: the runner is sandboxed and ephemeral, the job&rsquo;s token can only read and comment (not deploy), and a human still merges. The agent is a tireless first-pass <em>author</em> of review comments, not the approver.</p>
+<p><strong>The gotcha:</strong> the tempting &ldquo;improvement&rdquo; is to let the same job auto-apply fixes and merge them — removing the human. That compounds errors silently (an agent approving agent-written code shares its blind spots) and discards the accountability a human review provides. Keep the person on the merge for anything that ships; automate the toil up to, but not through, the gate.</p>
 <h2 id="bringing-the-series-together">Bringing the series together</h2>
 <p>Effective Claude Code use is layered, and each layer built on the last:</p>
 <pre><code class="language-text">interactive loop (2) ── the daily driver: explore → plan → execute → review

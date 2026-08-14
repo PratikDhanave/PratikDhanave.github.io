@@ -109,7 +109,7 @@
       <span>·</span>
       <time datetime="2026-08-11">August 11, 2026</time>
       <span>·</span>
-      <span>4 min read</span>
+      <span>5 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/claude-code/" class="tag-link"><span class="tag">#Claude Code</span></a><a href="/blog/tags/subagents/" class="tag-link"><span class="tag">#Subagents</span></a><a href="/blog/tags/parallelism/" class="tag-link"><span class="tag">#Parallelism</span></a><a href="/blog/tags/ai/" class="tag-link"><span class="tag">#AI</span></a></div>
   </header>
@@ -150,6 +150,20 @@
 <h2 id="parallel-work-in-practice">Parallel work in practice</h2>
 <p>The pattern that pays off: decompose a big task into independent pieces, fan them out to subagents, then synthesize the results in the main session. &ldquo;Review these four modules for security issues&rdquo; can become four concurrent reviewers whose findings you then consolidate. The main agent acts as an orchestrator — splitting the work, launching the subagents, and integrating what comes back.</p>
 <p>The judgment is in the decomposition: pieces must be genuinely independent (no shared state they&rsquo;d race on) and worth the coordination cost. Forcing parallelism onto work that&rsquo;s actually sequential just adds overhead and confusion. When the shape fits, though, it&rsquo;s a large speedup and keeps each subagent&rsquo;s context tightly focused on its slice.</p>
+<h2 id="a-worked-example-a-parallel-review">A worked example: a parallel review</h2>
+<p>Say you want a security-focused review of four independent modules before a release. Done inline, the main agent reads all four in one context — which fills up fast and blurs the modules together. With subagents, the main session orchestrates:</p>
+<pre><code class="language-text">You:  &quot;Review auth/, billing/, webhooks/, and admin/ for security issues.
+       Use a separate reviewer per module and then summarize.&quot;
+CC:   spawns 4 reviewer subagents (one per module), each in its own context
+      ├─ auth/     → finds a missing authz check on one route
+      ├─ billing/  → finds a float used for money
+      ├─ webhooks/ → finds an unverified signature
+      └─ admin/    → clean
+      main session collects the 4 summaries → consolidated, deduped report
+You:  &lt;review the consolidated findings, decide what blocks the release&gt;
+</code></pre>
+<p>Two wins are visible: each reviewer&rsquo;s context holds only <em>its</em> module (sharper analysis), and the four run concurrently instead of serially. The main session acts purely as orchestrator — splitting the work, launching the reviewers, and synthesizing. The decomposition works here precisely because the four modules are independent; there&rsquo;s no shared state for the subagents to race on.</p>
+<p><strong>The gotcha:</strong> the same setup applied to four <em>interdependent</em> files (where reviewing one requires understanding the others) would make each subagent guess at the missing context and produce shallow or contradictory findings. Fan out only genuinely independent slices; keep coupled work in one context.</p>
 <h2 id="keep-the-orchestrator-in-control">Keep the orchestrator in control</h2>
 <p>Even with subagents doing the legwork, you and the main agent stay accountable for the result. Subagent outputs are inputs to be reviewed and integrated, not final answers to rubber-stamp — the same &ldquo;review everything&rdquo; discipline from the Code Review series applies. The orchestrator decides what to delegate, checks what comes back, resolves conflicts between subagents&rsquo; results, and owns the final synthesis. Delegation multiplies your reach; it doesn&rsquo;t outsource your judgment.</p>
 <h2 id="key-takeaways">Key takeaways</h2>

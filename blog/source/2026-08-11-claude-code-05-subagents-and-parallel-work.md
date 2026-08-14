@@ -39,6 +39,26 @@ The pattern that pays off: decompose a big task into independent pieces, fan the
 
 The judgment is in the decomposition: pieces must be genuinely independent (no shared state they'd race on) and worth the coordination cost. Forcing parallelism onto work that's actually sequential just adds overhead and confusion. When the shape fits, though, it's a large speedup and keeps each subagent's context tightly focused on its slice.
 
+## A worked example: a parallel review
+
+Say you want a security-focused review of four independent modules before a release. Done inline, the main agent reads all four in one context — which fills up fast and blurs the modules together. With subagents, the main session orchestrates:
+
+```text
+You:  "Review auth/, billing/, webhooks/, and admin/ for security issues.
+       Use a separate reviewer per module and then summarize."
+CC:   spawns 4 reviewer subagents (one per module), each in its own context
+      ├─ auth/     → finds a missing authz check on one route
+      ├─ billing/  → finds a float used for money
+      ├─ webhooks/ → finds an unverified signature
+      └─ admin/    → clean
+      main session collects the 4 summaries → consolidated, deduped report
+You:  <review the consolidated findings, decide what blocks the release>
+```
+
+Two wins are visible: each reviewer's context holds only *its* module (sharper analysis), and the four run concurrently instead of serially. The main session acts purely as orchestrator — splitting the work, launching the reviewers, and synthesizing. The decomposition works here precisely because the four modules are independent; there's no shared state for the subagents to race on.
+
+**The gotcha:** the same setup applied to four *interdependent* files (where reviewing one requires understanding the others) would make each subagent guess at the missing context and produce shallow or contradictory findings. Fan out only genuinely independent slices; keep coupled work in one context.
+
 ## Keep the orchestrator in control
 
 Even with subagents doing the legwork, you and the main agent stay accountable for the result. Subagent outputs are inputs to be reviewed and integrated, not final answers to rubber-stamp — the same "review everything" discipline from the Code Review series applies. The orchestrator decides what to delegate, checks what comes back, resolves conflicts between subagents' results, and owns the final synthesis. Delegation multiplies your reach; it doesn't outsource your judgment.

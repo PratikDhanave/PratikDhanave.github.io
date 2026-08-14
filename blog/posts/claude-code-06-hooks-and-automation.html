@@ -109,7 +109,7 @@
       <span>·</span>
       <time datetime="2026-08-12">August 12, 2026</time>
       <span>·</span>
-      <span>5 min read</span>
+      <span>6 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/claude-code/" class="tag-link"><span class="tag">#Claude Code</span></a><a href="/blog/tags/hooks/" class="tag-link"><span class="tag">#Hooks</span></a><a href="/blog/tags/automation/" class="tag-link"><span class="tag">#Automation</span></a><a href="/blog/tags/ai/" class="tag-link"><span class="tag">#AI</span></a></div>
   </header>
@@ -160,6 +160,19 @@
 <li><strong>Scope them.</strong> Match hooks to the relevant tools/paths rather than firing on everything.</li>
 </ul>
 <p>Committing hooks to the repo means the whole team gets the same automatic formatting, the same guardrails, and the same checks — turning individual discipline into enforced team policy.</p>
+<h2 id="a-worked-example-format-on-edit-and-a-protected-path">A worked example: format-on-edit and a protected path</h2>
+<p>The two canonical first hooks, conceptually:</p>
+<pre><code class="language-text">PostToolUse (after an Edit/Write to a *.go file):
+   run:  gofmt -w &quot;$file&quot;   (and maybe goimports)
+   → every file Claude Code touches is formatted, always, with zero review attention
+
+PreToolUse (before an Edit/Write):
+   check: is the target path under internal/pb/ (generated code)?
+   if yes → block with &quot;refusing to edit generated protobuf; edit the .proto instead&quot;
+   → a hard guarantee the model cannot bypass, unlike a CLAUDE.md line it may overlook
+</code></pre>
+<p>The first hook removes formatting from your review surface entirely — you never again comment on gofmt. The second is the important distinction: a CLAUDE.md rule &ldquo;don&rsquo;t edit generated files&rdquo; is followed <em>usually</em>; a PreToolUse hook that inspects the path and blocks the action makes &ldquo;never&rdquo; actually mean never. That&rsquo;s the whole reason hooks exist alongside prompting — determinism where it matters.</p>
+<p><strong>The gotcha:</strong> because the PostToolUse formatter runs on <em>every</em> matching edit, a slow or heavy command there (say, rebuilding the whole project) taxes every single action the agent takes. Scope the hook to the changed file and keep it to seconds — format the file, don&rsquo;t rebuild the world.</p>
 <h2 id="a-realistic-starter-set">A realistic starter set</h2>
 <p>Most teams converge on a small, high-value set: auto-format on edit, run the linter/tests after changes to catch breakage in the loop, block edits to generated or protected paths, and a notification when the agent needs attention. That handful removes a whole category of &ldquo;did it remember to…&rdquo; review and makes the agent&rsquo;s behavior consistent and safe. Add more only when a real, repeated need appears — hook sprawl is its own maintenance burden.</p>
 <h2 id="key-takeaways">Key takeaways</h2>

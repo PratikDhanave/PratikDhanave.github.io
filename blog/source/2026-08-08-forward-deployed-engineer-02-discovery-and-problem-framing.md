@@ -48,6 +48,19 @@ Once you believe you understand the problem, write it down in one or two plain s
 
 **The gotcha:** skipping the written, confirmed problem frame means every stakeholder holds a slightly different idea of what you're building — and you'll discover the mismatch at the demo, the worst possible moment. Five minutes writing it down and reading it back saves weeks.
 
+## A discovery example
+
+A hospital operations team asks for "a dashboard to track bed availability." The naive move is to build it. The discovery move:
+
+- *"Why do you need to see bed availability?"* → "To place incoming patients faster."
+- *"What happens when placement is slow?"* → "Patients wait in the ER, which backs up ambulances."
+- *"How do you decide placement today?"* → (watching) a charge nurse phones three wards, writes on a whiteboard, and re-checks 20 minutes later because it's stale.
+- *"What can't change?"* → "The bed data lives in the EHR; we can only read it, and it can't leave our network."
+
+The stated request was a dashboard. The real problem is a *placement decision* made slowly on stale, manually-gathered data, constrained to read-only EHR access on-prem. The job-to-be-done: "when a patient needs a bed, give the charge nurse a trustworthy, current placement suggestion in seconds." That frame rules out a passive dashboard (it doesn't make the decision faster) and points at a live, ranked suggestion — a completely different build, discovered only by asking why and watching the real work.
+
+**The gotcha:** had the FDE built the requested dashboard, it would have been technically fine and *still* left the charge nurse making the same slow phone calls — the pain untouched, the tool unused. The discovery is what redirected the effort from the artifact named to the outcome needed.
+
 ## Discovery never fully stops
 
 Framing the problem up front is essential, but the understanding keeps deepening as you build — a prototype (post 3) is itself a discovery tool, because showing someone something concrete surfaces reactions that no interview could. Hold your problem frame firmly enough to make progress and loosely enough to update it when the work teaches you something new.

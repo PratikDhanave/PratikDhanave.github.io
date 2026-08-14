@@ -48,6 +48,17 @@ Every FDE lives on a knife-edge. Move fast and bespoke, and you delight *this* c
 
 The role rewards a specific temperament: high tolerance for ambiguity and messiness, genuine curiosity about the customer's domain (you'll learn more about insurance claims or clinical trials or freight logistics than you expected), technical breadth over narrow depth (you touch data, backend, integrations, sometimes frontend and ops in one week), comfort being the least-knowledgeable person in the room about the domain and the most-knowledgeable about the software, and the resilience to demo something half-finished, watch it wobble, and iterate in front of the customer. If you need clean requirements, a stable stack, and a quiet backlog, this role will feel like chaos. If you're energized by dropping into a hard, undefined problem and making something real by Friday, it's one of the best seats in the industry.
 
+## A concrete picture
+
+To make the blend tangible, picture a single week for an FDE embedded with, say, a freight company that just bought an AI platform:
+
+- **Monday** — sit with a dispatcher and watch how they *actually* assign loads (the consultant hat): the real workflow is a shared spreadsheet and gut feel, not the process the sales deck assumed.
+- **Tuesday–Wednesday** — build a rough prototype that ranks loads using their real (messy) data (the engineer hat), and show it Wednesday afternoon. It wobbles; the dispatcher immediately says "but it ignores driver hours" — a requirement no meeting surfaced.
+- **Thursday** — fix that, wire it to read their dispatch system, and get it in front of the ops manager (the trust/communication hat).
+- **Friday** — notice this "rank by constraints" need is the *third* customer to ask for it, and file it as a product feature request (the product-manager hat).
+
+No single traditional role does all four in a week. That compression — discover, build, demo, and feed the product, all at the customer — is the FDE in one image, and the rest of this series unpacks each move.
+
 ## What this series covers
 
 The rest of this series walks the arc of an FDE engagement and career:

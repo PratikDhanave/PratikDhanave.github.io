@@ -49,6 +49,18 @@ The healthy path is deliberate: decide *consciously* which parts of the prototyp
 
 Even while moving fast, a little discipline pays off: keep the prototype in version control, jot down the assumptions you hard-coded (so you know what to revisit), and note which shortcuts are safe to keep versus which are load-bearing lies. This isn't building it "properly" — it's leaving yourself a map for when the prototype inevitably outlives its intended lifespan, which it usually does.
 
+## A prototyping example
+
+Continuing the hospital bed-placement problem: the risky assumption is "can we produce a *trustworthy* placement suggestion from the EHR data fast enough to matter?" Everything else — a polished UI, auth, real-time sync, multi-ward rollout — is secondary. So the first prototype:
+
+- **Fakes the plumbing:** a nightly export of one unit's bed data (not a live EHR integration) loaded into a notebook.
+- **Makes the risky part real:** the ranking logic that turns bed status + patient needs + a real constraint (e.g. isolation requirements) into a suggestion, run on *their* actual anonymized records.
+- **Shows a rough view:** a plain table the charge nurse can react to — "would you trust this suggestion?"
+
+By Wednesday the nurse is reacting to real suggestions. They immediately surface what interviews missed ("it can't put a post-op patient there") — that reaction is the whole point. You've validated (or killed) the core idea in days, using one unit's exported data, before committing to the hard live-EHR integration (post 4).
+
+**The gotcha:** the seductive wrong move is to spend week one building the "proper" live EHR integration first, because it feels like real engineering. If the ranking turns out untrustworthy, you've sunk the hardest work into plumbing for an idea that doesn't fly. Prove the risky core on faked plumbing; build the plumbing once the core earns it.
+
 ## When the prototype says "no"
 
 Sometimes the prototype's most valuable outcome is proving the idea *doesn't* work — the data can't support the analysis, the model isn't accurate enough, the workflow doesn't fit. That's a win, discovered in days instead of months. An FDE who can say "we tried it, here's what we learned, here's the better direction" builds more trust than one who ploughs ahead. Failing fast and honestly is a feature of the role, not a failure of it.

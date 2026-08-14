@@ -220,6 +220,5 @@ The ordering matters. Least privilege comes first because it caps the blast radi
 - [OWASP Top 10 for LLM Applications — LLM01: Prompt Injection](https://genai.owasp.org/llmrisk/llm01-prompt-injection/)
 - [Greshake et al., "Not what you've signed up for: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection" (arXiv:2302.12173)](https://arxiv.org/abs/2302.12173)
 - [MITRE ATLAS — adversarial threat landscape for AI systems](https://atlas.mitre.org/)
-- [Simon Willison — prompt injection archive](https://simonwillison.net/tags/prompt-injection/)
-- [Simon Willison — "Exfiltration of your data using ChatGPT plus plugins" (data exfiltration via markdown/URLs)](https://simonwillison.net/2023/May/24/exfiltration/)
+- [Simon Willison — prompt injection archive](https://simonwillison.net/tags/prompt-injection/) — including his writing on data exfiltration via markdown/URL rendering
 - [OWASP GenAI Security Project](https://genai.owasp.org/)

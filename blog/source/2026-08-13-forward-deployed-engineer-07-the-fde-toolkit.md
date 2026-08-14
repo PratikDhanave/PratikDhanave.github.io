@@ -55,6 +55,20 @@ The specific tools change; the meta-skills are the durable toolkit:
 
 Experienced FDEs accumulate a personal kit of reusable starters — a data-profiling script, a project scaffold, integration snippets, a deployment template, a demo-app skeleton — that lets them stand up a working slice on day one instead of week one. This personal leverage is the individual-scale version of the bespoke-to-product loop (post 6): patterns *you* keep needing, extracted so you never rebuild them by hand. Guard and grow it; it's a large part of what makes a senior FDE fast.
 
+## The toolkit in a first week
+
+Watch the breadth show up across one engagement's opening week — each day leans on a different leg of the comb:
+
+- **Data wrangling** (day 1): profile the customer's export — null rates, weird encodings, the "miscellaneous" category hiding 30% of rows. SQL + a dataframe, a profiling pass.
+- **Backend/glue** (days 2–3): a script that turns their data into a ranked suggestion; the core logic in Python for speed.
+- **A little frontend** (day 3): a Streamlit page so the user can *react* to real output — because a result they can't touch won't get adopted.
+- **Just-enough ops** (day 4): a container so it runs in their environment, and a log line so you can see what it did.
+- **Domain + communication** (all week): enough of their vocabulary to understand the problem and demo credibly.
+
+No single deep specialty carries that week; the *combination* does — plus the meta-skills underneath (learning their unfamiliar system fast, debugging across the data/integration boundary, judging what's "good enough" for a week-one demo). And the engineer who's done this before moves faster still, because their personal starter kit (a profiling script, a Streamlit skeleton, a deploy template) turns "week one" into "day one."
+
+**The gotcha:** an engineer who is world-class in exactly one of those legs but shaky in the others stalls the moment the week needs a different leg — great at the model but stuck on the data profiling, or great at the backend but unable to put a UI in front of the user. The FDE edge is that none of the five legs blocks you.
+
 ## Key takeaways
 
 - The FDE toolkit is **breadth over depth** — comb-shaped competence across data, backend, a little frontend, just-enough ops, and the domain, because you build the whole slice alone.

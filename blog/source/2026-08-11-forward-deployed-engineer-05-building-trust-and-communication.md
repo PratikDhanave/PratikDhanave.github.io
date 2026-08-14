@@ -44,6 +44,20 @@ Things will go wrong — a missed date, a failed approach, a data problem that b
 
 Part of trust is not overstaying. An FDE who manufactures dependency to stay employed on an account erodes the very trust that made them valuable. The stronger long-game move is a clean handover (post 4): the customer's team can run it, the champion looks like a hero for bringing you in, and you've earned the reference and the expansion. Customers who trust you bring you back and refer you onward — which is worth far more than one prolonged engagement.
 
+## An example: turning a skeptic
+
+On the bed-placement project, the charge nurse who does placement today is the skeptic — and it's rational. An outsider's tool that "suggests placements" reads as a threat to the judgment she's honed over fifteen years, and if it's wrong once it could endanger a patient and embarrass her. Ignoring her guarantees the tool dies in adoption, no matter how good the ranking is.
+
+The move isn't to overpower her with the sponsor; it's to understand the fear and address it:
+
+- **Involve her as the expert.** Her exceptions ("never put a post-op patient there") *are* the spec — crediting and encoding her knowledge makes the tool hers, not a replacement for her.
+- **Frame it as leverage, not automation.** It surfaces options and flags constraints; *she* decides. It makes her faster, it doesn't overrule her.
+- **Earn trust on a small, safe slice first.** Let it assist on low-risk placements, show it's reliable, and expand as she gains confidence — trust in small increments.
+
+Convert her and she becomes the champion who defends the tool on the ward; leave her out and she quietly stops using it and tells everyone it's wrong. Same code, opposite outcomes — decided entirely by the relationship.
+
+**The gotcha:** the technically-focused FDE sees the skeptic as an obstacle to route around via the executive sponsor. That "wins" the deployment on paper and loses it in practice — the daily user's quiet non-adoption beats the sponsor's mandate every time. Convert the skeptic; don't overrule them.
+
 ## Key takeaways
 
 - Trust is the **delivery mechanism** for FDE work — the best code fails without it.

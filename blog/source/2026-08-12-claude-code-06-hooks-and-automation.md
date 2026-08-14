@@ -49,6 +49,25 @@ Hooks are configuration that lives with the project (committed, like the rest of
 
 Committing hooks to the repo means the whole team gets the same automatic formatting, the same guardrails, and the same checks — turning individual discipline into enforced team policy.
 
+## A worked example: format-on-edit and a protected path
+
+The two canonical first hooks, conceptually:
+
+```text
+PostToolUse (after an Edit/Write to a *.go file):
+   run:  gofmt -w "$file"   (and maybe goimports)
+   → every file Claude Code touches is formatted, always, with zero review attention
+
+PreToolUse (before an Edit/Write):
+   check: is the target path under internal/pb/ (generated code)?
+   if yes → block with "refusing to edit generated protobuf; edit the .proto instead"
+   → a hard guarantee the model cannot bypass, unlike a CLAUDE.md line it may overlook
+```
+
+The first hook removes formatting from your review surface entirely — you never again comment on gofmt. The second is the important distinction: a CLAUDE.md rule "don't edit generated files" is followed *usually*; a PreToolUse hook that inspects the path and blocks the action makes "never" actually mean never. That's the whole reason hooks exist alongside prompting — determinism where it matters.
+
+**The gotcha:** because the PostToolUse formatter runs on *every* matching edit, a slow or heavy command there (say, rebuilding the whole project) taxes every single action the agent takes. Scope the hook to the changed file and keep it to seconds — format the file, don't rebuild the world.
+
 ## A realistic starter set
 
 Most teams converge on a small, high-value set: auto-format on edit, run the linter/tests after changes to catch breakage in the loop, block edits to generated or protected paths, and a notification when the agent needs attention. That handful removes a whole category of "did it remember to…" review and makes the agent's behavior consistent and safe. Add more only when a real, repeated need appears — hook sprawl is its own maintenance burden.

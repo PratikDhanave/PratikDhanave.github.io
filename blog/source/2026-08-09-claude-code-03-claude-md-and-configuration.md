@@ -49,6 +49,36 @@ The principle: **make the good setup shareable and version-controlled.** A well-
 
 **The gotcha:** putting secrets or machine-specific paths in a committed config or CLAUDE.md leaks them to the whole team and to anyone who clones the repo — keep those in local (uncommitted) settings or environment, and commit only what's genuinely shared.
 
+## A realistic CLAUDE.md, annotated
+
+Here's the shape of a useful project CLAUDE.md — specific, not generic:
+
+```markdown
+# Project: payments-api (Go)
+
+## Build & test
+- `make test` — full suite; `go test ./path -run TestName` for one test
+- `make lint` — golangci-lint; CI fails on any lint error
+- Run locally: `make run` (needs Postgres via `docker compose up db`)
+
+## Layout
+- `cmd/` entrypoints · `internal/` private pkgs · `internal/ledger/` the core
+
+## Conventions
+- Money is integer minor units + currency code — NEVER floats
+- Errors: wrap with `fmt.Errorf("...: %w", err)`; no naked returns
+- New endpoints: add a table-driven test and an authz check
+
+## Do not
+- Don't edit `internal/pb/` (generated protobuf)
+- Don't add dependencies without asking
+- Never commit to main; branch first
+```
+
+Every line earns its place: the commands let the agent verify its own work, the money rule prevents a whole class of bug, and the "do not" list heads off the mistakes a newcomer (human or agent) actually makes. Notice what's *absent* — no "write clean code," no "follow best practices." Those cost context and teach nothing.
+
+**The gotcha:** the money-units and generated-code rules above are exactly the kind of thing the model can't infer from the code alone in one glance — it might see a `float64` elsewhere and follow it, or "helpfully" regenerate a file you hand-edited. The highest-value CLAUDE.md lines are the project-specific invariants and traps, not the universal advice.
+
 ## The payoff
 
 The upfront investment in CLAUDE.md and config compounds. Every session starts with the agent already knowing how to build and test, which conventions to follow, and what not to touch — so you spend your specification effort (post 2) on the task, not on re-explaining the project. On a team, it means consistent agent behavior across everyone who works in the repo. It's the closest thing Claude Code has to a "set it up once" lever, and it's worth doing early.

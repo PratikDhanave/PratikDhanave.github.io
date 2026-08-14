@@ -42,6 +42,18 @@ And where you stay firmly in charge: architectural decisions, whether the change
 
 Think of Claude Code as a fast, tireless, broadly-capable collaborator who has read your whole codebase but doesn't share your context, your taste, or your accountability. That model predicts how to work with it: give it the context it lacks (post 3's CLAUDE.md), specify clearly (post 2), let it do the legwork, and review the result as you would a colleague's PR. It multiplies a good engineer; it doesn't replace the judgment.
 
+## How it compares to other AI coding tools
+
+It helps to place Claude Code against the tools you may already use, because they occupy different points on a spectrum from *suggestion* to *agency*:
+
+- **Inline completions** (the "ghost text" in your editor) predict the next tokens as you type. They're fast and low-friction but operate at the granularity of a line or a block, and they don't run your tests or reason across files.
+- **Chat side-panels** answer questions and generate snippets you copy back in. Useful, but *you* are still the one applying changes, running commands, and closing the loop.
+- **Agentic tools like Claude Code** take a goal and drive the whole loop — read, edit, run, observe, fix — across the real project, pausing for your approval.
+
+None of these strictly replaces the others; many engineers keep inline completion on for typing flow and reach for Claude Code when they want to *delegate a task* rather than accelerate keystrokes. The mental shift that matters is recognizing which mode a job wants: "finish this line" is completion, "add this feature and its tests" is agency.
+
+**The gotcha:** using an agent for a job that wanted a one-line completion is slower and heavier than just typing it; using completion for a job that wanted an agent means you do all the orchestration by hand. Match the tool to the size of the unit of work.
+
 ## What this series covers
 
 1. **This post** — what Claude Code is and the mental model.

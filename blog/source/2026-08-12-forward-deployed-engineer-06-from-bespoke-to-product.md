@@ -44,6 +44,18 @@ At any moment an FDE (and an FDE org) holds a portfolio of bespoke solutions in 
 
 **The gotcha:** the failure mode isn't any single one-off — it's the accumulation. Fifty bespoke deployments, each 90% the same but individually maintained, is a company-ending maintenance load that crept in one reasonable decision at a time. Watch the pile, not just each piece.
 
+## An example: the third-time signal
+
+Trace one capability across three engagements:
+
+- **Customer A (hospital):** you build bespoke "rank options against hard constraints" logic for bed placement. Custom, specific, ships fast. You note it.
+- **Customer B (freight):** load assignment turns out to be the same shape — rank loads against constraints (driver hours, capacity). You build it again, slightly differently, and now you're paying attention.
+- **Customer C (field service):** technician scheduling — *again* "rank options against constraints." Third time. This is no longer a coincidence; it's a product capability hiding in three custom builds.
+
+At this point the recurring bespoke work is a tax you keep paying, and the pattern is proven enough to justify generalizing: a "constraint-based ranking" capability the product offers, configured per domain (beds vs loads vs jobs), so customer D gets it out of the box. Because you designed each bespoke version with a clean seam between the general ranking core and the customer-specific constraints (this post's advice), graduating it is a refactor, not a rewrite.
+
+**The gotcha:** had you generalized after customer A alone, you'd have built a "flexible ranking platform" around hospital-specific assumptions that didn't fit freight or field service — over-engineering for imagined variation. And had you *never* generalized, you'd be maintaining three (soon four, five) near-identical forks by hand. The third occurrence is the signal that threads between both failures.
+
 ## The strategic payoff
 
 Done right, the bespoke-to-product loop is a flywheel: FDEs win customers with fast custom work, that work reveals real patterns, the product absorbs the patterns, and the stronger product makes the *next* engagement faster and more general — so FDEs win the next customer more cheaply and reach the productizable pattern sooner. This is how companies like Palantir framed the model: forward deployed work isn't a cost center bolted onto a product; it's the sensing organ that tells the product what to become. An FDE who understands this is not just delivering to a customer — they're steering the product.

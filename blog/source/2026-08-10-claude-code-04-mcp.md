@@ -37,6 +37,23 @@ MCP is powerful precisely because it grants capability, so treat connecting a se
 - **Mind untrusted content.** Data pulled in via a server is untrusted input — a document or ticket the agent reads could carry a prompt injection (the AI Security series' indirect-injection lesson). Keep consequential actions gated (post 1 permissions).
 - **Keep secrets out of committed config.** Connection strings and tokens belong in local/uncommitted settings or environment, not in a repo-committed server config (post 3).
 
+## A worked example: a database server
+
+Suppose your work constantly needs the real database schema and some sample rows. Without MCP, you paste `\d+ orders` output and a few `SELECT`s into the conversation each time. With a Postgres MCP server connected (read-only, scoped to a replica), the flow becomes:
+
+```text
+You:  "The orders report is slow. Look at the orders and line_items schema
+       and the indexes, and propose why."
+CC:   <via the MCP db server: reads table definitions + index list>
+      "line_items has no index on order_id, and the report joins on it —
+       that's a sequential scan per order. Here's the migration to add it."
+You:  "Add the migration following our naming, and a test."
+```
+
+The agent pulled *live* schema instead of guessing from the ORM models, which is exactly where a subtle "the code says X but prod has Y" bug hides. The same pattern applies to an issue-tracker server ("read ticket 412 and implement it") or a docs server ("check our API guidelines before designing this endpoint").
+
+**The gotcha:** notice the server above is *read-only and pointed at a replica*. The temptation is to connect a full read-write admin connection "so it can also apply the migration" — but then a confused or injected instruction could alter production data directly. Keep the server's privileges to what the task needs (read schema), and let the *human-reviewed migration* through your normal pipeline do the writing.
+
 ## When to reach for MCP
 
 MCP earns its keep when the context or action you need lives outside the codebase *and* you need it repeatedly. For a one-off, pasting a query result into the conversation is fine. But if you constantly need Claude Code to check tickets, inspect the database, or file issues, a connected server turns that from manual copy-paste into something the agent just does. The judgment call is the same as any integration: connect what you'll use often, keep the surface minimal, and don't wire up reach you don't need.

@@ -50,6 +50,28 @@ Match the size of what you delegate to how much you trust the setup. Big, well-s
 
 Fluency with the surrounding features multiplies the core loop: plan mode for deliberate design, `/clear` for context hygiene, permission settings for the right autonomy (post 1), and — as the series continues — CLAUDE.md for durable context (post 3), subagents for parallel legwork (post 5), and slash commands for repeatable workflows (post 7). You don't need all of it on day one; the four-beat loop plus clear specification carries most work.
 
+## A worked example
+
+Say you're adding rate limiting to a login endpoint. The loop in practice:
+
+```text
+You:  "Read how the login handler and middleware are wired, then explain
+       where a rate limiter would slot in. Don't write code yet."
+CC:   <reads handler, middleware, config> "Login is handled in auth/login.go,
+       middleware chains in server.go. A limiter fits as middleware keyed by
+       IP+username. You already use go-redis, so a Redis token bucket fits."
+You:  "Good. Plan the change — files, approach, tests."
+CC:   <plan: new ratelimit middleware, wire it, config knobs, table tests>
+You:  "Do it. Cap at the existing config style; add tests for allow + deny."
+CC:   <edits, runs `go test ./...`, one test fails, fixes, re-runs, green>
+You:  <review the diff> "The deny path should return 429 with Retry-After."
+CC:   <adjusts, re-runs tests>
+```
+
+Notice the shape: explore grounds it in *your* code, the plan is reviewed before any edits, execution loops against the test suite (the objective signal), and you steer on specifics at review time. The same four beats scale from a one-file tweak to a multi-file feature — you just spend more time on the plan and review as the change grows.
+
+**The gotcha:** the failure version of this is one message — "add rate limiting" — followed by accepting whatever comes back. Without the explore and plan beats it may pick the wrong layer, miss your Redis usage, or invent a config style; without reviewing the diff you ship the 429-vs-200 detail wrong. The loop is what turns a plausible change into a correct one.
+
 ## Key takeaways
 
 - Use the **explore → plan → execute → review** loop; don't jump straight to execute on fuzzy requests.

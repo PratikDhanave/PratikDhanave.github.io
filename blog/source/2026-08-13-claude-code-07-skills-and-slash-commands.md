@@ -49,6 +49,22 @@ The craft mirrors writing a good CLAUDE.md or a good prompt (post 2):
 - **Keep them focused.** One command/skill, one job. Sprawling do-everything commands are hard to trust and maintain.
 - **Version and iterate them.** Commit them, refine from real use, prune what doesn't earn its place — treat them as living team assets.
 
+## A worked example: a /review command
+
+Your team has a specific review checklist — authz on new endpoints, money as integer units, table-driven tests, no secrets. Re-typing it every time is toil. Captured as a custom slash command (a Markdown file in the repo, e.g. `.claude/commands/review.md`), it becomes one invocation:
+
+```text
+/review
+  → runs your saved instructions: "Review the current diff against our
+     checklist: (1) every new endpoint has an ownership/authz check,
+     (2) money is integer minor units, (3) new logic has table-driven
+     tests, (4) no secrets/keys added. Report findings by severity."
+```
+
+Anyone on the team types `/review` and gets the *same* checklist applied — and when you refine the checklist, everyone benefits on the next run. A skill is the bigger sibling: "how we do a database migration here" as a self-contained procedure (steps + a helper script) that the agent loads *when a migration comes up*, rather than something you invoke explicitly. The command is for the frequent, explicit ask; the skill is for the occasional, specialized procedure that would otherwise bloat your everyday context.
+
+**The gotcha:** the pull is to create a `/review`, `/refactor`, `/test`, `/document`… command for everything on day one. Most won't recur enough to earn their slot and they clutter the command list. Wait until you've typed roughly the same prompt a few times, then capture *that* — the rule of three keeps the set small and trusted.
+
 ## The payoff: institutional knowledge, invokable
 
 Taken together, slash commands and skills let a team capture *how we do things here* as invokable assets rather than tribal knowledge re-explained in every session. The senior engineer's review checklist, the team's migration procedure, the house release process — encoded once, invoked by anyone, improved over time. It's the same compounding leverage as CLAUDE.md and hooks: setup done once that pays back on every use, and consistently across everyone who works in the repo.

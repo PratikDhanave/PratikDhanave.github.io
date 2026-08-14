@@ -48,6 +48,19 @@ The moment your solution touches production data, you need to see what it's doin
 
 **The gotcha:** an FDE who never documents or hands over becomes a single point of failure — every incident, forever, routes to them, and they can never take on new work. Build for handover from the start, or the success of your last engagement becomes the ceiling on your next one.
 
+## A deployment example
+
+The bed-placement prototype worked on a clean nightly export of one unit. Production surfaces everything the sample hid:
+
+- **The data:** the live EHR feed has beds stuck in "cleaning" for days (nobody updated the status), patient records with missing isolation flags, and two wards that encode "occupied" differently. The prototype's happy path assumed none of this.
+- **The integration:** there's no real-time API — you get an HL7/flat-file feed every few minutes, so the "live" suggestion is really "a few minutes stale," which you must surface honestly.
+- **Security:** the data can't leave the hospital network, so the slick managed service you prototyped with is off the table; it has to run on their infrastructure, reviewed by their security team.
+- **Operations:** after you leave, the ward's IT team runs it — so it needs a runbook, alerts when the feed stops, and a "rejects" report for records it couldn't parse.
+
+The gap between the Wednesday demo and this is *the deployment*, and it's usually most of the total effort. Handling it — profiling the dirty feed, degrading gracefully on bad records, fitting the security and ops constraints — is what turns a beloved prototype into something the hospital can actually rely on at 3am.
+
+**The gotcha:** promising a go-live date based on how fast the prototype came together is the classic FDE miss — the prototype was 20% of the work. Estimate *after* profiling the real feed and learning the security and deployment constraints, not from the demo.
+
 ## Key takeaways
 
 - **Production data is dirtier than the sample** — profile the real dataset early, design for dirtiness, and mine the humans for edge cases.

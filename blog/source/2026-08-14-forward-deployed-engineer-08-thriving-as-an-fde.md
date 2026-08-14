@@ -43,6 +43,14 @@ The FDE seat is a springboard *if* you steer it — it can also typecast you as 
 
 The engineers who thrive long-term in this role share a profile: genuine curiosity about other people's problems, comfort with ambiguity and being a beginner in a new domain every quarter, the discipline to finish (including the unglamorous last 20%), the humility to hand off and the wisdom to prune, and the communication to make both the customer and the product better. It is a role for generalists who like people and shipping — and for them, few jobs offer this much variety, impact, and proximity to reality.
 
+## The maintenance trap, illustrated
+
+Picture a successful FDE two years in. Year one: they shipped bespoke solutions to five customers, each a win. Year two, the trap closes — each of those five is live, slightly different, and depends on *them*. A feed breaks at customer B; only they know the fix. Customer D wants a tweak; only they understand the code. Soon 60% of their week is servicing past wins, and they can barely take a new engagement. Their success has become their ceiling.
+
+The engineers who avoid this did three things from the start (the earlier posts): they **handed over** each deployment with a runbook and monitoring so the customer's team runs it (post 4); they **fed recurring patterns into the product** so the fifth customer got a supported feature instead of a sixth fork (post 6); and they **pruned** — retiring bespoke solutions once the product absorbed them. Same five wins, but the maintenance load stays flat instead of compounding, so year-two capacity is free for new, higher-impact work.
+
+**The gotcha:** the trap is invisible while it's forming — each "I'll just keep supporting this one" decision is individually reasonable, and the accumulation only becomes obvious once you're underwater. Protect against it *before* it closes: treat handover and productization as part of "done," not as optional follow-up.
+
 ## The series, in one thread
 
 ```text

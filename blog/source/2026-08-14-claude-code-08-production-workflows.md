@@ -41,6 +41,26 @@ Production use is a system, so operate it like one (the System Design and DevSec
 - **Reliability.** Non-deterministic output means an automated job can produce something unexpected — build in verification (run the tests the agent's change should pass; fail the job if they don't) rather than trusting the run blindly.
 - **Observability.** Log what automated runs did — inputs, actions, outputs — so you can debug a bad result and keep an audit trail (a hook, post 6, is a natural place for this).
 
+## A worked example: an automated PR-review job
+
+A common first production use is an AI first-pass review on every pull request. The shape:
+
+```text
+on: pull_request
+job:
+  - check out the PR branch (ephemeral CI runner, sandboxed)
+  - claude -p "Review this diff against our checklist (authz, money units,
+      tests, secrets). Post findings as review comments. Do NOT modify code."
+    with:
+      permissions: read the repo + comment on the PR   # least privilege
+      no access to: deploy creds, prod, package publish
+  - a human still approves and merges
+```
+
+Everything the interactive setup gives you carries over: the CLAUDE.md checklist (post 3), a `/review`-style prompt (post 7), and hooks (post 6) all apply in the headless run. But the safety model changes — there's no per-action approval, so the control moves to the boundaries: the runner is sandboxed and ephemeral, the job's token can only read and comment (not deploy), and a human still merges. The agent is a tireless first-pass *author* of review comments, not the approver.
+
+**The gotcha:** the tempting "improvement" is to let the same job auto-apply fixes and merge them — removing the human. That compounds errors silently (an agent approving agent-written code shares its blind spots) and discards the accountability a human review provides. Keep the person on the merge for anything that ships; automate the toil up to, but not through, the gate.
+
 ## Bringing the series together
 
 Effective Claude Code use is layered, and each layer built on the last:

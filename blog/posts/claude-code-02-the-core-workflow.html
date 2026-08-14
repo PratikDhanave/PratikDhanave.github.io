@@ -109,7 +109,7 @@
       <span>·</span>
       <time datetime="2026-08-08">August 08, 2026</time>
       <span>·</span>
-      <span>5 min read</span>
+      <span>6 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/claude-code/" class="tag-link"><span class="tag">#Claude Code</span></a><a href="/blog/tags/workflow/" class="tag-link"><span class="tag">#Workflow</span></a><a href="/blog/tags/ai/" class="tag-link"><span class="tag">#AI</span></a><a href="/blog/tags/productivity/" class="tag-link"><span class="tag">#Productivity</span></a></div>
   </header>
@@ -157,6 +157,22 @@
 <p><strong>The gotcha:</strong> delegating a large change in a codebase with no automated checks means neither you nor the agent has a fast way to know it worked — the agent can&rsquo;t loop against a green/red signal, and you&rsquo;re left reviewing everything by eye. Add a test or a smaller scope first.</p>
 <h2 id="use-the-tools-around-the-loop">Use the tools around the loop</h2>
 <p>Fluency with the surrounding features multiplies the core loop: plan mode for deliberate design, <code>/clear</code> for context hygiene, permission settings for the right autonomy (post 1), and — as the series continues — CLAUDE.md for durable context (post 3), subagents for parallel legwork (post 5), and slash commands for repeatable workflows (post 7). You don&rsquo;t need all of it on day one; the four-beat loop plus clear specification carries most work.</p>
+<h2 id="a-worked-example">A worked example</h2>
+<p>Say you&rsquo;re adding rate limiting to a login endpoint. The loop in practice:</p>
+<pre><code class="language-text">You:  &quot;Read how the login handler and middleware are wired, then explain
+       where a rate limiter would slot in. Don't write code yet.&quot;
+CC:   &lt;reads handler, middleware, config&gt; &quot;Login is handled in auth/login.go,
+       middleware chains in server.go. A limiter fits as middleware keyed by
+       IP+username. You already use go-redis, so a Redis token bucket fits.&quot;
+You:  &quot;Good. Plan the change — files, approach, tests.&quot;
+CC:   &lt;plan: new ratelimit middleware, wire it, config knobs, table tests&gt;
+You:  &quot;Do it. Cap at the existing config style; add tests for allow + deny.&quot;
+CC:   &lt;edits, runs `go test ./...`, one test fails, fixes, re-runs, green&gt;
+You:  &lt;review the diff&gt; &quot;The deny path should return 429 with Retry-After.&quot;
+CC:   &lt;adjusts, re-runs tests&gt;
+</code></pre>
+<p>Notice the shape: explore grounds it in <em>your</em> code, the plan is reviewed before any edits, execution loops against the test suite (the objective signal), and you steer on specifics at review time. The same four beats scale from a one-file tweak to a multi-file feature — you just spend more time on the plan and review as the change grows.</p>
+<p><strong>The gotcha:</strong> the failure version of this is one message — &ldquo;add rate limiting&rdquo; — followed by accepting whatever comes back. Without the explore and plan beats it may pick the wrong layer, miss your Redis usage, or invent a config style; without reviewing the diff you ship the 429-vs-200 detail wrong. The loop is what turns a plausible change into a correct one.</p>
 <h2 id="key-takeaways">Key takeaways</h2>
 <ul>
 <li>Use the <strong>explore → plan → execute → review</strong> loop; don&rsquo;t jump straight to execute on fuzzy requests.</li>
