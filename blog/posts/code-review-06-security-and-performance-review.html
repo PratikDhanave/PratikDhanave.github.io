@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Security and Performance Review — Pratik Dhanave</title>
+<meta name="description" content="The specialist lenses: security review (untrusted input to a sink, missing authz/BOLA, secrets, SSRF, new dependencies) and performance review (N+1...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Security and Performance Review — Pratik Dhanave">
+<meta property="og:description" content="The specialist lenses: security review (untrusted input to a sink, missing authz/BOLA, secrets, SSRF, new dependencies) and performance review (N+1 queries, unbounded queries, missing indexes) — flag the smells, defer depth to scanners and profilers.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/code-review-06-security-and-performance-review.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-12T00:00:00Z">
+<meta property="article:tag" content="Code Review">
+<meta property="article:tag" content="Security">
+<meta property="article:tag" content="Performance">
+<meta property="article:tag" content="Quality">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Security and Performance Review — Pratik Dhanave">
+<meta name="twitter:description" content="The specialist lenses: security review (untrusted input to a sink, missing authz/BOLA, secrets, SSRF, new dependencies) and performance review (N+1 queries, unbounded queries, missing indexes) — flag the smells, defer depth to scanners and profilers.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/code-review-06-security-and-performance-review.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Security and Performance Review",
+  "description": "The specialist lenses: security review (untrusted input to a sink, missing authz/BOLA, secrets, SSRF, new dependencies) and performance review (N+1 queries, unbounded queries, missing indexes) \u2014 flag the smells, defer depth to scanners and profilers.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-12",
+  "dateModified": "2026-08-12",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Code Review, Security, Performance, Quality",
+  "url": "https://pratikdhanave.com/blog/posts/code-review-06-security-and-performance-review.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/code-review-06-security-and-performance-review.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Security and Performance Review</h1>
+    <p class="post-subtitle">The two specialist lenses a reviewer switches on for a diff — thinking like an attacker to catch the injection and the missing authorization check, and thinking like production to catch the N+1 query — while knowing exactly where the human eye stops and a scanner, profiler, or load test has to take over.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-12">August 12, 2026</time>
+      <span>·</span>
+      <span>17 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/code-review/" class="tag-link"><span class="tag">#Code Review</span></a><a href="/blog/tags/security/" class="tag-link"><span class="tag">#Security</span></a><a href="/blog/tags/performance/" class="tag-link"><span class="tag">#Performance</span></a><a href="/blog/tags/quality/" class="tag-link"><span class="tag">#Quality</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 6 of 8</span>
+    <span class="series-title">Code Review</span>
+    <div class="series-nav"><a href="/blog/posts/code-review-05-authors-craft.html" class="series-prev">&larr; Part 5: The Author&#x27;s Craft: Making Code Easy to Review</a>
+<a href="/blog/posts/code-review-07-code-review-at-scale.html" class="series-next">Part 7: Code Review at Scale &rarr;</a></div>
+  </div>
+
+
+
+  <p>Most of a code review is design, correctness, tests, and clarity — the general-purpose pass covered earlier in this series. But two categories reward a <em>different kind of attention</em>, and a reviewer who does not deliberately switch into them will scroll right past the two most expensive bugs a diff can carry: a missing authorization check, and a query inside a loop.</p>
+<p>Neither is about whether the code works. The injection-vulnerable handler works perfectly — for well-behaved input. The N+1 query works perfectly — on the twelve rows in your test database. Both pass review, both pass tests, and both surface later as an incident: one as a breach, the other as a 2 a.m. page when the table hits a million rows. The security and performance lenses exist to catch the class of bug that <em>looks fine and isn&rsquo;t</em>.</p>
+<p>This post is about how to switch those lenses on, what to look for in an actual diff, and — just as important — where the human reviewer&rsquo;s usefulness ends and the tools take over. You cannot fully security-review or performance-review a change by eye. What you <em>can</em> do is flag the smells the tools miss and know when to demand a SAST run, a profiler trace, or a load test before approval.</p>
+<p>This complements the site&rsquo;s dedicated <a href="/blog/posts/api-security-01-the-api-security-landscape.html">API Security series</a>, which goes deep on each vulnerability class. Here the focus is narrower: how to spot these things <em>in a pull request</em>, in the minutes you have.</p>
+<hr>
+<h2 id="the-security-lens-assume-the-input-is-hostile">The security lens: assume the input is hostile</h2>
+<p>The whole security mindset compresses to one instruction: <strong>assume every input is hostile, and follow the data.</strong> When a diff introduces a new input — a query parameter, a request body field, an uploaded file, a header, a URL the user supplies — trace it forward. Where does it land? If it reaches a <em>sink</em> — a database query, a shell command, a file path, an HTTP call, a deserializer — without being validated or parameterized on the way, you have found something.</p>
+<p>That is the entire technique: identify sources, identify sinks, and check every path between them. Here is the catalog of what to look for.</p>
+<h3 id="untrusted-input-reaching-a-sink-injection">Untrusted input reaching a sink (injection)</h3>
+<p>The classic. User input concatenated into a query string, a shell command, or an HTML template. The fix is almost always &ldquo;parameterize&rdquo; — let the driver separate code from data.</p>
+<pre><code class="language-diff">- rows, err := db.Query(
+-     &quot;SELECT * FROM invoices WHERE customer = '&quot; + name + &quot;'&quot;)
++ rows, err := db.Query(
++     &quot;SELECT * FROM invoices WHERE customer = $1&quot;, name)
+</code></pre>
+<blockquote>
+<p><strong>Review comment:</strong> &ldquo;<code>name</code> comes straight from the query string and is being concatenated into SQL — a value of <code>x' OR '1'='1</code> reads every customer&rsquo;s invoices. Use a parameterized query (<code>$1</code>) so the driver treats it as data, not code. Same pattern applies to the <code>os/exec</code> call on line 88 — build the argument list, don&rsquo;t shell out with a string.&rdquo;</p>
+</blockquote>
+<p>The tell in a diff is string concatenation or interpolation reaching anything that executes: SQL, <code>exec</code>, <code>eval</code>, a template rendered as raw HTML, an LDAP filter, a file path joined from user input.</p>
+<h3 id="a-missing-authorization-check-on-a-new-endpoint-or-object">A missing authorization check on a new endpoint or object</h3>
+<p>This one deserves top billing because it is the highest-value catch a human can make. When a diff adds an endpoint that loads or mutates an object by ID, ask the question a scanner cannot: <em>is this user allowed to touch this particular object?</em> Authentication (&ldquo;who are you&rdquo;) is not authorization (&ldquo;may you do this to that&rdquo;). A logged-in user is still not allowed to read another user&rsquo;s invoice.</p>
+<pre><code class="language-diff">  func (h *InvoiceHandler) Get(w http.ResponseWriter, r *http.Request) {
+      id := r.PathValue(&quot;id&quot;)
+-     inv, err := h.store.FindInvoice(id)
++     inv, err := h.store.FindInvoice(id)
+      if err != nil {
+          http.Error(w, &quot;not found&quot;, 404)
+          return
+      }
++     if inv.OwnerID != currentUser(r).ID {
++         http.Error(w, &quot;not found&quot;, 404)  // 404, not 403 — don't confirm it exists
++         return
++     }
+      writeJSON(w, inv)
+  }
+</code></pre>
+<blockquote>
+<p><strong>Review comment:</strong> &ldquo;This looks up the invoice by ID but never checks that it belongs to the caller — any authenticated user can read any invoice by guessing or enumerating IDs. This is Broken Object Level Authorization (BOLA). We need an ownership check after the lookup; returning 404 rather than 403 also avoids confirming the record exists to someone probing. The <a href="/blog/posts/api-security-03-authorization.html">authorization post in the API Security series</a> covers the pattern.&rdquo;</p>
+</blockquote>
+<p><strong>The gotcha:</strong> the single highest-value security catch in a review is a missing authorization check on a new object or endpoint — and it is exactly the bug automated scanners are worst at. A SAST tool sees a database lookup and a response; it has no idea that <em>this</em> user shouldn&rsquo;t see <em>that</em> row, because the rule lives in your domain, not in the code&rsquo;s syntax. BOLA tops the API security risk lists precisely because it is invisible to machines and obvious to a human who asks &ldquo;whose data is this?&rdquo; Every time a diff adds an endpoint that takes an ID, that is the question.</p>
+<h3 id="secrets-committed-and-sensitive-data-in-logs">Secrets committed, and sensitive data in logs</h3>
+<p>Two of the cheapest catches, and both permanent once they land. A hard-coded API key, a database password, a private key, a token in a config file — even if deleted in a later commit, it lives in git history forever and must be rotated, not just removed. And the quieter cousin: sensitive data written to logs.</p>
+<pre><code class="language-diff">- log.Printf(&quot;auth attempt: user=%s password=%s token=%s&quot;, u, pw, tok)
++ log.Printf(&quot;auth attempt: user=%s result=%s&quot;, u, result)
+</code></pre>
+<blockquote>
+<p><strong>Review comment:</strong> &ldquo;This logs the raw password and token at info level — they&rsquo;ll land in log aggregation, get indexed, and sit there readable by anyone with log access. Drop the secret fields; log the outcome, not the credentials. Also flagging the <code>apiKey = \"sk-live-...\"</code> on line 12 — that needs to move to config/secret storage and the exposed key rotated, since it&rsquo;s now in git history.&rdquo;</p>
+</blockquote>
+<p>The diff tells: a string that looks like a key (<code>sk-</code>, <code>AKIA</code>, a long base64 blob, <code>-----BEGIN</code>), and any log line that formats a password, token, full card number, or personal data.</p>
+<h3 id="unsafe-deserialization-ssrf-and-missing-rate-limits">Unsafe deserialization, SSRF, and missing rate limits</h3>
+<p>Three more that hide in ordinary-looking additions:</p>
+<ul>
+<li><strong>Unsafe deserialization.</strong> A diff that deserializes untrusted bytes with a format that can instantiate arbitrary types (Python <code>pickle</code>, Java native serialization, YAML loaders that build objects) is a remote-code-execution risk. Ask why the data isn&rsquo;t JSON with an explicit schema.</li>
+<li><strong>SSRF via a user-supplied URL.</strong> When the server fetches a URL the user provided — a webhook, an &ldquo;import from URL,&rdquo; an avatar fetcher — an attacker can point it at <code>http://169.254.169.254/</code> (cloud metadata) or internal services. The fix is an allowlist of hosts and blocking internal address ranges, not a blocklist of bad strings.</li>
+<li><strong>Missing rate limits on expensive or auth endpoints.</strong> A new login endpoint with no throttle is a credential-stuffing target; a new report-generation or search endpoint with no limit is a denial-of-service lever. Flag the <em>absence</em> of a limit on anything expensive or authentication-related.</li>
+</ul>
+<pre><code class="language-diff">  func FetchPreview(userURL string) (*http.Response, error) {
+-     return http.Get(userURL)   // SSRF: userURL may be an internal address
++     if err := validatePublicURL(userURL); err != nil {  // allowlist scheme+host, block private ranges
++         return nil, err
++     }
++     return safeClient.Get(userURL)
+  }
+</code></pre>
+<blockquote>
+<p><strong>Review comment:</strong> &ldquo;<code>userURL</code> is user-controlled and we fetch it server-side — that&rsquo;s SSRF. Someone can point it at the cloud metadata endpoint or an internal service the firewall trusts. We need to validate the scheme and host against an allowlist and reject private/link-local ranges <em>before</em> the request, and ideally use a client that doesn&rsquo;t follow redirects into those ranges.&rdquo;</p>
+</blockquote>
+<h3 id="a-new-dependency-is-new-attack-surface">A new dependency is new attack surface</h3>
+<p>When a diff adds a package to <code>go.mod</code>, <code>package.json</code>, or <code>pyproject.toml</code>, that is not a free line. You are importing someone else&rsquo;s code, and its transitive dependencies, into your trust boundary and your build.</p>
+<blockquote>
+<p><strong>Review comment:</strong> &ldquo;This adds <code>left-pad-ultra</code> for one string-padding call — do we need the dependency, or is this ten lines of our own? If we do keep it: is it maintained (last release, open CVEs, download count), and does it pull in a large transitive tree? A one-line helper isn&rsquo;t worth a new supply-chain surface.&rdquo;</p>
+</blockquote>
+<p><strong>The gotcha:</strong> a new dependency is new attack surface, not just a convenience — every package you add can execute code at install time, ship a future compromised version, or drag in a tree of transitive packages you never chose. Review <em>why</em> it is needed and whether it is maintained, the same way you would review code written in-house, because at runtime that is exactly what it is. Trivial functionality is cheaper to own than to import. This ties directly into supply-chain security: the dependency you wave through today is the one in the incident report tomorrow.</p>
+<h3 id="security-smells-checklist">Security smells checklist</h3>
+<p>A quick scan list for the security lens:</p>
+<ul>
+<li>[ ] User input concatenated into SQL, a shell command, a template, or a path (injection).</li>
+<li>[ ] A new endpoint or object lookup with no ownership/authorization check (BOLA).</li>
+<li>[ ] Hard-coded secrets, keys, or tokens anywhere in the diff.</li>
+<li>[ ] Passwords, tokens, or personal data written to logs or error messages.</li>
+<li>[ ] Deserializing untrusted input with an unsafe format.</li>
+<li>[ ] A server-side fetch of a user-supplied URL (SSRF).</li>
+<li>[ ] A new expensive or authentication endpoint with no rate limit.</li>
+<li>[ ] A new dependency — justified, maintained, and reasonably scoped?</li>
+<li>[ ] Authentication confused for authorization (&ldquo;logged in&rdquo; treated as &ldquo;allowed&rdquo;).</li>
+</ul>
+<hr>
+<h2 id="the-performance-lens-think-like-production-not-like-your-laptop">The performance lens: think like production, not like your laptop</h2>
+<p>The performance mindset is a shift of scale: read the diff as if the data were a thousand times bigger and a hundred requests were hitting it at once. Almost every performance bug that survives review does so because it was tested against a tiny dataset where the problem is genuinely invisible.</p>
+<h3 id="the-n1-query-the-classic-diff-smell">The N+1 query — the classic diff smell</h3>
+<p>If you learn to spot one performance problem in a diff, make it this one. A loop that runs a query per iteration turns one logical operation into one query plus N more — hence &ldquo;N+1.&rdquo;</p>
+<pre><code class="language-diff">  orders, _ := db.Query(&quot;SELECT id, customer_id FROM orders WHERE status='open'&quot;)
+  for _, o := range orders {
+-     // one query per order — N+1
+-     cust, _ := db.Query(
+-         &quot;SELECT name FROM customers WHERE id = $1&quot;, o.CustomerID)
+-     results = append(results, render(o, cust))
++     ids = append(ids, o.CustomerID)
+  }
++ // one query for all customers, then join in memory
++ custByID, _ := loadCustomers(db, ids)  // SELECT ... WHERE id = ANY($1)
++ for _, o := range orders {
++     results = append(results, render(o, custByID[o.CustomerID]))
++ }
+</code></pre>
+<blockquote>
+<p><strong>Review comment:</strong> &ldquo;This runs one customer query per order — with 500 open orders that&rsquo;s 501 round trips, and it scales linearly with order volume. It won&rsquo;t show up in the test with three orders, but it will melt in production. Can we collect the customer IDs and fetch them in a single <code>WHERE id = ANY(...)</code>, then look them up from a map in the loop? If an ORM is doing the loading, this is where eager-loading / a <code>JOIN</code> belongs.&rdquo;</p>
+</blockquote>
+<p><strong>The gotcha:</strong> an N+1 query is completely invisible in a small test dataset and melts production the moment the table grows — the test with ten rows does eleven fast queries and passes green, while the same code does ten thousand and one against the real table. You cannot catch this by watching it run in CI; you catch it by recognizing the <em>shape</em> in the diff — a loop with a query (or an ORM lazy-load, or a network call) inside it. Train your eye on the pattern, because the profiler only finds it after it has already shipped.</p>
+<h3 id="unbounded-queries-and-missing-pagination">Unbounded queries and missing pagination</h3>
+<p>A query with no <code>LIMIT</code> and no pagination is a landmine planted on a schedule: fine today, an out-of-memory crash the day the result set grows past what one response can hold.</p>
+<pre><code class="language-diff">- rows, _ := db.Query(&quot;SELECT * FROM events WHERE user_id = $1&quot;, uid)
++ rows, _ := db.Query(
++     &quot;SELECT * FROM events WHERE user_id = $1 ORDER BY id LIMIT $2 OFFSET $3&quot;,
++     uid, pageSize, offset)
+</code></pre>
+<blockquote>
+<p><strong>Review comment:</strong> &ldquo;This loads every event for a user into memory with no bound. For an active user that&rsquo;s unbounded growth — a slow response now and an OOM later. Can we paginate (limit + cursor/offset) and have the endpoint return a page? Also selecting <code>*</code> when we render three columns pulls more than we need over the wire.&rdquo;</p>
+</blockquote>
+<h3 id="work-in-a-loop-that-should-be-hoisted-and-missing-indexes">Work in a loop that should be hoisted, and missing indexes</h3>
+<p>Two more that read straight off the diff:</p>
+<ul>
+<li><strong>Loop-invariant work.</strong> A compiled regex, a config lookup, a connection, or a constant computation <em>inside</em> a loop that never changes across iterations belongs above the loop. Hoist it once instead of paying for it N times.</li>
+<li><strong>Missing indexes for a new query pattern.</strong> When a diff introduces a query that filters or joins on a column, ask whether that column is indexed. A new <code>WHERE tenant_id = ?</code> against an unindexed column is a full table scan on every call — invisible until the table is large.</li>
+</ul>
+<pre><code class="language-diff">- for _, line := range lines {
+-     re := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)  // recompiled every iteration
+-     if re.MatchString(line) { ... }
+- }
++ re := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)      // compile once
++ for _, line := range lines {
++     if re.MatchString(line) { ... }
++ }
+</code></pre>
+<blockquote>
+<p><strong>Review comment:</strong> &ldquo;The regex is compiled on every iteration — hoist it above the loop and compile once. Separately, the new <code>WHERE tenant_id = $1 AND created_at &gt; $2</code> query: is there an index covering <code>(tenant_id, created_at)</code>? Without one this is a sequential scan that gets slower as the table grows — worth an accompanying migration.&rdquo;</p>
+</blockquote>
+<h3 id="hot-path-allocations-blocking-calls-caching-and-on2">Hot-path allocations, blocking calls, caching, and O(n²)</h3>
+<p>Rounding out the performance lens:</p>
+<ul>
+<li><strong>Allocations and O(n²) in hot paths.</strong> A nested loop over the same collection (accidental quadratic), or an allocation inside a tight loop, matters when the path is hot. A membership check that scans a slice inside a loop over another slice is O(n²) — a set/map turns it into O(n).</li>
+<li><strong>Blocking calls on the request path.</strong> A synchronous HTTP call, a large file read, or a lock held across I/O sitting in the middle of request handling ties up a worker and caps throughput. Ask whether it can move off the hot path or run concurrently.</li>
+<li><strong>Missing caching for repeated identical work.</strong> If the same expensive computation or lookup runs on every request with the same inputs, a cache may be warranted — but measure first.</li>
+</ul>
+<h3 id="the-discipline-dont-optimize-prematurely-but-dont-ship-the-obvious-incident">The discipline: don&rsquo;t optimize prematurely, but don&rsquo;t ship the obvious incident</h3>
+<p>There is a real tension here, and getting it right is the skill. &ldquo;Premature optimization is the root of all evil&rdquo; is <em>correct</em> about micro-performance — do not rewrite a clean function into an unreadable one to save nanoseconds nobody will notice, and do not demand hand-tuned code where a readable version runs fine. Guessed performance is usually wrong; the honest answer to &ldquo;is this fast enough?&rdquo; is often &ldquo;measure it.&rdquo;</p>
+<p><strong>The gotcha:</strong> &ldquo;optimize later&rdquo; is the right call for micro-performance and exactly the wrong call for an unbounded query or a missing index — those are not optimizations, they are latent incidents you are choosing to ship. The distinction is <em>algorithmic and structural</em> versus <em>constant-factor</em>. An N+1 query, a missing <code>LIMIT</code>, an unindexed hot query, an accidental O(n²) — these change how the code scales, and &ldquo;later&rdquo; means &ldquo;during the outage.&rdquo; Constant-factor tuning genuinely can wait for a profiler. Catch the scaling bugs now; defer the micro-tuning until something proves it matters.</p>
+<h3 id="performance-smells-checklist">Performance smells checklist</h3>
+<ul>
+<li>[ ] A query, network call, or lazy-load inside a loop (N+1).</li>
+<li>[ ] A query with no <code>LIMIT</code> / no pagination on data that grows.</li>
+<li>[ ] Loop-invariant work (compiled regex, config lookup, connection) not hoisted.</li>
+<li>[ ] A new filter/join column with no supporting index.</li>
+<li>[ ] Nested loops over the same data (accidental O(n²)) on a hot path.</li>
+<li>[ ] Allocations inside a tight loop.</li>
+<li>[ ] A blocking I/O call or a lock held across I/O on the request path.</li>
+<li>[ ] <code>SELECT *</code> where a few columns are used.</li>
+<li>[ ] Repeated identical expensive work that a cache could serve — if measurement supports it.</li>
+</ul>
+<hr>
+<h2 id="know-where-your-eyes-stop">Know where your eyes stop</h2>
+<p>The most important thing to internalize about both lenses is their limit. <strong>You cannot fully security-review or performance-review a change by reading it.</strong> A human reviewer catches the <em>smells</em> — the pattern, the missing check, the loop-with-a-query — and that is high-value work no tool does well. But depth belongs to instruments built for it.</p>
+<p>For security, the diff-level catch is the start; behind it sits SAST (static analysis over the whole codebase), DAST (probing the running app), dependency scanners, and secret scanners in CI. Some classes — a taint path across many files, a vulnerable transitive dependency, a runtime injection — are things a scanner finds and an eyeball won&rsquo;t. A reviewer&rsquo;s job is to catch the human-obvious BOLA the scanner misses, <em>and</em> to insist the scanners run for everything else.</p>
+<p>For performance, the diff-level catch is the N+1 and the unbounded query; the depth is a profiler on a representative dataset and a load test at expected concurrency. If a change touches a hot path and you cannot tell whether it is fast enough, the right review outcome is not &ldquo;approve and hope&rdquo; or &ldquo;reject on a guess&rdquo; — it is &ldquo;please attach a benchmark or a profile before we merge.&rdquo; Ask for the measurement; don&rsquo;t invent it.</p>
+<table><caption class="sr-only">Know where your eyes stop</caption>
+<thead>
+<tr>
+<th>Lens</th>
+<th>What the human reviewer catches by eye</th>
+<th>What you defer to tools</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Security</td>
+<td>Missing authz/BOLA, obvious injection, committed secrets, secrets in logs, unjustified dependency</td>
+<td>SAST/DAST, dependency &amp; secret scanners, penetration testing</td>
+</tr>
+<tr>
+<td>Performance</td>
+<td>N+1, unbounded query, missing index, loop-invariant work, obvious O(n²)</td>
+<td>Profiler on real data, load/stress test, APM traces</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Assume the input is hostile and follow the data.</strong> Trace every new input to its sink; if it reaches a query, command, path, or fetch without validation or parameterization, you have found the bug.</li>
+<li><strong>The highest-value security catch is a missing authorization check.</strong> A scanner cannot know whose data a row is; a human asking &ldquo;may <em>this</em> user touch <em>that</em> object?&rdquo; catches the BOLA that tops every API risk list.</li>
+<li><strong>The N+1 query is the performance smell to train your eye on.</strong> A loop with a query inside is invisible on ten test rows and an incident on ten million — spot the shape in the diff, because the profiler only finds it after it ships.</li>
+<li><strong>Distinguish latent incidents from micro-optimization.</strong> &ldquo;Optimize later&rdquo; is right for constant-factor tuning and wrong for unbounded queries and missing indexes — those change how the code scales, so fix them before merge.</li>
+<li><strong>A new dependency is new attack surface.</strong> Review why it&rsquo;s needed and whether it&rsquo;s maintained, exactly as you&rsquo;d review in-house code, because at runtime it is.</li>
+<li><strong>Know where your eyes stop.</strong> Flag the smells; defer the depth to SAST/DAST, profilers, and load tests. Approving on a guess — in either lens — is how the smell becomes the outage.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://owasp.org/www-project-code-review-guide/">OWASP Code Review Guide</a> — the open, community-maintained reference on reviewing code for security, including how to trace untrusted input to sinks.</li>
+<li><a href="https://cheatsheetseries.owasp.org/">OWASP Cheat Sheet Series</a> — concise, practical cheat sheets on injection prevention, deserialization, SSRF, logging, and dependency management, each written as a checklist you can apply during review.</li>
+<li><a href="https://owasp.org/API-Security/editions/2023/en/0x11-t10/">OWASP API Security Top 10</a> — the risk list that puts Broken Object Level Authorization (BOLA) at the top, with the reasoning for why authorization bugs dominate API breaches.</li>
+<li><a href="https://martinfowler.com/bliki/AliasingBug.html">Martin Fowler on the N+1 query problem (from <em>Patterns of Enterprise Application Architecture</em>)</a> and the broader lazy-load discussion in his patterns catalog — a primary treatment of why per-row loading in a loop is the recurring database performance trap.</li>
+<li>The site&rsquo;s own <a href="/blog/posts/api-security-01-the-api-security-landscape.html">API Security series</a> — deeper, per-vulnerability coverage of the classes this post teaches you to spot in a diff, including <a href="/blog/posts/api-security-03-authorization.html">authorization and BOLA</a> and <a href="/blog/posts/api-security-04-input-validation-and-injection.html">input validation and injection</a>.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/code-review-02-what-to-look-for.html">What to Look For in a Code Review</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/code-review-01-why-code-review.html">Why Code Review</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/code-review-08-ai-assisted-code-review.html">AI-Assisted Code Review</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
