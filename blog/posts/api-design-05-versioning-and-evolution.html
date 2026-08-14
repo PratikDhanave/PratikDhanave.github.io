@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Versioning and Evolution: Changing an API Without...</title>
+<meta name="description" content="Changing an API without breaking consumers: what counts as breaking, versioning strategies and their trade-offs (URI vs header vs additive evolution),...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Versioning and Evolution: Changing an API Without...">
+<meta property="og:description" content="Changing an API without breaking consumers: what counts as breaking, versioning strategies and their trade-offs (URI vs header vs additive evolution), the robustness principle and its limits, and responsible deprecation with Sunset headers and usage telemetry.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/api-design-05-versioning-and-evolution.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-11T00:00:00Z">
+<meta property="article:tag" content="API Design">
+<meta property="article:tag" content="Versioning">
+<meta property="article:tag" content="REST">
+<meta property="article:tag" content="Compatibility">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Versioning and Evolution: Changing an API Without...">
+<meta name="twitter:description" content="Changing an API without breaking consumers: what counts as breaking, versioning strategies and their trade-offs (URI vs header vs additive evolution), the robustness principle and its limits, and responsible deprecation with Sunset headers and usage telemetry.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/api-design-05-versioning-and-evolution.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Versioning and Evolution: Changing an API Without Breaking Its Consumers",
+  "description": "Changing an API without breaking consumers: what counts as breaking, versioning strategies and their trade-offs (URI vs header vs additive evolution), the robustness principle and its limits, and responsible deprecation with Sunset headers and usage telemetry.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-11",
+  "dateModified": "2026-08-11",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "API Design, Versioning, REST, Compatibility",
+  "url": "https://pratikdhanave.com/blog/posts/api-design-05-versioning-and-evolution.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/api-design-05-versioning-and-evolution.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Versioning and Evolution: Changing an API Without Breaking Its Consumers</h1>
+    <p class="post-subtitle">The real skill isn&#x27;t cutting a v2 — it&#x27;s knowing which changes are safe to ship silently, which ones break clients you&#x27;ll never meet, and how to retire an old version responsibly instead of forever.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-11">August 11, 2026</time>
+      <span>·</span>
+      <span>15 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/api-design/" class="tag-link"><span class="tag">#API Design</span></a><a href="/blog/tags/versioning/" class="tag-link"><span class="tag">#Versioning</span></a><a href="/blog/tags/rest/" class="tag-link"><span class="tag">#REST</span></a><a href="/blog/tags/compatibility/" class="tag-link"><span class="tag">#Compatibility</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 5 of 8</span>
+    <span class="series-title">API Design</span>
+    <div class="series-nav"><a href="/blog/posts/api-design-04-errors-and-idempotency.html" class="series-prev">&larr; Part 4: Errors and Idempotency: The Two Things That Make an API Safe to Build On</a>
+<a href="/blog/posts/api-design-06-graphql-and-grpc.html" class="series-next">Part 6: Beyond REST: GraphQL and gRPC &rarr;</a></div>
+  </div>
+
+
+
+  <p>An API is a promise. The moment someone integrates against it, every field name, type, default, and error becomes a contract you&rsquo;ve signed with people you&rsquo;ll never talk to. And yet the software behind that promise has to keep changing — new features, new fields, fixed mistakes. <strong>Versioning and evolution is the discipline of changing the implementation without breaking the promise.</strong></p>
+<p>The common instinct is to reach for a version number the moment change looms: bump to <code>/v2/</code> and move on. But a version number is a <em>tool</em>, not a <em>strategy</em>. Most changes don&rsquo;t need one, and the ones that do carry a cost that outlives the release. This post works through the whole picture: what actually counts as a breaking change, the honest trade-offs between the versioning strategies, why &ldquo;be liberal in what you accept&rdquo; only takes you so far, and how to deprecate an old version without leaving integrators stranded.</p>
+<p>Everything below derives from the HTTP specifications — <a href="https://www.rfc-editor.org/rfc/rfc9110">RFC 9110</a> (HTTP Semantics) for content negotiation and method semantics, <a href="https://www.rfc-editor.org/rfc/rfc8594">RFC 8594</a> (the <code>Sunset</code> header) and <a href="https://www.rfc-editor.org/rfc/rfc9745">RFC 9745</a> (the <code>Deprecation</code> header) for retirement signalling — plus the robustness principle from <a href="https://www.rfc-editor.org/rfc/rfc1122">RFC 1122</a> and its modern re-examination in <a href="https://www.rfc-editor.org/rfc/rfc9413">RFC 9413</a>.</p>
+<hr>
+<h2 id="what-actually-counts-as-a-breaking-change">What actually counts as a breaking change</h2>
+<p>Before you can decide <em>how</em> to version, you have to know <em>when</em> you have to. A change is <strong>breaking</strong> if a client that worked yesterday could stop working today without changing a single line of its own code. The dividing line isn&rsquo;t &ldquo;big versus small&rdquo; — it&rsquo;s &ldquo;does an existing consumer&rsquo;s assumption still hold.&rdquo;</p>
+<p>The safe, <strong>non-breaking</strong> (additive) changes share one property: an old client can ignore them entirely.</p>
+<ul>
+<li><strong>Adding a new, optional field to a response.</strong> A client that doesn&rsquo;t know about <code>nickname</code> never reads it. Harmless.</li>
+<li><strong>Adding a new endpoint or a new HTTP method to an existing resource.</strong> Nobody was calling it yesterday.</li>
+<li><strong>Adding a new optional request parameter with a backward-compatible default.</strong> Omitting it must behave exactly as before.</li>
+<li><strong>Adding a new value to an output enum — with caveats</strong> (more on that below; this one bites).</li>
+<li><strong>Making a validation rule <em>more</em> permissive.</strong> Accepting inputs you previously rejected can&rsquo;t break anyone who was already sending valid data.</li>
+</ul>
+<p>The <strong>breaking</strong> changes all share the opposite property: they invalidate something a client already relies on.</p>
+<ul>
+<li><strong>Removing or renaming a field.</strong> <code>email</code> becoming <code>email_address</code> breaks every client reading <code>email</code> — even though the URL is untouched.</li>
+<li><strong>Changing a field&rsquo;s type.</strong> <code>amount</code> going from a JSON number <code>4999</code> to a string <code>"49.99"</code>, or a scalar becoming an array.</li>
+<li><strong>Tightening validation.</strong> Suddenly rejecting a request you used to accept — making a field required, capping a string&rsquo;s length, restricting a format.</li>
+<li><strong>Changing a default.</strong> If <code>page_size</code> defaulted to 100 and now defaults to 20, every client that relied on the old default silently gets different results.</li>
+<li><strong>Changing error semantics.</strong> Moving a failure from <code>200</code>-with-body to a real <code>4xx</code>, renaming an error <code>code</code>, or changing which status a condition returns.</li>
+<li><strong>Removing an enum value from what you accept</strong>, or repurposing what an existing value means.</li>
+</ul>
+<p><strong>The gotcha:</strong> renaming a field or tightening a validation rule is a breaking change even though the endpoint URL never changed. Teams reason about compatibility at the level of &ldquo;did the route change?&rdquo; and ship a field rename under the same <code>/v1/</code> path, confident it&rsquo;s minor. But clients bind to the <em>payload shape</em>, not the route. The URL is the smallest part of the contract; the JSON body and the validation rules are the large part. If an old client would now fail, it&rsquo;s breaking — regardless of what the path says.</p>
+<hr>
+<h2 id="versioning-strategies-and-their-honest-trade-offs">Versioning strategies and their honest trade-offs</h2>
+<p>Once you&rsquo;ve established that a change is genuinely breaking and unavoidable, you need a place to put the new behaviour without disturbing the old. There are four broad approaches, and each buys clarity at a different price.</p>
+<h3 id="uri-versioning-the-version-lives-in-the-path">URI versioning — the version lives in the path</h3>
+<pre><code class="language-http">GET /v1/accounts/42 HTTP/1.1
+Host: api.example.com
+</code></pre>
+<p>The version is right there in the URL: <code>/v1/</code>, <code>/v2/</code>. This is what most large public REST APIs converge on, and the reason is simple: it&rsquo;s <em>impossible to get wrong by accident</em>. The version is visible in a browser address bar, in a <code>curl</code> you paste into a bug report, in an access log, in a CDN cache key. There&rsquo;s no negotiation to misconfigure. A developer can see at a glance which version a call targets.</p>
+<p>The cost is conceptual purity. A URI is supposed to identify a <em>resource</em>, and <code>/v1/accounts/42</code> and <code>/v2/accounts/42</code> are arguably the <em>same</em> account addressed two ways — which offends REST&rsquo;s model of resources as stable identities. In practice almost nobody cares, because the operational clarity is worth far more than the theoretical tidiness. The pragmatic convention is to version only on <strong>major</strong>, breaking changes: <code>/v1/</code>, <code>/v2/</code> — never <code>/v1.3.7/</code>. Minor, additive changes ship inside the existing major version without a bump.</p>
+<h3 id="media-type-header-versioning-negotiate-the-version">Media-type / header versioning — negotiate the version</h3>
+<pre><code class="language-http">GET /accounts/42 HTTP/1.1
+Host: api.example.com
+Accept: application/vnd.example.account.v2+json
+</code></pre>
+<p>Here the URL is clean and stable, and the client asks for a specific representation via <code>Accept</code> — standard HTTP content negotiation, exactly as <a href="https://www.rfc-editor.org/rfc/rfc9110">RFC 9110</a> intends. The server responds with a matching <code>Content-Type</code>. This is the most <em>architecturally correct</em> option: one resource, many representations, chosen by negotiation.</p>
+<p>The cost is discoverability and human friction. You can&rsquo;t paste a versioned URL into a browser and see v2 — the version lives in a header nobody sees by default. It&rsquo;s easy to forget to set, harder to debug, and CDNs must be told to include <code>Accept</code> in the cache key or they&rsquo;ll serve the wrong version. Correct, but higher-friction for the humans integrating against you.</p>
+<h3 id="query-parameter-versioning-the-version-is-a-parameter">Query-parameter versioning — the version is a parameter</h3>
+<pre><code class="language-http">GET /accounts/42?version=2 HTTP/1.1
+Host: api.example.com
+</code></pre>
+<p>A middle ground: visible like the path, but bolted onto an otherwise stable URL. It&rsquo;s easy to add and easy to see. The downsides are that it muddles a version (which shapes the <em>whole</em> response) with genuine query parameters (which filter or shape <em>data</em>), it&rsquo;s trivial to drop when copying a URL, and default-handling gets murky — what does an omitted <code>version</code> mean, and does that answer change over time? Usable, but it tends to feel like a retrofit rather than a design.</p>
+<h3 id="no-explicit-version-additive-only-continuous-evolution">No explicit version — additive-only continuous evolution</h3>
+<p>The fourth option is to not version the surface at all, and instead commit to <em>never making a breaking change</em>. Every change is additive; nothing is ever removed or repurposed, only deprecated in place. This is the model GraphQL encourages: a single evolving schema where new fields are added and old fields are marked <code>@deprecated</code> but keep working, so clients migrate field-by-field on their own timeline rather than all at once at a version cutover.</p>
+<p>The appeal is that clients never face a forced &ldquo;rewrite for v2&rdquo; migration. The cost is discipline and accretion: you can <em>never</em> clean-break a mistake, so the schema accumulates deprecated fields indefinitely, and &ldquo;don&rsquo;t break anyone, ever&rdquo; is a demanding constraint to hold across a large team over years. It trades the pain of migrations for the pain of permanent backward compatibility.</p>
+<table><caption class="sr-only">No explicit version — additive-only continuous evolution</caption>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Where the version lives</th>
+<th>Wins</th>
+<th>Costs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>URI path</td>
+<td><code>/v2/accounts</code></td>
+<td>Obvious, unmissable, cache-friendly, easy to debug</td>
+<td>&ldquo;Same resource, two URLs&rdquo;; encourages whole-API bumps</td>
+</tr>
+<tr>
+<td>Media type / header</td>
+<td><code>Accept: …v2+json</code></td>
+<td>REST-clean, one stable URL, per-request</td>
+<td>Invisible, easy to forget, CDN cache-key setup</td>
+</tr>
+<tr>
+<td>Query parameter</td>
+<td><code>?version=2</code></td>
+<td>Visible, easy to add</td>
+<td>Conflates version with data params; easy to drop</td>
+</tr>
+<tr>
+<td>No version (additive-only)</td>
+<td>nowhere — deprecate in place</td>
+<td>No forced migrations for clients</td>
+<td>Never clean-break; schema accretes forever</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The gotcha:</strong> &ldquo;just add a version number&rdquo; doesn&rsquo;t actually solve compatibility — it <em>relocates</em> it. The instant <code>/v2/</code> exists, you&rsquo;re running two APIs, and you&rsquo;ll run N of them forever unless you <em>deliberately</em> deprecate and remove the old ones. Every version you keep alive is code paths to maintain, tests to run, docs to keep straight, and security patches to backport. A version number without a retirement plan isn&rsquo;t a versioning strategy; it&rsquo;s a slow-growing maintenance liability. The number is the easy part — sunsetting is the hard part, and it&rsquo;s the part that makes versioning actually pay off.</p>
+<hr>
+<h2 id="the-robustness-principle-and-its-limits">The robustness principle and its limits</h2>
+<p>There&rsquo;s a foundational idea running under all of this, from the earliest internet specs. The <strong>robustness principle</strong>, stated in <a href="https://www.rfc-editor.org/rfc/rfc1122">RFC 1122</a> and often called Postel&rsquo;s Law, is: <em>&ldquo;Be conservative in what you do, be liberal in what you accept from others.&rdquo;</em> Applied to APIs, this makes a client a <strong>tolerant reader</strong> — it ignores fields it doesn&rsquo;t recognise, doesn&rsquo;t choke on new enum values it hasn&rsquo;t seen, and doesn&rsquo;t fail because the response gained a member.</p>
+<p>Tolerant reading is what makes additive change safe. If clients hard-fail on any unexpected field, you can&rsquo;t add <em>anything</em> without breaking them — every change becomes a version bump. So designing clients to tolerate additions, and designing servers to expect that clients will, is genuinely load-bearing. Build parsers that skip unknowns rather than reject them.</p>
+<p>But the principle has a well-documented dark side, examined directly in <a href="https://www.rfc-editor.org/rfc/rfc9413">RFC 9413</a> (&ldquo;Maintaining Robust Protocols&rdquo;). Excessive tolerance <strong>hides drift</strong>. When servers quietly accept malformed or slightly-wrong input, clients keep sending it, and that broken behaviour ossifies into a de-facto part of the contract. The next server that&rsquo;s <em>stricter</em> — even correctly stricter — breaks those clients. Being liberal in what you accept means the true contract slowly becomes &ldquo;whatever we&rsquo;ve silently tolerated so far,&rdquo; which is far larger and fuzzier than what you documented. RFC 9413&rsquo;s guidance is to be tolerant <em>and</em> to make deviations <strong>visible</strong> — log them, surface warnings, report the drift — rather than absorbing errors in silence. Tolerance without telemetry is how an API&rsquo;s real surface area quietly balloons past anything anyone intended.</p>
+<p><strong>The gotcha:</strong> repurposing an existing field&rsquo;s meaning is worse than removing it. If you delete <code>status</code>, a tolerant client that reads <code>status</code> fails loudly and someone gets paged. But if <code>status</code> used to mean &ldquo;payment state&rdquo; and you quietly start using it for &ldquo;account state,&rdquo; the old client keeps reading the field, parses it without error, and acts on a value that now means something else entirely — silently, wrongly, with no exception to catch. A removal is a clean break the client can detect; a repurposing is a landmine. Never reuse an old field for a new meaning. Add a new field and deprecate the old one.</p>
+<hr>
+<h2 id="backward-and-forward-compatibility">Backward and forward compatibility</h2>
+<p>Two directions matter, and it&rsquo;s worth naming both.</p>
+<p><strong>Backward compatibility</strong> is the one everyone means: a <em>new server</em> still works with an <em>old client</em>. This is what additive-only change buys you — old clients keep running against the upgraded backend because nothing they depended on moved.</p>
+<p><strong>Forward compatibility</strong> is the mirror: an <em>old server</em> (or old code) gracefully handles data or requests produced by a <em>newer</em> client. This is why tolerant reading has to run in <em>both</em> directions. A client written today should skip a field the future adds; a server should ignore an optional parameter a newer client sends that it doesn&rsquo;t yet understand, rather than rejecting the whole request. Forward compatibility is what lets you roll out a change gradually — during a deploy, new and old instances run side by side, and messages flow both ways across the version gap.</p>
+<p>Concretely, when you evolve the data model:</p>
+<ul>
+<li><strong>Default new fields.</strong> A new required field breaks every existing writer instantly. Add it as optional with a sensible server-side default, and only consider tightening it later — after clients have adopted it.</li>
+<li><strong>Never change what an existing value means.</strong> New enum values, yes (if readers tolerate unknowns); redefining an old one, never.</li>
+<li><strong>Widen before you narrow.</strong> Accepting more is safe; accepting less is breaking. Sequence your changes so the permissive step ships first.</li>
+</ul>
+<pre><code class="language-http">POST /v1/accounts HTTP/1.1
+Content-Type: application/json
+
+{ &quot;name&quot;: &quot;Acme Corp&quot;, &quot;tier&quot;: &quot;pro&quot; }
+</code></pre>
+<p>If a later release adds a <code>region</code> field, it must default server-side so this exact request — with no <code>region</code> — keeps succeeding. The old client never learns <code>region</code> exists, and that&rsquo;s the point.</p>
+<hr>
+<h2 id="deprecation-done-responsibly">Deprecation, done responsibly</h2>
+<p>Deprecation is how a version or a field actually goes away — the step that makes versioning worth the cost. Done well, it&rsquo;s a communicated, measured, gradual retirement. Done badly, it&rsquo;s a surprise <code>404</code> on a Monday morning.</p>
+<p>HTTP gives you two standard signals to announce it <em>in the responses themselves</em>, so even clients whose owners never read your changelog get told in-band. The <a href="https://www.rfc-editor.org/rfc/rfc9745"><code>Deprecation</code></a> header (RFC 9745) marks a resource or version as deprecated — optionally with a timestamp of when it became so — and the <a href="https://www.rfc-editor.org/rfc/rfc8594"><code>Sunset</code></a> header (RFC 8594) states the date after which it may stop working. Pair them with a <code>Link</code> to the migration guide:</p>
+<pre><code class="language-http">HTTP/1.1 200 OK
+Content-Type: application/json
+Deprecation: @1735689600
+Sunset: Wed, 01 Jul 2026 00:00:00 GMT
+Link: &lt;https://api.example.com/docs/migrate-v1-to-v2&gt;; rel=&quot;deprecation&quot;
+
+{ &quot;id&quot;: 42, &quot;name&quot;: &quot;Acme Corp&quot; }
+</code></pre>
+<p>The <code>Deprecation</code> value here is a timestamp (<code>@</code> plus a Unix time) marking when v1 became deprecated; <code>Sunset</code> gives the hard cutoff. A client — or a client&rsquo;s monitoring — can detect these headers and flag the migration long before the endpoint disappears.</p>
+<p>But headers alone aren&rsquo;t a deprecation <em>process</em>. A responsible retirement has four parts:</p>
+<ol>
+<li><strong>A real timeline.</strong> Announce, then leave a generous window — long enough for integrators to plan, test, and ship on their own release cadence. For a widely-used public API that means months, not weeks.</li>
+<li><strong>Out-of-band communication.</strong> Changelog, email to registered API-key owners, dashboard banners, docs marked deprecated. The in-band headers are a backstop, not the whole plan.</li>
+<li><strong>Telemetry.</strong> Instrument usage <em>per version and per field</em> so you know who is still calling the old path — and can reach out to the specific accounts that haven&rsquo;t migrated before you flip the switch.</li>
+<li><strong>A graceful end state.</strong> After sunset, prefer a clear <code>410 Gone</code> with a problem body pointing at the new version over a bare <code>404</code> — tell the client the resource was intentionally retired, not that it never existed.</li>
+</ol>
+<p><strong>The gotcha:</strong> you can&rsquo;t deprecate what you can&rsquo;t measure. The single most common way a sunset goes wrong is flipping it off based on a guess — &ldquo;traffic to v1 looks low, it&rsquo;s probably fine&rdquo; — and discovering, via a flood of failures, that one high-value customer&rsquo;s nightly batch job still lived on it. Before you announce a sunset, you need per-version (ideally per-endpoint and per-field) usage telemetry that tells you <em>exactly</em> who is still on the old path. Instrument first, deprecate second, remove third. The measurement isn&rsquo;t optional overhead; it&rsquo;s the thing that lets you sunset without breaking someone who mattered.</p>
+<hr>
+<h2 id="putting-it-together">Putting it together</h2>
+<p>Evolution and versioning are two speeds of the same job. The everyday speed is <strong>additive, non-breaking change inside the current version</strong> — new optional fields, new endpoints, more permissive validation, defaulted data — safe because tolerant clients ignore what they don&rsquo;t need and old requests still succeed. The occasional, expensive speed is a <strong>breaking change</strong>, which needs a new major version (most publicly, a <code>/v2/</code> path for its unmissable clarity) <em>and</em> a plan to eventually retire the old one.</p>
+<p>The connective tissue is honesty about what &ldquo;breaking&rdquo; means — payload shape and validation and defaults and error semantics, not just the URL — and the discipline to measure usage before you retire anything. Get this right and your API can change continuously for years while the clients built against it keep working, migrating deliberately rather than being broken by surprise. That&rsquo;s what evolution means: the promise stays intact even as everything behind it changes.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Breaking is defined by the client, not the size of the change.</strong> If an existing consumer could fail without changing its code, it&rsquo;s breaking — renames, type changes, tightened validation, changed defaults, and altered error semantics all qualify even when the URL is untouched.</li>
+<li><strong>Additive changes are the safe default.</strong> New optional fields, new endpoints, more-permissive validation — ship them inside the current version, no bump required.</li>
+<li><strong>Pick a versioning strategy for its trade-off, not by reflex.</strong> URI paths win on clarity and debuggability (why most public REST APIs use them); media-type negotiation is REST-cleaner but invisible; additive-only evolution avoids migrations at the cost of a schema that accretes forever.</li>
+<li><strong>A version number relocates compatibility work — it doesn&rsquo;t remove it.</strong> Every live version is forever-maintenance until you deliberately deprecate it.</li>
+<li><strong>Be a tolerant reader, but make drift visible.</strong> Skip unknown fields; don&rsquo;t let silent tolerance turn &ldquo;whatever we&rsquo;ve accepted&rdquo; into the real contract. Never repurpose an existing field&rsquo;s meaning — that breaks old clients worse than removing it.</li>
+<li><strong>Deprecate with <code>Deprecation</code>/<code>Sunset</code> headers, a real timeline, comms, and telemetry.</strong> You can&rsquo;t sunset safely what you can&rsquo;t measure — instrument per-version usage before you remove anything.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9110">RFC 9110 — HTTP Semantics</a> — content negotiation (<code>Accept</code>, media types) and the definitions underpinning header-based versioning; also the authoritative source on method semantics.</li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9745">RFC 9745 — The Deprecation HTTP Response Header Field</a> — the standard in-band signal that a resource or version is deprecated.</li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc8594">RFC 8594 — The Sunset HTTP Header Field</a> — announcing the date after which a resource is expected to become unresponsive.</li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc1122">RFC 1122 — Requirements for Internet Hosts</a> — §1.2.2 states the robustness principle (&ldquo;be conservative in what you do, be liberal in what you accept&rdquo;).</li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9413">RFC 9413 — Maintaining Robust Protocols</a> — the modern re-examination of the robustness principle and how excessive tolerance hides protocol drift.</li>
+<li><a href="https://graphql.org/learn/best-practices/#versioning-and-nullability">GraphQL — Best Practices: Versioning and Deprecation</a> — the continuous-evolution model: add fields, mark old ones <code>@deprecated</code>, avoid version cutovers.</li>
+<li><a href="https://google.aip.dev/185">Google AIP-185 — Versioning</a> — a public API design guideline on major versions and what constitutes a backwards-incompatible change.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/api-design-04-errors-and-idempotency.html">Errors and Idempotency: The Two Things That Make an API Safe to Build On</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-design-03-requests-responses-and-pagination.html">Requests, Responses, and Pagination</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-design-02-restful-resource-design.html">RESTful Resource Design: Nouns, Methods, and the Maturity Model</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

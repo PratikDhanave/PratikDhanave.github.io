@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Beyond REST: GraphQL and gRPC — Pratik Dhanave</title>
+<meta name="description" content="When REST isn&#x27;t the right shape: GraphQL (client-selected fields, and its N+1 / caching / complexity costs) and gRPC (Protobuf, HTTP/2, streaming,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Beyond REST: GraphQL and gRPC — Pratik Dhanave">
+<meta property="og:description" content="When REST isn&#x27;t the right shape: GraphQL (client-selected fields, and its N+1 / caching / complexity costs) and gRPC (Protobuf, HTTP/2, streaming, codegen) — plus a decision framework for REST vs GraphQL vs gRPC.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/api-design-06-graphql-and-grpc.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-12T00:00:00Z">
+<meta property="article:tag" content="API Design">
+<meta property="article:tag" content="GraphQL">
+<meta property="article:tag" content="gRPC">
+<meta property="article:tag" content="Architecture">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Beyond REST: GraphQL and gRPC — Pratik Dhanave">
+<meta name="twitter:description" content="When REST isn&#x27;t the right shape: GraphQL (client-selected fields, and its N+1 / caching / complexity costs) and gRPC (Protobuf, HTTP/2, streaming, codegen) — plus a decision framework for REST vs GraphQL vs gRPC.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/api-design-06-graphql-and-grpc.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Beyond REST: GraphQL and gRPC",
+  "description": "When REST isn't the right shape: GraphQL (client-selected fields, and its N+1 / caching / complexity costs) and gRPC (Protobuf, HTTP/2, streaming, codegen) \u2014 plus a decision framework for REST vs GraphQL vs gRPC.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-12",
+  "dateModified": "2026-08-12",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "API Design, GraphQL, gRPC, Architecture",
+  "url": "https://pratikdhanave.com/blog/posts/api-design-06-graphql-and-grpc.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/api-design-06-graphql-and-grpc.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Beyond REST: GraphQL and gRPC</h1>
+    <p class="post-subtitle">When REST is the wrong shape for the problem, GraphQL and gRPC each fix a different pain — and each buys that fix with a new cost you have to design around.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-12">August 12, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/api-design/" class="tag-link"><span class="tag">#API Design</span></a><a href="/blog/tags/graphql/" class="tag-link"><span class="tag">#GraphQL</span></a><a href="/blog/tags/grpc/" class="tag-link"><span class="tag">#gRPC</span></a><a href="/blog/tags/architecture/" class="tag-link"><span class="tag">#Architecture</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 6 of 8</span>
+    <span class="series-title">API Design</span>
+    <div class="series-nav"><a href="/blog/posts/api-design-05-versioning-and-evolution.html" class="series-prev">&larr; Part 5: Versioning and Evolution: Changing an API Without Breaking Its Consumers</a>
+<a href="/blog/posts/api-design-07-documentation-and-developer-experience.html" class="series-next">Part 7: Documentation and Developer Experience &rarr;</a></div>
+  </div>
+
+
+
+  <p>REST is a fine default. A resource has a URL, HTTP verbs map to operations, responses cache for free, and every tool in the ecosystem already speaks it. But &ldquo;fine default&rdquo; is not &ldquo;always right.&rdquo; Two failure modes push teams past REST. The first is <em>shape mismatch</em>: a mobile screen needs three fields from five resources, and REST forces it to either make five round trips or download five full documents to use fifteen fields. The second is <em>cost</em>: an internal service calling another internal service a million times an hour doesn&rsquo;t want to parse JSON text and re-open a TCP connection each time.</p>
+<p>GraphQL answers the first problem by letting the client describe the exact shape it wants. gRPC answers the second by making the wire format binary, the transport multiplexed, and the client code generated. Neither is &ldquo;better than REST&rdquo; — they are differently shaped tools, and the interesting part is the trade-offs each one drags along. This post walks through both from primary sources, then gives a decision framework you can actually apply.</p>
+<hr>
+<h2 id="the-problem-rest-leaves-on-the-table">The problem REST leaves on the table</h2>
+<p>Earlier in this series we hit over-fetching and under-fetching. A <code>GET /users/42</code> returns the whole user record even when the caller only wanted the display name. A profile screen that shows a user, their latest three posts, and each post&rsquo;s comment count needs <code>GET /users/42</code>, then <code>GET /users/42/posts?limit=3</code>, then a comment-count call per post — the classic <em>under-fetch, then loop</em>. You can paper over this with custom endpoints (<code>GET /users/42/profile-card</code>), but every new screen wants a slightly different bundle, and you end up with a drawer full of one-off endpoints that nobody dares delete.</p>
+<p>The root issue is that in REST the <strong>server decides the response shape</strong>. The two alternatives below move that decision — GraphQL hands shape control to the client, and gRPC fixes the shape in a shared contract compiled into both sides.</p>
+<hr>
+<h2 id="graphql-the-client-selects-the-fields">GraphQL: the client selects the fields</h2>
+<p>GraphQL, originally published by Facebook and now stewarded by the GraphQL Foundation, is a query language for APIs plus a runtime that resolves those queries. Instead of many URLs, there is usually <strong>one endpoint</strong> (conventionally <code>/graphql</code>), and instead of the server dictating the payload, the client sends a query naming exactly the fields it wants. The server returns a JSON object mirroring the query&rsquo;s shape — no more, no less.</p>
+<p>At the center is a <strong>typed schema</strong>. The schema is the contract: it declares the types, their fields, and the operations clients may perform. Because it is machine-readable, it powers introspection, editor autocomplete, and validation before a query ever runs.</p>
+<pre><code class="language-graphql">type User {
+  id: ID!
+  displayName: String!
+  posts(limit: Int = 5): [Post!]!
+}
+
+type Post {
+  id: ID!
+  title: String!
+  commentCount: Int!
+}
+
+type Query {
+  user(id: ID!): User
+}
+</code></pre>
+<p>A client that wants exactly the profile-card data sends one query:</p>
+<pre><code class="language-graphql">query ProfileCard {
+  user(id: &quot;42&quot;) {
+    displayName
+    posts(limit: 3) {
+      title
+      commentCount
+    }
+  }
+}
+</code></pre>
+<p>One request, one round trip, and the response contains precisely those fields. The over/under-fetching problem from post 3 evaporates: the client asks for the graph shape it needs, and adding a new screen means writing a new query, not a new endpoint.</p>
+<p>GraphQL defines three operation types. <strong>Queries</strong> read data. <strong>Mutations</strong> write it, and run their top-level fields in series so ordering is predictable. <strong>Subscriptions</strong> stream updates to the client over a long-lived transport (usually WebSockets) for live data like notifications or chat. All three are described in the same schema, so the contract stays in one place.</p>
+<pre><code class="language-graphql">type Mutation {
+  publishPost(title: String!, body: String!): Post!
+}
+
+type Subscription {
+  postPublished: Post!
+}
+</code></pre>
+<h3 id="where-graphql-sends-the-bill">Where GraphQL sends the bill</h3>
+<p>Flexibility does not delete work — it moves it. GraphQL relocates cost from the client to the server, and if you don&rsquo;t design for that, the server pays interest.</p>
+<p>The first cost is the <strong>N+1 resolver problem</strong>. Each field can have a <em>resolver</em> — a function that fetches that field&rsquo;s data. When a query asks for a list of users and then each user&rsquo;s team, the naive execution runs one query for the user list, then one query per user for the team: 1 + N database hits. This is invisible in the schema and only shows up under load. The standard fix is <strong>DataLoader</strong>, a batching-and-caching utility (open-sourced by Facebook) that collects the individual per-item loads within a single tick of the event loop, dispatches them as one batched call (<code>WHERE id IN (...)</code>), and caches results within the request. It turns N+1 into 1+1, but you have to actually wire it in — nothing forces you to.</p>
+<pre><code class="language-text">Naive resolvers:  1 query for users  +  N queries (one team per user)   = N+1
+With DataLoader:  1 query for users  +  1 batched query for all teams   = 2
+</code></pre>
+<p><strong>The gotcha:</strong> GraphQL&rsquo;s flexibility moves cost to the server, and the N+1 resolver problem plus unbounded query complexity are real performance and denial-of-service surfaces. A single well-formed query can ask for deeply nested, cyclic relationships (<code>user → posts → author → posts → author …</code>) and force the server to do enormous work. You cannot rely on clients to be polite. Defend the endpoint with <strong>query depth limits</strong>, <strong>complexity scoring</strong> (assign a cost to each field and reject queries over a budget), <strong>pagination on list fields</strong>, and DataLoader batching on every resolver that touches a data store. Treat the query itself as untrusted input.</p>
+<p>The second cost is <strong>caching</strong>. REST gets HTTP caching almost for free: each resource has a URL, and CDNs, browsers, and proxies cache <code>GET</code> responses by that URL with <code>ETag</code> and <code>Cache-Control</code>. GraphQL typically sends every operation as a <code>POST</code> to one URL, so URL-based HTTP caching does not apply. You have to rebuild caching at other layers — a normalized client-side cache (Apollo Client, Relay, urql), persisted queries so a query becomes a cacheable identifier, or response caching keyed on the query plus variables. It&rsquo;s solvable, but it is now your problem instead of the network&rsquo;s.</p>
+<p><strong>The gotcha:</strong> GraphQL gives up HTTP&rsquo;s free caching. Because everything is a <code>POST</code> to a single endpoint, the shared-cache infrastructure that makes REST cheap at the edge doesn&rsquo;t see your responses. Budget for a client cache and/or persisted queries from day one rather than discovering the missing cache layer in production.</p>
+<p>The third cost is <strong>authorization</strong>. In REST, access control often lives at the endpoint: this route requires this scope. In GraphQL a single query can straddle many types and fields, so authorization has to happen <strong>per field</strong> — the resolver for <code>User.salary</code> must independently check that the caller may see salaries, even if <code>User.displayName</code> is public. Centralizing auth at &ldquo;the endpoint&rdquo; is not enough, because one endpoint exposes the whole graph.</p>
+<hr>
+<h2 id="grpc-contract-first-binary-and-fast">gRPC: contract-first, binary, and fast</h2>
+<p>gRPC is a high-performance RPC framework from Google. Where GraphQL optimizes for flexible clients, gRPC optimizes for efficient, strongly-typed service-to-service calls. It rests on two pillars: <strong>Protocol Buffers</strong> (Protobuf) as the interface definition language and serialization format, and <strong>HTTP/2</strong> as the transport.</p>
+<p>You start with a <code>.proto</code> file — the contract comes <em>first</em>, before any implementation. It defines messages (the data) and services (the callable methods). A compiler (<code>protoc</code>) then generates typed client and server code in your language of choice — Go, Java, Python, C++, C#, and many more — so both sides share one source of truth.</p>
+<pre><code class="language-protobuf">syntax = &quot;proto3&quot;;
+package catalog.v1;
+
+message GetProductRequest {
+  string product_id = 1;
+}
+
+message Product {
+  string id = 1;
+  string name = 2;
+  int64 price_cents = 3;
+  repeated string tags = 4;
+}
+
+service Catalog {
+  rpc GetProduct(GetProductRequest) returns (Product);
+  rpc ListProducts(ListProductsRequest) returns (stream Product);
+}
+</code></pre>
+<p>Those numbered field tags (<code>= 1</code>, <code>= 2</code>) are the heart of Protobuf&rsquo;s wire format: the binary encoding carries the tag number, not the field name, which is why payloads are compact and why you must never renumber or reuse a tag on an existing message. The generated <code>Catalog</code> client exposes <code>GetProduct(...)</code> as an ordinary typed method call — no hand-written URL building, no manual JSON parsing.</p>
+<p>Because gRPC runs on HTTP/2, it gets multiplexed streams over one connection, header compression, and — most importantly — first-class <strong>streaming</strong>. There are four call types:</p>
+<table><caption class="sr-only">gRPC: contract-first, binary, and fast</caption>
+<thead>
+<tr>
+<th>Call type</th>
+<th>Shape</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unary</td>
+<td>one request → one response</td>
+<td>fetch a product</td>
+</tr>
+<tr>
+<td>Server streaming</td>
+<td>one request → stream of responses</td>
+<td>subscribe to a price feed</td>
+</tr>
+<tr>
+<td>Client streaming</td>
+<td>stream of requests → one response</td>
+<td>upload metrics in chunks</td>
+</tr>
+<tr>
+<td>Bidirectional streaming</td>
+<td>stream ↔ stream</td>
+<td>a live chat or telemetry link</td>
+</tr>
+</tbody>
+</table>
+<p>The combination — binary Protobuf payloads, HTTP/2 multiplexing, generated typed stubs, and streaming — is why gRPC shines for <strong>internal, service-to-service</strong> communication where latency and throughput matter and both ends are under your control.</p>
+<h3 id="where-grpc-sends-the-bill">Where gRPC sends the bill</h3>
+<p><strong>The gotcha:</strong> gRPC is not browser-native. Browsers do not expose the low-level HTTP/2 control that the gRPC protocol needs, so a web page cannot call a gRPC service directly. You reach it through <strong>grpc-web</strong>, which speaks a browser-compatible variant and requires a proxy (such as Envoy) to translate to real gRPC. If your primary clients are browsers, this friction is a real cost — and often the sign that a REST or GraphQL edge in front of your gRPC core is the better shape.</p>
+<p>The second cost is <strong>debuggability</strong>. REST and GraphQL send human-readable text you can eyeball in browser dev tools or <code>curl</code>. Protobuf is binary — you cannot read a captured payload without the corresponding <code>.proto</code> to decode it. Tooling exists (<code>grpcurl</code>, reflection, server logging), but the &ldquo;just look at the network tab&rdquo; ergonomics are gone.</p>
+<p>The third cost is <strong>coupling to the contract</strong>. The generated code is only as good as the <code>.proto</code>, and every client is compiled against a specific version of it. Protobuf has clear rules for evolving safely — add new fields with new tag numbers, never reuse or renumber existing tags, reserve retired field numbers — but the discipline is on you. Break those rules and you silently corrupt data across services that were compiled against the old shape.</p>
+<hr>
+<h2 id="a-decision-framework">A decision framework</h2>
+<p>Reach for the tool that matches your <em>client needs</em> and <em>network shape</em>, not the one that sounds most modern.</p>
+<p><strong>Use REST when</strong> the domain is resource-oriented, the API is public or partner-facing, and cacheability matters. REST&rsquo;s URL-per-resource model gets you free HTTP caching at the edge, the widest possible tooling and client support, and the lowest learning curve for third-party developers. For a public API, boring is a feature.</p>
+<p><strong>Use GraphQL when</strong> many different clients need different slices of the same data, or when one request must aggregate several backends. This is the classic <strong>Backend-for-Frontend (BFF)</strong> and mobile scenario: a phone app on a slow network wants exactly its fields in one round trip, and next month&rsquo;s screen wants a different shape without a server deploy. GraphQL trades HTTP caching and per-field auth complexity for that client flexibility — worth it when client shapes vary a lot, wasteful when they don&rsquo;t.</p>
+<p><strong>Use gRPC when</strong> the caller and callee are both services you own, latency and throughput dominate, or you need streaming. Internal microservice meshes, low-latency data planes, and long-lived streaming links are its home turf. You trade browser-friendliness and easy debugging for compact, fast, strongly-typed calls.</p>
+<p>These are not mutually exclusive. A common mature architecture uses <strong>gRPC between internal services</strong>, a <strong>GraphQL or REST BFF at the edge</strong> for varied external clients, and <strong>REST</strong> for the truly public, cacheable, partner-facing surface. The transport is a per-boundary decision, not a company-wide religion.</p>
+<p><strong>The gotcha:</strong> &ldquo;GraphQL because it&rsquo;s modern&rdquo; or &ldquo;gRPC because it&rsquo;s fast&rdquo; is not a reason. Adopting GraphQL for a single first-party web client that fetches fixed shapes just costs you HTTP caching for nothing. Adopting gRPC for a public, browser-first API buys you a proxy and a debugging headache for throughput you didn&rsquo;t need. Pick by the two questions that actually discriminate: <em>who are the clients, and what does the network between them look like?</em></p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>REST&rsquo;s limitation is server-decided response shape</strong>, which produces over- and under-fetching. GraphQL and gRPC each relocate that decision differently.</li>
+<li><strong>GraphQL puts field selection in the client&rsquo;s hands</strong> via one endpoint and a typed schema contract, with queries, mutations, and subscriptions all described in that schema.</li>
+<li><strong>GraphQL&rsquo;s costs are server-side</strong>: the N+1 resolver problem (mitigated with DataLoader batching), lost HTTP caching (everything is <code>POST</code> to one URL), query-complexity/depth limits as a DoS defense, and per-field authorization.</li>
+<li><strong>gRPC is contract-first</strong>: a Protobuf <code>.proto</code> compiles to typed clients and servers across languages, runs on HTTP/2, and supports four streaming modes — ideal for internal, low-latency, high-throughput service-to-service calls.</li>
+<li><strong>gRPC&rsquo;s costs are edge-side</strong>: not browser-native without grpc-web plus a proxy, binary payloads are harder to debug, and clients are tightly coupled to the <code>.proto</code> version.</li>
+<li><strong>Choose by client needs and network shape</strong>: REST for public/cacheable/resource-oriented, GraphQL for varied clients and aggregation (BFF, mobile), gRPC for internal microservices, streaming, and performance. Modernity is not a selection criterion.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://graphql.org/learn/">GraphQL — official site and learning docs</a></li>
+<li><a href="https://spec.graphql.org/">GraphQL Specification</a></li>
+<li><a href="https://grpc.io/docs/">gRPC — official documentation</a></li>
+<li><a href="https://grpc.io/docs/what-is-grpc/core-concepts/">gRPC concepts: service definitions and the four RPC types</a></li>
+<li><a href="https://protobuf.dev/">Protocol Buffers documentation</a></li>
+<li><a href="https://protobuf.dev/programming-guides/proto3/#updating">Protobuf: rules for updating messages safely</a></li>
+<li><a href="https://github.com/graphql/dataloader">DataLoader — batching and caching for the N+1 problem</a></li>
+<li><a href="https://github.com/grpc/grpc-web">gRPC-Web for browser clients</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/api-design-02-restful-resource-design.html">RESTful Resource Design: Nouns, Methods, and the Maturity Model</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-design-01-principles.html">API Design Principles</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/picnic-protobuf-consolidation-47pct-latency.html">Picnic — cutting API latency 47% by consolidating...</a>
+      <span class="related-date">May 05</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

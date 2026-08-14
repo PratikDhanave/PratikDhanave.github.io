@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Requests, Responses, and Pagination — Pratik Dhanave</title>
+<meta name="description" content="Shaping the payloads clients consume: consistent naming, dates and money done right, content negotiation, field selection, and pagination — why offset...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Requests, Responses, and Pagination — Pratik Dhanave">
+<meta property="og:description" content="Shaping the payloads clients consume: consistent naming, dates and money done right, content negotiation, field selection, and pagination — why offset pagination breaks at scale and how cursor/keyset pagination fixes it.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/api-design-03-requests-responses-and-pagination.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-09T00:00:00Z">
+<meta property="article:tag" content="API Design">
+<meta property="article:tag" content="REST">
+<meta property="article:tag" content="Pagination">
+<meta property="article:tag" content="HTTP">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Requests, Responses, and Pagination — Pratik Dhanave">
+<meta name="twitter:description" content="Shaping the payloads clients consume: consistent naming, dates and money done right, content negotiation, field selection, and pagination — why offset pagination breaks at scale and how cursor/keyset pagination fixes it.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/api-design-03-requests-responses-and-pagination.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Requests, Responses, and Pagination",
+  "description": "Shaping the payloads clients consume: consistent naming, dates and money done right, content negotiation, field selection, and pagination \u2014 why offset pagination breaks at scale and how cursor/keyset pagination fixes it.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-09",
+  "dateModified": "2026-08-09",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "API Design, REST, Pagination, HTTP",
+  "url": "https://pratikdhanave.com/blog/posts/api-design-03-requests-responses-and-pagination.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/api-design-03-requests-responses-and-pagination.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Requests, Responses, and Pagination</h1>
+    <p class="post-subtitle">Shaping the payloads clients actually consume — consistent bodies, content negotiation, field selection, and pagination that survives scale and mutation.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-09">August 09, 2026</time>
+      <span>·</span>
+      <span>14 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/api-design/" class="tag-link"><span class="tag">#API Design</span></a><a href="/blog/tags/rest/" class="tag-link"><span class="tag">#REST</span></a><a href="/blog/tags/pagination/" class="tag-link"><span class="tag">#Pagination</span></a><a href="/blog/tags/http/" class="tag-link"><span class="tag">#HTTP</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 3 of 8</span>
+    <span class="series-title">API Design</span>
+    <div class="series-nav"><a href="/blog/posts/api-design-02-restful-resource-design.html" class="series-prev">&larr; Part 2: RESTful Resource Design: Nouns, Methods, and the Maturity Model</a>
+<a href="/blog/posts/api-design-04-errors-and-idempotency.html" class="series-next">Part 4: Errors and Idempotency: The Two Things That Make an API Safe to Build On &rarr;</a></div>
+  </div>
+
+
+
+  <p>Endpoints and status codes get the design attention, but the thing a client integrates against is the <em>shape of the bytes</em>: the JSON you accept and the JSON you return. A well-designed body is boring in the best way — a developer guesses the field name correctly on the first try, parses a date without a helper library, and never has to ask whether a missing key means &ldquo;zero&rdquo; or &ldquo;unknown.&rdquo; This post is about earning that boringness. We&rsquo;ll cover how to shape request and response bodies, how content negotiation actually works per RFC 9110, how to let clients ask for exactly the fields they need, and — the part that quietly sinks APIs at scale — how to paginate collections without skipping or duplicating rows.</p>
+<p>Everything here derives from the HTTP specifications (RFC 9110, RFC 9111) and RFC 3339 for timestamps, plus the well-documented mechanics of keyset pagination. The examples are original; the rules are the standards&rsquo;.</p>
+<hr>
+<h2 id="consistent-bodies-naming-casing-and-shape">Consistent bodies: naming, casing, and shape</h2>
+<p>Pick one casing convention for JSON keys and apply it to every field in every response, forever. <code>snake_case</code> and <code>camelCase</code> are both fine; what is not fine is <code>userId</code> in one endpoint and <code>user_id</code> in the next. JSON itself is agnostic, so the convention is yours to enforce — but enforce it mechanically (a serializer setting, a linter on your schema) rather than by hoping reviewers catch drift.</p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;acct_9f3a2b&quot;,
+  &quot;display_name&quot;: &quot;Aarav Mehta&quot;,
+  &quot;email&quot;: &quot;aarav@example.com&quot;,
+  &quot;created_at&quot;: &quot;2026-08-14T09:12:33Z&quot;,
+  &quot;monthly_limit&quot;: { &quot;amount&quot;: 250000, &quot;currency&quot;: &quot;INR&quot; }
+}
+</code></pre>
+<p>Names should describe the value, not its storage. <code>created_at</code> beats <code>ts</code>; <code>display_name</code> beats <code>name1</code>. Booleans read best as positive predicates — <code>is_active</code>, <code>email_verified</code> — never negated (<code>not_disabled</code> forces the reader to invert twice).</p>
+<p><strong>The gotcha:</strong> naming and casing inconsistency erodes trust faster than almost any other flaw, because it makes the whole API feel unreliable. Once a client hits <code>userId</code> on one route and <code>user_id</code> on another, they stop trusting the docs and start defensively coding for both. Decide the convention on day one and gate it in CI against your OpenAPI schema — retrofitting casing later is a breaking change you cannot take back.</p>
+<hr>
+<h2 id="envelopes-versus-bare-bodies">Envelopes versus bare bodies</h2>
+<p>There are two schools for the top-level shape of a response. A <strong>bare body</strong> returns the resource directly. An <strong>envelope</strong> wraps it in an object with a fixed <code>data</code> key (and room for <code>meta</code>, <code>links</code>, or <code>errors</code> alongside).</p>
+<pre><code class="language-json">// bare
+{ &quot;id&quot;: &quot;acct_9f3a2b&quot;, &quot;display_name&quot;: &quot;Aarav Mehta&quot; }
+
+// enveloped
+{
+  &quot;data&quot;: { &quot;id&quot;: &quot;acct_9f3a2b&quot;, &quot;display_name&quot;: &quot;Aarav Mehta&quot; },
+  &quot;meta&quot;: { &quot;request_id&quot;: &quot;req_51ce&quot; }
+}
+</code></pre>
+<p>Bare bodies are lighter and map cleanly onto a single resource. Envelopes earn their weight on <strong>collections</strong>, where you need somewhere to put pagination metadata and links that isn&rsquo;t inside the array. The JSON:API specification standardizes the enveloped approach around top-level <code>data</code>, <code>errors</code>, and <code>meta</code> members. Whichever you choose, be consistent: a collection endpoint that returns a bare array leaves no room to add pagination later without a breaking change, so many teams envelope collections even when they leave single resources bare.</p>
+<hr>
+<h2 id="nulls-versus-omitted-fields">Nulls versus omitted fields</h2>
+<p><code>null</code> and <em>absent</em> are different signals, and clients will build logic on the difference whether you intend it or not. Sending <code>"middle_name": null</code> says &ldquo;we know this person has no middle name.&rdquo; Omitting the key entirely says &ldquo;we didn&rsquo;t fetch or don&rsquo;t track that.&rdquo; Those are not interchangeable.</p>
+<p>Two workable conventions exist, and you must pick exactly one:</p>
+<ul>
+<li><strong>Always present:</strong> every field in the schema appears in every response, using <code>null</code> for absent values. Predictable to parse; slightly larger payloads.</li>
+<li><strong>Omit when empty:</strong> absent fields are dropped. Smaller payloads, but clients must treat &ldquo;missing&rdquo; as a first-class case and never assume a key exists.</li>
+</ul>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;acct_9f3a2b&quot;,
+  &quot;display_name&quot;: &quot;Aarav Mehta&quot;,
+  &quot;middle_name&quot;: null,
+  &quot;deleted_at&quot;: null
+}
+</code></pre>
+<p><strong>The gotcha:</strong> omitting a field versus sending <code>null</code> mean different things to clients, and mixing the two within one API guarantees bugs — someone will write <code>if (user.phone)</code> and get burned when <code>phone</code> is sometimes <code>null</code>, sometimes absent, sometimes <code>""</code>. Pick one convention, document it prominently, and be especially careful on <strong>PATCH</strong> semantics, where the distinction is load-bearing: an omitted field means &ldquo;leave unchanged&rdquo; while an explicit <code>null</code> means &ldquo;clear this value.&rdquo; Conflate them and clients can never delete a field.</p>
+<hr>
+<h2 id="dates-as-rfc-3339-money-as-minor-units-ids-as-opaque-strings">Dates as RFC 3339, money as minor units, IDs as opaque strings</h2>
+<p>Three data types cause more integration pain than all others combined. Handle them by convention, once.</p>
+<p><strong>Timestamps.</strong> Serialize every date and time as an RFC 3339 string in UTC with an explicit offset — <code>2026-08-14T09:12:33Z</code>. RFC 3339 is the internet profile of ISO 8601, and its <code>date-time</code> form is unambiguous, sortable as a plain string, and parseable by every standard library. Do not invent <code>MM/DD/YYYY</code>, do not emit epoch integers without saying so, and do not omit the timezone — a naive <code>2026-08-14T09:12:33</code> forces every client to guess the zone.</p>
+<p><strong>Money.</strong> Never represent money as a floating-point number. IEEE 754 binary floats cannot represent most decimal fractions exactly, so <code>0.1 + 0.2</code> is not <code>0.3</code>, and cents evaporate under arithmetic. Represent an amount as an <strong>integer count of the currency&rsquo;s minor unit</strong> paired with an ISO 4217 currency code.</p>
+<pre><code class="language-json">&quot;price&quot;: { &quot;amount&quot;: 199900, &quot;currency&quot;: &quot;INR&quot; }
+</code></pre>
+<p>Here <code>199900</code> means ₹1,999.00 — the minor unit for INR is the paisa (1/100). The currency code is mandatory because the minor-unit exponent varies: JPY has no minor unit (¥500 is <code>{"amount": 500, "currency": "JPY"}</code>), while most currencies use two decimal places. Never assume &ldquo;divide by 100.&rdquo;</p>
+<p><strong>Identifiers.</strong> Expose IDs as opaque strings, even when they are integers underneath. A prefixed string like <code>acct_9f3a2b</code> tells you the resource type at a glance, survives a migration from auto-increment integers to UUIDs without a schema change, and stops clients from doing arithmetic on IDs or guessing the next one. Treat the ID as a token the client stores and echoes back, nothing more.</p>
+<p><strong>The gotcha:</strong> floats for money silently lose cents. A <code>19.99</code> that round-trips through JSON, a spreadsheet, and back can become <code>19.989999999999998</code>, and summing thousands of those drifts by real money you&rsquo;ll answer for in an audit. Integer minor units plus a currency code make every amount exact and every rounding decision explicit — the number in the payload is the exact number of paise, cents, or yen, with no fractional part to lose.</p>
+<hr>
+<h2 id="content-negotiation-accept-and-content-type">Content negotiation: Accept and Content-Type</h2>
+<p>RFC 9110 defines how a client and server agree on representation. The client advertises what it can consume with the <code>Accept</code> request header; the server states what it actually sent with the <code>Content-Type</code> response header. On requests that carry a body (POST, PUT, PATCH), the client also sets <code>Content-Type</code> to describe what it is sending.</p>
+<pre><code class="language-http">POST /v1/accounts HTTP/1.1
+Content-Type: application/json
+Accept: application/json
+
+{ &quot;display_name&quot;: &quot;Aarav Mehta&quot;, &quot;email&quot;: &quot;aarav@example.com&quot; }
+</code></pre>
+<pre><code class="language-http">HTTP/1.1 201 Created
+Content-Type: application/json; charset=utf-8
+
+{ &quot;id&quot;: &quot;acct_9f3a2b&quot;, &quot;display_name&quot;: &quot;Aarav Mehta&quot; }
+</code></pre>
+<p>For a JSON API, default to <code>application/json</code> and treat it as the fallback when <code>Accept</code> is absent or <code>*/*</code>. If a client asks for a media type you cannot produce, RFC 9110 says you may respond <code>406 Not Acceptable</code> — but for a JSON-only API it is usually kinder to serve JSON than to reject the request. If a client sends a body in a media type you do not support, return <code>415 Unsupported Media Type</code>.</p>
+<p><strong>Compression</strong> is negotiated the same way, on a separate axis. The client sends <code>Accept-Encoding: gzip, br</code>; the server compresses the body and echoes <code>Content-Encoding: gzip</code>. Because JSON is highly compressible text, gzip or Brotli routinely cuts response size by 70–90% for large collections, at the cost of CPU. Whenever a response varies by a request header, include <code>Vary</code> (e.g. <code>Vary: Accept-Encoding</code>) so caches store the right variant.</p>
+<p><strong>The gotcha:</strong> <code>Accept</code> and <code>Content-Type</code> describe different directions and are not interchangeable — <code>Accept</code> is the client saying what it <em>wants back</em>, <code>Content-Type</code> is either party describing the body <em>it is sending now</em>. Setting <code>Content-Type</code> on a GET with no body does nothing useful, and reading <code>Accept</code> to decide how to parse an incoming body is a category error. Keep the two roles straight: one is a wish, the other is a fact.</p>
+<hr>
+<h2 id="field-selection-and-expansion">Field selection and expansion</h2>
+<p>Two failure modes haunt fixed response shapes. <strong>Over-fetching</strong> ships a fat object when the client wanted three fields for a list view. <strong>Under-fetching</strong> forces an N+1 stampede of follow-up requests to hydrate related resources. Give clients two knobs and both problems shrink.</p>
+<p><strong>Sparse fieldsets</strong> let a client name the fields it wants, so a mobile list view pays for only what it renders:</p>
+<pre><code class="language-http">GET /v1/accounts?fields=id,display_name HTTP/1.1
+Accept: application/json
+</code></pre>
+<pre><code class="language-json">{ &quot;data&quot;: [
+  { &quot;id&quot;: &quot;acct_9f3a2b&quot;, &quot;display_name&quot;: &quot;Aarav Mehta&quot; },
+  { &quot;id&quot;: &quot;acct_71dd0e&quot;, &quot;display_name&quot;: &quot;Neha Rao&quot; }
+] }
+</code></pre>
+<p><strong>Expansion</strong> goes the other way, inlining a related resource that would otherwise be a second request:</p>
+<pre><code class="language-http">GET /v1/orders/ord_4c21?expand=customer HTTP/1.1
+</code></pre>
+<pre><code class="language-json">{ &quot;data&quot;: {
+  &quot;id&quot;: &quot;ord_4c21&quot;,
+  &quot;total&quot;: { &quot;amount&quot;: 199900, &quot;currency&quot;: &quot;INR&quot; },
+  &quot;customer&quot;: { &quot;id&quot;: &quot;acct_9f3a2b&quot;, &quot;display_name&quot;: &quot;Aarav Mehta&quot; }
+} }
+</code></pre>
+<p>Without <code>expand</code>, <code>customer</code> would be a bare id (<code>"customer": "acct_9f3a2b"</code>) and the client fetches it separately if needed. Keep the default lean — return ids by default and expand only on request — so the common path stays cheap and the expensive joins are opt-in. Cap expansion depth (one level is a sane default) so a client can&rsquo;t ask you to serialize the entire object graph in one call.</p>
+<hr>
+<h2 id="filtering-and-sorting">Filtering and sorting</h2>
+<p>Collections need to be narrowed and ordered from the query string. Keep filter keys aligned with response field names so a developer who saw <code>status</code> in a body knows to filter on <code>status</code>.</p>
+<pre><code class="language-http">GET /v1/orders?status=paid&amp;created_after=2026-08-01T00:00:00Z&amp;sort=-created_at&amp;limit=25 HTTP/1.1
+</code></pre>
+<p>A common, readable sort convention is a comma-separated field list where a leading <code>-</code> means descending: <code>sort=-created_at,display_name</code> sorts by newest first, then by name. Document which fields are filterable and sortable — an unbounded &ldquo;filter on anything&rdquo; surface is a query-planner nightmare and a denial-of-service vector. And make sorting <strong>total</strong>: sorting by a non-unique column like <code>created_at</code> alone leaves rows with equal timestamps in an undefined order, which quietly breaks pagination. Append a unique tiebreaker (the id) to every sort so the ordering is deterministic.</p>
+<hr>
+<h2 id="pagination-done-right-offset-versus-cursor">Pagination done right: offset versus cursor</h2>
+<p>Every collection endpoint needs pagination, and the choice you make here is the one clients feel most. There are two families.</p>
+<p><strong>Offset/limit</strong> pagination asks for a slice by position: &ldquo;skip 40, give me 20.&rdquo; It is trivial to implement and lets a client jump to an arbitrary page.</p>
+<pre><code class="language-http">GET /v1/orders?limit=20&amp;offset=40 HTTP/1.1
+</code></pre>
+<p>It has two serious problems at scale. First, it is <strong>slow deep into a collection</strong>: <code>OFFSET 100000</code> still makes the database scan and discard 100,000 rows before returning any, so latency grows with page depth — an O(n) cost in the offset. Second, and worse, it is <strong>unstable on mutating data</strong>. Offsets are computed against a snapshot that no longer holds once rows are inserted or deleted between page requests. Insert a row before the current page and every subsequent page shifts by one: the client re-sees a row it already read (a duplicate) or skips one entirely.</p>
+<p><strong>Cursor (keyset) pagination</strong> fixes both. Instead of a position, the client passes an opaque cursor that encodes <em>where the last page ended</em>, and the server continues from there using a <code>WHERE</code> clause on an indexed, ordered, unique key:</p>
+<pre><code class="language-http">GET /v1/orders?limit=20 HTTP/1.1
+</code></pre>
+<pre><code class="language-json">{
+  &quot;data&quot;: [
+    { &quot;id&quot;: &quot;ord_88f0&quot;, &quot;created_at&quot;: &quot;2026-08-14T09:10:00Z&quot; },
+    { &quot;id&quot;: &quot;ord_87a1&quot;, &quot;created_at&quot;: &quot;2026-08-14T09:08:41Z&quot; }
+  ],
+  &quot;meta&quot;: { &quot;has_more&quot;: true, &quot;next_cursor&quot;: &quot;b3JkXzg3YTF8MjAyNi0wOC0xNFQwOTowODo0MVo&quot; }
+}
+</code></pre>
+<p>The client sends the cursor back to get the next page, and nothing else changes:</p>
+<pre><code class="language-http">GET /v1/orders?limit=20&amp;cursor=b3JkXzg3YTF8MjAyNi0wOC0xNFQwOTowODo0MVo HTTP/1.1
+</code></pre>
+<p>Under the hood the cursor decodes to the sort key of the last returned row — here <code>(created_at, id) = ("2026-08-14T09:08:41Z", "ord_87a1")</code> — and the query becomes a range scan: <code>WHERE (created_at, id) &lt; ('2026-08-14T09:08:41Z', 'ord_87a1') ORDER BY created_at DESC, id DESC LIMIT 20</code>. Because that condition rides an index and never counts skipped rows, page 5,000 costs the same as page 1. And because it anchors to a <em>value</em> rather than a <em>position</em>, inserts and deletes elsewhere in the collection don&rsquo;t shift the client&rsquo;s place — no skips, no duplicates.</p>
+<p>The cursor must be <strong>opaque</strong>: base64-encode it and treat it as a token clients store and return verbatim, never parse or construct. That freedom lets you change what the cursor encodes — add a tiebreaker, switch the sort key — without a breaking change, and it stops clients from forging positions you never intended to support.</p>
+<p><strong>The gotcha:</strong> offset pagination is O(n) deep and silently skips or duplicates rows the moment the underlying data changes mid-scroll. On a live feed where rows arrive constantly, a user paging through offsets will re-read items and miss others without any error ever surfacing — the API looks fine and the data is wrong. Use cursor/keyset pagination for any collection that is large or actively mutating; reserve offset pagination for small, stable, admin-style lists where jumping to &ldquo;page 7&rdquo; genuinely matters and the data barely changes.</p>
+<table><caption class="sr-only">Pagination done right: offset versus cursor</caption>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Offset/limit</th>
+<th>Cursor (keyset)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Deep-page latency</td>
+<td>Degrades (O(n) in offset)</td>
+<td>Flat (indexed range scan)</td>
+</tr>
+<tr>
+<td>Stability under inserts/deletes</td>
+<td>Skips and duplicates rows</td>
+<td>Stable — anchored to a value</td>
+</tr>
+<tr>
+<td>Jump to arbitrary page</td>
+<td>Yes</td>
+<td>No (sequential only)</td>
+</tr>
+<tr>
+<td>Total count available</td>
+<td>Easy</td>
+<td>Expensive or omitted</td>
+</tr>
+<tr>
+<td>Best for</td>
+<td>Small, stable datasets</td>
+<td>Large or live datasets</td>
+</tr>
+</tbody>
+</table>
+<p>Cursor pagination gives up one thing: random access to an arbitrary page, and a cheap total count. If the UI genuinely needs &ldquo;page 47 of 900,&rdquo; offset may be the honest choice for that small, stable dataset. For everything that grows or changes, keyset wins.</p>
+<hr>
+<h2 id="partial-responses-and-useful-headers">Partial responses and useful headers</h2>
+<p>Two header families make large and rate-limited APIs pleasant to consume.</p>
+<p><strong>Range requests</strong> (RFC 9110) let a client fetch part of a large representation — resumable downloads, streaming a slice of a big file. The client sends <code>Range: bytes=0-1023</code>; the server replies <code>206 Partial Content</code> with a <code>Content-Range</code> header describing the slice. Advertise support with <code>Accept-Ranges: bytes</code>. This is orthogonal to collection pagination — it operates on bytes of one representation, not on members of a list.</p>
+<p><strong>Rate-limit headers</strong> tell clients how much budget they have left so they can self-throttle instead of hammering into <code>429 Too Many Requests</code>. A widely used convention exposes the ceiling, the remainder, and when the window resets:</p>
+<pre><code class="language-http">HTTP/1.1 200 OK
+Content-Type: application/json
+RateLimit-Limit: 1000
+RateLimit-Remaining: 993
+RateLimit-Reset: 42
+</code></pre>
+<p>When you do return <code>429</code>, include a <code>Retry-After</code> header (RFC 9110) telling the client how many seconds to wait — a well-behaved client will honor it rather than retry blindly and make congestion worse. Together with <code>ETag</code>/<code>Last-Modified</code> for caching and <code>Vary</code> for negotiated variants, these headers move coordination out of the body and into the protocol, where infrastructure can act on it.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Consistency is the feature.</strong> One casing convention, one null-vs-omit rule, RFC 3339 dates, integer-minor-unit money, opaque string IDs — decided once and enforced mechanically.</li>
+<li><strong>Content negotiation has two axes.</strong> <code>Accept</code>/<code>Content-Type</code> choose the media type; <code>Accept-Encoding</code>/<code>Content-Encoding</code> choose compression. Default to JSON, add <code>Vary</code> when a response depends on a request header.</li>
+<li><strong>Let clients ask for the right shape.</strong> Sparse fieldsets kill over-fetching; bounded expansion kills under-fetching. Keep the default lean and make joins opt-in.</li>
+<li><strong>Cursor pagination for anything that grows or moves.</strong> Offset is O(n) deep and skips or duplicates rows on mutating data; keyset anchors to a value on an indexed, total ordering and stays fast and stable. Return opaque cursors and page metadata.</li>
+<li><strong>Push coordination into headers.</strong> Rate-limit and <code>Retry-After</code> headers, <code>ETag</code>/<code>Vary</code> for caching, and range requests for partial payloads keep the body clean and let infrastructure help.</li>
+</ul>
+<p>The payload is the contract. Endpoints and verbs frame it, but the JSON a client parses — and the cursor it pages with — is what a developer lives inside every day. Make it predictable, make it exact, and make it survive scale.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9110.html">RFC 9110 — HTTP Semantics</a> (content negotiation, <code>Accept</code>/<code>Content-Type</code>, status codes, range requests, <code>Retry-After</code>)</li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9111.html">RFC 9111 — HTTP Caching</a> (<code>Vary</code>, <code>ETag</code>, cache behavior for negotiated responses)</li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc3339.html">RFC 3339 — Date and Time on the Internet: Timestamps</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc8259.html">RFC 4627 / RFC 8259 — The JSON Data Interchange Format</a></li>
+<li><a href="https://www.iso.org/iso-4217-currency-codes.html">ISO 4217 — Currency codes</a> (minor-unit exponents per currency)</li>
+<li><a href="https://use-the-index-luke.com/no-offset">Use the Index, Luke — &ldquo;Paging Through Results&rdquo; (keyset pagination)</a></li>
+<li><a href="https://jsonapi.org/format/">JSON:API specification</a> (top-level <code>data</code>/<code>errors</code>/<code>meta</code>, sparse fieldsets, pagination links)</li>
+<li><a href="https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/">IETF draft — RateLimit header fields for HTTP</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/api-design-04-errors-and-idempotency.html">Errors and Idempotency: The Two Things That Make an API Safe to Build On</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-design-02-restful-resource-design.html">RESTful Resource Design: Nouns, Methods, and the Maturity Model</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-design-05-versioning-and-evolution.html">Versioning and Evolution: Changing an API Without Breaking Its Consumers</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
