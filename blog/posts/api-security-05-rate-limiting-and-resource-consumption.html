@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Rate Limiting and Resource Consumption — Pratik Dhanave</title>
+<meta name="description" content="Rate limiting as a security control (OWASP API4/API6): the algorithms and their trade-offs, keying on authenticated identity not just IP, 429 +...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Rate Limiting and Resource Consumption — Pratik Dhanave">
+<meta property="og:description" content="Rate limiting as a security control (OWASP API4/API6): the algorithms and their trade-offs, keying on authenticated identity not just IP, 429 + Retry-After, protecting expensive operations, and defending sensitive business flows from bulk abuse.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/api-security-05-rate-limiting-and-resource-consumption.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-11T00:00:00Z">
+<meta property="article:tag" content="API Security">
+<meta property="article:tag" content="Rate Limiting">
+<meta property="article:tag" content="OWASP">
+<meta property="article:tag" content="Availability">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Rate Limiting and Resource Consumption — Pratik Dhanave">
+<meta name="twitter:description" content="Rate limiting as a security control (OWASP API4/API6): the algorithms and their trade-offs, keying on authenticated identity not just IP, 429 + Retry-After, protecting expensive operations, and defending sensitive business flows from bulk abuse.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/api-security-05-rate-limiting-and-resource-consumption.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Rate Limiting and Resource Consumption",
+  "description": "Rate limiting as a security control (OWASP API4/API6): the algorithms and their trade-offs, keying on authenticated identity not just IP, 429 + Retry-After, protecting expensive operations, and defending sensitive business flows from bulk abuse.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-11",
+  "dateModified": "2026-08-11",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "API Security, Rate Limiting, OWASP, Availability",
+  "url": "https://pratikdhanave.com/blog/posts/api-security-05-rate-limiting-and-resource-consumption.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/api-security-05-rate-limiting-and-resource-consumption.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Rate Limiting and Resource Consumption</h1>
+    <p class="post-subtitle">Part five of the API Security series: why limits are a security control and not just an ops knob, how the four rate-limiting algorithms trade off, which dimensions to key on, and how to protect expensive queries and sensitive business flows from bulk abuse.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-11">August 11, 2026</time>
+      <span>·</span>
+      <span>15 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/api-security/" class="tag-link"><span class="tag">#API Security</span></a><a href="/blog/tags/rate-limiting/" class="tag-link"><span class="tag">#Rate Limiting</span></a><a href="/blog/tags/owasp/" class="tag-link"><span class="tag">#OWASP</span></a><a href="/blog/tags/availability/" class="tag-link"><span class="tag">#Availability</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 5 of 8</span>
+    <span class="series-title">API Security</span>
+    <div class="series-nav"><a href="/blog/posts/api-security-04-input-validation-and-injection.html" class="series-prev">&larr; Part 4: Input Validation and Injection</a>
+<a href="/blog/posts/api-security-06-transport-and-data-security.html" class="series-next">Part 6: Transport and Data Security &rarr;</a></div>
+  </div>
+
+
+
+  <p>The last four posts dealt with a single request at a time: is this caller who they say they are, are they allowed to touch this object, and is the body they sent hostile? This post changes the unit of analysis from <em>one request</em> to <em>many</em>. A request can be perfectly authenticated, perfectly authorized, and perfectly well-formed — and still be part of an attack, because the attack is the <em>volume</em>, not the payload.</p>
+<p>That is the insight behind two entries in the OWASP API Security Top 10 that people file under &ldquo;performance&rdquo; and then never harden: <strong>API4:2023 Unrestricted Resource Consumption</strong> and <strong>API6:2023 Unrestricted Access to Sensitive Business Flows</strong>. API4 is about a single request — or a flood of them — consuming more CPU, memory, database time, bandwidth, or third-party spend than you can afford. API6 is about a legitimate flow — signup, checkout, coupon redemption — being run thousands of times by a bot until it does real business harm. Neither is a broken-authentication bug. Both are limits you failed to impose.</p>
+<p>Limits are a security control. They bound the blast radius of credential stuffing, scraping, brute force, denial of service, and — in the cloud era — a metered bill that scales with an attacker&rsquo;s enthusiasm. This post is about imposing them deliberately.</p>
+<hr>
+<h2 id="why-a-rate-limit-is-a-security-boundary-not-a-courtesy">Why a rate limit is a security boundary, not a courtesy</h2>
+<p>The usual framing is that rate limits keep well-behaved clients from accidentally overwhelming you — a fairness knob. That framing is why so many APIs ship with a limit that is trivially generous or missing entirely. Reframe it: a rate limit is the ceiling on how much damage a <em>single</em> identity can do per unit time, and almost every volumetric attack lives underneath a missing ceiling.</p>
+<ul>
+<li><strong>Credential stuffing</strong> replays leaked username/password pairs against your login endpoint. Each attempt is a valid, well-formed request. Without a per-identity limit on failed logins, an attacker tries millions of pairs and harvests every account whose owner reused a password.</li>
+<li><strong>Scraping</strong> walks your listing and detail endpoints to exfiltrate your entire catalog, price book, or user directory. Every call is authorized. The theft is the aggregate.</li>
+<li><strong>Brute force</strong> against a password reset token, an OTP, or a coupon code is only feasible if you let the attacker guess quickly.</li>
+<li><strong>Denial of service</strong> does not require a botnet if one endpoint is expensive enough — a single unbounded query can do it (more on that below).</li>
+<li><strong>Runaway cost</strong> is the modern twist: if a request triggers an LLM call, a SMS send, an image transform, or a downstream metered API, then &ldquo;unlimited requests&rdquo; means &ldquo;unlimited spend.&rdquo; An attacker who cannot breach you can still bankrupt the endpoint.</li>
+</ul>
+<p>None of these are stopped by better authentication or stricter validation. They are stopped by a number: how many, per whom, per what window.</p>
+<p><strong>The gotcha:</strong> teams treat rate limiting as an operational nicety — &ldquo;we&rsquo;ll add it when traffic grows&rdquo; — and ship an API with no ceiling at all. But the absence of a limit is exactly what makes credential stuffing, scraping, and brute force <em>economical</em>. A limit is not there to be polite to good clients; it is there to make abuse expensive for bad ones. Ship it on day one, tuned loose, rather than never.</p>
+<hr>
+<h2 id="the-four-algorithms-and-what-they-trade">The four algorithms and what they trade</h2>
+<p>There are four classic algorithms. They differ in memory cost, burst behavior, and how sharply they enforce the limit at window edges. Pick based on what you are protecting.</p>
+<p><strong>Fixed window</strong> counts requests in a clock-aligned bucket — say, per calendar minute — and resets the counter when the window rolls over. It is trivial to implement (one integer per key) and cheap. Its flaw is the <strong>boundary burst</strong>: a client can send its full quota in the last second of one window and its full quota in the first second of the next, driving 2x the intended rate across that seam.</p>
+<p><strong>Sliding window</strong> fixes the seam by considering a rolling interval rather than a fixed one. A common approximation weights the previous window&rsquo;s count by how far you are into the current one, smoothing the edge without storing a timestamp per request. It costs a little more state and math but eliminates the boundary-burst gap.</p>
+<p><strong>Token bucket</strong> models a bucket that refills at a steady rate up to a maximum capacity; each request removes one token, and a request with no token available is rejected or delayed. This is the one to reach for when you want a <strong>steady average rate but tolerate short bursts</strong> — the bucket capacity <em>is</em> your allowed burst. It maps cleanly onto real client behavior, which is bursty.</p>
+<p><strong>Leaky bucket</strong> models a queue that drains at a fixed rate: requests enter, and they leave — are processed — at a constant pace, with overflow dropped. Where token bucket permits bursts up to capacity, leaky bucket <strong>smooths output to a strict constant rate</strong>, which is what you want when the thing downstream cannot absorb spikes at all.</p>
+<table><caption class="sr-only">The four algorithms and what they trade</caption>
+<thead>
+<tr>
+<th>Algorithm</th>
+<th>State per key</th>
+<th>Bursts?</th>
+<th>Best for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fixed window</td>
+<td>one counter</td>
+<td>yes, at the seam</td>
+<td>cheap, coarse limits</td>
+</tr>
+<tr>
+<td>Sliding window</td>
+<td>counter(s) + window</td>
+<td>no</td>
+<td>fair enforcement without seam abuse</td>
+</tr>
+<tr>
+<td>Token bucket</td>
+<td>tokens + last-refill time</td>
+<td>up to capacity</td>
+<td>steady rate, bursty clients</td>
+</tr>
+<tr>
+<td>Leaky bucket</td>
+<td>queue depth + drain time</td>
+<td>no (smoothed)</td>
+<td>protecting a fixed-rate downstream</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The gotcha:</strong> fixed-window is the default people reach for because it is one integer, but its boundary burst means your &ldquo;100 per minute&rdquo; limit permits 200 requests across two adjacent seconds. If the endpoint you are protecting is expensive or the limit is a security threshold (login attempts), that 2x matters — use a sliding window or token bucket, where the guarantee holds across the boundary.</p>
+<hr>
+<h2 id="key-on-identity-not-just-ip">Key on identity, not just IP</h2>
+<p>An algorithm is only half the design. The other half is the <strong>key</strong> — what you count against. Get this wrong and a correct algorithm protects nothing.</p>
+<ul>
+<li><strong>Per-IP</strong> is the reflexive choice and the weakest one alone. IPs are cheap and shared. An attacker rotates through a residential proxy pool or a cloud provider&rsquo;s address space and each &ldquo;identity&rdquo; gets a fresh quota. Meanwhile a thousand legitimate users behind one corporate NAT or mobile carrier gateway share a single IP and trip your limit collectively. Per-IP punishes the innocent and waves through the motivated.</li>
+<li><strong>Per-authenticated-identity</strong> — per user, per API key, per OAuth client — is the strong key. It ties the ceiling to something the attacker cannot mint for free. To get 100 API keys, they need 100 accounts, and account creation is itself a flow you rate-limit (that is API6, below). This is the key that actually bounds abuse.</li>
+<li><strong>Per-endpoint</strong> granularity lets you set a strict limit on <code>/login</code> and <code>/password-reset</code> while leaving <code>/products</code> generous. A single global number for the whole API is either too loose for the dangerous endpoints or too tight for the cheap ones.</li>
+<li><strong>Global</strong> (a ceiling across all callers) is your backstop against a distributed flood no per-identity limit catches — a last-resort valve to protect the service as a whole, layered on top of the finer keys, not instead of them.</li>
+</ul>
+<p>The right design is layered: a global cap for total capacity, per-endpoint limits sized to each endpoint&rsquo;s cost, and — the load-bearing one — per-authenticated-identity limits, with per-IP as a coarse pre-auth filter on the endpoints that have to accept unauthenticated traffic (login, signup) precisely because there is no identity to key on yet.</p>
+<p><strong>The gotcha:</strong> per-IP limits alone are trivially bypassed. Rotating proxies give an attacker a fresh quota per address, while shared NAT makes many honest users look like one abuser. Key on the authenticated identity (user ID, API key, client ID) as the primary dimension, and use IP only as a secondary, coarse filter for the pre-authentication endpoints where no identity exists yet.</p>
+<hr>
+<h2 id="the-standardized-response-429-retry-after-and-ratelimit-headers">The standardized response: 429, Retry-After, and RateLimit headers</h2>
+<p>When a caller exceeds a limit, how you say &ldquo;no&rdquo; matters. The correct status is <strong>429 Too Many Requests</strong>. Pair it with a <code>Retry-After</code> header telling the client how long to wait — either seconds or an HTTP date. Well-behaved clients read it and back off; without it, they retry immediately and turn your limit into a tight retry loop that makes the pressure worse.</p>
+<p>Beyond the rejection, expose the client&rsquo;s budget <em>before</em> they hit the wall using the IETF <code>RateLimit</code> header fields. The current draft standardizes <code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code>, and <code>RateLimit-Reset</code> (seconds until the window refills) so clients can pace themselves rather than discovering the limit by tripping it.</p>
+<pre><code class="language-http">HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+Retry-After: 30
+RateLimit-Limit: 100
+RateLimit-Remaining: 0
+RateLimit-Reset: 30
+
+{ &quot;error&quot;: &quot;rate_limit_exceeded&quot;, &quot;message&quot;: &quot;Too many requests. Retry after 30 seconds.&quot; }
+</code></pre>
+<p><strong>The gotcha:</strong> returning a bare 429 with no <code>Retry-After</code> teaches clients nothing, so they retry instantly and hammer you harder — the limit amplifies load instead of shedding it. Always include <code>Retry-After</code> (and the <code>RateLimit-*</code> budget headers) so a cooperative client backs off gracefully and only the genuinely abusive ones keep knocking.</p>
+<hr>
+<h2 id="a-token-bucket-limiter-in-go-keyed-per-api-key">A token-bucket limiter in Go, keyed per API key</h2>
+<p>Go&rsquo;s standard extended library ships a production-grade token-bucket limiter in <code>golang.org/x/time/rate</code>. A <code>rate.Limiter</code> is one bucket; to key per identity we keep a map of limiters, one per API key, created on first sight. <code>limiter.Allow()</code> removes a token if one is available and returns false otherwise.</p>
+<pre><code class="language-go">import (
+    &quot;net/http&quot;
+    &quot;strconv&quot;
+    &quot;sync&quot;
+    &quot;time&quot;
+
+    &quot;golang.org/x/time/rate&quot;
+)
+
+// One token bucket per API key. r = steady refill rate, b = burst capacity.
+type keyedLimiter struct {
+    mu    sync.Mutex
+    buckets map[string]*rate.Limiter
+    r     rate.Limit
+    b     int
+}
+
+func newKeyedLimiter(perSecond float64, burst int) *keyedLimiter {
+    return &amp;keyedLimiter{
+        buckets: make(map[string]*rate.Limiter),
+        r:       rate.Limit(perSecond),
+        b:       burst,
+    }
+}
+
+func (k *keyedLimiter) get(apiKey string) *rate.Limiter {
+    k.mu.Lock()
+    defer k.mu.Unlock()
+    lim, ok := k.buckets[apiKey]
+    if !ok {
+        lim = rate.NewLimiter(k.r, k.b) // e.g. 5 req/s sustained, burst of 20
+        k.buckets[apiKey] = lim
+    }
+    return lim
+}
+
+func (k *keyedLimiter) Middleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+        apiKey := req.Header.Get(&quot;X-API-Key&quot;)
+        if apiKey == &quot;&quot; {
+            http.Error(w, &quot;missing API key&quot;, http.StatusUnauthorized)
+            return
+        }
+        lim := k.get(apiKey)
+        if !lim.Allow() {
+            // Reserve to learn how long until a token is free, then reject.
+            delay := lim.Reserve().Delay()
+            w.Header().Set(&quot;Retry-After&quot;, strconv.Itoa(int(delay.Round(time.Second).Seconds())))
+            w.Header().Set(&quot;RateLimit-Limit&quot;, strconv.Itoa(k.b))
+            w.Header().Set(&quot;RateLimit-Remaining&quot;, &quot;0&quot;)
+            http.Error(w, &quot;rate limit exceeded&quot;, http.StatusTooManyRequests)
+            return
+        }
+        next.ServeHTTP(w, req)
+    })
+}
+</code></pre>
+<p>Two practical notes. The in-memory map works for a single process; behind a load balancer you need a <strong>shared store</strong> (Redis with an atomic token-bucket script, or a dedicated gateway) so the limit is enforced across all instances rather than per-instance — otherwise N replicas grant N times the intended rate. And the map grows unbounded as new keys appear; in production, evict idle limiters on a timer or cap the map size.</p>
+<hr>
+<h2 id="protect-the-expensive-operations-not-just-the-frequent-ones">Protect the expensive operations, not just the frequent ones</h2>
+<p>API4 is not only about request <em>count</em>. A single request can be catastrophically expensive if the endpoint lets the client dictate how much work it does. These are denial-of-service vectors you ship yourself, and no per-minute limit saves you if one call can pin the database.</p>
+<ul>
+<li><strong>Pagination must be bounded.</strong> An endpoint that honors <code>?limit=1000000</code> will happily try to serialize a million rows into one response — memory, CPU, and bandwidth in a single request. Set a <strong>maximum page size</strong> the client cannot exceed (clamp, don&rsquo;t trust) and require pagination on any collection that can grow. This is the same discipline covered when designing paginated APIs; here it is a security control, not just ergonomics.</li>
+<li><strong>Query cost / complexity must be capped.</strong> Anywhere the client shapes the query — filter combinations, sort fields, and especially GraphQL, where a nested query can fan out into an exponential number of resolver calls — you need a cost budget. Depth limiting, complexity scoring, and node caps are the GraphQL-specific tools (covered in the GraphQL post); the principle is universal: never let one request purchase unbounded work.</li>
+<li><strong>Request bodies must be size-capped.</strong> An unbounded upload or JSON body is a memory-exhaustion vector. Cap it at the edge.</li>
+<li><strong>Operations must time out.</strong> A slow query or a hung downstream call holds a connection and a goroutine/thread; enough of them and the pool is exhausted. Set server read/write timeouts and per-operation deadlines.</li>
+</ul>
+<p>The body-size guard in Go is one line at the top of the handler, using <code>http.MaxBytesReader</code>, which caps the read <em>and</em> signals the client with a clean error rather than reading gigabytes into memory first:</p>
+<pre><code class="language-go">func createOrder(w http.ResponseWriter, r *http.Request) {
+    // Cap the body at 1 MiB. Reads past the limit fail instead of buffering.
+    r.Body = http.MaxBytesReader(w, r.Body, 1&lt;&lt;20)
+
+    dec := json.NewDecoder(r.Body)
+    dec.DisallowUnknownFields()
+    var in CreateOrder
+    if err := dec.Decode(&amp;in); err != nil {
+        // MaxBytesReader surfaces an oversize body as an error here.
+        http.Error(w, &quot;request body too large or malformed&quot;, http.StatusRequestEntityTooLarge)
+        return
+    }
+    // ... clamp pagination the same way, distrusting client-supplied sizes:
+    // pageSize := min(in.PageSize, maxPageSize)
+    _ = in
+}
+</code></pre>
+<p><strong>The gotcha:</strong> an endpoint with no maximum page size or query-cost limit is a denial-of-service vulnerability you built and shipped. <code>?limit=10000000</code> or a deeply nested GraphQL query lets a single authenticated, authorized, well-formed request exhaust the database or the app&rsquo;s memory. Clamp page size server-side, cap query complexity, size-limit bodies, and set timeouts — resource limits are input validation for <em>cost</em>.</p>
+<hr>
+<h2 id="api6-rate-limit-the-flow-not-just-the-endpoint">API6: rate-limit the flow, not just the endpoint</h2>
+<p>Now the subtler class. Some flows are made of individually legitimate requests that become harmful only in bulk. Each call passes every check you have. The harm is the aggregate against your <em>business</em>, and OWASP names it API6:2023 Unrestricted Access to Sensitive Business Flows.</p>
+<p>Consider the flows: automated <strong>signup</strong> to farm free-trial accounts or seed spam; <strong>checkout / add-to-cart</strong> run by scalper bots that clear limited inventory the moment it drops; <strong>coupon or gift-card redemption</strong> brute-forced for value; <strong>password reset</strong> or <strong>invite</strong> endpoints abused to spam real users&rsquo; inboxes; <strong>comment or review</strong> posting weaponized for astroturfing. A single signup is not an attack. Ten thousand signups a minute from a bot farm is — even though every one of them is a valid request your API was designed to serve.</p>
+<p>The mitigations layer, because no single one is sufficient:</p>
+<ul>
+<li><strong>Rate-limit the flow itself</strong>, keyed on the best available identity and on secondary signals (IP, device) for the pre-auth flows. The limit here protects a <em>business outcome</em> (accounts created, coupons redeemed), so size it to the business, not to raw traffic.</li>
+<li><strong>Interpose a challenge</strong> — a CAPTCHA or proof-of-work on the anonymous flows (signup, reset), and <strong>step-up authentication</strong> (re-auth, MFA) on the sensitive authenticated ones (checkout, changing payout details). A challenge raises the per-attempt cost enough to break the economics of bulk automation.</li>
+<li><strong>Device fingerprinting</strong> links requests that rotate IPs but share a browser/device signature, so the ceiling follows the actor rather than the address.</li>
+<li><strong>Anomaly detection</strong> watches for the shape of automation — inhuman timing, a spike in a normally-rare flow, a burst of failures — and escalates to a challenge or a temporary block.</li>
+</ul>
+<p><strong>The gotcha:</strong> a flow can be an API6 vulnerability even when every single request in it is authenticated, authorized, and valid — because the abuse is running a <em>legitimate</em> flow at illegitimate scale. Signup, checkout, and coupon redemption are the classic examples: nothing about one call is wrong. Rate-limit the <strong>flow</strong> against identity and device, and gate it with a CAPTCHA or step-up so bulk automation stops being profitable.</p>
+<hr>
+<h2 id="where-each-limit-lives">Where each limit lives</h2>
+<table><caption class="sr-only">Where each limit lives</caption>
+<thead>
+<tr>
+<th>Threat (OWASP)</th>
+<th>Limit</th>
+<th>Keyed / scoped on</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Credential stuffing, brute force (API4)</td>
+<td>Failed-attempt limit on <code>/login</code>, <code>/reset</code></td>
+<td>Identity + IP, per-endpoint</td>
+</tr>
+<tr>
+<td>Scraping, general flooding (API4)</td>
+<td>Request-rate limit (token/sliding window)</td>
+<td>Authenticated identity, then IP</td>
+</tr>
+<tr>
+<td>One expensive request (API4)</td>
+<td>Max page size, query-cost cap, body-size limit, timeouts</td>
+<td>Per-request, clamped server-side</td>
+</tr>
+<tr>
+<td>Runaway third-party cost (API4)</td>
+<td>Quota on metered operations</td>
+<td>Per API key / tenant</td>
+</tr>
+<tr>
+<td>Distributed flood (API4)</td>
+<td>Global ceiling</td>
+<td>Whole service</td>
+</tr>
+<tr>
+<td>Bulk abuse of a valid flow (API6)</td>
+<td>Flow rate limit + CAPTCHA / step-up</td>
+<td>Flow, per identity + device</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Limits are a security control.</strong> They bound the blast radius of credential stuffing, scraping, brute force, DoS, and runaway cost — abuse made of individually valid requests. Ship a limit on day one, not &ldquo;when traffic grows.&rdquo;</li>
+<li><strong>Pick the algorithm for the job.</strong> Fixed window is cheap but bursts at the seam; sliding window enforces fairly; token bucket allows controlled bursts; leaky bucket smooths to a constant rate. Don&rsquo;t default to fixed window for security thresholds.</li>
+<li><strong>Key on identity, not IP.</strong> Rotating proxies defeat per-IP limits and shared NAT punishes honest users. Make the authenticated identity the primary key and use IP only as a coarse pre-auth filter.</li>
+<li><strong>Say no correctly.</strong> Return 429 with <code>Retry-After</code> and the <code>RateLimit-*</code> budget headers so cooperative clients back off instead of hammering you into a tighter loop.</li>
+<li><strong>Cost is input, too.</strong> Clamp page size, cap query complexity, size-limit bodies, and set timeouts — an unbounded query or upload is a DoS you shipped yourself.</li>
+<li><strong>Rate-limit the flow.</strong> Signup, checkout, and coupon redemption are API6 risks even when every request is legitimate. Limit the flow against identity and device, and gate it with a challenge or step-up to break the economics of bulk automation.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/">OWASP API Security Top 10 — API4:2023 Unrestricted Resource Consumption</a></li>
+<li><a href="https://owasp.org/API-Security/editions/2023/en/0xa6-unrestricted-access-to-sensitive-business-flows/">OWASP API Security Top 10 — API6:2023 Unrestricted Access to Sensitive Business Flows</a></li>
+<li><a href="https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/">IETF — RateLimit header fields for HTTP (Internet-Draft)</a></li>
+<li><a href="https://pkg.go.dev/golang.org/x/time/rate">Go package documentation — golang.org/x/time/rate</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/api-security-08-secure-api-lifecycle.html">The Secure API Lifecycle</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-07-gateways-and-runtime-protection.html">API Gateways and Runtime Protection</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-03-authorization.html">Authorization: BOLA, BFLA, and Object-Level Access</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

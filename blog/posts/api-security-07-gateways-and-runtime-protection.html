@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>API Gateways and Runtime Protection — Pratik Dhanave</title>
+<meta name="description" content="The perimeter and runtime layer: the API gateway as a policy enforcement point (and why it can&#x27;t replace per-service authz), WAF limits, improper...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="API Gateways and Runtime Protection — Pratik Dhanave">
+<meta property="og:description" content="The perimeter and runtime layer: the API gateway as a policy enforcement point (and why it can&#x27;t replace per-service authz), WAF limits, improper inventory management (shadow/zombie APIs), security misconfiguration, and runtime detection.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/api-security-07-gateways-and-runtime-protection.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-13T00:00:00Z">
+<meta property="article:tag" content="API Security">
+<meta property="article:tag" content="API Gateway">
+<meta property="article:tag" content="OWASP">
+<meta property="article:tag" content="Monitoring">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="API Gateways and Runtime Protection — Pratik Dhanave">
+<meta name="twitter:description" content="The perimeter and runtime layer: the API gateway as a policy enforcement point (and why it can&#x27;t replace per-service authz), WAF limits, improper inventory management (shadow/zombie APIs), security misconfiguration, and runtime detection.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/api-security-07-gateways-and-runtime-protection.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "API Gateways and Runtime Protection",
+  "description": "The perimeter and runtime layer: the API gateway as a policy enforcement point (and why it can't replace per-service authz), WAF limits, improper inventory management (shadow/zombie APIs), security misconfiguration, and runtime detection.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-13",
+  "dateModified": "2026-08-13",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "API Security, API Gateway, OWASP, Monitoring",
+  "url": "https://pratikdhanave.com/blog/posts/api-security-07-gateways-and-runtime-protection.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/api-security-07-gateways-and-runtime-protection.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>API Gateways and Runtime Protection</h1>
+    <p class="post-subtitle">Part seven of the API Security series: the perimeter and runtime layer that enforces security consistently — the gateway as a policy enforcement point, the limits of a WAF, keeping an honest inventory of every endpoint you expose, hardening defaults, and watching the traffic for abuse you can only see at runtime.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-13">August 13, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/api-security/" class="tag-link"><span class="tag">#API Security</span></a><a href="/blog/tags/api-gateway/" class="tag-link"><span class="tag">#API Gateway</span></a><a href="/blog/tags/owasp/" class="tag-link"><span class="tag">#OWASP</span></a><a href="/blog/tags/monitoring/" class="tag-link"><span class="tag">#Monitoring</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 7 of 8</span>
+    <span class="series-title">API Security</span>
+    <div class="series-nav"><a href="/blog/posts/api-security-06-transport-and-data-security.html" class="series-prev">&larr; Part 6: Transport and Data Security</a>
+<a href="/blog/posts/api-security-08-secure-api-lifecycle.html" class="series-next">Part 8: The Secure API Lifecycle &rarr;</a></div>
+  </div>
+
+
+
+  <p>Everything earlier in this series lives inside a service: how you prove who is calling, how you check what they may touch, how you validate the bytes crossing the boundary. All of it assumes the request already reached your handler. This post is about the layer <em>in front</em> of the handler — the gateway that every request passes through — and the layer <em>around</em> it — the monitoring that tells you an attack is happening while it happens.</p>
+<p>The temptation is to treat this perimeter as the security story: put a gateway and a web application firewall in front of the fleet and call it hardened. It is not the whole story, and the two most common failures in this layer — OWASP API8 (Security Misconfiguration) and API9 (Improper Inventory Management) — are failures of the perimeter itself, not of any single service. The gateway centralizes the <em>coarse</em> controls so you write them once instead of forty times. Fine-grained authorization stays in the service. Inventory and monitoring close the gaps between them.</p>
+<hr>
+<h2 id="the-gateway-as-a-policy-enforcement-point">The gateway as a policy enforcement point</h2>
+<p>An API gateway sits between clients and your services and terminates every request before it reaches a backend. Because <em>all</em> traffic funnels through it, it is the natural place to enforce the controls that should be identical for every service:</p>
+<ul>
+<li><strong>TLS termination</strong> — one place that owns certificates, cipher suites, and protocol versions, so you are not auditing TLS config on every service.</li>
+<li><strong>Authentication and token validation</strong> — verify the bearer token&rsquo;s signature, issuer, audience, and expiry once, reject anonymous traffic at the door, and pass a verified identity downstream.</li>
+<li><strong>Rate limiting and quotas</strong> — the throttling controls this series covered earlier, applied uniformly so no single client can exhaust a backend.</li>
+<li><strong>Request validation</strong> — reject malformed requests, oversized bodies, and unexpected content types before they cost a backend anything.</li>
+<li><strong>Routing</strong> — map public paths to internal services, which also lets you hide your topology behind a stable public contract.</li>
+</ul>
+<p>The argument for centralizing is not elegance, it is <em>consistency</em>. If each of forty services parses JWTs on its own, you have forty subtly different implementations, and the weakest one is your real security posture. Move signature verification, clock-skew handling, and issuer checks to the gateway and every service inherits the same correct behavior. When you rotate a signing key or tighten an accepted audience, you change it in one place.</p>
+<p>A gateway policy is usually declarative. A sketch — the exact syntax varies by product, but the shape is universal:</p>
+<pre><code class="language-yaml">routes:
+  - path: /v2/orders
+    upstream: orders-service.internal:8443
+    tls:
+      min_version: &quot;1.2&quot;
+    auth:
+      type: jwt
+      issuer: https://auth.example.com/
+      audience: api.example.com
+      jwks_uri: https://auth.example.com/.well-known/jwks.json
+      require_claims: [sub, scope]
+    rate_limit:
+      requests_per_minute: 600
+      key: token.sub          # per-caller, not per-IP
+    request:
+      max_body_bytes: 262144
+      allowed_content_types: [application/json]
+    cors:
+      allow_origins: [https://app.example.com]   # explicit, never &quot;*&quot;
+      allow_methods: [GET, POST]
+      allow_credentials: true
+</code></pre>
+<p>Notice what this policy does <em>not</em> say: it never decides whether <em>this</em> caller may see <em>that</em> order. It confirms the token is real, the caller is within quota, the body is sane, and the origin is allowed — then forwards a verified identity to the orders service. What the caller is allowed to do with a specific object is a decision the gateway cannot make.</p>
+<p><strong>The gotcha:</strong> a gateway that validates the token and forwards it to a service that then skips object-level checks still has a Broken Object Level Authorization (BOLA) hole — and BOLA is the number-one API risk. The gateway knows the token belongs to user 481; it has no idea that order <code>9c2f</code> belongs to user 902. Ownership lives in your data, and only the service holding that data can check it. Terminating auth at the gateway feels like &ldquo;authorization is handled,&rdquo; and that feeling is exactly how BOLA ships to production. Coarse controls at the edge; per-object authorization in the service, on every request, always.</p>
+<hr>
+<h2 id="waf-useful-and-easy-to-over-trust">WAF: useful, and easy to over-trust</h2>
+<p>A web application firewall inspects requests against a ruleset and blocks ones that match known-bad patterns — SQL injection payloads, cross-site scripting fragments, path-traversal sequences, known scanner signatures. Sitting in front of the gateway (or built into it), a WAF buys you real value: it filters the constant background noise of generic automated attacks and gives you a fast lever to virtually patch a newly disclosed vulnerability class while you deploy a real fix.</p>
+<p>But a WAF reasons about <em>bytes</em>, not about <em>your business</em>. It can recognize that <code>' OR 1=1--</code> looks like injection. It cannot recognize that user 481 requesting <code>/v2/orders/9c2f</code> is reading someone else&rsquo;s order, because that request is perfectly well-formed — correct method, valid token, syntactically clean path. Nothing in the bytes is anomalous. The abuse is entirely in the <em>meaning</em>, and the meaning depends on data the WAF never sees.</p>
+<p><strong>The gotcha:</strong> a WAF catches generic injection and XSS, not business-logic abuse or BOLA — do not treat &ldquo;the WAF is on&rdquo; as &ldquo;the API is secure.&rdquo; The attacks that actually breach APIs are usually authorization failures dressed as normal traffic, and those pass straight through a pattern matcher. A WAF is one layer that reduces noise and blocks the crude stuff. It is never a substitute for authorization in the service or for validation at the data sink.</p>
+<hr>
+<h2 id="improper-inventory-management-api9-the-endpoints-you-forgot">Improper inventory management (API9): the endpoints you forgot</h2>
+<p>You cannot protect what you do not know exists. OWASP calls this API9, Improper Inventory Management, and it is the risk that turns a well-secured API program into a breach anyway — because the breached endpoint was one nobody was watching. It shows up in three shapes:</p>
+<ul>
+<li><strong>Shadow APIs</strong> — endpoints that exist in production but not in your documentation, catalog, or gateway config. A team shipped a service directly, a &ldquo;temporary&rdquo; internal endpoint became load-bearing, or a debug route was never removed. It serves real traffic and no security control was ever applied to it because, officially, it does not exist.</li>
+<li><strong>Zombie APIs</strong> — deprecated versions still live. You shipped <code>/v2</code>, told everyone to migrate, and left <code>/v1</code> running &ldquo;just in case.&rdquo; The old version rarely gets the patches, the tightened validation, or the new authorization checks the current version received. Attackers enumerate <code>/v1</code>, <code>/v0</code>, <code>/api/old</code> precisely because those paths are where the weak, unmaintained code lives.</li>
+<li><strong>Non-prod endpoints exposed</strong> — staging, QA, or debug environments reachable from the internet, often with weaker auth, seeded test data, verbose errors, or default credentials, and pointed at data that is more real than anyone admits.</li>
+</ul>
+<p>The through-line is that each of these is a fully functional attack surface that receives <em>none</em> of your security attention because it is off the map. The fix is not clever, it is disciplined:</p>
+<ol>
+<li><strong>Maintain an inventory.</strong> Every host, every environment, every API version, its owner, its status (active / deprecated / retired), and the date support ends. This ties directly to the API design work covered later in the series — a machine-readable spec (OpenAPI) per version is the backbone of the catalog, because a documented contract is an inventoried endpoint.</li>
+<li><strong>Discover continuously.</strong> The inventory drifts the moment you write it. Diff your live routing table against your catalog, scan your own address space, and parse gateway access logs for paths that serve traffic but appear in no spec. Anything live and uncataloged is a finding.</li>
+<li><strong>Retire, do not abandon.</strong> Deprecation needs an end date and an actual shutdown. A version you stopped maintaining but left running is not deprecated; it is a liability with uptime.</li>
+</ol>
+<p><strong>The gotcha:</strong> shadow and zombie endpoints — a forgotten <code>/v1</code>, a debug route left enabled, a staging host with a public IP — get breached constantly precisely because nobody is watching them. No alert fires, because they are not in the monitoring. No patch lands, because they are not in the pipeline. The only defenses are an honest inventory and the discipline to actually turn old things off.</p>
+<hr>
+<h2 id="security-misconfiguration-api8-the-low-effort-breach">Security misconfiguration (API8): the low-effort breach</h2>
+<p>OWASP API8, Security Misconfiguration, is the category attackers love because it costs them almost nothing. There is no clever exploit chain — the door was left open. The recurring offenders:</p>
+<ul>
+<li><strong>Default credentials.</strong> An admin console, a database, a message broker, or a management dashboard still on its shipped username and password. Automated scanners try these first, on every host, all day.</li>
+<li><strong>Verbose errors and stack traces.</strong> An unhandled exception that returns the framework version, a file path, a SQL fragment, or a full stack trace hands the attacker a map of your internals for free. Return a generic error and an opaque correlation ID to the client; keep the detail in your logs.</li>
+<li><strong>Permissive CORS.</strong> <code>Access-Control-Allow-Origin: *</code> — especially paired with credentialed requests — invites any origin to call your API from a victim&rsquo;s browser. Cross-origin resource sharing was covered earlier in this series; the gateway is where you enforce an explicit allow-list of origins rather than a wildcard.</li>
+<li><strong>Missing security headers.</strong> No <code>Strict-Transport-Security</code>, no <code>X-Content-Type-Options: nosniff</code>, no restrictive <code>Content-Security-Policy</code> on responses that render. Cheap to add at the gateway, and their absence is exactly what automated audits flag.</li>
+<li><strong>Debug endpoints and dangerous defaults.</strong> Profilers, heap dumps, <code>/actuator</code>-style management routes, directory listing, or verbose logging switched on in production because it was never switched off after the last incident.</li>
+</ul>
+<p>The unifying theme: these are not vulnerabilities you introduced, they are hardening you skipped. The countermeasure is a secure baseline applied uniformly — a hardened default gateway and service configuration, disabled debug surfaces, generic client-facing errors, rotated credentials, and an automated check that a new deployment inherits the baseline instead of a framework&rsquo;s ship-with-everything-on defaults.</p>
+<p><strong>The gotcha:</strong> misconfiguration — verbose errors, default credentials, wildcard CORS — is the lowest-effort, highest-frequency way in, because it requires no exploit, just a scan. Harden the defaults once, enforce the baseline in your deploy pipeline, and re-run an audit so a single service&rsquo;s stale config does not reopen a door you closed everywhere else.</p>
+<hr>
+<h2 id="runtime-detection-watching-the-traffic-you-cannot-pre-validate">Runtime detection: watching the traffic you cannot pre-validate</h2>
+<p>The controls above are preventive — they stop known-bad requests. But the attacks that matter most against APIs (authorization abuse, enumeration, credential stuffing) are made of individually valid requests. You cannot block them at the door; you can only <em>detect the pattern over time</em>. That requires logging and monitoring built for security, not just for debugging.</p>
+<p>Log, per request, the fields that let you reconstruct who did what:</p>
+<pre><code class="language-text">timestamp            2026-08-13T14:22:07Z
+request_id           01J...              # correlation id, returned to client
+route                POST /v2/orders/{id}
+caller_sub           user_481            # authenticated identity, not just IP
+source_ip            203.0.113.10
+status               403
+auth_result          denied_object_level # authn ok, authz failed
+object_id            9c2f                # the resource acted on (or its hash)
+latency_ms           12
+</code></pre>
+<p>Note what is <em>not</em> in that line: no tokens, no passwords, no request bodies, no PII beyond a stable pseudonymous identifier. You want enough to investigate, never enough to leak.</p>
+<p>With that stream, you can build API-specific detection that a generic WAF cannot:</p>
+<ul>
+<li><strong>Per-endpoint authentication and authorization failures.</strong> A rising rate of <code>401</code>s on <code>/login</code> is credential stuffing. A rising rate of <code>403 denied_object_level</code> from one caller is someone probing objects they do not own — a live BOLA attempt, visible only because you logged the authorization <em>decision</em>, not just the status code.</li>
+<li><strong>Anomalous access patterns.</strong> One caller reading thousands of distinct object IDs, sequential IDs walked in order, a token used from two continents in a minute, or traffic to a route that normally sees none. Each is a signature of enumeration or a stolen credential.</li>
+<li><strong>BOLA-probing signatures.</strong> A single caller whose ratio of <em>denied</em> to <em>allowed</em> object accesses spikes is enumerating identifiers to find one they can reach. That ratio is a high-signal alert and it exists only if the service logs the object-level decision.</li>
+</ul>
+<p>Then <em>alert</em> on these — a spike in per-caller authorization denials, a surge of <code>401</code>s on an auth route, access to a newly appeared path — and route the alert somewhere a human sees it in minutes, not in next quarter&rsquo;s log review. Detection you never look at is not detection.</p>
+<p><strong>The gotcha:</strong> monitoring only pays off if it captures the <em>authorization decision</em>, not just the HTTP status. Two requests can both return <code>200</code>, one legitimate and one a successful BOLA — the difference is whether an ownership check ran and passed. Log the decision (<code>allowed</code> / <code>denied_object_level</code> / <code>denied_scope</code>) at the point you make it, and enumeration attacks that look like ordinary traffic finally become visible.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>The gateway centralizes coarse controls.</strong> TLS, token validation, rate limiting, request validation, CORS, and routing belong in one enforcement point so every service inherits the same correct behavior.</li>
+<li><strong>The gateway is not your authorization layer.</strong> It can verify identity; it cannot know ownership. BOLA and other object-level checks stay in the service, on every request, against your data.</li>
+<li><strong>A WAF filters generic attacks, not business logic.</strong> It blocks injection and scanner noise. It cannot see authorization abuse dressed as valid traffic — never treat &ldquo;WAF on&rdquo; as &ldquo;done.&rdquo;</li>
+<li><strong>You cannot protect what you have not inventoried.</strong> Shadow, zombie, and exposed non-prod endpoints get breached because nobody is watching them. Catalog every version and environment, discover continuously, and actually retire the old ones.</li>
+<li><strong>Misconfiguration is the cheapest breach.</strong> Default credentials, verbose errors, wildcard CORS, and missing headers require no exploit. Harden defaults once and enforce the baseline in your pipeline.</li>
+<li><strong>Detection lives in the logs.</strong> Record the authorization decision, not just the status code, then alert on per-caller denial spikes and anomalous access. The attacks that matter are patterns you can only see at runtime.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://owasp.org/API-Security/editions/2023/en/0xa8-security-misconfiguration/">OWASP API Security Top 10 — API8:2023 Security Misconfiguration</a></li>
+<li><a href="https://owasp.org/API-Security/editions/2023/en/0xa9-improper-inventory-management/">OWASP API Security Top 10 — API9:2023 Improper Inventory Management</a></li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html">OWASP Cheat Sheet — REST Security</a></li>
+<li><a href="https://docs.konghq.com/gateway/latest/kong-enterprise/security/">Kong Gateway — Security reference</a></li>
+<li><a href="https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/security">Envoy Proxy — Security documentation</a></li>
+<li><a href="https://docs.aws.amazon.com/apigateway/latest/developerguide/security.html">AWS API Gateway — Security in Amazon API Gateway</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/api-security-08-secure-api-lifecycle.html">The Secure API Lifecycle</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-05-rate-limiting-and-resource-consumption.html">Rate Limiting and Resource Consumption</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-03-authorization.html">Authorization: BOLA, BFLA, and Object-Level Access</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

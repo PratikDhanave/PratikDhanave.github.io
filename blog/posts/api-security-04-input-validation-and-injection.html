@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Input Validation and Injection — Pratik Dhanave</title>
+<meta name="description" content="Treating every input as hostile: schema/DTO validation (allow-list, reject unknown fields), injection defenses (parameterized queries), and SSRF —...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Input Validation and Injection — Pratik Dhanave">
+<meta property="og:description" content="Treating every input as hostile: schema/DTO validation (allow-list, reject unknown fields), injection defenses (parameterized queries), and SSRF — allow-listing destinations and blocking internal/link-local ranges including via redirects.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/api-security-04-input-validation-and-injection.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-10T00:00:00Z">
+<meta property="article:tag" content="API Security">
+<meta property="article:tag" content="Injection">
+<meta property="article:tag" content="SSRF">
+<meta property="article:tag" content="Validation">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Input Validation and Injection — Pratik Dhanave">
+<meta name="twitter:description" content="Treating every input as hostile: schema/DTO validation (allow-list, reject unknown fields), injection defenses (parameterized queries), and SSRF — allow-listing destinations and blocking internal/link-local ranges including via redirects.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/api-security-04-input-validation-and-injection.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Input Validation and Injection",
+  "description": "Treating every input as hostile: schema/DTO validation (allow-list, reject unknown fields), injection defenses (parameterized queries), and SSRF \u2014 allow-listing destinations and blocking internal/link-local ranges including via redirects.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-10",
+  "dateModified": "2026-08-10",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "API Security, Injection, SSRF, Validation",
+  "url": "https://pratikdhanave.com/blog/posts/api-security-04-input-validation-and-injection.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/api-security-04-input-validation-and-injection.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Input Validation and Injection</h1>
+    <p class="post-subtitle">Part four of the API Security series: treat every byte crossing the boundary as hostile, validate against a schema you control, parameterize at the data sink, and never let a client-supplied URL become a pivot into your network.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-10">August 10, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/api-security/" class="tag-link"><span class="tag">#API Security</span></a><a href="/blog/tags/injection/" class="tag-link"><span class="tag">#Injection</span></a><a href="/blog/tags/ssrf/" class="tag-link"><span class="tag">#SSRF</span></a><a href="/blog/tags/validation/" class="tag-link"><span class="tag">#Validation</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 4 of 8</span>
+    <span class="series-title">API Security</span>
+    <div class="series-nav"><a href="/blog/posts/api-security-03-authorization.html" class="series-prev">&larr; Part 3: Authorization: BOLA, BFLA, and Object-Level Access</a>
+<a href="/blog/posts/api-security-05-rate-limiting-and-resource-consumption.html" class="series-next">Part 5: Rate Limiting and Resource Consumption &rarr;</a></div>
+  </div>
+
+
+
+  <p>The first three posts in this series looked at <em>who</em> is calling your API and <em>what</em> they are allowed to touch — authentication, authorization, and the mass-assignment trap where a client sneaks <code>is_admin=true</code> into a body your handler blindly binds. This post is about the payload itself. Once a request is authenticated and authorized, its contents are still attacker-controlled. A valid session token does not make a JSON body trustworthy.</p>
+<p>The failure mode is always the same shape: <strong>data crosses a trust boundary, and somewhere downstream it is interpreted as code.</strong> A string becomes part of a SQL statement. A field becomes a shell argument. A URL becomes an outbound request from inside your VPC. The interpreter — the database, the shell, the HTTP client — cannot tell your intent from the attacker&rsquo;s. That is the whole game, and it is why &ldquo;sanitize the input&rdquo; is the wrong mental model. You do not clean hostile data into safe data. You <strong>validate it at the boundary</strong> and <strong>keep it as data at the sink</strong> so it is never parsed as code in the first place.</p>
+<hr>
+<h2 id="validate-at-the-boundary-with-a-schema-you-own">Validate at the boundary with a schema you own</h2>
+<p>The boundary is the moment untrusted bytes become a typed object in your program. That is where validation belongs — not scattered through business logic, not &ldquo;we&rsquo;ll check it before the query.&rdquo; One place, before anything else runs, expressed as a schema.</p>
+<p>Good input validation is <strong>allow-list</strong>, not deny-list. You describe exactly what a valid request looks like — types, ranges, lengths, formats, enumerated values — and reject everything else. You do not try to enumerate the bad inputs, because that list is infinite and you will always miss a case.</p>
+<p>Concretely, for every field you decide:</p>
+<ul>
+<li><strong>Type</strong> — is it a string, an integer, a boolean? A <code>quantity</code> that arrives as <code>"12; DROP..."</code> should fail before it is ever a number.</li>
+<li><strong>Range</strong> — a <code>quantity</code> of <code>-5</code> or <code>2_000_000_000</code> is nonsense even though it is a valid integer.</li>
+<li><strong>Length</strong> — an unbounded string is a denial-of-service vector and a buffer for injection payloads.</li>
+<li><strong>Format</strong> — an email, a UUID, an ISO date. Match against a precise pattern, anchored start to end.</li>
+<li><strong>Enum</strong> — a <code>status</code> field is one of a fixed, known set, never free text.</li>
+</ul>
+<p>Pydantic makes this the natural default in Python. The model <em>is</em> the contract; parsing and validating are the same step.</p>
+<pre><code class="language-python">from enum import Enum
+from pydantic import BaseModel, Field, EmailStr, field_validator
+
+class OrderStatus(str, Enum):
+    pending = &quot;pending&quot;
+    shipped = &quot;shipped&quot;
+    cancelled = &quot;cancelled&quot;
+
+class CreateOrder(BaseModel):
+    # Unknown fields are rejected, not silently dropped.
+    model_config = {&quot;extra&quot;: &quot;forbid&quot;}
+
+    customer_email: EmailStr
+    sku: str = Field(min_length=3, max_length=32, pattern=r&quot;^[A-Z0-9\-]+$&quot;)
+    quantity: int = Field(ge=1, le=1000)
+    status: OrderStatus = OrderStatus.pending
+
+    @field_validator(&quot;sku&quot;)
+    @classmethod
+    def normalize_sku(cls, v: str) -&gt; str:
+        return v.upper()
+
+# At the boundary: this either yields a fully-typed, in-range object or raises.
+order = CreateOrder.model_validate(request_json)
+</code></pre>
+<p>The Go equivalent pairs a struct with a validation pass. The <code>binding</code>/<code>validate</code> tags declare the same allow-list constraints; the framework enforces them before your handler body runs.</p>
+<pre><code class="language-go">type CreateOrder struct {
+    CustomerEmail string `json:&quot;customer_email&quot; validate:&quot;required,email&quot;`
+    SKU           string `json:&quot;sku&quot;            validate:&quot;required,min=3,max=32,alphanum|contains=-&quot;`
+    Quantity      int    `json:&quot;quantity&quot;       validate:&quot;required,gte=1,lte=1000&quot;`
+    Status        string `json:&quot;status&quot;         validate:&quot;omitempty,oneof=pending shipped cancelled&quot;`
+}
+
+func decodeOrder(r *http.Request) (*CreateOrder, error) {
+    dec := json.NewDecoder(r.Body)
+    dec.DisallowUnknownFields() // reject unexpected keys — closes mass assignment
+
+    var in CreateOrder
+    if err := dec.Decode(&amp;in); err != nil {
+        return nil, fmt.Errorf(&quot;malformed body: %w&quot;, err)
+    }
+    if err := validate.Struct(&amp;in); err != nil {
+        return nil, fmt.Errorf(&quot;invalid order: %w&quot;, err)
+    }
+    return &amp;in, nil
+}
+</code></pre>
+<p><strong>The gotcha:</strong> validation must be allow-list, not deny-list. A deny-list — &ldquo;reject anything containing <code>'</code> or <code>--</code> or <code>&lt;script&gt;</code>&rdquo; — is a game of whack-a-mole you cannot win, because encodings, Unicode homoglyphs, and payload variants outnumber your filters. An allow-list flips the burden: you enumerate the finite set of <em>good</em> shapes and reject the infinite rest by default. The <code>sku</code> pattern above accepts <code>A-Z0-9-</code> and nothing else; you never have to imagine what a malicious SKU looks like.</p>
+<hr>
+<h2 id="reject-unknown-fields-one-line-two-bugs-closed">Reject unknown fields — one line, two bugs closed</h2>
+<p>Notice <code>extra="forbid"</code> in Pydantic and <code>DisallowUnknownFields()</code> in Go. This single choice does two jobs.</p>
+<p>First, it closes the mass-assignment door from post three. If a client sends <code>{"quantity": 2, "is_admin": true, "internal_price": 0}</code>, a lenient decoder binds what it recognizes and ignores the rest — and &ldquo;the rest&rdquo; is exactly where privilege-escalation fields hide. Rejecting unknown fields means the request fails loudly instead of quietly binding something you never intended to expose.</p>
+<p>Second, it catches honest client bugs. A frontend that sends <code>quantiy</code> (typo) or <code>customerEmail</code> (wrong case) gets a clear 400 at integration time, not a mysterious &ldquo;why is quantity always the default&rdquo; ticket three weeks later. Strictness is a feature: it turns silent data loss into a loud, early error.</p>
+<p><strong>The gotcha:</strong> rejecting unknown fields closes mass assignment <em>and</em> catches typos — the same strictness that stops an attacker from smuggling <code>is_admin</code> stops a teammate from silently dropping <code>customer_email</code>. Lenient parsing hides both. Turn strictness on at the schema and you never have to remember to check for either.</p>
+<hr>
+<h2 id="injection-keep-data-as-data-at-the-sink">Injection: keep data as data at the sink</h2>
+<p>Validation at the boundary reduces the attack surface, but it is not the last line of defense. The real fix for injection lives at the <strong>sink</strong> — the exact place where your data meets an interpreter. The rule there is universal across interpreter types: <strong>never build the command by concatenating strings; pass the data through a channel the interpreter treats as data, not code.</strong></p>
+<h3 id="sql-injection">SQL injection</h3>
+<p>The classic. String-building a query mixes your instructions and the attacker&rsquo;s data into one text blob the database then parses as a whole:</p>
+<pre><code class="language-python"># NEVER do this — the value becomes part of the SQL grammar.
+cur.execute(f&quot;SELECT * FROM orders WHERE sku = '{sku}'&quot;)
+# sku = &quot;x' OR '1'='1&quot;  -&gt;  returns every row
+# sku = &quot;x'; DROP TABLE orders; --&quot;  -&gt;  ruins your afternoon
+</code></pre>
+<p>Parameterized queries (prepared statements) send the query text and the parameter values over <em>separate</em> channels. The database compiles the statement first, then binds the values as pure data — a value can never change the statement&rsquo;s structure, no matter what characters it contains.</p>
+<pre><code class="language-python"># Correct — the driver sends SQL and values separately.
+cur.execute(&quot;SELECT * FROM orders WHERE sku = %s&quot;, (sku,))
+</code></pre>
+<pre><code class="language-go">// Correct in Go — placeholders, never fmt.Sprintf into the query.
+row := db.QueryRow(
+    &quot;SELECT id, quantity FROM orders WHERE sku = $1 AND customer_email = $2&quot;,
+    order.SKU, order.CustomerEmail,
+)
+</code></pre>
+<p>Escaping and quoting by hand is not an acceptable substitute. Character-set edge cases and encoding tricks defeat manual escaping; parameterization defeats the entire class because the value is never parsed as SQL to begin with.</p>
+<p><strong>The gotcha:</strong> an ORM is not automatic immunity. Query builders and model methods parameterize for you — right up until someone reaches for the raw escape hatch (<code>Model.objects.raw(...)</code>, <code>session.execute(text(...))</code>, <code>db.Raw(...)</code>, <code>.extra()</code>) and interpolates a string into it. The moment you <code>f"...{user_input}..."</code> inside a raw query, you have reintroduced the exact vulnerability the ORM was protecting you from. Raw queries are fine — raw queries with <strong>placeholders</strong> — but string-concatenated raw queries are SQL injection with extra steps.</p>
+<h3 id="nosql-injection">NoSQL injection</h3>
+<p>Document stores are not immune; they just have a different grammar. When a request body is passed straight into a query object, an attacker can substitute an operator for a value:</p>
+<pre><code class="language-python"># Attacker sends {&quot;username&quot;: {&quot;$ne&quot;: null}, &quot;password&quot;: {&quot;$ne&quot;: null}}
+db.users.find_one({&quot;username&quot;: body[&quot;username&quot;], &quot;password&quot;: body[&quot;password&quot;]})
+# The $ne operators match the first user — an auth bypass.
+</code></pre>
+<p>The defense is the same principle at a different sink: validate that each field is the scalar type you expect (a string, not a dict) at the boundary, and never let request-derived data introduce query operators. Your Pydantic model declaring <code>username: str</code> rejects the <code>{"$ne": null}</code> object outright.</p>
+<h3 id="command-injection">Command injection</h3>
+<p>If your API ever shells out — generating a thumbnail, calling a CLI tool — the danger is passing user data through a shell that re-parses it.</p>
+<pre><code class="language-python">import subprocess
+
+# DANGEROUS: shell=True re-parses the whole string.
+# filename = &quot;photo.jpg; rm -rf /&quot;  -&gt;  the shell runs both commands.
+subprocess.run(f&quot;convert {filename} out.png&quot;, shell=True)
+
+# SAFE: argument vector, no shell. Data stays in one argv slot.
+subprocess.run([&quot;convert&quot;, filename, &quot;out.png&quot;], shell=False, check=True)
+</code></pre>
+<pre><code class="language-go">// SAFE in Go: exec.Command takes argv directly — no shell parsing.
+// Never build a string and hand it to `sh -c`.
+cmd := exec.Command(&quot;convert&quot;, filename, &quot;out.png&quot;)
+</code></pre>
+<p>Pass an argument vector, never a shell string. When each argument occupies its own slot in <code>argv</code>, shell metacharacters (<code>;</code>, <code>|</code>, <code>$()</code>, backticks) are inert — they are just bytes in a filename, not directives.</p>
+<hr>
+<h2 id="ssrf-when-fetch-this-url-becomes-a-pivot">SSRF: when &ldquo;fetch this URL&rdquo; becomes a pivot</h2>
+<p>Server-Side Request Forgery (OWASP API7:2023) is the injection class people forget, because the &ldquo;interpreter&rdquo; is your own HTTP client. Any endpoint that accepts a URL from the client and fetches it — webhook registration, &ldquo;import from URL,&rdquo; an avatar-by-link feature, a link preview generator — can be steered at targets the client could never reach directly.</p>
+<pre><code class="language-http">POST /api/v1/import HTTP/1.1
+Content-Type: application/json
+
+{ &quot;source_url&quot;: &quot;http://169.254.169.254/latest/meta-data/iam/security-credentials/&quot; }
+</code></pre>
+<p>That address is the cloud instance metadata endpoint. Your server, sitting inside the network with an instance role, cheerfully fetches it and hands back credentials. The same trick reaches internal admin panels (<code>http://10.0.0.5:8080/admin</code>), other services on <code>localhost</code>, and databases bound to private interfaces — all invisible from the public internet but wide open to a request originating from <em>your</em> server.</p>
+<p>Validating &ldquo;is this a well-formed URL&rdquo; is not enough; <code>http://169.254.169.254/</code> is perfectly well-formed. You need an <strong>allow-list of destinations</strong> plus an explicit block of internal and link-local ranges — and you must enforce it against the IP you actually connect to, not the hostname the attacker typed.</p>
+<pre><code class="language-python">import ipaddress, socket
+from urllib.parse import urlparse
+import httpx
+
+ALLOWED_HOSTS = {&quot;api.trusted-partner.com&quot;, &quot;cdn.example.com&quot;}
+
+def _is_public_ip(host: str) -&gt; bool:
+    # Resolve first, then judge the resolved address — DNS can point anywhere.
+    for info in socket.getaddrinfo(host, None):
+        ip = ipaddress.ip_address(info[4][0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast):
+            return False
+    return True
+
+def safe_fetch(raw_url: str) -&gt; httpx.Response:
+    url = urlparse(raw_url)
+    if url.scheme not in (&quot;https&quot;, &quot;http&quot;):
+        raise ValueError(&quot;only http(s) is allowed&quot;)
+    if url.hostname not in ALLOWED_HOSTS:      # allow-list of destinations
+        raise ValueError(f&quot;host not permitted: {url.hostname}&quot;)
+    if not _is_public_ip(url.hostname):        # block internal/link-local
+        raise ValueError(&quot;host resolves to a non-public address&quot;)
+    # Do NOT follow redirects — a 302 to 169.254.169.254 defeats every check above.
+    return httpx.get(raw_url, follow_redirects=False, timeout=5.0)
+</code></pre>
+<pre><code class="language-go">// Go: a Dial hook is the robust place to enforce the block, because it sees
+// the concrete IP for the initial request AND every redirect hop.
+func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+    host, port, err := net.SplitHostPort(addr)
+    if err != nil {
+        return nil, err
+    }
+    ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+    if err != nil {
+        return nil, err
+    }
+    for _, ip := range ips {
+        if ip.IP.IsPrivate() || ip.IP.IsLoopback() ||
+            ip.IP.IsLinkLocalUnicast() || ip.IP.IsUnspecified() {
+            return nil, fmt.Errorf(&quot;blocked non-public address: %s&quot;, ip.IP)
+        }
+    }
+    return (&amp;net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, network, net.JoinHostPort(host, port))
+}
+</code></pre>
+<p><strong>The gotcha:</strong> SSRF turns a helpful &ldquo;fetch this URL for me&rdquo; into a pivot to your internal network and cloud metadata endpoint — and the two mistakes that make it exploitable are checking the <em>hostname</em> instead of the <em>resolved IP</em>, and <strong>following redirects</strong>. An attacker registers a domain that resolves to <code>169.254.169.254</code>, or simply serves a <code>302 Location: http://10.0.0.5/</code> — and any check you ran on the original URL is bypassed on the hop your validator never saw. Allow-list the destination hosts, block private and link-local ranges against the resolved address, and disable redirect-following (or re-run the block on every hop, as the Go dialer does).</p>
+<hr>
+<h2 id="xml-deserialization-and-the-output-sink">XML, deserialization, and the output sink</h2>
+<p>Two more sinks round out the picture.</p>
+<p><strong>XML and deserialization.</strong> Parsing formats that can carry references or type instructions is dangerous by default. An XML parser with external-entity resolution enabled reads attacker-defined entities that pull in local files or make outbound requests — XXE, itself an SSRF vector. Deserializers that reconstruct arbitrary object types from a byte stream (native pickle, unsafe YAML loaders, Java/<code>.NET</code> binary formats) can be coerced into constructing objects that execute code as a side effect of being built. The defenses: disable external entity and DTD processing on any XML parser, and never deserialize untrusted input with a format that reconstructs arbitrary types. For data interchange, prefer plain JSON parsed into your validated schema — JSON carries values, not object graphs or code.</p>
+<pre><code class="language-python"># Safe YAML: values only, no arbitrary object construction.
+import yaml
+data = yaml.safe_load(untrusted_text)   # NOT yaml.load / Loader=FullLoader on untrusted input
+</code></pre>
+<p><strong>Output encoding — XSS at the sink.</strong> APIs mostly return JSON to code, but the moment your output reaches an HTML context — a server-rendered page, a dashboard that interpolates an API field into the DOM, an email template — unescaped data becomes cross-site scripting. Input validation does not fix this; the correct fix is <strong>context-aware output encoding at the sink where the value is rendered</strong>. A <code>display_name</code> of <code>&lt;img src=x onerror=alert(1)&gt;</code> is a perfectly valid string to <em>store</em>; it is only dangerous when written into HTML without encoding. Encode for the specific context (HTML body, attribute, JS, URL) at render time. And always send <code>Content-Type: application/json</code> with a correct charset so a browser never sniffs a JSON response as HTML and executes a payload in it.</p>
+<hr>
+<h2 id="where-each-defense-lives">Where each defense lives</h2>
+<table><caption class="sr-only">Where each defense lives</caption>
+<thead>
+<tr>
+<th>Threat</th>
+<th>Defense</th>
+<th>Where it lives</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Malformed / out-of-range input</td>
+<td>Schema validation (type, range, length, format, enum)</td>
+<td>Request boundary</td>
+</tr>
+<tr>
+<td>Mass assignment, client typos</td>
+<td>Reject unknown fields (<code>extra="forbid"</code> / <code>DisallowUnknownFields</code>)</td>
+<td>Request boundary</td>
+</tr>
+<tr>
+<td>SQL / NoSQL injection</td>
+<td>Parameterized queries; scalar-typed fields; no raw string-concat</td>
+<td>Data sink</td>
+</tr>
+<tr>
+<td>Command injection</td>
+<td>Argument vector, no shell (<code>shell=False</code> / <code>exec.Command</code>)</td>
+<td>OS sink</td>
+</tr>
+<tr>
+<td>SSRF (API7)</td>
+<td>Host allow-list, block private/link-local by resolved IP, no redirects</td>
+<td>HTTP client sink</td>
+</tr>
+<tr>
+<td>XXE / unsafe deserialization</td>
+<td>Disable DTDs/entities; safe loaders; JSON over object formats</td>
+<td>Parser</td>
+</tr>
+<tr>
+<td>XSS</td>
+<td>Context-aware output encoding; correct <code>Content-Type</code></td>
+<td>Output sink</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Validate at the boundary, allow-list not deny-list.</strong> Describe the finite set of valid inputs — type, range, length, format, enum — and reject the infinite rest. A block-list of bad patterns always misses a case.</li>
+<li><strong>Reject unknown fields.</strong> One schema setting closes mass assignment and catches client typos at the same time. Lenient parsing hides both.</li>
+<li><strong>Parameterize at the sink.</strong> Prepared statements keep values as data so they are never parsed as SQL. ORMs help, but a string-concatenated <code>raw()</code> query throws that protection away.</li>
+<li><strong>Every interpreter is a sink.</strong> The SQL rule generalizes: argument vectors for the shell, scalar-typed fields for NoSQL, safe loaders for deserializers. Never let data be re-parsed as code.</li>
+<li><strong>Treat URLs and redirects as attacker-controlled.</strong> SSRF turns &ldquo;fetch this for me&rdquo; into a network pivot. Allow-list destinations, block private and link-local ranges against the <em>resolved</em> IP, and never follow redirects to them.</li>
+<li><strong>Encode at the output sink.</strong> When API data reaches a browser, context-aware encoding — not input filtering — is what stops XSS.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://owasp.org/API-Security/editions/2023/en/0xa7-server-side-request-forgery/">OWASP API Security Top 10 — API7:2023 Server Side Request Forgery</a></li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Injection_Prevention_Cheat_Sheet.html">OWASP Cheat Sheet — Injection Prevention</a></li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html">OWASP Cheat Sheet — SQL Injection Prevention</a></li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html">OWASP Cheat Sheet — Input Validation</a></li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html">OWASP Cheat Sheet — Server Side Request Forgery Prevention</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/api-security-08-secure-api-lifecycle.html">The Secure API Lifecycle</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-07-gateways-and-runtime-protection.html">API Gateways and Runtime Protection</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-06-transport-and-data-security.html">Transport and Data Security</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

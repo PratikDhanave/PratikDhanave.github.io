@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Authentication: Proving Who Is Calling Your API</title>
+<meta name="description" content="Proving who is calling: API keys vs sessions vs bearer tokens, OAuth 2.0 grant types and OIDC, and JWT validation done right — the alg:none /...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Authentication: Proving Who Is Calling Your API">
+<meta property="og:description" content="Proving who is calling: API keys vs sessions vs bearer tokens, OAuth 2.0 grant types and OIDC, and JWT validation done right — the alg:none / algorithm-confusion pitfalls, verifying signature/exp/aud/iss, and access vs refresh token rotation.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/api-security-02-authentication.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-08T00:00:00Z">
+<meta property="article:tag" content="API Security">
+<meta property="article:tag" content="Authentication">
+<meta property="article:tag" content="OAuth">
+<meta property="article:tag" content="JWT">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Authentication: Proving Who Is Calling Your API">
+<meta name="twitter:description" content="Proving who is calling: API keys vs sessions vs bearer tokens, OAuth 2.0 grant types and OIDC, and JWT validation done right — the alg:none / algorithm-confusion pitfalls, verifying signature/exp/aud/iss, and access vs refresh token rotation.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/api-security-02-authentication.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Authentication: Proving Who Is Calling Your API",
+  "description": "Proving who is calling: API keys vs sessions vs bearer tokens, OAuth 2.0 grant types and OIDC, and JWT validation done right \u2014 the alg:none / algorithm-confusion pitfalls, verifying signature/exp/aud/iss, and access vs refresh token rotation.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-08",
+  "dateModified": "2026-08-08",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "API Security, Authentication, OAuth, JWT",
+  "url": "https://pratikdhanave.com/blog/posts/api-security-02-authentication.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/api-security-02-authentication.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Authentication: Proving Who Is Calling Your API</h1>
+    <p class="post-subtitle">The second post in the API Security series — a practical tour of API keys, session cookies, bearer tokens, OAuth 2.0, OIDC and JWTs, plus how to verify a token correctly and where authentication quietly breaks.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-08">August 08, 2026</time>
+      <span>·</span>
+      <span>14 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/api-security/" class="tag-link"><span class="tag">#API Security</span></a><a href="/blog/tags/authentication/" class="tag-link"><span class="tag">#Authentication</span></a><a href="/blog/tags/oauth/" class="tag-link"><span class="tag">#OAuth</span></a><a href="/blog/tags/jwt/" class="tag-link"><span class="tag">#JWT</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 2 of 8</span>
+    <span class="series-title">API Security</span>
+    <div class="series-nav"><a href="/blog/posts/api-security-01-the-api-security-landscape.html" class="series-prev">&larr; Part 1: The API Security Landscape</a>
+<a href="/blog/posts/api-security-03-authorization.html" class="series-next">Part 3: Authorization: BOLA, BFLA, and Object-Level Access &rarr;</a></div>
+  </div>
+
+
+
+  <p>Authentication is the part of an API that answers one question: <em>who is making this request?</em> Get it wrong and everything downstream is built on sand — every access-control check, every audit log, every rate limit assumes it already knows the caller. This is why broken authentication sits near the top of the OWASP API Security Top 10 (it is API2:2023). The failures are rarely exotic: an endpoint that forgets to check a token, a token whose signature is never verified, a credential that lives forever because nobody built rotation.</p>
+<p>This post walks the options for proving identity — from the humble API key up to OAuth 2.0 and OpenID Connect — and shows how to validate a token without stepping on the classic landmines. One theme runs through all of it: <strong>authentication proves identity; it does not grant permission.</strong> Deciding <em>what</em> an authenticated caller may do is authorization, and that is the subject of the next post.</p>
+<hr>
+<h2 id="the-identities-you-might-be-proving">The identities you might be proving</h2>
+<p>Before picking a mechanism, be clear about <em>what</em> you are identifying. There are two very different subjects:</p>
+<ul>
+<li><strong>An application</strong> — some client software (a mobile app, a backend service, a partner integration) is calling you. You want to know which registered client it is.</li>
+<li><strong>A user</strong> — a specific human is acting, usually through some client. You want to know which account.</li>
+</ul>
+<p>API keys identify the first. Sessions, OAuth user flows and OIDC identify the second. Conflating them is a common design error: an API key in a mobile app does <em>not</em> tell you which user is holding the phone, only that the app build is legitimate.</p>
+<hr>
+<h2 id="api-keys-identify-an-app-not-a-person">API keys: identify an app, not a person</h2>
+<p>An API key is a long, opaque, high-entropy string a client sends on every request, usually in a header:</p>
+<pre><code class="language-http">GET /v1/reports HTTP/1.1
+Host: api.example.com
+Authorization: Bearer ak_live_9f2c8d4a7b1e6f3c0a5d2e8b4c1f7a9d
+</code></pre>
+<p>Keys are simple and great for server-to-server calls where a full OAuth exchange is overkill. But they carry no notion of a user, no expiry, and no built-in scope. That puts the entire burden on you:</p>
+<ul>
+<li><strong>Store hashes, not keys.</strong> Treat a key like a password. Persist only a hash (a fast keyed hash such as HMAC-SHA-256, or a slow password hash if you prefer), so a database leak does not hand out working credentials. Show the raw key to the owner exactly once, at creation.</li>
+<li><strong>Scope every key.</strong> Bind it to a specific client, a set of allowed operations, maybe an IP allowlist. A read-only reporting key should never be able to write.</li>
+<li><strong>Rotate on a schedule.</strong> Support two live keys per client so rotation is zero-downtime: issue the new key, let the client cut over, then revoke the old one.</li>
+<li><strong>Prefix and label.</strong> A prefix like <code>ak_live_</code> lets secret scanners (and your own logs-scrubbing) recognise a leaked key on sight.</li>
+</ul>
+<p><strong>The gotcha:</strong> API keys identify an <em>application</em>, not a user, and they do not expire on their own. A key that leaks into a git commit or a client-side bundle stays valid until <em>you</em> notice and revoke it. Never ship one in front-end JavaScript or a mobile binary as if it were a user credential — scope it tightly and rotate it on a schedule rather than trusting it to age out.</p>
+<hr>
+<h2 id="session-cookies-the-browsers-native-answer">Session cookies: the browser&rsquo;s native answer</h2>
+<p>For a server-rendered web app talking to its own backend, session cookies are still the right tool. The server creates a session, stores state server-side (or in a signed cookie), and the browser resends the cookie automatically on every request:</p>
+<pre><code class="language-http">Set-Cookie: session=Ux8...; HttpOnly; Secure; SameSite=Lax; Path=/
+</code></pre>
+<p>The three flags matter:</p>
+<ul>
+<li><code>HttpOnly</code> keeps JavaScript from reading the cookie, blunting token theft via XSS.</li>
+<li><code>Secure</code> refuses to send it over plain HTTP.</li>
+<li><code>SameSite</code> controls whether the cookie rides along on cross-site requests.</li>
+</ul>
+<p>Because the browser attaches the cookie <em>automatically</em>, cookies are vulnerable to <strong>CSRF</strong>: a malicious page can trigger a state-changing request to your API and the browser helpfully includes the session. <code>SameSite=Lax</code> or <code>Strict</code> closes most of this, but for anything cross-origin you also want an anti-CSRF token (the synchroniser or double-submit pattern).</p>
+<p><strong>The gotcha:</strong> the same property that makes cookies convenient — automatic attachment — is exactly what makes them CSRF-prone. Bearer tokens in an <code>Authorization</code> header are <em>not</em> sent automatically by the browser, so they sidestep CSRF but must be stored and attached by your code (and kept out of <code>localStorage</code> if XSS is a concern). Pick one model per client and understand its threat; do not mix cookie auth and header auth on the same endpoint without thinking it through.</p>
+<hr>
+<h2 id="bearer-tokens-and-oauth-20">Bearer tokens and OAuth 2.0</h2>
+<p>A <strong>bearer token</strong> is any credential where possession alone grants access — &ldquo;bearer&rdquo; meaning whoever holds it can use it. API keys and OAuth access tokens are both bearer tokens. The name is a warning: there is no second factor binding the token to its rightful holder, so a stolen bearer token <em>is</em> the identity until it expires. That is why transport security (TLS everywhere) and short lifetimes are non-negotiable.</p>
+<p><strong>OAuth 2.0</strong> (RFC 6749) is the framework for issuing those tokens without handing your credentials to every app. Its value is <em>delegation</em>: a user lets a client act on their behalf at a resource server, without the client ever seeing the user&rsquo;s password. Four roles are worth memorising:</p>
+<ul>
+<li><strong>Resource owner</strong> — the user who owns the data.</li>
+<li><strong>Client</strong> — the app requesting access.</li>
+<li><strong>Authorization server</strong> — issues tokens after authenticating the resource owner.</li>
+<li><strong>Resource server</strong> — your API, which accepts and validates the tokens.</li>
+</ul>
+<h3 id="which-grant-type-and-when">Which grant type, and when</h3>
+<p>The grant type is <em>how</em> a client obtains a token. Only two are recommended today:</p>
+<table><caption class="sr-only">Which grant type, and when</caption>
+<thead>
+<tr>
+<th>Grant</th>
+<th>Use it for</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Authorization Code + PKCE</td>
+<td>User-facing apps (web, mobile, SPA)</td>
+<td>The default for anything with a user. PKCE is now required for all clients.</td>
+</tr>
+<tr>
+<td>Client Credentials</td>
+<td>Machine-to-machine, no user present</td>
+<td>The client authenticates as itself and gets a token for its own access.</td>
+</tr>
+</tbody>
+</table>
+<p>The current OAuth Security Best Current Practice (RFC 9700) is explicit about what to <strong>avoid</strong>:</p>
+<ul>
+<li><strong>Implicit grant</strong> (<code>response_type=token</code>) — returned tokens directly in the URL fragment. Deprecated; use authorization code + PKCE instead.</li>
+<li><strong>Resource Owner Password Credentials (ROPC)</strong> — the client collects the user&rsquo;s actual username and password. This defeats the entire point of OAuth and must not be used.</li>
+</ul>
+<p><strong>PKCE</strong> (Proof Key for Code Exchange) protects the authorization-code flow from interception. The client generates a random <code>code_verifier</code>, sends its hash (<code>code_challenge</code>) on the initial request, and later presents the raw verifier when redeeming the code. An attacker who steals the authorization code off the redirect cannot exchange it without the verifier.</p>
+<pre><code class="language-http">GET /authorize?response_type=code
+  &amp;client_id=s6BhdRkqt3
+  &amp;redirect_uri=https://app.example.com/callback
+  &amp;scope=read:reports
+  &amp;state=xyz
+  &amp;code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+  &amp;code_challenge_method=S256 HTTP/1.1
+Host: auth.example.com
+</code></pre>
+<p><strong>The gotcha:</strong> OAuth 2.0 is an <em>authorization</em> framework — it gets a client a token to call an API. It was never designed to tell the client <em>who the user is</em>. Bolting identity onto raw OAuth (for example, treating an access token as proof of login) is how &ldquo;log in with X&rdquo; implementations leak. When you need identity, use OpenID Connect, which was built for exactly that.</p>
+<hr>
+<h2 id="openid-connect-the-identity-layer">OpenID Connect: the identity layer</h2>
+<p><strong>OpenID Connect (OIDC)</strong> is a thin standard layer on top of OAuth 2.0 that adds authentication. Alongside the access token, the authorization server returns an <strong>ID token</strong> — a JWT with standard claims about the authentication event: who the user is (<code>sub</code>), who issued it (<code>iss</code>), who it is for (<code>aud</code>), when it was issued (<code>iat</code>) and when it expires (<code>exp</code>).</p>
+<p>The distinction is worth holding onto:</p>
+<ul>
+<li>The <strong>access token</strong> is for calling APIs. Your resource server validates it. The client should treat it as opaque.</li>
+<li>The <strong>ID token</strong> is for the client. It tells the client &ldquo;this user just authenticated.&rdquo; It is <em>not</em> meant to be sent to your API as an access credential.</li>
+</ul>
+<p>OIDC also standardises discovery (<code>/.well-known/openid-configuration</code>) and a JWKS endpoint that publishes the signing keys — which is exactly what you need to verify tokens, coming up next.</p>
+<hr>
+<h2 id="jwts-structure-and-stateless-validation">JWTs: structure and stateless validation</h2>
+<p>A <strong>JSON Web Token</strong> (RFC 7519) is a compact, signed (and optionally encrypted) container of claims. Both OAuth access tokens and OIDC ID tokens are frequently JWTs. The format is three Base64URL segments joined by dots:</p>
+<pre><code>eyJhbGciOiJSUzI1NiIsImtpZCI6ImsxIn0   ← header
+.
+eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS5jb20iLCJhdWQiOiJhcGk...   ← payload
+.
+Z3J1bXB5LWNhdC1zaWduYXR1cmU...   ← signature
+</code></pre>
+<ul>
+<li><strong>Header</strong> — the signing algorithm (<code>alg</code>) and often a key id (<code>kid</code>).</li>
+<li><strong>Payload</strong> — the claims: <code>iss</code>, <code>aud</code>, <code>sub</code>, <code>exp</code>, <code>iat</code>, plus whatever you add.</li>
+<li><strong>Signature</strong> — a MAC or digital signature over <code>header.payload</code>, computed with the issuer&rsquo;s key.</li>
+</ul>
+<p>The appeal is <strong>stateless validation</strong>: your API can verify a JWT with just the issuer&rsquo;s public key, no database round-trip, no session store. That is also the trap — statelessness means you must check <em>everything</em> yourself, and a token you cannot un-issue.</p>
+<p>A correct validation checks all of the following, and rejects on any failure:</p>
+<ol>
+<li>The signature, using the algorithm <strong>you</strong> expect and the key <strong>you</strong> trust.</li>
+<li><code>exp</code> — not expired (with a small clock-skew leeway at most).</li>
+<li><code>nbf</code> / <code>iat</code> — not used before it is valid.</li>
+<li><code>aud</code> — the token is intended for <em>your</em> API.</li>
+<li><code>iss</code> — the token came from the issuer you trust.</li>
+</ol>
+<h3 id="the-classic-jwt-pitfalls">The classic JWT pitfalls</h3>
+<p>The JWT Best Current Practices (RFC 8725) exist because these mistakes are common and severe:</p>
+<ul>
+<li><strong><code>alg: none</code>.</strong> The spec allows an &ldquo;unsecured&rdquo; JWT with no signature. A library that honours the token&rsquo;s own <code>alg</code> header will happily accept a forged, unsigned token. Never allow <code>none</code>.</li>
+<li><strong>Algorithm confusion (RS256 ↔ HS256).</strong> If your API verifies with a <em>public</em> RSA key but a naive library lets an attacker switch <code>alg</code> to <code>HS256</code>, the library may use that public key as an HMAC <em>secret</em> — which is public — and the attacker forges valid tokens. Pin the expected algorithm; do not let the token pick.</li>
+<li><strong>Not verifying the signature at all.</strong> Decoding a JWT is not verifying it. Plenty of code base64-decodes the payload, reads <code>sub</code>, and trusts it. Always call the <em>verify</em> path, never a bare decode.</li>
+<li><strong>Skipping <code>exp</code> / <code>aud</code> / <code>iss</code>.</strong> A token minted for another service, or one that expired last week, must be rejected. A token valid for <code>aud: other-service</code> should not open <em>your</em> API.</li>
+<li><strong>Long-lived tokens with no revocation.</strong> A JWT is valid until it expires; there is no server-side &ldquo;log out&rdquo; for a stateless token.</li>
+<li><strong>Secrets in the payload.</strong> The payload is signed, not encrypted — anyone can base64-decode and read it. Never put passwords, keys or PII you would not print in a log.</li>
+</ul>
+<p><strong>The gotcha:</strong> never accept the token&rsquo;s own <code>alg</code> header blindly. <code>alg: none</code> and the RS256→HS256 confusion are real, exploited bypasses, not theory. Pin the algorithm <em>and</em> the key on the verifier side, so a token that says &ldquo;verify me with none&rdquo; or &ldquo;verify me with HMAC&rdquo; is rejected before its claims are ever read.</p>
+<hr>
+<h2 id="verifying-a-jwt-correctly">Verifying a JWT correctly</h2>
+<p>Here is the shape of a correct verification in Go, using a JWKS-published RSA key. The load-bearing detail is <code>WithValidMethods</code> — it pins the accepted algorithm so a forged <code>alg</code> never reaches the key.</p>
+<pre><code class="language-go">import &quot;github.com/golang-jwt/jwt/v5&quot;
+
+func verify(tokenString string, keyfunc jwt.Keyfunc) (*jwt.Token, error) {
+    return jwt.Parse(
+        tokenString,
+        keyfunc, // returns the RSA public key for the token's kid
+        jwt.WithValidMethods([]string{&quot;RS256&quot;}), // PIN the algorithm — no &quot;none&quot;, no HS256
+        jwt.WithExpirationRequired(),            // exp must be present and unexpired
+        jwt.WithAudience(&quot;https://api.example.com&quot;), // aud must match us
+        jwt.WithIssuer(&quot;https://auth.example.com&quot;),  // iss must be trusted
+        jwt.WithLeeway(30*time.Second),          // small clock-skew tolerance only
+    )
+}
+</code></pre>
+<p>And in Python with PyJWT, the same pins — <code>algorithms</code> is a fixed allowlist, and <code>audience</code> / <code>issuer</code> are checked:</p>
+<pre><code class="language-python">import jwt  # PyJWT
+from jwt import PyJWKClient
+
+def verify(token: str) -&gt; dict:
+    jwk_client = PyJWKClient(&quot;https://auth.example.com/.well-known/jwks.json&quot;)
+    signing_key = jwk_client.get_signing_key_from_jwt(token)
+    return jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=[&quot;RS256&quot;],            # allowlist — never read alg from the token
+        audience=&quot;https://api.example.com&quot;,
+        issuer=&quot;https://auth.example.com&quot;,
+        options={&quot;require&quot;: [&quot;exp&quot;, &quot;iat&quot;, &quot;aud&quot;, &quot;iss&quot;]},
+    )
+</code></pre>
+<p>Note what both do: the algorithm is an explicit allowlist, expiry is required, and audience and issuer are matched. Drop any of those and you have re-created one of the pitfalls above.</p>
+<hr>
+<h2 id="an-api-key-middleware-with-constant-time-comparison">An API-key middleware with constant-time comparison</h2>
+<p>For plain API-key auth, the subtle bug is comparing the presented key against the stored one with <code>==</code>. A naive string comparison returns as soon as two bytes differ, and that timing difference can leak the key byte by byte to a patient attacker. Compare in <strong>constant time</strong>.</p>
+<pre><code class="language-go">import (
+    &quot;crypto/hmac&quot;
+    &quot;crypto/sha256&quot;
+    &quot;net/http&quot;
+)
+
+// storedHash is HMAC-SHA-256(serverKey, apiKey), computed once at key creation.
+func apiKeyMiddleware(storedHash []byte, serverKey []byte, next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        presented := r.Header.Get(&quot;X-API-Key&quot;)
+        if presented == &quot;&quot; {
+            http.Error(w, &quot;missing API key&quot;, http.StatusUnauthorized)
+            return
+        }
+        mac := hmac.New(sha256.New, serverKey)
+        mac.Write([]byte(presented))
+        // hmac.Equal is constant-time; a plain == would leak timing.
+        if !hmac.Equal(mac.Sum(nil), storedHash) {
+            http.Error(w, &quot;invalid API key&quot;, http.StatusUnauthorized)
+            return
+        }
+        next.ServeHTTP(w, r)
+    })
+}
+</code></pre>
+<p>The Python equivalent uses <code>hmac.compare_digest</code>, which is likewise designed to run in constant time:</p>
+<pre><code class="language-python">import hmac, hashlib
+
+def check_api_key(presented: str, stored_hash: bytes, server_key: bytes) -&gt; bool:
+    computed = hmac.new(server_key, presented.encode(), hashlib.sha256).digest()
+    return hmac.compare_digest(computed, stored_hash)  # constant-time
+</code></pre>
+<p><strong>The gotcha:</strong> compare secrets, keys and MACs in constant time, always. A regular <code>==</code> or <code>bytes.equal</code> short-circuits on the first differing byte, and that timing signal is enough to reconstruct a secret over many requests. Use <code>hmac.Equal</code> / <code>hmac.compare_digest</code> (or your language&rsquo;s equivalent) for anything an attacker gets to guess repeatedly.</p>
+<hr>
+<h2 id="access-tokens-refresh-tokens-and-rotation">Access tokens, refresh tokens and rotation</h2>
+<p>Short-lived access tokens limit the blast radius of theft, but forcing the user to log in every few minutes is hostile. The standard answer is a pair:</p>
+<ul>
+<li><strong>Access token</strong> — short life (minutes), sent on every API call. If stolen, it expires quickly.</li>
+<li><strong>Refresh token</strong> — longer life, kept private by the client, sent <em>only</em> to the authorization server to mint a fresh access token.</li>
+</ul>
+<p>The security-critical practice is <strong>refresh token rotation</strong>: each time a refresh token is redeemed, the authorization server issues a <em>new</em> refresh token and invalidates the old one. If a stolen refresh token is later replayed, the server sees a already-used token and can revoke the whole token family — turning theft into a detectable event rather than silent, indefinite access. RFC 9700 recommends rotation (or sender-constraining) for exactly this reason.</p>
+<p><strong>The gotcha:</strong> a JWT cannot be un-issued. A long expiry with no revocation list means a stolen access token stays valid until it lapses — there is no &ldquo;log out&rdquo; that reaches a token already in an attacker&rsquo;s hands. Keep access-token lifetimes short, put revocation behind the refresh flow (rotate refresh tokens, maintain a server-side denylist for the rare emergency), and resist the temptation to issue a 24-hour access token because refresh &ldquo;is annoying.&rdquo;</p>
+<hr>
+<h2 id="mfa-and-step-up-briefly">MFA and step-up, briefly</h2>
+<p>Everything above proves you hold <em>a</em> credential. <strong>Multi-factor authentication</strong> raises the bar at the moment of login by requiring a second factor — something you have (a device, a passkey) or are (a biometric) — so a stolen password alone is not enough. From an API&rsquo;s perspective, MFA usually happens at the authorization server and shows up as a claim in the resulting token (for example, an <code>amr</code> or <code>acr</code> claim describing how the user authenticated).</p>
+<p><strong>Step-up authentication</strong> is the useful extension: most endpoints accept an ordinary token, but a few high-risk ones (change bank details, delete an account) demand a fresh, stronger authentication first. Your API enforces this by inspecting the authentication-context claims and rejecting the request — typically with a challenge — when the token was not minted with a strong-enough factor recently enough. It is a clean way to keep everyday use frictionless while gating the dangerous operations.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Authentication is not authorization.</strong> Proving <em>who</em> is calling is this post; deciding <em>what</em> they may do is the next one. Never let a valid token imply permission.</li>
+<li><strong>Match the mechanism to the subject.</strong> API keys identify apps; sessions, OAuth user flows and OIDC identify users. Do not use one where you need the other.</li>
+<li><strong>Pin the algorithm and the key when verifying JWTs.</strong> Reject <code>alg: none</code>, refuse algorithm swaps, and always verify signature, <code>exp</code>, <code>aud</code> and <code>iss</code> — decoding is not verifying.</li>
+<li><strong>Use authorization code + PKCE for users and client credentials for machines.</strong> Avoid the deprecated implicit and ROPC grants entirely.</li>
+<li><strong>Plan for revocation and rotation.</strong> Short access tokens, rotating refresh tokens, scoped-and-rotated API keys, and constant-time secret comparison turn credential theft from silent disaster into a bounded, detectable event.</li>
+</ul>
+<p>Authentication is the foundation, not the whole building. Once you know <em>who</em> is calling — reliably, with tokens you actually verify — you can start deciding what they are allowed to touch. That is authorization, and where the next post picks up.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc6749">The OAuth 2.0 Authorization Framework (RFC 6749)</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc9700">OAuth 2.0 Security Best Current Practice (RFC 9700)</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc7636">Proof Key for Code Exchange — PKCE (RFC 7636)</a></li>
+<li><a href="https://openid.net/specs/openid-connect-core-1_0.html">OpenID Connect Core 1.0</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc7519">JSON Web Token — JWT (RFC 7519)</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc8725">JSON Web Token Best Current Practices (RFC 8725)</a></li>
+<li><a href="https://owasp.org/API-Security/editions/2023/en/0xa2-broken-authentication/">OWASP API Security Top 10 — API2:2023 Broken Authentication</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/api-security-08-secure-api-lifecycle.html">The Secure API Lifecycle</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-07-gateways-and-runtime-protection.html">API Gateways and Runtime Protection</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-06-transport-and-data-security.html">Transport and Data Security</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

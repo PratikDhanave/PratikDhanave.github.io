@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Transport and Data Security — Pratik Dhanave</title>
+<meta name="description" content="Protecting data in transit and at rest: TLS everywhere (even internal, zero-trust), mTLS for service-to-service, minimizing sensitive data exposure,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Transport and Data Security — Pratik Dhanave">
+<meta property="og:description" content="Protecting data in transit and at rest: TLS everywhere (even internal, zero-trust), mTLS for service-to-service, minimizing sensitive data exposure, encryption at rest with managed keys, secrets management, a correct CORS allow-list, and redacting logs.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/api-security-06-transport-and-data-security.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-12T00:00:00Z">
+<meta property="article:tag" content="API Security">
+<meta property="article:tag" content="TLS">
+<meta property="article:tag" content="Encryption">
+<meta property="article:tag" content="Secrets">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Transport and Data Security — Pratik Dhanave">
+<meta name="twitter:description" content="Protecting data in transit and at rest: TLS everywhere (even internal, zero-trust), mTLS for service-to-service, minimizing sensitive data exposure, encryption at rest with managed keys, secrets management, a correct CORS allow-list, and redacting logs.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/api-security-06-transport-and-data-security.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Transport and Data Security",
+  "description": "Protecting data in transit and at rest: TLS everywhere (even internal, zero-trust), mTLS for service-to-service, minimizing sensitive data exposure, encryption at rest with managed keys, secrets management, a correct CORS allow-list, and redacting logs.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-12",
+  "dateModified": "2026-08-12",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "API Security, TLS, Encryption, Secrets",
+  "url": "https://pratikdhanave.com/blog/posts/api-security-06-transport-and-data-security.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/api-security-06-transport-and-data-security.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Transport and Data Security</h1>
+    <p class="post-subtitle">Part six of the API Security series: encrypt every byte in transit and at rest, hand out only the data a caller actually needs, and keep the keys that protect it out of your code and under a rotation policy.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-12">August 12, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/api-security/" class="tag-link"><span class="tag">#API Security</span></a><a href="/blog/tags/tls/" class="tag-link"><span class="tag">#TLS</span></a><a href="/blog/tags/encryption/" class="tag-link"><span class="tag">#Encryption</span></a><a href="/blog/tags/secrets/" class="tag-link"><span class="tag">#Secrets</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 6 of 8</span>
+    <span class="series-title">API Security</span>
+    <div class="series-nav"><a href="/blog/posts/api-security-05-rate-limiting-and-resource-consumption.html" class="series-prev">&larr; Part 5: Rate Limiting and Resource Consumption</a>
+<a href="/blog/posts/api-security-07-gateways-and-runtime-protection.html" class="series-next">Part 7: API Gateways and Runtime Protection &rarr;</a></div>
+  </div>
+
+
+
+  <p>The earlier posts in this series guarded the front door — who is calling, what they are allowed to touch, and whether the payload they sent is hostile. This post is about the data itself, in the two states where it is easiest to lose: <strong>moving across a network</strong> and <strong>sitting in storage</strong>. An API can authenticate perfectly and authorize precisely and still leak everything, because a request rode over plaintext, a response carried fields nobody asked for, or a signing key was baked into a container image that ended up on a public registry.</p>
+<p>The mental model is three rules that compound. <strong>Encrypt in transit and at rest</strong> so intercepted or stolen bytes are useless. <strong>Minimize what you expose and store</strong> so a breach reveals less. <strong>Manage keys properly</strong> so the encryption is not undone by a secret sitting in <code>git log</code>. Miss any one and the other two stop mattering — a field-level-encrypted column is worthless if the KMS key is in an environment variable committed to the repo, and TLS everywhere is theater if the response body dumps a customer&rsquo;s full card number to anyone with a valid token.</p>
+<hr>
+<h2 id="tls-everywhere-including-internal-traffic">TLS everywhere, including &ldquo;internal&rdquo; traffic</h2>
+<p>Transport Layer Security is the floor, not a feature. Every API endpoint should be HTTPS-only: reachable over TLS, and either redirecting or refusing plain HTTP. For a browser-facing surface a redirect to <code>https://</code> is acceptable for the first hop; for a machine-to-machine API, prefer refusing HTTP outright, because a redirect still means the first request — headers, tokens, body — crossed the wire in cleartext before the 301 came back.</p>
+<p>Once you are on HTTPS, tell the client never to try HTTP again. <strong>HTTP Strict Transport Security (HSTS)</strong> is a response header that instructs browsers to upgrade every future request to this host to HTTPS for a fixed duration, closing the downgrade window.</p>
+<pre><code class="language-go">func hstsMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Only send HSTS over a connection that is already secure.
+        if r.TLS != nil {
+            w.Header().Set(&quot;Strict-Transport-Security&quot;,
+                &quot;max-age=31536000; includeSubDomains&quot;)
+        }
+        next.ServeHTTP(w, r)
+    })
+}
+</code></pre>
+<p>Configure the server for modern TLS. Set a minimum of TLS 1.2 (prefer 1.3 where your clients support it), disable the long-dead SSLv3/TLS 1.0/1.1, and let the library pick an AEAD cipher suite rather than hand-listing weak ones:</p>
+<pre><code class="language-go">srv := &amp;http.Server{
+    Addr:    &quot;:8443&quot;,
+    Handler: mux,
+    TLSConfig: &amp;tls.Config{
+        MinVersion: tls.VersionTLS12, // reject TLS 1.0/1.1 and all SSL
+    },
+}
+// Serves only over TLS; there is no plaintext listener to downgrade to.
+log.Fatal(srv.ListenAndServeTLS(&quot;server.crt&quot;, &quot;server.key&quot;))
+</code></pre>
+<p>Certificates are not set-and-forget. Automate issuance and renewal (ACME/Let&rsquo;s Encrypt for public endpoints, an internal CA for private ones), monitor expiry, and rehearse rotation before a cert actually lapses at 2 a.m. An expired certificate is an outage; a leaked private key is a breach, so treat the key material like any other secret (below).</p>
+<p><strong>The gotcha:</strong> &ldquo;it&rsquo;s internal, so plain HTTP is fine&rdquo; is the assumption zero-trust exists to kill. The perimeter is not a wall — a compromised pod, a mis-scoped service account, a coworker&rsquo;s laptop on the same VPC, or a cloud metadata pivot all put an attacker <em>inside</em>, where they read your east-west traffic as plaintext and harvest the very tokens your auth layer worked so hard to issue. Encrypt service-to-service traffic too; the network is never trusted just because it is private.</p>
+<hr>
+<h2 id="mtls-for-service-to-service-and-high-assurance-clients">mTLS for service-to-service and high-assurance clients</h2>
+<p>Ordinary TLS authenticates the <em>server</em> to the client. <strong>Mutual TLS (mTLS)</strong> adds the other direction: the client presents a certificate too, and the server refuses the handshake unless that cert chains to a CA it trusts. Now both ends are cryptographically identified before a single byte of the request is processed.</p>
+<pre><code class="language-go">clientCAs := x509.NewCertPool()
+pem, _ := os.ReadFile(&quot;client-ca.crt&quot;)
+clientCAs.AppendCertsFromPEM(pem)
+
+srv := &amp;http.Server{
+    Addr:    &quot;:8443&quot;,
+    Handler: mux,
+    TLSConfig: &amp;tls.Config{
+        MinVersion: tls.VersionTLS12,
+        ClientCAs:  clientCAs,
+        ClientAuth: tls.RequireAndVerifyClientCert, // reject anyone without a valid cert
+    },
+}
+</code></pre>
+<p>mTLS is worth the operational cost when the caller is a <em>known, enrolled identity</em>: another one of your services (a service mesh handles cert issuance and rotation for you), a partner integration, or a small set of high-assurance clients like a settlement system moving money. It is a poor fit for a large, open population of end-user clients — you cannot realistically provision and rotate a client certificate for every mobile app install, and for that audience a bearer token or OAuth flow is the right tool. Use mTLS as a network-identity layer <em>underneath</em> application auth, not as a replacement for it.</p>
+<hr>
+<h2 id="sensitive-data-exposure-give-back-only-whats-needed">Sensitive data exposure: give back only what&rsquo;s needed</h2>
+<p>OWASP flags sensitive-data problems on both ends of the request. On the way out, the classic API failure is <em>returning more than the caller needs</em> — the excessive-data-exposure pattern this series covered when discussing authorization. A handler serializes the whole database row (including <code>password_hash</code>, <code>full_pan</code>, internal flags) and leans on the client to display only some fields. Anyone reading the raw response gets the rest.</p>
+<p>The fix is to serialize an explicit response type, never the storage model:</p>
+<pre><code class="language-go">// Storage model — never serialized to a client directly.
+type Account struct {
+    ID           string
+    Email        string
+    PasswordHash string
+    FullPAN      string // 16-digit card number
+    InternalRisk int
+}
+
+// Response DTO — the only shape a caller ever sees.
+type AccountResponse struct {
+    ID       string `json:&quot;id&quot;`
+    Email    string `json:&quot;email&quot;`
+    CardLast4 string `json:&quot;card_last4&quot;`
+}
+
+func toResponse(a Account) AccountResponse {
+    return AccountResponse{
+        ID:        a.ID,
+        Email:     a.Email,
+        CardLast4: a.FullPAN[len(a.FullPAN)-4:], // expose 4 digits, never 16
+    }
+}
+</code></pre>
+<p>A separate response DTO is not busywork — it is the boundary that makes over-exposure a compile-time decision instead of an accident. Adding a sensitive column to <code>Account</code> later cannot leak it, because nothing copies it into <code>AccountResponse</code> unless a human writes that line.</p>
+<p>For the most sensitive fields, storing them at all is the risk. Two techniques reduce it:</p>
+<ul>
+<li><strong>Field-level (application-layer) encryption</strong> — encrypt specific columns (SSNs, health data) with a key from your KMS before they hit the database, so a stolen DB dump or a snooping DBA sees ciphertext. This is <em>in addition to</em> encryption at rest, and it narrows who can decrypt to the services holding the key.</li>
+<li><strong>Tokenization</strong> — replace a secret like a card <strong>PAN</strong> (Primary Account Number) with a random surrogate token, and keep the real value in a hardened vault. Your services and logs carry the token; only the vault can detokenize. In the fintech world this is how you keep the bulk of your systems <em>out of PCI DSS scope</em> — most of the estate never touches a real card number, so there is nothing to steal there.</li>
+</ul>
+<p>Everything you <em>do</em> store should sit on <strong>encryption at rest</strong>: full-disk/volume encryption plus database transparent data encryption, with the keys held in a <strong>KMS</strong> (Key Management Service) rather than on the same disk. KMS-managed keys give you central access control, an audit trail of every decrypt, and a rotation schedule — rotate the data-encryption key on a cadence and immediately on any suspected compromise.</p>
+<hr>
+<h2 id="secrets-management-out-of-code-out-of-the-image">Secrets management: out of code, out of the image</h2>
+<p>API keys, database credentials, and JWT/webhook signing keys are the crown jewels — whoever holds them <em>is</em> your service. They belong in a dedicated <strong>secret manager</strong> (HashiCorp Vault, AWS Secrets Manager, GCP Secret Manager, Azure Key Vault), fetched at runtime, never written into source, config files, or container images.</p>
+<pre><code class="language-go">// Read secrets from the environment, which is populated at runtime
+// by the secret manager / orchestrator — NOT from a committed file.
+dbPassword := os.Getenv(&quot;DB_PASSWORD&quot;)
+signingKey := os.Getenv(&quot;JWT_SIGNING_KEY&quot;)
+if dbPassword == &quot;&quot; || signingKey == &quot;&quot; {
+    log.Fatal(&quot;required secret not provided by the secret manager&quot;)
+}
+</code></pre>
+<p>Apply the same discipline the AI Security series applied to model and provider keys: <strong>least privilege</strong> (each service reads only the secrets it needs), <strong>rotation</strong> (short-lived, automatically rolled credentials beat long-lived static ones), and <strong>auditing</strong> (the manager logs who fetched what and when). Dynamic secrets — where the manager mints a fresh, expiring database credential per service on request — mean a leaked value is useless within minutes.</p>
+<pre><code class="language-bash"># A pre-commit / CI guardrail: fail the build if a likely secret is committed.
+# gitleaks scans the diff for high-entropy strings and known key formats.
+gitleaks protect --staged --redact --verbose || {
+  echo &quot;Potential secret in staged changes — commit blocked.&quot; &gt;&amp;2
+  exit 1
+}
+</code></pre>
+<p><strong>The gotcha:</strong> secrets committed to the repo, or baked into a container image as build args or a copied <code>.env</code>, are the single most common way credentials leak. Git history is forever — a key deleted in the next commit still lives in the history and in every clone and fork, so it must be treated as compromised and rotated, not just removed. An image pushed to a registry carries every layer, including the one that <code>COPY</code>&lsquo;d your <code>.env</code>. Keep secrets in a manager, inject them at runtime, and scan diffs in CI so a mistake never reaches <code>main</code>.</p>
+<hr>
+<h2 id="pii-handling-and-logging-hygiene">PII handling and logging hygiene</h2>
+<p>Logs are the leak nobody plans for. A well-meant &ldquo;log the full request and response so we can debug&rdquo; line quietly writes card numbers, bearer tokens, passwords, and personal data to a log store that has looser access controls than your database and often ships to a third-party aggregator. Logs are data too — they need the same minimization and, where they must contain sensitive fields, the same protection.</p>
+<p>The rule is <strong>redact before you write</strong>, not after. Structure your logs, and pass values through a redactor that masks known-sensitive keys:</p>
+<pre><code class="language-go">var sensitiveKeys = map[string]bool{
+    &quot;password&quot;: true, &quot;authorization&quot;: true, &quot;token&quot;: true,
+    &quot;pan&quot;: true, &quot;card_number&quot;: true, &quot;ssn&quot;: true, &quot;cvv&quot;: true,
+}
+
+// redact returns a copy safe to log: sensitive values are masked,
+// so the original PII/secret never reaches the log sink.
+func redact(fields map[string]any) map[string]any {
+    out := make(map[string]any, len(fields))
+    for k, v := range fields {
+        if sensitiveKeys[strings.ToLower(k)] {
+            out[k] = &quot;[REDACTED]&quot;
+            continue
+        }
+        out[k] = v
+    }
+    return out
+}
+
+func logRequest(logger *slog.Logger, fields map[string]any) {
+    logger.Info(&quot;request&quot;, &quot;fields&quot;, redact(fields)) // masked before it hits the sink
+}
+</code></pre>
+<p>Prefer logging identifiers over values — a <code>user_id</code> instead of an email, a token&rsquo;s ID or last four characters instead of the token. Never log full request/response bodies for endpoints that carry sensitive data. And set retention: PII you no longer need is liability you are still storing, so expire logs on a schedule.</p>
+<p><strong>The gotcha:</strong> logging full request and response bodies is the leak that survives your best transport and storage encryption. TLS protected the bytes on the wire and at-rest encryption protected the database, but the moment you <code>logger.Info("body", rawJSON)</code> you copy the PAN and the bearer token in cleartext into a system that indexes it, replicates it, and forwards it to an analytics vendor. Redact at the point of writing — a filter applied after the fact always misses the field added last week.</p>
+<hr>
+<h2 id="security-relevant-http-headers-and-the-cors-trap">Security-relevant HTTP headers, and the CORS trap</h2>
+<p>A few response headers harden an API surface. HSTS (above) is the important one for transport. <code>Content-Type: application/json</code> with <code>X-Content-Type-Options: nosniff</code> stops a browser from re-interpreting a JSON response as HTML. <code>Cache-Control: no-store</code> on responses carrying sensitive data keeps them out of shared caches.</p>
+<p><strong>CORS deserves its own paragraph because it is routinely misunderstood.</strong> Cross-Origin Resource Sharing is <em>not</em> a security defense — it is a browser mechanism that <em>relaxes</em> the same-origin policy to let specific web origins call your API from the browser. It protects the <em>user&rsquo;s browser session</em>, not your API; a non-browser client (curl, a server, a script) ignores CORS entirely. So CORS never replaces authentication or authorization. But a <em>misconfigured</em> CORS policy is a genuine vulnerability, because it can invite hostile web pages to make credentialed calls on a logged-in user&rsquo;s behalf.</p>
+<p>Do it with an explicit allow-list, and never combine a wildcard origin with credentials:</p>
+<pre><code class="language-go">var allowedOrigins = map[string]bool{
+    &quot;https://app.example.com&quot;:     true,
+    &quot;https://console.example.com&quot;: true,
+}
+
+func cors(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        origin := r.Header.Get(&quot;Origin&quot;)
+        if allowedOrigins[origin] { // exact match against a known set
+            w.Header().Set(&quot;Access-Control-Allow-Origin&quot;, origin)
+            w.Header().Set(&quot;Vary&quot;, &quot;Origin&quot;) // caches must key on Origin
+            w.Header().Set(&quot;Access-Control-Allow-Credentials&quot;, &quot;true&quot;)
+            w.Header().Set(&quot;Access-Control-Allow-Methods&quot;, &quot;GET, POST, OPTIONS&quot;)
+            w.Header().Set(&quot;Access-Control-Allow-Headers&quot;, &quot;Authorization, Content-Type&quot;)
+        }
+        if r.Method == http.MethodOptions {
+            w.WriteHeader(http.StatusNoContent)
+            return
+        }
+        next.ServeHTTP(w, r)
+    })
+}
+</code></pre>
+<p><strong>The gotcha:</strong> the two CORS configurations that hand your API to any website are <code>Access-Control-Allow-Origin: *</code> together with <code>Access-Control-Allow-Credentials: true</code>, and <em>reflecting</em> whatever <code>Origin</code> the request sent back into the allow header. The first is actually rejected by browsers when credentials are involved — but developers &ldquo;fix&rdquo; the resulting error by reflecting the origin, which is worse: it means <em>every</em> origin is allowed, including the attacker&rsquo;s phishing page, and now it can make authenticated requests using the victim&rsquo;s cookies. Match against a fixed allow-list of exact origins, add <code>Vary: Origin</code> so a permissive cached response is not served to the wrong site, and never echo an untrusted origin back.</p>
+<hr>
+<h2 id="where-each-control-fits">Where each control fits</h2>
+<table><caption class="sr-only">Where each control fits</caption>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Control</th>
+<th>Protects against</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Data in transit</td>
+<td>TLS 1.2+/1.3, HTTPS-only, HSTS</td>
+<td>Eavesdropping, downgrade, MITM</td>
+</tr>
+<tr>
+<td>Internal traffic</td>
+<td>mTLS / mesh encryption</td>
+<td>Attacker already inside the perimeter</td>
+</tr>
+<tr>
+<td>Over-exposure in responses</td>
+<td>Response DTO, not the storage model</td>
+<td>Leaking fields nobody requested</td>
+</tr>
+<tr>
+<td>Most sensitive fields</td>
+<td>Field-level encryption, tokenization</td>
+<td>DB dump theft, PCI scope creep</td>
+</tr>
+<tr>
+<td>Data at rest</td>
+<td>Disk/DB encryption, KMS-managed keys</td>
+<td>Stolen volumes, backups, insider access</td>
+</tr>
+<tr>
+<td>Credentials &amp; keys</td>
+<td>Secret manager, least privilege, rotation</td>
+<td>Committed/baked-in secret leaks</td>
+</tr>
+<tr>
+<td>PII in logs</td>
+<td>Redact before write, log IDs not values</td>
+<td>The debug-logging leak</td>
+</tr>
+<tr>
+<td>Browser cross-origin calls</td>
+<td>Exact-match CORS allow-list</td>
+<td>Hostile sites making credentialed calls</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Encrypt in transit, everywhere.</strong> HTTPS-only with modern TLS and HSTS, and mTLS or mesh encryption for service-to-service traffic — zero-trust means &ldquo;internal&rdquo; is not a reason to send plaintext.</li>
+<li><strong>Give back only what&rsquo;s needed.</strong> Serialize an explicit response DTO, never the storage row, so over-exposure is a line of code a human has to write, not an accident.</li>
+<li><strong>Shrink the blast radius of stored data.</strong> Encrypt at rest with KMS-managed, rotated keys; add field-level encryption for the most sensitive columns; tokenize secrets like PANs so most of your systems never hold the real value.</li>
+<li><strong>Keep secrets out of code and images.</strong> A secret manager, least privilege, rotation, and a CI secret-scan beat any <code>.env</code> in the repo — and a leaked key is compromised the moment it lands in git history.</li>
+<li><strong>Redact before you log.</strong> Full request/response logging is the leak that outlives your encryption; mask sensitive keys at write time and log identifiers, not values.</li>
+<li><strong>CORS is not a defense — but misconfiguring it is a vulnerability.</strong> Allow-list exact origins, never pair a wildcard with credentials, and never reflect the request&rsquo;s origin back.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html">OWASP Cheat Sheet — Transport Layer Security</a></li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html">OWASP Cheat Sheet — Cryptographic Storage</a></li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html">OWASP Cheat Sheet — Secrets Management</a></li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#cross-origin-resource-sharing">OWASP Cheat Sheet — Cross-Origin Resource Sharing (CORS)</a></li>
+<li><a href="https://wiki.mozilla.org/Security/Server_Side_TLS">Mozilla — Server Side TLS configuration guidelines</a></li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html">OWASP Cheat Sheet — Logging</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/api-security-08-secure-api-lifecycle.html">The Secure API Lifecycle</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-07-gateways-and-runtime-protection.html">API Gateways and Runtime Protection</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-05-rate-limiting-and-resource-consumption.html">Rate Limiting and Resource Consumption</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

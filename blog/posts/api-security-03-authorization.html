@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Authorization: BOLA, BFLA, and Object-Level Access</title>
+<meta name="description" content="The dominant class of API bugs: broken object level authorization (BOLA/IDOR — the #1 API risk), broken function level authorization, and object...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Authorization: BOLA, BFLA, and Object-Level Access">
+<meta property="og:description" content="The dominant class of API bugs: broken object level authorization (BOLA/IDOR — the #1 API risk), broken function level authorization, and object property level (mass assignment / excessive data exposure) — with allow-listed DTOs, ownership checks, and deny-by-default.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/api-security-03-authorization.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-09T00:00:00Z">
+<meta property="article:tag" content="API Security">
+<meta property="article:tag" content="Authorization">
+<meta property="article:tag" content="OWASP">
+<meta property="article:tag" content="Access Control">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Authorization: BOLA, BFLA, and Object-Level Access">
+<meta name="twitter:description" content="The dominant class of API bugs: broken object level authorization (BOLA/IDOR — the #1 API risk), broken function level authorization, and object property level (mass assignment / excessive data exposure) — with allow-listed DTOs, ownership checks, and deny-by-default.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/api-security-03-authorization.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Authorization: BOLA, BFLA, and Object-Level Access",
+  "description": "The dominant class of API bugs: broken object level authorization (BOLA/IDOR \u2014 the #1 API risk), broken function level authorization, and object property level (mass assignment / excessive data exposure) \u2014 with allow-listed DTOs, ownership checks, and deny-by-default.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-09",
+  "dateModified": "2026-08-09",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "API Security, Authorization, OWASP, Access Control",
+  "url": "https://pratikdhanave.com/blog/posts/api-security-03-authorization.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/api-security-03-authorization.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Authorization: BOLA, BFLA, and Object-Level Access</h1>
+    <p class="post-subtitle">Why the biggest class of API bugs is not about who you are but about what you are allowed to touch — and how to check ownership, function access, and property access on every single request.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-09">August 09, 2026</time>
+      <span>·</span>
+      <span>12 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/api-security/" class="tag-link"><span class="tag">#API Security</span></a><a href="/blog/tags/authorization/" class="tag-link"><span class="tag">#Authorization</span></a><a href="/blog/tags/owasp/" class="tag-link"><span class="tag">#OWASP</span></a><a href="/blog/tags/access-control/" class="tag-link"><span class="tag">#Access Control</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 3 of 8</span>
+    <span class="series-title">API Security</span>
+    <div class="series-nav"><a href="/blog/posts/api-security-02-authentication.html" class="series-prev">&larr; Part 2: Authentication: Proving Who Is Calling Your API</a>
+<a href="/blog/posts/api-security-04-input-validation-and-injection.html" class="series-next">Part 4: Input Validation and Injection &rarr;</a></div>
+  </div>
+
+
+
+  <p>Post 2 in this series drew a hard line: <strong>authentication is not authorization</strong>. Authentication answers <em>who is calling</em> — it validates a token, a session, an API key. Authorization answers <em>what that caller may do</em> — read this order, delete that user, set this field. A caller can be perfectly authenticated and still have no business touching the record they just asked for.</p>
+<p>That gap is where most real API breaches live. Look at the OWASP API Security Top 10 and the top of the list is not injection or misconfiguration — it is <strong>authorization</strong>. Three of the ten entries are pure access-control failures: object-level (API1), object-property-level (API3), and function-level (API5). They dominate because authorization is <em>per-request, per-object, per-field</em> — and every one of those checkpoints is a place a developer can forget.</p>
+<p>This post walks the three failures in order, with Python and Go examples you can map onto your own stack, and one rule underneath all of them: <strong>authorize every object and every function, server-side, deny-by-default.</strong></p>
+<hr>
+<h2 id="the-shape-of-the-problem">The shape of the problem</h2>
+<p>A monolithic web app renders pages server-side, so authorization often rides along with the view: the page only shows <em>your</em> orders because the controller only queried <em>your</em> orders. APIs strip that away. The client asks for a specific resource by id — <code>GET /orders/8842</code> — and the server hands back whatever that id names. If nobody checks that order 8842 belongs to the caller, the API has just become a lookup service for other people&rsquo;s data.</p>
+<p>The model that keeps this straight has two layers:</p>
+<ul>
+<li><strong>Coarse-grained</strong>: <em>does this role reach this capability at all?</em> An anonymous user cannot reach the admin panel; a standard user cannot call the billing-refund endpoint. This is <strong>function-level</strong> authorization.</li>
+<li><strong>Fine-grained</strong>: <em>may this specific caller act on this specific object or field?</em> You are a valid customer, but this is not your invoice. This is <strong>object-level</strong> and <strong>object-property-level</strong> authorization.</li>
+</ul>
+<p>Skip either layer and you have a hole. The rest of this post is those two layers, in the order attackers probe them.</p>
+<hr>
+<h2 id="1-broken-object-level-authorization-bola-idor-owasp-api1">1. Broken Object Level Authorization (BOLA / IDOR) — OWASP API1</h2>
+<p>This is the number-one API risk, and it is embarrassingly simple. The API authenticates the caller, then trusts a client-supplied identifier to select the object — without ever checking the object belongs to that caller.</p>
+<pre><code class="language-http">GET /api/orders/8842 HTTP/1.1
+Authorization: Bearer &lt;valid token for user 17&gt;
+</code></pre>
+<p>If the handler does <code>SELECT * FROM orders WHERE id = 8842</code> and returns the row, user 17 just read an order that might belong to user 42. Increment the id, script it, and you have walked the whole table. The same bug is often called <strong>IDOR</strong> — Insecure Direct Object Reference — and it applies to any identifier the client controls: numeric ids, UUIDs, filenames, slugs, even values buried in a JWT claim the client can tamper with before it is verified.</p>
+<p>Why is it so common? Because the check is <em>invisible when it is missing</em>. The endpoint works. The tests pass. The happy path — a user reading their own order — behaves identically whether or not the ownership check exists. The bug only appears when someone asks for an id that is not theirs, and nobody wrote that test.</p>
+<p><strong>The gotcha:</strong> a valid token says <em>who</em>, not <em>what they can touch</em>. Authentication middleware that rejects bad tokens gives a false sense of safety — every request past it is authenticated, and none of it is authorized until you check the object.</p>
+<h3 id="prevent-it-scope-the-query-by-the-callers-identity">Prevent it: scope the query by the caller&rsquo;s identity</h3>
+<p>The fix is not to <em>add a check after fetching</em> — that is fragile and easy to forget. The durable fix is to make the caller&rsquo;s identity part of the query, so the data layer can never return an object the caller does not own.</p>
+<pre><code class="language-python"># Bad: trusts the client-supplied id, checks ownership nowhere.
+def get_order(order_id: int, user):
+    return db.query(&quot;SELECT * FROM orders WHERE id = %s&quot;, order_id)
+
+# Good: the caller's id is part of the WHERE clause. A foreign id
+# returns nothing, so there is no object to leak.
+def get_order(order_id: int, user):
+    row = db.query(
+        &quot;SELECT * FROM orders WHERE id = %s AND owner_id = %s&quot;,
+        order_id, user.id,
+    )
+    if row is None:
+        # 404, not 403 — do not confirm the object exists to a
+        # caller who is not allowed to know it does.
+        raise NotFound()
+    return row
+</code></pre>
+<p>The same discipline in Go, where an explicit ownership guard reads clearly:</p>
+<pre><code class="language-go">func (s *Store) GetOrder(ctx context.Context, orderID int64, callerID int64) (*Order, error) {
+    var o Order
+    err := s.db.QueryRowContext(ctx,
+        `SELECT id, owner_id, total FROM orders WHERE id = $1 AND owner_id = $2`,
+        orderID, callerID,
+    ).Scan(&amp;o.ID, &amp;o.OwnerID, &amp;o.Total)
+    if errors.Is(err, sql.ErrNoRows) {
+        return nil, ErrNotFound // caller does not own it (or it does not exist)
+    }
+    return &amp;o, err
+}
+</code></pre>
+<p>For multi-tenant systems, the same idea widens to <strong>tenancy</strong>: every query carries the caller&rsquo;s <code>tenant_id</code>, and no query ever runs without it. The strongest version pushes this into a place it cannot be bypassed — a repository layer that refuses to build a query without a tenant scope, row-level security in the database, or a query builder that injects the tenant predicate automatically. When the scope lives in one enforced place, an individual endpoint author cannot forget it.</p>
+<p><strong>The gotcha:</strong> BOLA is invisible in tests that only use one user&rsquo;s own data. A test suite where &ldquo;Alice reads Alice&rsquo;s order&rdquo; passes tells you nothing. You must test <strong>cross-tenant access explicitly</strong> — authenticate as Alice, request Bob&rsquo;s object id, and assert you get a 404. That negative test is the only thing that catches the bug.</p>
+<p>A last note on ids: switching numeric ids to UUIDs raises the effort of guessing but does not fix BOLA. A UUID that leaks in a URL, a referrer header, a shared link, or a prior response is still a direct object reference. Unguessable is not the same as authorized.</p>
+<hr>
+<h2 id="2-broken-function-level-authorization-bfla-owasp-api5">2. Broken Function Level Authorization (BFLA) — OWASP API5</h2>
+<p>Where BOLA is about <em>objects</em>, BFLA is about <em>operations</em>. It happens when a caller reaches a function — an endpoint, an HTTP method, an administrative action — that their role should never expose.</p>
+<p>The classic shapes:</p>
+<ul>
+<li>A standard user calls <code>DELETE /api/users/42</code> and it works, because the handler checks authentication but not role.</li>
+<li>An endpoint under <code>/api/admin/...</code> has no server-side role gate; it was &ldquo;hidden&rdquo; because the UI never renders a link to it.</li>
+<li><code>GET /api/orders/8842</code> is protected but the <code>PUT</code>/<code>DELETE</code> on the same path is not — the read was guarded and the mutating methods were forgotten.</li>
+</ul>
+<pre><code class="language-http">POST /api/admin/users/42/promote HTTP/1.1
+Authorization: Bearer &lt;valid token for an ordinary user&gt;
+</code></pre>
+<p>If that returns <code>200 OK</code>, the endpoint is trusting the <em>existence</em> of a token rather than the <em>role</em> inside it. Attackers find these by enumerating methods and guessing admin routes — HTTP verbs and predictable path segments (<code>/admin</code>, <code>/internal</code>, <code>/v1/users/{id}/roles</code>) are a small search space.</p>
+<p><strong>The gotcha:</strong> hiding an admin button does not protect the admin <em>endpoint</em>. The browser is fully under the caller&rsquo;s control; a route that is not linked in the UI is one <code>curl</code> away. Function authorization has to be enforced on the server, on every method of every route — never in the client.</p>
+<h3 id="prevent-it-deny-by-default-checked-server-side">Prevent it: deny-by-default, checked server-side</h3>
+<p>The safe posture is <strong>deny-by-default</strong>: an endpoint is inaccessible unless a rule explicitly grants the caller&rsquo;s role. That inverts the risk. With allow-by-default, forgetting a check exposes an endpoint; with deny-by-default, forgetting a check <em>closes</em> it — a much safer failure mode.</p>
+<pre><code class="language-python"># A deny-by-default decorator: no matching role, no entry.
+def require_role(*allowed):
+    def decorator(handler):
+        @functools.wraps(handler)
+        def wrapper(request, *args, **kwargs):
+            if request.user.role not in allowed:
+                raise Forbidden()  # 403 by default
+            return handler(request, *args, **kwargs)
+        return wrapper
+    return decorator
+
+@require_role(&quot;admin&quot;)
+def delete_user(request, user_id: int):
+    ...
+</code></pre>
+<p>In Go, the same gate as middleware wrapping the admin routes:</p>
+<pre><code class="language-go">func RequireRole(allowed ...string) func(http.Handler) http.Handler {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            role := CallerFromContext(r.Context()).Role
+            if !slices.Contains(allowed, role) {
+                http.Error(w, &quot;forbidden&quot;, http.StatusForbidden)
+                return
+            }
+            next.ServeHTTP(w, r)
+        })
+    }
+}
+
+// admin.Handle(&quot;/users/&quot;, RequireRole(&quot;admin&quot;)(usersHandler))
+</code></pre>
+<p>Two things make this robust. First, the default is <em>no access</em> — a new route added under the admin group inherits the gate unless someone deliberately opens it. Second, the check reads the role from a <strong>server-trusted source</strong> — the verified token or session — never from a request body, header, or query parameter the client can set.</p>
+<hr>
+<h2 id="3-broken-object-property-level-authorization-owasp-api3">3. Broken Object Property Level Authorization — OWASP API3</h2>
+<p>The third failure is finer still. The caller may legitimately reach the endpoint <em>and</em> own the object — but the request or response operates on <em>properties</em> they should not control or see. OWASP folds two old categories into this one: <strong>mass assignment</strong> (writing properties you shouldn&rsquo;t) and <strong>excessive data exposure</strong> (reading properties you shouldn&rsquo;t).</p>
+<h3 id="mass-assignment-the-input-side">Mass assignment — the input side</h3>
+<p>Frameworks that auto-bind a JSON body to a model are a convenience trap. If the endpoint does <code>user.update(**request.json)</code>, then whatever the client sends gets written — including fields the client was never meant to control.</p>
+<pre><code class="language-http">PATCH /api/users/17 HTTP/1.1
+Authorization: Bearer &lt;valid token for user 17&gt;
+Content-Type: application/json
+
+{ &quot;displayName&quot;: &quot;Pratik&quot;, &quot;role&quot;: &quot;admin&quot;, &quot;isVerified&quot;: true, &quot;balance&quot;: 999999 }
+</code></pre>
+<p>The user meant to change their display name. If the handler binds the whole body, they also just made themselves an admin, marked their account verified, and set their balance. The endpoint is theirs, the object is theirs — but <code>role</code>, <code>isVerified</code>, and <code>balance</code> are not fields they may write.</p>
+<p><strong>The gotcha:</strong> mass assignment binds <em>whatever the client sends</em>. Never bind a raw request body to your persistence model. The safe pattern is an <strong>allow-listed input DTO</strong>: a small object that names exactly the fields this endpoint accepts, and nothing else. Extra fields are dropped, not written.</p>
+<pre><code class="language-python"># Explicit allow-list. Only these fields can ever be written here,
+# no matter what the client sends.
+@dataclass
+class UpdateProfileInput:
+    display_name: str
+    bio: str | None = None
+
+def update_profile(request, user):
+    data = UpdateProfileInput(
+        display_name=request.json[&quot;displayName&quot;],
+        bio=request.json.get(&quot;bio&quot;),
+    )
+    user.display_name = data.display_name
+    user.bio = data.bio
+    # role, isVerified, balance are simply never assignable here.
+    db.save(user)
+</code></pre>
+<p>In Go, decoding into a purpose-built struct does the same job — the request can only ever populate the fields the struct declares:</p>
+<pre><code class="language-go">type UpdateProfileInput struct {
+    DisplayName string `json:&quot;displayName&quot;`
+    Bio         string `json:&quot;bio&quot;`
+}
+
+func updateProfile(w http.ResponseWriter, r *http.Request) {
+    var in UpdateProfileInput
+    if err := json.NewDecoder(r.Body).Decode(&amp;in); err != nil {
+        http.Error(w, &quot;bad request&quot;, http.StatusBadRequest)
+        return
+    }
+    // Map only these fields onto the model. Role/Balance are unreachable.
+    user.DisplayName = in.DisplayName
+    user.Bio = in.Bio
+}
+</code></pre>
+<p>Privileged fields like <code>role</code> should only ever be settable through a separate, function-authorized endpoint (<code>POST /api/admin/users/{id}/role</code>, gated by <code>require_role("admin")</code>) — never as a side effect of a profile update.</p>
+<h3 id="excessive-data-exposure-the-output-side">Excessive data exposure — the output side</h3>
+<p>The mirror image: returning the whole object and trusting the client to only display the safe parts. <code>return jsonify(user.__dict__)</code> on a user record happily ships <code>password_hash</code>, <code>mfa_secret</code>, internal flags, and another user&rsquo;s PII if the object was fetched without scoping. &ldquo;The mobile app only shows the name&rdquo; is not a control — the raw JSON is right there in the response.</p>
+<p>The fix is symmetric with the input side: an <strong>allow-listed output DTO</strong> that names exactly the fields this caller may see.</p>
+<pre><code class="language-python">def public_user_view(user):
+    # Explicit output shape. New model fields are NOT exposed by
+    # default — you must add them here on purpose.
+    return {
+        &quot;id&quot;: user.id,
+        &quot;displayName&quot;: user.display_name,
+        &quot;bio&quot;: user.bio,
+    }
+</code></pre>
+<p>Serializing through an explicit view means adding a sensitive column to the model does not silently leak it — the field stays invisible until someone deliberately adds it to the DTO. That is deny-by-default applied to output.</p>
+<hr>
+<h2 id="rbac-abac-and-where-the-rules-should-live">RBAC, ABAC, and where the rules should live</h2>
+<p>Two models cover most authorization needs:</p>
+<table><caption class="sr-only">RBAC, ABAC, and where the rules should live</caption>
+<thead>
+<tr>
+<th></th>
+<th>RBAC (role-based)</th>
+<th>ABAC (attribute-based)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Decides on</td>
+<td>The caller&rsquo;s role</td>
+<td>Attributes of caller, resource, action, context</td>
+</tr>
+<tr>
+<td>Example rule</td>
+<td>&ldquo;admins may delete users&rdquo;</td>
+<td>&ldquo;a manager may approve expenses under $5k in their own region&rdquo;</td>
+</tr>
+<tr>
+<td>Strength</td>
+<td>Simple, auditable, easy to reason about</td>
+<td>Expresses ownership, tenancy, limits, time-of-day</td>
+</tr>
+<tr>
+<td>Watch out for</td>
+<td>Role explosion as edge cases pile up</td>
+<td>Policies become hard to test and audit</td>
+</tr>
+</tbody>
+</table>
+<p>In practice most systems are a blend: RBAC handles the coarse function-level gate (&ldquo;is this caller an admin?&rdquo;), while ABAC-style checks handle the fine object-level rule (&ldquo;is this the caller&rsquo;s own order, in the caller&rsquo;s tenant?&rdquo;). BFLA is usually an RBAC failure; BOLA is usually a missing attribute check.</p>
+<p>The deeper question is <em>where</em> authorization logic lives. Scattering <code>if user.role == "admin"</code> across dozens of handlers guarantees that one handler eventually forgets. <strong>Centralizing</strong> the decision — a policy function, a middleware layer, a dedicated policy engine, or database row-level security — gives you one place to read, test, and audit the rules. Centralization also makes deny-by-default enforceable: the shared gate says no unless a policy says yes, so a new endpoint is safe until someone opens it on purpose.</p>
+<p>Centralize the <em>decision</em>; you still have to place the <em>checkpoint</em>. Object-level checks must run at the point of data access (or be baked into the scoped query), because only there do you have the object and the caller together. A central policy engine that is never called on the order-fetch path protects nothing.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Authentication is not authorization.</strong> A verified token establishes <em>who</em>; every object and every function still needs a separate check for <em>what they may do</em>. This is the whole reason authorization dominates the OWASP API Top 10.</li>
+<li><strong>BOLA (API1) is the top risk and the easiest to miss.</strong> Scope every query by the caller&rsquo;s identity or tenant so a foreign id returns nothing. Do not trust client-supplied ids, and test cross-tenant access explicitly — the happy path hides the bug.</li>
+<li><strong>BFLA (API5) means missing function gates.</strong> Enforce role checks server-side on every method of every route, deny-by-default. Hiding a button in the UI protects nothing.</li>
+<li><strong>API3 is about properties.</strong> Use allow-listed input DTOs so the client cannot mass-assign <code>role</code> or <code>balance</code>, and allow-listed output DTOs so you never leak fields by returning the raw model.</li>
+<li><strong>Centralize the policy, place the checkpoint.</strong> RBAC for coarse function access, attribute checks for fine object access; one auditable place to decide, enforced at the point where you actually hold the object.</li>
+</ul>
+<p>Authorize every object. Authorize every function. Server-side. Deny-by-default. Everything in this post is a variation on those four words.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/">OWASP API1:2023 — Broken Object Level Authorization</a></li>
+<li><a href="https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/">OWASP API3:2023 — Broken Object Property Level Authorization</a></li>
+<li><a href="https://owasp.org/API-Security/editions/2023/en/0xa5-broken-function-level-authorization/">OWASP API5:2023 — Broken Function Level Authorization</a></li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Mass_Assignment_Cheat_Sheet.html">OWASP Cheat Sheet — Mass Assignment</a></li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html">OWASP Cheat Sheet — Insecure Direct Object Reference Prevention</a></li>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html">OWASP Cheat Sheet — Authorization</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/api-security-08-secure-api-lifecycle.html">The Secure API Lifecycle</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-07-gateways-and-runtime-protection.html">API Gateways and Runtime Protection</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/api-security-05-rate-limiting-and-resource-consumption.html">Rate Limiting and Resource Consumption</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
