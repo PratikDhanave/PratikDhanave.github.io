@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Threat Modeling and the AI Attack Taxonomy — Pratik Dhanave</title>
+<meta name="description" content="Mapping the AI attack surface so red-teaming is systematic: threat-modeling the components (model, prompts, training/RAG data, tools, guardrails) and...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Threat Modeling and the AI Attack Taxonomy — Pratik Dhanave">
+<meta property="og:description" content="Mapping the AI attack surface so red-teaming is systematic: threat-modeling the components (model, prompts, training/RAG data, tools, guardrails) and an attack taxonomy by goal (integrity/availability/privacy/abuse) and stage (training vs inference), aligned to NIST AI 100-2 and ATLAS.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-red-teaming-02-threat-modeling-and-attack-taxonomy.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-08T00:00:00Z">
+<meta property="article:tag" content="AI Red Teaming">
+<meta property="article:tag" content="Threat Modeling">
+<meta property="article:tag" content="AI Security">
+<meta property="article:tag" content="MITRE ATLAS">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Threat Modeling and the AI Attack Taxonomy — Pratik Dhanave">
+<meta name="twitter:description" content="Mapping the AI attack surface so red-teaming is systematic: threat-modeling the components (model, prompts, training/RAG data, tools, guardrails) and an attack taxonomy by goal (integrity/availability/privacy/abuse) and stage (training vs inference), aligned to NIST AI 100-2 and ATLAS.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-red-teaming-02-threat-modeling-and-attack-taxonomy.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Threat Modeling and the AI Attack Taxonomy",
+  "description": "Mapping the AI attack surface so red-teaming is systematic: threat-modeling the components (model, prompts, training/RAG data, tools, guardrails) and an attack taxonomy by goal (integrity/availability/privacy/abuse) and stage (training vs inference), aligned to NIST AI 100-2 and ATLAS.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-08",
+  "dateModified": "2026-08-08",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Red Teaming, Threat Modeling, AI Security, MITRE ATLAS",
+  "url": "https://pratikdhanave.com/blog/posts/ai-red-teaming-02-threat-modeling-and-attack-taxonomy.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-red-teaming-02-threat-modeling-and-attack-taxonomy.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Threat Modeling and the AI Attack Taxonomy</h1>
+    <p class="post-subtitle">Before you attack an AI system you need a map of it: the components an adversary can influence, the trust boundaries between them, and a taxonomy that sorts attacks by goal and stage so your red-teaming is systematic instead of a grab-bag of the attacks that happen to trend that week.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-08">August 08, 2026</time>
+      <span>·</span>
+      <span>11 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-red-teaming/" class="tag-link"><span class="tag">#AI Red Teaming</span></a><a href="/blog/tags/threat-modeling/" class="tag-link"><span class="tag">#Threat Modeling</span></a><a href="/blog/tags/ai-security/" class="tag-link"><span class="tag">#AI Security</span></a><a href="/blog/tags/mitre-atlas/" class="tag-link"><span class="tag">#MITRE ATLAS</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 2 of 8</span>
+    <span class="series-title">AI Red Teaming</span>
+    <div class="series-nav"><a href="/blog/posts/ai-red-teaming-01-what-is-ai-red-teaming.html" class="series-prev">&larr; Part 1: What AI Red Teaming Is</a>
+<a href="/blog/posts/ai-red-teaming-03-prompt-injection-and-jailbreaks-in-depth.html" class="series-next">Part 3: Prompt Injection and Jailbreaks in Depth &rarr;</a></div>
+  </div>
+
+
+
+  <p>Red-teaming an AI system without a threat model is like penetration-testing a building by trying the front-door handle and going home. You will find the obvious weakness, feel productive, and miss the loading dock that was propped open the whole time. The first post in this series argued that AI red-teaming is a discipline, not a party trick. This post gives you the two artifacts that make it a discipline: a <strong>threat model</strong> of your specific system, and a <strong>taxonomy</strong> that lets you reason about the full space of attacks rather than the handful you already know how to run.</p>
+<p>The taxonomy here is derived from three public references — NIST&rsquo;s <em>Adversarial Machine Learning</em> taxonomy (NIST AI 100-2), the MITRE ATLAS knowledge base of real-world attacks on ML systems, and the OWASP GenAI/LLM Top 10. Everything below is expressed in my own words and framed for defenders. The point is not to memorize categories; it is to be able to look at <em>your</em> deployment and say &ldquo;these four attacks are likely and high-impact for us, and these six are theoretically possible but irrelevant&rdquo; — and then spend your time on the four.</p>
+<hr>
+<h2 id="what-an-ai-system-actually-is">What an AI system actually is</h2>
+<p>The mistake beginners make is treating &ldquo;the AI&rdquo; as a single opaque box that either behaves or misbehaves. An AI <em>system</em> is a pipeline of components, and an attacker can influence far more of that pipeline than the model weights. Threat modeling starts by drawing every component and asking one question at each: <strong>can an adversary reach this, directly or indirectly, and what happens if they can?</strong></p>
+<ul>
+<li><strong>The model</strong> — the weights themselves, whether hosted (OpenAI, Anthropic, a Foundry endpoint) or self-hosted. For hosted models you inherit the provider&rsquo;s training-time posture; you cannot poison what you did not train.</li>
+<li><strong>The system prompt and prompt-construction logic</strong> — the instructions, the templating, the way user input is concatenated with trusted text. This is where the boundary between &ldquo;your instructions&rdquo; and &ldquo;their input&rdquo; is drawn, and drawn badly it is where prompt injection lives.</li>
+<li><strong>Training / fine-tuning data</strong> — only relevant if you train or fine-tune. If you fine-tune on data scraped from the web, user submissions, or a partner feed, that feed is an attack surface.</li>
+<li><strong>The RAG corpus and retrieval layer</strong> — documents you index, plus the retriever that decides which chunks reach the model. Every document is content the model will read and partly trust.</li>
+<li><strong>Tools and plugins</strong> — functions, API calls, code execution, MCP servers. Tools turn &ldquo;the model said something wrong&rdquo; into &ldquo;the model <em>did</em> something wrong,&rdquo; which is a categorically worse failure.</li>
+<li><strong>Guardrails</strong> — input/output filters, classifiers, moderation, allow/deny lists. These are controls, but they are also components that can be bypassed, and their presence can lull you into thinking a surface is covered when it is not.</li>
+<li><strong>The surrounding application</strong> — auth, session handling, rate limiting, logging, the way tool outputs are rendered back to a user (an XSS sink in the chat UI is still your problem).</li>
+</ul>
+<p><strong>The gotcha:</strong> the attack surface is <em>everything an attacker can influence</em>, not just the text box the user types into. RAG and tools quietly widen it the most. The moment you retrieve an untrusted document or ingest the output of an external tool, that content flows into the model&rsquo;s context with some degree of trust — and an attacker who can plant a document in your corpus or control an API you call has an <em>indirect</em> injection path that never touches your prompt box. Teams draw their threat model around the chat input and forget the corpus.</p>
+<hr>
+<h2 id="trust-boundaries-where-influence-crosses-into-the-system">Trust boundaries: where influence crosses into the system</h2>
+<p>A trust boundary is any point where data or control passes from a less-trusted zone to a more-trusted one. Attacks happen at boundaries. Here is a minimal system with the boundaries marked.</p>
+<pre><code class="language-text">        UNTRUSTED                    |         YOUR SYSTEM (more trusted)
+                                     |
+  End user input ──────────────[ B1 ]──► Prompt construction ──► Model
+                                     |         ▲                    │
+  Web / 3rd-party docs ─────────[ B2 ]──► RAG corpus ──► Retriever ─┘
+                                     |                              │
+  External API / tool output ──[ B3 ]──────────────────► Tools ◄───┤
+                                     |                              │
+  Training / fine-tune feed ───[ B4 ]──► (only if you train)       ▼
+                                     |                         Guardrails ─[ B5 ]─► App / user
+                                     |
+   B1  user prompt        → prompt injection, jailbreak
+   B2  ingested documents → indirect prompt injection, poisoned RAG
+   B3  tool/API responses → indirect injection, confused-deputy actions
+   B4  training data       → data poisoning, backdoors (train-time only)
+   B5  model output → app  → unsafe rendering, over-trusted tool calls
+</code></pre>
+<p>For each boundary, write down: who can put data across it, what validation exists, and what the model is allowed to <em>do</em> with what crosses. B1 is the one everyone tests. B2 and B3 are the ones that get real systems compromised, because the content arriving there looks trustworthy to the model and is often invisible to the human operator.</p>
+<p><strong>The gotcha:</strong> guardrails at B5 are not a boundary you can rely on alone. An output filter that catches slurs will not catch a model that was steered into leaking a customer record or calling a delete-account tool — the text looks benign. Defense has to sit at the boundary where the untrusted influence <em>enters</em> (B1–B4), not only where the answer leaves.</p>
+<hr>
+<h2 id="the-taxonomy-sort-attacks-by-goal-and-by-stage">The taxonomy: sort attacks by goal and by stage</h2>
+<p>Two axes make the attack space tractable. The <strong>attacker&rsquo;s goal</strong> tells you <em>what they want</em>, and the <strong>lifecycle stage</strong> tells you <em>when they strike</em>. NIST AI 100-2 organizes adversarial ML along essentially these lines; MITRE ATLAS maps them to observed tactics and techniques. Naming an attack by both axes (&ldquo;an inference-time integrity attack via indirect injection&rdquo;) is more useful than a scary label, because it tells you where to defend.</p>
+<h3 id="by-attacker-goal">By attacker goal</h3>
+<ul>
+<li><strong>Integrity</strong> — make the system produce the <em>wrong</em> output while looking normal. Evasion, prompt injection that overrides instructions, poisoning that plants a specific wrong behavior. The output is confidently incorrect or attacker-chosen.</li>
+<li><strong>Availability</strong> — deny service or blow up cost. Inputs crafted to trigger the most expensive path, unbounded tool loops, retrieval that fans out, or &ldquo;sponge&rdquo; prompts that maximize tokens/compute. For metered LLM APIs, availability attacks are often <em>cost</em> attacks — a denial-of-wallet.</li>
+<li><strong>Privacy / confidentiality</strong> — extract something that should stay inside: training data (membership inference, memorized secrets), the system prompt, RAG documents the user should not see, or the model itself (extraction/distillation).</li>
+<li><strong>Abuse / safety</strong> — get the system to produce harmful content or take harmful action it is supposed to refuse: disallowed instructions, harassment, or misuse of a tool to reach a downstream target. This is the &ldquo;make it say/do the bad thing&rdquo; bucket that most public jailbreak demos live in.</li>
+</ul>
+<h3 id="by-lifecycle-stage">By lifecycle stage</h3>
+<ul>
+<li><strong>Training time</strong> — the adversary influences the model <em>before</em> deployment. <strong>Data poisoning</strong> taints the training/fine-tuning set to shift behavior; a <strong>backdoor</strong> poisons it so the model behaves normally until a specific trigger appears, then flips. Requires influence over B4.</li>
+<li><strong>Inference time</strong> — the adversary influences the model <em>at query time</em> through inputs and context. <strong>Evasion</strong> perturbs an input to get a wrong classification; <strong>prompt injection</strong> (direct at B1, indirect at B2/B3) overrides instructions; <strong>jailbreaks</strong> defeat safety training to elicit refused content. No access to weights needed.</li>
+<li><strong>Model theft / extraction</strong> — the adversary targets the asset itself: repeated querying to reconstruct behavior (distillation), stealing weights via a leak, or inferring architecture/parameters. Part reconnaissance, part endgame.</li>
+</ul>
+<h3 id="goal-stage-with-where-each-lands-in-this-series">Goal × stage, with where each lands in this series</h3>
+<table><caption class="sr-only">Goal × stage, with where each lands in this series</caption>
+<thead>
+<tr>
+<th></th>
+<th>Training-time</th>
+<th>Inference-time</th>
+<th>Extraction / theft</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Integrity</strong></td>
+<td>Data poisoning; targeted backdoors</td>
+<td>Evasion; prompt injection (direct + indirect); jailbreak-to-misbehave</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Availability</strong></td>
+<td>Poisoning to degrade accuracy broadly</td>
+<td>Sponge / cost-amplifying inputs; unbounded tool or retrieval loops</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Privacy</strong></td>
+<td>Planting memorizable secrets to exfiltrate later</td>
+<td>Training-data extraction; system-prompt / RAG leakage</td>
+<td>Model extraction / distillation; weight theft</td>
+</tr>
+<tr>
+<td><strong>Abuse / safety</strong></td>
+<td>Backdoor that unlocks harmful behavior on a trigger</td>
+<td>Jailbreaks; indirect injection that drives harmful tool actions</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Posts 3–5 in this series are deep dives that map directly onto this table: <strong>post 3</strong> takes the inference-time integrity row — prompt injection (direct and indirect) and jailbreaks, the highest-likelihood attacks for almost every LLM deployment. <strong>Post 4</strong> takes the privacy column — system-prompt leakage, RAG/data exfiltration, and model extraction. <strong>Post 5</strong> takes the training-time row plus availability — poisoning, backdoors, and denial-of-wallet — the lower-frequency but high-consequence tail. Seeing the whole grid first is what keeps the deep dives from feeling like a random walk.</p>
+<hr>
+<h2 id="attacker-knowledge-white-black-and-gray-box">Attacker knowledge: white, black, and gray box</h2>
+<p>The same goal is a different attack depending on what the adversary knows. This shapes both how <em>you</em> red-team and how realistic a given test is.</p>
+<ul>
+<li><strong>White-box</strong> — full knowledge: weights, architecture, system prompt, guardrail logic. Enables gradient-based evasion and precise attacks. Realistic for open-weight models you ship, and the right assumption when you want a <em>worst-case</em> internal test.</li>
+<li><strong>Black-box</strong> — query access only, like a normal user. Most external attackers live here; most prompt-injection and jailbreak work is black-box. This is the baseline threat for any public endpoint.</li>
+<li><strong>Gray-box</strong> — partial knowledge: the model family is known, the system prompt has leaked, or error messages reveal tool names. Real attackers accumulate gray-box knowledge over time through probing, so treat black-box as a starting point that erodes.</li>
+</ul>
+<p>A useful default: red-team your <strong>public</strong> surfaces black-box first (that is what real users have), then escalate to gray/white-box to find the ceiling of what a determined, informed adversary could do.</p>
+<hr>
+<h2 id="prioritization-likelihood-impact-for-your-system">Prioritization: likelihood × impact for <em>your</em> system</h2>
+<p>The taxonomy is the menu; the threat model tells you what to order. Score each relevant attack by <strong>likelihood</strong> (how reachable is the surface, how much attacker skill/access is needed) times <strong>impact</strong> (what breaks if it succeeds — wrong answer, leaked data, real-world action, cost blowout). Then rank. Two systems built on the same hosted model can have opposite priorities.</p>
+<table><caption class="sr-only">Prioritization: likelihood × impact for your system</caption>
+<thead>
+<tr>
+<th>Factor</th>
+<th>Public consumer chatbot</th>
+<th>Internal RAG tool (authenticated staff)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Who can reach the input</td>
+<td>Anyone on the internet</td>
+<td>Vetted, authenticated employees</td>
+</tr>
+<tr>
+<td>Highest-likelihood attacks</td>
+<td>Jailbreaks, abuse/safety, cost/DoS</td>
+<td>Indirect injection via ingested docs; privilege/data-scope errors</td>
+</tr>
+<tr>
+<td>Privacy blast radius</td>
+<td>System-prompt leak, brand damage</td>
+<td>Cross-tenant / cross-department data leakage</td>
+</tr>
+<tr>
+<td>Tool danger</td>
+<td>Usually few or no write tools</td>
+<td>Often real tools (tickets, records, actions) → confused deputy</td>
+</tr>
+<tr>
+<td>Training-time risk</td>
+<td>Low (hosted model)</td>
+<td>Low–medium (higher if you fine-tune on internal/partner data)</td>
+</tr>
+</tbody>
+</table>
+<p>The public bot&rsquo;s nightmare is a viral jailbreak or a denial-of-wallet spike; its users are anonymous and its reputation is exposed. The internal tool&rsquo;s nightmare is an indirect injection buried in an uploaded PDF that makes the assistant leak another team&rsquo;s data or fire off a tool call — its users are trusted, but the <em>documents</em> are not, and the tools have teeth.</p>
+<p><strong>The gotcha:</strong> training-time attacks (poisoning, backdoors) are <strong>low-likelihood-high-impact</strong> for the large majority of teams, because you are calling a hosted model you did not train — there is no training set for you to poison. That calculus flips the instant you fine-tune on externally sourced data (scraped text, user submissions, a partner feed). Then B4 is live, the impact is a persistent backdoor rather than a single bad answer, and poisoning jumps up your priority list. Decide which regime you are in before you decide whether to test it.</p>
+<p><strong>The gotcha:</strong> do not copy someone else&rsquo;s test plan. A jailbreak checklist built for a public consumer bot will waste your week if your system is an internal RAG tool whose real exposure is untrusted documents and over-scoped tools — and vice versa. The published red-team writeups are excellent for <em>technique</em>; they are not a substitute for scoring <em>your</em> likelihood × impact. The threat model is what makes the taxonomy actionable for the system you actually run.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Model the system, not &ldquo;the AI.&rdquo;</strong> Enumerate every component — model, prompt logic, training data, RAG corpus, retrieval, tools, guardrails, surrounding app — and mark the trust boundaries where an adversary can inject influence (B1–B4), not just where output leaves (B5).</li>
+<li><strong>The attack surface is everything attacker-influenceable.</strong> RAG documents and tool/API outputs widen it the most and are the boundaries teams most often forget.</li>
+<li><strong>Sort attacks by goal × stage.</strong> Integrity, availability, privacy, and abuse across training-time, inference-time, and extraction covers the space NIST AI 100-2 and MITRE ATLAS describe — and tells you <em>where</em> to defend.</li>
+<li><strong>Attacker knowledge sets realism.</strong> Test public surfaces black-box first (that is real users), then escalate to gray/white-box to find the ceiling.</li>
+<li><strong>Prioritize by likelihood × impact for your deployment.</strong> A public chatbot and an internal RAG tool have opposite threat profiles; training-time attacks are low-likelihood until you fine-tune on external data, then they are not.</li>
+<li><strong>Know your specific threat profile before you start attacking.</strong> Red-teaming without a threat model is just poking at the flashy stuff and missing what matters for you.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://csrc.nist.gov/pubs/ai/100/2/e2025/final">NIST AI 100-2 — Adversarial Machine Learning: A Taxonomy and Terminology of Attacks and Mitigations</a></li>
+<li><a href="https://atlas.mitre.org/">MITRE ATLAS — Adversarial Threat Landscape for Artificial-Intelligence Systems</a></li>
+<li><a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for Large Language Model Applications</a></li>
+<li><a href="https://genai.owasp.org/">OWASP GenAI Security Project</a></li>
+<li><a href="https://www.microsoft.com/en-us/security/blog/2025/01/13/3-takeaways-from-red-teaming-100-generative-ai-products/">Microsoft — Lessons from red teaming 100 generative AI products</a></li>
+<li><a href="https://blog.google/technology/safety-security/googles-ai-red-team-the-ethical-hackers-making-ai-safer/">Google — Google&rsquo;s AI Red Team: the ethical hackers making AI safer</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-red-teaming-08-building-a-red-team-program.html">Building an AI Red-Team Program</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-red-teaming-07-measuring-and-scoring.html">Measuring and Scoring Red-Team Results</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-red-teaming-06-automated-red-teaming-and-tooling.html">Automated Red-Teaming and Tooling</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
