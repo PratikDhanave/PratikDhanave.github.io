@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Databases and Storage — Pratik Dhanave</title>
+<meta name="description" content="Choosing and scaling the data layer: relational vs NoSQL by access pattern, indexing (B-tree/hash/LSM), normalization vs denormalization, replication,...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Databases and Storage — Pratik Dhanave">
+<meta property="og:description" content="Choosing and scaling the data layer: relational vs NoSQL by access pattern, indexing (B-tree/hash/LSM), normalization vs denormalization, replication, partitioning/sharding and the shard-key decision, and the distributed-transaction trade-off.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/system-design-04-databases-and-storage.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-10T00:00:00Z">
+<meta property="article:tag" content="System Design">
+<meta property="article:tag" content="Databases">
+<meta property="article:tag" content="Sharding">
+<meta property="article:tag" content="Architecture">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Databases and Storage — Pratik Dhanave">
+<meta name="twitter:description" content="Choosing and scaling the data layer: relational vs NoSQL by access pattern, indexing (B-tree/hash/LSM), normalization vs denormalization, replication, partitioning/sharding and the shard-key decision, and the distributed-transaction trade-off.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/system-design-04-databases-and-storage.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Databases and Storage",
+  "description": "Choosing and scaling the data layer: relational vs NoSQL by access pattern, indexing (B-tree/hash/LSM), normalization vs denormalization, replication, partitioning/sharding and the shard-key decision, and the distributed-transaction trade-off.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-10",
+  "dateModified": "2026-08-10",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "System Design, Databases, Sharding, Architecture",
+  "url": "https://pratikdhanave.com/blog/posts/system-design-04-databases-and-storage.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/system-design-04-databases-and-storage.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Databases and Storage</h1>
+    <p class="post-subtitle">Choosing and scaling the data layer without cargo-culting: how to pick relational versus NoSQL by access pattern, why every index is a tax on writes, and why your shard key is the highest-stakes decision you will make.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-10">August 10, 2026</time>
+      <span>·</span>
+      <span>14 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a><a href="/blog/tags/databases/" class="tag-link"><span class="tag">#Databases</span></a><a href="/blog/tags/sharding/" class="tag-link"><span class="tag">#Sharding</span></a><a href="/blog/tags/architecture/" class="tag-link"><span class="tag">#Architecture</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 4 of 8</span>
+    <span class="series-title">System Design Fundamentals</span>
+    <div class="series-nav"><a href="/blog/posts/system-design-03-caching.html" class="series-prev">&larr; Part 3: Caching</a>
+<a href="/blog/posts/system-design-05-consistency-availability-consensus.html" class="series-next">Part 5: Consistency, Availability, and Consensus &rarr;</a></div>
+  </div>
+
+
+
+  <p>Every system eventually becomes a database problem. The application code changes weekly; the data model outlives three rewrites. Choose the storage engine well and most of your scaling worries stay boring. Choose it badly — the wrong shape, the wrong index strategy, the wrong shard key — and you inherit a migration project that ships once a year and terrifies everyone.</p>
+<p>This is the data-layer chapter of the System Design Fundamentals series, and it is deliberately trade-off-driven: there is no &ldquo;best&rdquo; database, only one that fits <em>this</em> access pattern. We will walk the decisions that matter most — the data model, indexing, normalization, replication, and partitioning — then close with why transactions are the hardest thing to keep once data spans machines.</p>
+<hr>
+<h2 id="start-from-the-access-pattern-not-the-logo">Start from the access pattern, not the logo</h2>
+<p>The most expensive mistake in system design is picking a database because it is popular, then reshaping the problem to fit it. Do the reverse. Write down how the data is actually read and written <em>before</em> you name an engine:</p>
+<ul>
+<li>What are the top few queries by volume and by latency sensitivity?</li>
+<li>Do you read by primary key, or filter and sort on many fields?</li>
+<li>What is the read-to-write ratio — 100:1 (a content site) or 1:1 (a ledger)?</li>
+<li>How large does a single record get, and does it fan out into related records?</li>
+<li>What consistency does the business actually require — can a user tolerate a slightly stale value?</li>
+</ul>
+<p>Answer those and the model usually chooses itself. A few honest defaults:</p>
+<ul>
+<li><strong>Relational (Postgres, MySQL)</strong> fits almost everything with structured, related data and ad-hoc queries — joins, transactions, secondary indexes, and a mature query planner for free. Modern Postgres also has first-class <code>JSONB</code> columns, so &ldquo;some of my data is schemaless&rdquo; is <em>not</em> on its own a reason to leave. Reach for relational first and make NoSQL earn its place.</li>
+<li><strong>Document (MongoDB, DynamoDB)</strong> fits self-contained aggregates you fetch and store whole — a product with its variants, a user profile with its settings. If you never join across documents and always load the whole thing by id, a document store maps cleanly.</li>
+<li><strong>Key-value (Redis, DynamoDB)</strong> fits pure lookup by a known key: sessions, feature flags, caches, rate-limit counters. Blazing on <code>GET</code>/<code>PUT</code>, useless when you must ask &ldquo;which keys match this filter.&rdquo;</li>
+<li><strong>Wide-column (Cassandra, Bigtable, ScyllaDB)</strong> fits massive write volume and queries you can express as &ldquo;give me this partition, sorted by this clustering key&rdquo; — time series, event logs, feeds. You design the table around one query and it serves that query at enormous scale; ask a second, unplanned query and you are stuck.</li>
+<li><strong>Graph (Neo4j)</strong> fits data where the <em>relationships</em> are the query: &ldquo;friends of friends who liked X,&rdquo; fraud rings, dependency graphs. If you find yourself writing recursive self-joins, a graph engine may pay off.</li>
+</ul>
+<p><strong>The gotcha:</strong> &ldquo;NoSQL = scalable&rdquo; is a myth. NoSQL engines scale by making you commit to your access pattern up front — you trade the query flexibility of SQL (and often strong consistency) for horizontal throughput. That is a real trade, not a free upgrade. A well-indexed Postgres instance on a big box serves a shocking amount of traffic and still answers questions you did not anticipate at design time. Don&rsquo;t leave that behind until a specific access pattern forces you to.</p>
+<hr>
+<h2 id="indexing-the-readwrite-bargain">Indexing: the read/write bargain</h2>
+<p>An index is a secondary data structure that lets the engine find rows without scanning the whole table. How the common ones work tells you when each helps.</p>
+<p><strong>B-tree</strong> is the default in Postgres and MySQL (InnoDB). It keeps keys sorted in a balanced tree, so lookups, range scans (<code>WHERE created_at &gt; ...</code>), and <code>ORDER BY</code> on the indexed column are all fast — roughly logarithmic. This is the workhorse; when in doubt, it is a B-tree.</p>
+<p><strong>Hash</strong> indexes map a key through a hash function to a bucket, answering exact-match equality (<code>WHERE id = ?</code>) in near-constant time but doing no ranges or ordering — the hash destroys sort order. Niche compared to B-trees.</p>
+<p><strong>LSM-tree</strong> (log-structured merge-tree) powers Cassandra, RocksDB, and LevelDB. Instead of updating in place, it buffers writes in memory (a memtable), then flushes them as immutable sorted files (SSTables) merged in the background (compaction). Writes are fast because they are sequential appends; reads may check several files, mitigated by Bloom filters. This is why write-heavy stores absorb huge ingest rates — they turn random writes into sequential ones.</p>
+<p>The mental model: <strong>B-trees favor reads and in-place updates; LSM-trees favor write throughput at the cost of read and compaction overhead.</strong></p>
+<p>Two index shapes earn their keep in relational systems. A <strong>composite index</strong> covers multiple columns in order, and order matters — an index on <code>(tenant_id, created_at)</code> serves <code>WHERE tenant_id = ? ORDER BY created_at</code> and <code>WHERE tenant_id = ?</code>, but <em>not</em> a query filtering on <code>created_at</code> alone (the leftmost-prefix rule). A <strong>covering index</strong> includes every column a query needs, so the engine answers straight from the index without touching the table (an &ldquo;index-only scan&rdquo; in Postgres, via <code>INCLUDE</code>).</p>
+<pre><code class="language-sql">-- Serve the hot query: a tenant's recent orders, newest first,
+-- returning only the columns the list view needs.
+CREATE INDEX idx_orders_tenant_recent
+    ON orders (tenant_id, created_at DESC)
+    INCLUDE (status, total_cents);
+
+-- This query is now index-only: no heap fetch.
+SELECT status, total_cents
+FROM orders
+WHERE tenant_id = 42
+ORDER BY created_at DESC
+LIMIT 20;
+</code></pre>
+<p><strong>The gotcha:</strong> every index you add speeds <em>some</em> reads but taxes <em>every</em> write and costs storage. On each <code>INSERT</code>/<code>UPDATE</code>/<code>DELETE</code> the engine must also update every affected index, and each index is a full extra copy of its columns on disk. Index the queries you actually run, measure with <code>EXPLAIN ANALYZE</code>, and delete indexes nothing uses — an unused index is pure cost.</p>
+<hr>
+<h2 id="normalization-versus-denormalization">Normalization versus denormalization</h2>
+<p>Normalization means storing each fact exactly once and referencing it by key. A normalized schema has a <code>users</code> table and an <code>orders</code> table with a <code>user_id</code> foreign key; a user&rsquo;s email lives in one place. This keeps writes cheap and correct — change the email once and every order reflects it — and it is the right default for transactional systems.</p>
+<p>The price is that reads reassemble data with joins. When one page needs a user, their orders, each order&rsquo;s line items, and each item&rsquo;s product, you join five tables per request. At low volume the planner handles this effortlessly; at high volume, on data spread across shards, those joins get expensive or become impossible.</p>
+<p><strong>Denormalization</strong> trades storage and write complexity for read speed: you duplicate data so a read touches one place. Store the product name <em>inside</em> each order line so rendering an order needs no product join. Precompute a follower count instead of <code>COUNT(*)</code>-ing a relationship table on every profile view. Wide-column and document stores lean into this hard — one table per query, the same fact living in several tables.</p>
+<p>The cost is drift. Rename a product and every denormalized copy is stale until you update it, and keeping copies in sync is your job, not the database&rsquo;s. Denormalize deliberately, for a measured read hotspot, and be explicit about how the copies get refreshed.</p>
+<p><strong>The gotcha:</strong> normalize first, denormalize later with evidence. Premature denormalization sprinkles duplicate fields everywhere &ldquo;for speed,&rdquo; and you spend the rest of the project fixing consistency bugs where the copies disagree. Start correct and single-sourced; duplicate only the specific fields feeding a proven-hot read path.</p>
+<hr>
+<h2 id="replication-read-scale-and-availability-with-a-catch">Replication: read scale and availability, with a catch</h2>
+<p>Replication keeps copies of your data on multiple machines, for two reasons: <strong>availability</strong> (a replica takes over if the primary dies) and <strong>read scale</strong> (spread reads across copies). Three topologies exist, differing in where writes are allowed.</p>
+<p><strong>Leader-follower</strong> (primary-replica, single-leader) is the common case: one node accepts all writes and streams its change log to read-only followers. Postgres streaming replication, MySQL replication, and most managed databases default to this. It is simple and gives strong ordering, because a single node decides the order of all writes. The limit is write throughput — one leader — and failover, where promoting a follower after the leader dies needs care to avoid split-brain.</p>
+<p><strong>Multi-leader</strong> allows writes on more than one node, typically one leader per region so each writes locally. It improves write availability and local latency but introduces <strong>conflicts</strong>: two leaders can edit the same row concurrently, so you need a reconciliation rule — last-write-wins, application merge, CRDTs. Use it when geographic write locality genuinely matters and you can tolerate that.</p>
+<p><strong>Leaderless</strong> (Dynamo-style, as in Cassandra and DynamoDB) drops the leader entirely: clients write to several replicas and read from several, using quorums to decide what is current. If you write to <code>W</code> replicas and read from <code>R</code> out of <code>N</code>, and <code>W + R &gt; N</code>, a read overlaps a recent write and sees it. This buys excellent availability and tunable consistency, at the cost of client-side complexity and repair mechanisms that converge divergent replicas.</p>
+<p>Whatever the topology, replication is asynchronous by default, which means <strong>replication lag</strong>: a follower runs some milliseconds — or, under load, seconds — behind the leader. Write a value, immediately read it from a lagging follower, and you may not see your own write.</p>
+<p><strong>The gotcha:</strong> replication gives you read scale and high availability, but the lag means followers serve <em>stale reads</em>. That is not a bug to fix; it is a consistency choice you make, often implicitly, the moment you route reads to replicas. Whether &ldquo;read your own writes,&rdquo; &ldquo;monotonic reads,&rdquo; or &ldquo;eventual is fine&rdquo; is acceptable is a business decision — and exactly the subject of the next post in this series on consistency models. Decide it on purpose, not by accident of your connection pool.</p>
+<hr>
+<h2 id="partitioning-and-sharding-the-highest-stakes-decision">Partitioning and sharding: the highest-stakes decision</h2>
+<p>Replication copies the whole dataset to each node. <strong>Partitioning</strong> (sharding) splits it so each node holds only a slice. You shard when one machine can no longer hold the data or serve the write volume — no replica helps, because every replica still holds everything. The decisive question is: how do you split the rows? That choice is the <em>shard key</em>.</p>
+<p><strong>Range partitioning</strong> splits by contiguous key ranges — users A–F on shard 1, G–M on shard 2. Range scans within a partition stay efficient because related keys sit together. The danger is hotspots: if the key is a timestamp, all of <em>today&rsquo;s</em> writes land on the newest partition while the rest idle. Bigtable and HBase partition by key range and manage this by splitting hot ranges.</p>
+<p><strong>Hash partitioning</strong> runs the key through a hash and assigns by the result, scattering rows evenly — what Cassandra and DynamoDB do by default (via a partition key). The trade-off is you lose efficient range scans: adjacent keys land on different nodes, so &ldquo;give me all records between X and Y&rdquo; becomes a scatter-gather across every shard.</p>
+<p>Choosing the shard key is where systems live or die. A good key spreads both <strong>data and load</strong> evenly and keeps the queries you run most on a single shard. A poor key creates a <strong>hot shard</strong> — one node drowning while the others idle — usually from low cardinality (sharding orders by <code>country</code> when 60% are one country) or a skewed access pattern (sharding by <code>celebrity_user_id</code> when one account gets millions of reads). Skew, not average load, is what pages you at 3 a.m.</p>
+<p>And here is the part people underestimate: <strong>resharding is brutal.</strong> Changing the shard key, or splitting one shard into two, means moving enormous volumes of live data while still serving traffic, often via a dual-write-and-backfill migration that runs for weeks with no clean rollback. Consistent hashing (Dynamo-style) makes <em>adding nodes</em> far less painful by moving only a fraction of keys — but changing the shard <em>key itself</em> is still a migration from scratch.</p>
+<p><strong>The gotcha:</strong> the shard key is the highest-stakes decision in your data layer, and the wrong one is extraordinarily expensive to change later. Choose it for the access pattern you will have at scale, not at launch: prefer a high-cardinality key that colocates your dominant query, and model your top few queries against candidate keys on paper <em>before</em> you commit. If two query patterns genuinely conflict, that tension is a signal to reconsider the whole storage choice, not to pick a key and hope.</p>
+<hr>
+<h2 id="transactions-acid-and-why-distributed-breaks-it">Transactions: ACID, and why &ldquo;distributed&rdquo; breaks it</h2>
+<p>A transaction groups operations so they succeed or fail together. The classic guarantee is <strong>ACID</strong>:</p>
+<ul>
+<li><strong>Atomicity</strong> — all operations commit or none do; no half-applied transfer.</li>
+<li><strong>Consistency</strong> — the transaction moves the database from one valid state to another, respecting constraints.</li>
+<li><strong>Isolation</strong> — concurrent transactions do not step on each other; the result is as if they ran in some serial order (weaker isolation levels trade strictness for concurrency).</li>
+<li><strong>Durability</strong> — once committed, it survives a crash.</li>
+</ul>
+<p>A single-node relational database gives you all four almost for free — a large part of why relational systems remain the sane default. The trouble starts when a transaction must span multiple nodes or services: two shards, or a database plus a message queue.</p>
+<p>The textbook cross-node answer is <strong>two-phase commit (2PC)</strong>: a coordinator asks every participant to <em>prepare</em> (promise they can commit), and only if all say yes does it tell them to <em>commit</em>. It is correct, but costly. Participants hold locks from prepare until commit, so throughput suffers under contention, and the coordinator is a failure point — if it dies after prepare, participants are stuck holding locks, uncertain whether to commit or abort (&ldquo;in-doubt&rdquo;). It works, but it does not scale gracefully, which is why high-throughput systems avoid it.</p>
+<p>The common alternative is the <strong>saga</strong>: instead of one atomic distributed transaction, model the workflow as a sequence of <em>local</em> transactions, each with a compensating action that undoes it. Book the flight, charge the card, reserve the hotel — and if the hotel step fails, run compensations to refund the card and cancel the flight. Sagas give you availability and loose coupling, but they surrender isolation: intermediate states are visible (the card was briefly charged), and you must design every compensation, including the awkward cases where an action cannot be cleanly undone. You trade a strong guarantee for a workable one.</p>
+<table><caption class="sr-only">Transactions: ACID, and why &ldquo;distributed&rdquo; breaks it</caption>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Guarantee</th>
+<th>Cost / trade-off</th>
+<th>Fits</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Single-node ACID</td>
+<td>Full ACID</td>
+<td>Bounded by one machine</td>
+<td>Default; most OLTP</td>
+</tr>
+<tr>
+<td>Two-phase commit</td>
+<td>Atomic across nodes</td>
+<td>Locks held across phases; coordinator is a failure point</td>
+<td>Few participants, low contention</td>
+</tr>
+<tr>
+<td>Saga</td>
+<td>Eventual, per-step atomic</td>
+<td>No isolation; must write compensations</td>
+<td>Long, cross-service workflows</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The gotcha:</strong> distributed transactions are hard because atomicity across independent machines fights availability — the more nodes that must agree synchronously, the more ways the whole thing stalls or fails. Keep data that must change together on the <em>same</em> node whenever you can (another argument for a well-chosen shard key), so a plain local transaction covers it. Reach for 2PC only with few participants and low contention, and for sagas when a workflow genuinely spans services and you can define clean compensations.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Pick the database by access pattern, not popularity.</strong> Write down your top queries, read/write ratio, and consistency needs first; relational-with-JSON covers most systems, and NoSQL must earn its place by a specific pattern.</li>
+<li><strong>Every index is a bargain.</strong> It speeds some reads but taxes every write and costs storage — index the queries you run, use composite and covering indexes deliberately, and drop what nothing uses.</li>
+<li><strong>Normalize first, denormalize with evidence.</strong> Single-source your data for correctness; duplicate only the fields feeding a measured, hot read path, and own the sync.</li>
+<li><strong>Replication buys read scale and availability — and lag.</strong> Stale reads from followers are a consistency choice, not a bug; decide it on purpose (see the next post).</li>
+<li><strong>The shard key is the decision that outlives everything.</strong> Choose for scale-era load, avoid low-cardinality and skewed keys, and remember resharding is a weeks-long migration with no clean undo.</li>
+<li><strong>Keep data that changes together on one node.</strong> Local ACID beats 2PC&rsquo;s locks and sagas&rsquo; lost isolation whenever your data layout allows it.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://www.postgresql.org/docs/current/indexes.html">PostgreSQL Documentation: Indexes</a> — the authoritative reference on B-tree, hash, and other index types, plus index-only scans.</li>
+<li><a href="https://www.postgresql.org/docs/current/ddl-partitioning.html">PostgreSQL Documentation: Data Partitioning</a> — range and hash partitioning in a relational engine, from the source.</li>
+<li><a href="https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf">Dynamo: Amazon&rsquo;s Highly Available Key-value Store (2007)</a> — the paper behind leaderless replication, consistent hashing, and quorum reads/writes.</li>
+<li><a href="https://research.google/pubs/bigtable-a-distributed-storage-system-for-structured-data/">Bigtable: A Distributed Storage System for Structured Data (2006)</a> — Google&rsquo;s wide-column design and the origin of the SSTable/LSM lineage.</li>
+<li><a href="https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html">Apache Cassandra Documentation: Storage Engine</a> — memtables, SSTables, and compaction: LSM-trees in a production engine.</li>
+<li><a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.Partitions.html">Amazon DynamoDB Developer Guide: Partitions and Data Distribution</a> — how partition keys map to storage and why key choice governs hot partitions.</li>
+<li><a href="https://www.cs.umb.edu/~poneil/lsmtree.pdf">The Log-Structured Merge-Tree (O&rsquo;Neil et al., 1996)</a> — the original LSM-tree paper explaining the write-optimized structure.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/system-design-08-designing-a-system-end-to-end.html">Designing a System End to End</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/system-design-03-caching.html">Caching</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/system-design-02-scaling-fundamentals.html">Scaling Fundamentals</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

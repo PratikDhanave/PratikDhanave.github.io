@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Scaling Fundamentals — Pratik Dhanave</title>
+<meta name="description" content="How systems grow: vertical vs horizontal scaling, statelessness as the enabler of horizontal scale, load balancing (L4/L7, consistent hashing),...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Scaling Fundamentals — Pratik Dhanave">
+<meta property="og:description" content="How systems grow: vertical vs horizontal scaling, statelessness as the enabler of horizontal scale, load balancing (L4/L7, consistent hashing), read/write scaling with replicas — and knowing when not to scale.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/system-design-02-scaling-fundamentals.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-08T00:00:00Z">
+<meta property="article:tag" content="System Design">
+<meta property="article:tag" content="Scalability">
+<meta property="article:tag" content="Load Balancing">
+<meta property="article:tag" content="Architecture">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Scaling Fundamentals — Pratik Dhanave">
+<meta name="twitter:description" content="How systems grow: vertical vs horizontal scaling, statelessness as the enabler of horizontal scale, load balancing (L4/L7, consistent hashing), read/write scaling with replicas — and knowing when not to scale.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/system-design-02-scaling-fundamentals.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Scaling Fundamentals",
+  "description": "How systems grow: vertical vs horizontal scaling, statelessness as the enabler of horizontal scale, load balancing (L4/L7, consistent hashing), read/write scaling with replicas \u2014 and knowing when not to scale.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-08",
+  "dateModified": "2026-08-08",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "System Design, Scalability, Load Balancing, Architecture",
+  "url": "https://pratikdhanave.com/blog/posts/system-design-02-scaling-fundamentals.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/system-design-02-scaling-fundamentals.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Scaling Fundamentals</h1>
+    <p class="post-subtitle">How systems grow under load — vertical vs horizontal scaling, why statelessness is the real enabler, load balancing from L4 to L7, consistent hashing, read/write scaling, the scale cube, and when the honest answer is &quot;don&#x27;t scale yet.&quot;</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-08">August 08, 2026</time>
+      <span>·</span>
+      <span>15 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a><a href="/blog/tags/scalability/" class="tag-link"><span class="tag">#Scalability</span></a><a href="/blog/tags/load-balancing/" class="tag-link"><span class="tag">#Load Balancing</span></a><a href="/blog/tags/architecture/" class="tag-link"><span class="tag">#Architecture</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 2 of 8</span>
+    <span class="series-title">System Design Fundamentals</span>
+    <div class="series-nav"><a href="/blog/posts/system-design-01-how-to-approach-system-design.html" class="series-prev">&larr; Part 1: How to Approach System Design</a>
+<a href="/blog/posts/system-design-03-caching.html" class="series-next">Part 3: Caching &rarr;</a></div>
+  </div>
+
+
+
+  <p>Scaling is the art of serving more work without the system falling over. That &ldquo;more&rdquo; can be requests per second, concurrent users, data volume, or geographic spread — and each pulls in a slightly different direction. The instinct is to reach for a bigger machine or more machines, but the interesting decisions happen <em>before</em> that: what has to be true about your service so that adding capacity actually helps. This post walks the fundamentals — the two axes of scaling, the property that makes one of them possible, and the routing layer that ties it together — while being honest about the failure modes each choice drags in.</p>
+<p>Every technique here is a trade. There is no free capacity; you are always exchanging simplicity for headroom, or consistency for throughput. The goal is to know <em>which</em> trade you are making, on purpose.</p>
+<hr>
+<h2 id="two-axes-scaling-up-vs-scaling-out">Two axes: scaling up vs scaling out</h2>
+<p>There are exactly two ways to add capacity, and everything else is a refinement of one of them.</p>
+<p><strong>Vertical scaling (scale up)</strong> means making one machine more powerful — more CPU cores, more RAM, faster disks. Your code and topology don&rsquo;t change; the box just gets bigger. It is the least disruptive option and, for a huge range of workloads, the correct first move.</p>
+<p><strong>Horizontal scaling (scale out)</strong> means adding more machines and spreading the work across them. Instead of one 64-core box, you run eight 8-core boxes behind a load balancer.</p>
+<pre><code class="language-text">   Vertical (scale up)              Horizontal (scale out)
+
+      +-----------+              +------+  +------+  +------+
+      |           |              | node |  | node |  | node |
+      |  bigger   |              +------+  +------+  +------+
+      |    box    |                  \        |        /
+      |           |                   \       |       /
+      +-----------+                    +--------------+
+                                       | load balancer|
+                                       +--------------+
+</code></pre>
+<p>Vertical scaling is limited by physics and economics. There is a largest machine you can buy, and the price curve bends sharply upward near the top — the last increment of capacity on a single box costs far more than the first. You also inherit a single point of failure: one box, one fate. When it reboots, everyone waits.</p>
+<p>Horizontal scaling has no such ceiling in principle — you keep adding commodity nodes — and it lets you tolerate the loss of any single node. That is why, past a certain point, horizontal wins: it is the only path to both very high capacity and high availability at a sane cost.</p>
+<p><strong>The gotcha:</strong> horizontal scaling is not free capacity you flip on. It introduces coordination, network partitions, partial failures, and the need for a routing layer — a whole class of problems a single box never has. Vertical scaling stays <em>simple</em>; horizontal scaling buys <em>headroom and resilience</em> at the cost of distributed-systems complexity. Reach for out only when up runs out.</p>
+<hr>
+<h2 id="statelessness-the-property-that-makes-scale-out-work">Statelessness: the property that makes scale-out work</h2>
+<p>Here is the fact that surprises people: adding more nodes only helps if <strong>any node can serve any request</strong>. The moment a request <em>must</em> land on one specific node — because that node is holding data the request needs — your fleet stops being interchangeable and horizontal scaling quietly breaks.</p>
+<p>A <strong>stateless</strong> service keeps no client-specific state in the node&rsquo;s own memory between requests. Everything the request needs is either carried in the request itself or fetched from a shared backing store. The node is a pure function: request in, response out, nothing remembered.</p>
+<pre><code class="language-text">   Stateful node (bad for scale-out)     Stateless node (good)
+
+   request --&gt; [ node holds your        request --&gt; [ node ] --+
+                 session in RAM ]                    [ node ] --+--&gt; shared
+                 you're stuck here                   [ node ] --+    store
+                                                                    (session/
+                                                                     cache/DB)
+</code></pre>
+<p>The move is to <strong>externalize state</strong>: push sessions, carts, and progress into a shared store — a cache like Redis, a database, or a signed token the client carries (a JWT-style cookie). Now every node sees the same truth, so the load balancer can send request N+1 to a different node than request N without anyone noticing.</p>
+<p>The classic anti-pattern is the <strong>sticky session</strong> (session affinity): the load balancer pins each client to the node that first served them, because that node holds their session in local memory. It works — until it doesn&rsquo;t. When that node dies, everyone pinned to it loses their session. When you add nodes, the new ones sit idle while old ones stay hot, because existing users are glued elsewhere. During a deploy, draining a node logs its users out.</p>
+<p><strong>The gotcha:</strong> horizontal scaling only works if the service is stateless, or its state is externalized to a shared store. Sticky sessions <em>look</em> like they solve the problem, but they re-couple a client to a specific node — reintroducing the single-point-of-failure and uneven-load problems you scaled out to escape. Use affinity as a stopgap, not an architecture; the real fix is to get the state out of the node.</p>
+<hr>
+<h2 id="load-balancing-the-front-door-to-a-fleet">Load balancing: the front door to a fleet</h2>
+<p>Once you have many interchangeable nodes, something has to decide which node each request goes to. That is the <strong>load balancer</strong> (LB). It presents a single address to the world and fans traffic across the pool behind it, removing dead nodes and rebalancing as the fleet changes.</p>
+<h3 id="l4-vs-l7">L4 vs L7</h3>
+<p>Load balancers operate at one of two layers, and the difference is how much they understand about the traffic.</p>
+<p>An <strong>L4 (transport-layer)</strong> balancer routes on IP addresses and TCP/UDP ports. It doesn&rsquo;t parse the payload — it just forwards connections. This makes it extremely fast and protocol-agnostic, but it can&rsquo;t make decisions based on request content.</p>
+<p>An <strong>L7 (application-layer)</strong> balancer terminates the connection and reads the actual request — HTTP method, path, headers, cookies. That lets it route <code>/api/</code> to one pool and <code>/images/</code> to another, retry failed requests, terminate TLS, and rewrite headers. It does more work per request, so it costs more CPU, but it enables far richer routing.</p>
+<pre><code class="language-text">   L4: routes on IP:port           L7: routes on request content
+
+   conn --&gt; [ pick a node ]        GET /api/users --&gt; [ api pool ]
+            no idea what's         GET /img/logo  --&gt; [ static pool ]
+            inside the bytes       reads method/path/headers/cookies
+</code></pre>
+<p>A common pattern is both: a fast L4 layer at the edge for raw throughput and DDoS absorption, feeding L7 balancers that do the smart routing.</p>
+<h3 id="balancing-algorithms">Balancing algorithms</h3>
+<p>The LB needs a rule for picking a node:</p>
+<ul>
+<li><strong>Round-robin</strong> — hand requests to nodes in rotation. Simple and fair when every request costs about the same and every node is identical.</li>
+<li><strong>Least-connections</strong> — send the next request to the node with the fewest active connections. Better when request durations vary wildly, because it naturally avoids piling long requests onto a busy node.</li>
+<li><strong>Consistent hashing</strong> — hash a key (client IP, user ID, cache key) to a point on a ring and route to the next node clockwise. This makes routing <em>stable</em>: the same key keeps landing on the same node even as the pool changes.</li>
+</ul>
+<h3 id="health-checks">Health checks</h3>
+<p>None of this matters if the LB keeps sending traffic to a dead node. <strong>Health checks</strong> are periodic probes — a TCP connect, or an L7 <code>GET /healthz</code> — that mark a node in or out of rotation. A good health endpoint checks the node&rsquo;s real dependencies (can it reach the database?), not just &ldquo;is the process alive,&rdquo; so a node that can&rsquo;t actually serve requests gets pulled before users hit it.</p>
+<p><strong>The gotcha:</strong> the load balancer you added to remove the single point of failure <em>is itself</em> a single point of failure until you make it redundant. Run at least two LBs with automatic failover (a floating/virtual IP, DNS failover, or a managed LB that&rsquo;s replicated across zones for you). A single LB in front of a hundred healthy nodes still means one bad box takes the whole site down.</p>
+<hr>
+<h2 id="why-consistent-hashing-matters">Why consistent hashing matters</h2>
+<p>Suppose you have a cache spread across N nodes and you pick the node for a key with <code>hash(key) % N</code>. It works perfectly — until N changes. Add or remove a single node and <code>% N</code> becomes <code>% (N+1)</code>, which remaps <em>almost every key</em> to a different node. For a cache, that means a near-total miss storm: every lookup misses, everything stampedes the database at once, and the &ldquo;small&rdquo; act of adding one node can knock the system over.</p>
+<p><strong>Consistent hashing</strong> fixes this. Instead of mapping keys directly to node indices, you map both keys and nodes onto the same abstract ring (say, 0 to 2³²−1). A key is served by the first node found walking clockwise from the key&rsquo;s position. When a node joins or leaves, only the keys between it and its neighbor move — roughly <code>1/N</code> of the keys — instead of all of them.</p>
+<pre><code class="language-text">   modulo hashing, N: 4 -&gt; 5        consistent hashing, node added
+   ~100% of keys remap             only ~1/N of keys move
+
+   key -&gt; hash % 4  ==&gt; node 2     ring:  A ....... B ..X.. C ..... A
+   key -&gt; hash % 5  ==&gt; node 0            adding X steals only the
+   (moved for almost every key)           slice just before it
+</code></pre>
+<p>Real implementations add <strong>virtual nodes</strong>: each physical node is placed at many points on the ring, which smooths out the otherwise lumpy distribution and lets you weight bigger nodes with more points. This is the backbone of distributed caches and of <strong>sharding</strong> — deciding which partition owns which data — precisely because it keeps data movement proportional to the change, not catastrophic.</p>
+<p><strong>The gotcha:</strong> consistent hashing minimizes reshuffling when nodes change; naive <code>hash % N</code> remaps almost everything and triggers a cache stampede on the very node event (a scale-up or a node failure) you were trying to survive. Any time routing decisions must stay stable across a changing pool — caches, shards, session stores — consistent hashing (with virtual nodes) is the default, not an optimization.</p>
+<hr>
+<h2 id="read-scaling-vs-write-scaling">Read scaling vs write scaling</h2>
+<p>Not all load is symmetric. Most systems read far more than they write, and the two scale very differently.</p>
+<p><strong>Reads</strong> scale out gracefully. Add <strong>read replicas</strong> — copies of the database that receive a stream of changes from the primary — and fan read queries across them. Ten replicas, roughly ten times the read throughput. Because reads don&rsquo;t mutate anything, spreading them is safe.</p>
+<pre><code class="language-text">                 writes
+   client ----------------&gt; [ PRIMARY ] --replication--&gt; [ replica 1 ]
+   client --reads--&gt;  &lt;----                          --&gt; [ replica 2 ]
+                      any replica                     --&gt; [ replica 3 ]
+</code></pre>
+<p><strong>Writes</strong> are the hard part. Every write must ultimately be reconciled into a single authoritative copy so the data stays correct — you can&rsquo;t have two nodes independently deciding the balance of the same account. That funnels writes through a bottleneck (a primary), and adding read replicas does <em>nothing</em> to relieve it. Getting past the write ceiling means partitioning the data so different keys live on different primaries (sharding), which we foreshadow here and take up properly in the databases post.</p>
+<p><strong>The gotcha:</strong> scaling reads with replicas introduces <strong>replication lag</strong> — a replica is always a little behind the primary, so a read right after a write can return stale data (&ldquo;I just changed my name, why does it still show the old one?&rdquo;). This is a consistency problem, not a free win: you&rsquo;ve traded read throughput for the guarantee that every read reflects the latest write. Route reads that must be current back to the primary (read-your-writes), and accept eventual consistency only where the app can tolerate it. We dig into consistency models in a later post.</p>
+<hr>
+<h2 id="stateless-vs-stateful-services">Stateless vs stateful services</h2>
+<p>It&rsquo;s worth naming the distinction directly, because real systems are a mix.</p>
+<p><strong>Stateless services</strong> — API servers, web front-ends, workers that pull from a queue — are the easy case. Scale them out freely, replace nodes at will, deploy by rolling nodes in and out. They hold no truth that would be lost when a node dies.</p>
+<p><strong>Stateful services</strong> — databases, caches, message brokers, anything that <em>owns</em> data — can&rsquo;t be treated as interchangeable, because each node holds a distinct slice of reality. Scaling them means replication (for availability) and partitioning (for capacity), plus a story for leader election and failover. This is genuinely harder, which is exactly why the dominant architectural pattern is to <strong>push all the state down into a small number of purpose-built stateful systems</strong> and keep everything in front of them stateless. You concentrate the hard problem so the rest of the fleet stays trivially scalable.</p>
+<hr>
+<h2 id="the-scale-cube-three-independent-axes">The scale cube: three independent axes</h2>
+<p>A useful mental model (popularized in <em>The Art of Scalability</em>) is that you can scale along three independent directions, often visualized as a cube:</p>
+<pre><code class="language-text">        data partitioning (Z)
+              ^
+              |
+              |
+              +--------&gt; horizontal duplication (X)
+             /
+            /
+           v
+    functional decomposition (Y)
+</code></pre>
+<ul>
+<li><strong>X-axis — horizontal duplication.</strong> Run N identical copies behind a load balancer. This is plain scale-out, and it&rsquo;s what everything above has been about. Cheap and effective until a single instance can no longer hold the whole dataset or the whole workload.</li>
+<li><strong>Y-axis — functional decomposition.</strong> Split the system by <em>what it does</em> — separate the payments service from the search service from the notification service. Each can scale, deploy, and fail independently. This is the intuition behind service-oriented and microservice architectures.</li>
+<li><strong>Z-axis — data partitioning (sharding).</strong> Split by <em>which data</em> — users A–M on one shard, N–Z on another, or partition by region. Each shard handles a slice of the data and traffic, which is how you finally get past the write bottleneck.</li>
+</ul>
+<p>You rarely pick just one. A mature system duplicates stateless services (X), splits along team and domain boundaries (Y), and shards the data that outgrew a single primary (Z) — usually in that order of adoption, because each step adds operational cost.</p>
+<hr>
+<h2 id="knowing-when-not-to-scale">Knowing when <em>not</em> to scale</h2>
+<p>The most valuable scaling skill is restraint. Every step toward distribution adds failure modes: network calls that time out, caches that go stale, replicas that lag, coordination that deadlocks, and the operational burden of running it all. A single big box has <em>none</em> of these — when it&rsquo;s up, it&rsquo;s simply correct.</p>
+<p>Modern hardware is enormous. A single server with tens of cores and hundreds of gigabytes of RAM can serve a very large amount of traffic and hold a surprisingly big dataset entirely in memory. Many teams distribute prematurely, chasing a scale they don&rsquo;t have, and end up with a system that is both slower (network hops everywhere) and less reliable (more moving parts) than the monolith it replaced — while spending their engineering time debugging distributed failures instead of shipping features.</p>
+<p>The disciplined path:</p>
+<ul>
+<li><strong>Measure before you scale.</strong> Find the actual bottleneck with profiling and load tests. It&rsquo;s often a missing index or an N+1 query, not a lack of machines — and no amount of horizontal scaling fixes a slow query, it just multiplies it.</li>
+<li><strong>Scale up first.</strong> A bigger box buys time with near-zero added complexity. Use that time to fix the real bottleneck.</li>
+<li><strong>Make it stateless early.</strong> This is the one piece of &ldquo;scaling&rdquo; work worth doing <em>before</em> you need it, because it&rsquo;s cheap to design in and painful to retrofit. Externalizing state keeps the door to horizontal scaling open without forcing you through it.</li>
+<li><strong>Scale out when up runs out</strong> — when you&rsquo;ve hit the machine ceiling, or when availability (surviving a node loss) demands more than one node regardless of load.</li>
+</ul>
+<p><strong>The gotcha:</strong> premature distribution adds failure modes without adding value. A single well-provisioned box is fine far longer than architecture-astronaut instinct suggests, and it&rsquo;s dramatically easier to reason about, debug, and operate. Scale out because the numbers force you to, not because distributed systems feel more serious.</p>
+<hr>
+<h2 id="choosing-your-scaling-move">Choosing your scaling move</h2>
+<table><caption class="sr-only">Choosing your scaling move</caption>
+<thead>
+<tr>
+<th>Situation</th>
+<th>First move</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Traffic rising, one box coping</td>
+<td>Scale up (bigger box)</td>
+<td>Simplest, no new failure modes</td>
+</tr>
+<tr>
+<td>Need to survive a node failure</td>
+<td>Scale out (≥2 nodes + LB)</td>
+<td>Availability, not just capacity</td>
+</tr>
+<tr>
+<td>Sessions pinned to nodes</td>
+<td>Externalize state, drop stickiness</td>
+<td>Makes nodes interchangeable</td>
+</tr>
+<tr>
+<td>Read-heavy, primary strained on reads</td>
+<td>Add read replicas</td>
+<td>Reads fan out cheaply</td>
+</tr>
+<tr>
+<td>Write throughput maxed out</td>
+<td>Shard (Z-axis)</td>
+<td>Only way past the write bottleneck</td>
+</tr>
+<tr>
+<td>Cache/shard pool changing</td>
+<td>Consistent hashing + vnodes</td>
+<td>Minimizes key reshuffling</td>
+</tr>
+<tr>
+<td>Growing team, tangled monolith</td>
+<td>Functional split (Y-axis)</td>
+<td>Independent scaling and deploys</td>
+</tr>
+<tr>
+<td>Not sure where the limit is</td>
+<td>Measure first</td>
+<td>The bottleneck is rarely &ldquo;more boxes&rdquo;</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Two axes, one preference.</strong> Scale <em>up</em> for simplicity, scale <em>out</em> for headroom and resilience. Up is the right first move; out is the only path past the single-box ceiling.</li>
+<li><strong>Statelessness is the enabler.</strong> Horizontal scaling works only when any node can serve any request — externalize state, and treat sticky sessions as a stopgap that quietly re-couples clients to nodes.</li>
+<li><strong>The load balancer is critical infrastructure.</strong> Choose L4 for raw speed, L7 for content-aware routing; pick an algorithm that fits your traffic; health-check real dependencies; and never run just one LB.</li>
+<li><strong>Consistent hashing keeps routing stable.</strong> Naive modulo hashing remaps almost everything when the pool changes; consistent hashing (with virtual nodes) moves only ~1/N of the keys — essential for caches and shards.</li>
+<li><strong>Reads and writes scale differently.</strong> Replicas fan reads out but introduce replication lag (stale reads); writes bottleneck on the primary until you shard.</li>
+<li><strong>Scale deliberately.</strong> The scale cube (duplicate, decompose, partition) shows your options, but a single big box is fine longer than you think — measure, scale up, stay stateless, and only then scale out.</li>
+</ul>
+<p>The through-line: adding capacity is easy; keeping the system <em>correct</em> while you add it is the real work. Statelessness, stable routing, and honest measurement are what make growth boring — which is exactly what you want. The next posts take up the pieces this one foreshadowed: databases and sharding, then the consistency models that decide how stale a read is allowed to be.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://www.cs.princeton.edu/courses/archive/fall09/cos518/papers/chash.pdf">Consistent Hashing and Random Trees (Karger et al., 1997)</a> — the original paper that introduced consistent hashing for distributed caching.</li>
+<li><a href="https://sre.google/sre-book/load-balancing-frontend/">Google SRE Book — Load Balancing at the Frontend</a> and <a href="https://sre.google/sre-book/handling-overload/">Handling Overload</a> — how Google reasons about distributing traffic and shedding load.</li>
+<li><a href="https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/">NGINX — HTTP Load Balancing guide</a> — round-robin, least-connections, and hash-based methods explained with real config.</li>
+<li><a href="https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/overview">Envoy — Load Balancing architecture overview</a> — L7 balancing, health checking, and the algorithms in a modern proxy.</li>
+<li><a href="https://aws.amazon.com/elasticloadbalancing/features/">AWS — Elastic Load Balancing product comparison</a> — the practical distinction between L4 (Network Load Balancer) and L7 (Application Load Balancer).</li>
+<li><a href="https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf">Amazon DynamoDB paper (Dynamo, 2007)</a> — consistent hashing with virtual nodes and replication applied at production scale.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/system-design-08-designing-a-system-end-to-end.html">Designing a System End to End</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/system-design-01-how-to-approach-system-design.html">How to Approach System Design</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/system-design-04-databases-and-storage.html">Databases and Storage</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Consistency, Availability, and Consensus — Pratik Dhanave</title>
+<meta name="description" content="The theory that governs distributed data, stated correctly: CAP as a partition-time choice (not pick-2-of-3), PACELC, the consistency spectrum with...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Consistency, Availability, and Consensus — Pratik Dhanave">
+<meta property="og:description" content="The theory that governs distributed data, stated correctly: CAP as a partition-time choice (not pick-2-of-3), PACELC, the consistency spectrum with what-the-user-sees examples, quorums, and consensus/Raft at an intuition level.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/system-design-05-consistency-availability-consensus.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-11T00:00:00Z">
+<meta property="article:tag" content="System Design">
+<meta property="article:tag" content="Distributed Systems">
+<meta property="article:tag" content="Consistency">
+<meta property="article:tag" content="Consensus">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Consistency, Availability, and Consensus — Pratik Dhanave">
+<meta name="twitter:description" content="The theory that governs distributed data, stated correctly: CAP as a partition-time choice (not pick-2-of-3), PACELC, the consistency spectrum with what-the-user-sees examples, quorums, and consensus/Raft at an intuition level.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/system-design-05-consistency-availability-consensus.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Consistency, Availability, and Consensus",
+  "description": "The theory that governs distributed data, stated correctly: CAP as a partition-time choice (not pick-2-of-3), PACELC, the consistency spectrum with what-the-user-sees examples, quorums, and consensus/Raft at an intuition level.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-11",
+  "dateModified": "2026-08-11",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "System Design, Distributed Systems, Consistency, Consensus",
+  "url": "https://pratikdhanave.com/blog/posts/system-design-05-consistency-availability-consensus.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/system-design-05-consistency-availability-consensus.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Consistency, Availability, and Consensus</h1>
+    <p class="post-subtitle">The theory that governs distributed data, made practical — CAP stated correctly, PACELC, the full consistency spectrum with &quot;what the user sees&quot; examples, quorums, and Raft-style consensus without the proofs.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-11">August 11, 2026</time>
+      <span>·</span>
+      <span>15 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/consistency/" class="tag-link"><span class="tag">#Consistency</span></a><a href="/blog/tags/consensus/" class="tag-link"><span class="tag">#Consensus</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 5 of 8</span>
+    <span class="series-title">System Design Fundamentals</span>
+    <div class="series-nav"><a href="/blog/posts/system-design-04-databases-and-storage.html" class="series-prev">&larr; Part 4: Databases and Storage</a>
+<a href="/blog/posts/system-design-06-asynchronous-processing.html" class="series-next">Part 6: Asynchronous Processing and Messaging &rarr;</a></div>
+  </div>
+
+
+
+  <p>The previous posts in the System Design Fundamentals series left you with a loose thread. Post 2 added read replicas to scale reads and warned that a follower lags the primary, so a read right after a write can return stale data. Post 4 made replication a first-class decision and named the same problem — replication lag — then said the honest answer to &ldquo;is stale OK?&rdquo; is a business decision we would take up here. This is that post.</p>
+<p>Once your data lives on more than one machine, you cannot have everything. You cannot have every read see the latest write, and always get an answer, and survive the network breaking, all at once. The theorems below are not academic trivia — they are the rules that decide, for every single operation your system serves, what a user is allowed to observe. The goal here is to state those rules correctly (the popular versions are wrong in ways that lead to bad designs) and turn them into choices you make on purpose.</p>
+<hr>
+<h2 id="cap-stated-correctly">CAP, stated correctly</h2>
+<p>The CAP theorem is the most cited and most misquoted result in distributed systems. The folklore version — &ldquo;pick two of three: Consistency, Availability, Partition tolerance&rdquo; — is misleading enough to cause real design mistakes. Here is what Brewer&rsquo;s result actually says.</p>
+<p>The three letters are:</p>
+<ul>
+<li><strong>C (consistency)</strong> — here it means <em>linearizability</em>: every read sees the most recent write, as if there were a single copy of the data. (Note this is a different &ldquo;C&rdquo; from the ACID one in transactions.)</li>
+<li><strong>A (availability)</strong> — every request to a non-failed node gets a non-error response.</li>
+<li><strong>P (partition tolerance)</strong> — the system keeps working when the network drops or delays messages between nodes.</li>
+</ul>
+<p>The correct reading is conditional, not a menu. A <strong>network partition</strong> — some nodes cannot talk to others — is not a design option you can decline. Packets get lost, switches fail, a data center link flaps. Partitions <em>will</em> happen. So P is not really on the table to trade away. The real theorem is:</p>
+<blockquote>
+<p><strong>When a partition occurs, you must choose between C and A. You cannot have both.</strong></p>
+</blockquote>
+<p>Picture two replicas that can no longer reach each other, and a write arrives at one of them:</p>
+<pre><code class="language-text">   write &quot;x = 2&quot;
+        |
+        v
+   [ replica A ]   X---network partition---X   [ replica B ]
+   (has x = 2)                                  (still has x = 1)
+        |                                            |
+   a reader hits B and asks for x. Now what?
+        |
+   +----+---------------------------------------+
+   |                                            |
+  choose C:                                  choose A:
+  B refuses / blocks — it can't confirm      B answers x = 1 —
+  it has the latest value. No stale reads,   stays up, but returns
+  but B is now unavailable.                  a STALE value.
+</code></pre>
+<p>B has two options and only two. It can refuse to answer until it reconnects and confirms it has the newest value (<strong>CP</strong> — consistent, but unavailable during the partition). Or it can answer with the value it has, which might be stale (<strong>AP</strong> — available, but not consistent). There is no third door.</p>
+<p><strong>The gotcha:</strong> &ldquo;CA&rdquo; — consistent <em>and</em> available while giving up partition tolerance — is not a real runtime choice. You do not get to opt out of partitions; the network decides that for you. A single-node database is trivially &ldquo;CA&rdquo; only because it has no network between replicas to partition — the moment you replicate for availability (post 2&rsquo;s whole premise), P is forced on you and the C-vs-A choice is real. So when someone says &ldquo;we picked CA,&rdquo; what they actually have is a system that is neither C nor A when the network breaks — it just has no defined behavior for the case that will eventually happen.</p>
+<p>And crucially: CAP only constrains you <strong>during a partition</strong>. When the network is healthy, you can have both strong consistency and availability. Which is exactly the gap the next theorem fills.</p>
+<hr>
+<h2 id="pacelc-the-trade-off-that-never-goes-away">PACELC: the trade-off that never goes away</h2>
+<p>CAP is silent about normal operation, and normal operation is where your system spends ~99.9% of its life. PACELC (Abadi) extends it to say something about both regimes:</p>
+<blockquote>
+<p><strong>If there is a Partition, choose between Availability and Consistency; Else (normal operation), choose between Latency and Consistency.</strong></p>
+</blockquote>
+<p>The &ldquo;else&rdquo; clause is the important addition. Even with a perfectly healthy network, keeping replicas strongly consistent means a write must be acknowledged by other nodes before it counts, and a read must confirm it is not stale. That coordination costs <strong>round trips</strong> — latency. To make a read guaranteed-fresh, you either send it to the one authoritative node or you contact a majority of nodes and wait for the slowest to reply.</p>
+<p>So the tension is not a rare failure-mode problem; it is a tax you pay on every request. Systems get classified on both axes:</p>
+<table><caption class="sr-only">PACELC: the trade-off that never goes away</caption>
+<thead>
+<tr>
+<th>System</th>
+<th>On Partition</th>
+<th>Else (normal)</th>
+<th>Character</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Default single-leader SQL (sync replica)</td>
+<td>PC</td>
+<td>EC</td>
+<td>Consistency-first, pays latency</td>
+</tr>
+<tr>
+<td>Dynamo-style (Cassandra, defaults)</td>
+<td>PA</td>
+<td>EL</td>
+<td>Availability + low latency, eventual</td>
+</tr>
+<tr>
+<td>A strongly-consistent store (e.g. etcd, Spanner)</td>
+<td>PC</td>
+<td>EC</td>
+<td>Consistency at a latency cost, always</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The gotcha:</strong> teams obsess over the partition case (rare) and forget the &ldquo;else&rdquo; case (constant). If your product needs single-digit-millisecond reads at the edge, strong consistency may be off the table <em>even though the network is fine</em> — not because of CAP, but because of PACELC&rsquo;s latency term. The cost of &ldquo;every read is fresh&rdquo; is paid mostly in latency during the 99.9% when nothing is broken.</p>
+<hr>
+<h2 id="the-consistency-spectrum-what-the-user-actually-sees">The consistency spectrum: what the user actually sees</h2>
+<p>&ldquo;Consistent vs eventual&rdquo; is a false binary. There is a graded spectrum of guarantees, from strongest (and most expensive) to weakest (and cheapest). The only way to reason about them is to ask: <em>what is a user allowed to observe?</em> Here they are, strong to weak.</p>
+<p><strong>Strong / linearizable.</strong> There appears to be a single copy of the data, and every operation takes effect at some instant between its call and its return. Once a write completes, <em>every</em> reader, everywhere, sees it or something newer. What the user sees: you change your display name and hit save; from that instant, every device and every other user sees the new name. Nobody ever sees the old one again. This is the most intuitive model and the most expensive.</p>
+<p><strong>Sequential consistency.</strong> All nodes agree on a single global <em>order</em> of operations, and each process&rsquo;s own operations appear in the order it issued them — but that global order need not match real (wall-clock) time. What the user sees: everyone watching a comment thread sees comments in the same order, and it is a plausible order, but it might not be the exact real-time order in which they were posted.</p>
+<p><strong>Causal consistency.</strong> Operations that are causally related (a reply depends on the message it answers) are seen in that order by everyone; unrelated operations may be seen in different orders on different nodes. What the user sees: nobody ever sees a <em>reply</em> before the <em>message</em> it replies to. But two unrelated posts from strangers might appear in different orders for you and me. This is often the sweet spot — it forbids the nonsensical orderings while staying cheap.</p>
+<p><strong>Read-your-writes.</strong> A weaker, per-user guarantee: after <em>you</em> write something, <em>your</em> subsequent reads see it. Other users may still see the old value for a while. What the user sees: you post a comment, refresh, and your comment is there — even if your friend does not see it for another second. This is exactly the fix for post 2&rsquo;s &ldquo;I changed my name, why does it still show the old one?&rdquo; complaint.</p>
+<p><strong>Monotonic reads.</strong> Once you have seen a value, you will never see an <em>older</em> one on a later read. Time only moves forward for a given reader. What the user sees: you refresh and see 42 likes; a later refresh shows 42 or more, never back down to 41.</p>
+<p><strong>Eventual consistency.</strong> The only promise is that <em>if writes stop, all replicas eventually converge</em> to the same value. Until then, anything goes. What the user sees: a like count that reads 41 on one refresh, 43 on the next, 42 on the next — bouncing around before settling.</p>
+<pre><code class="language-text">STRONGER / costlier                                   WEAKER / cheaper
+  linearizable → sequential → causal → read-your-writes
+                                     → monotonic-reads → eventual
+  &quot;everyone sees                                   &quot;everyone agrees
+   the latest, now&quot;                                 EVENTUALLY, maybe&quot;
+</code></pre>
+<p><strong>The gotcha:</strong> eventual consistency does not just mean &ldquo;a bit stale.&rdquo; Without a <strong>monotonic-reads</strong> guarantee layered on top, a reader can go <em>backwards in time</em> — see the new value, then the old one again on the next request — because two consecutive reads can land on two different replicas that lag by different amounts. That &ldquo;likes count went 43 → 42 → 43&rdquo; flicker is not a UI bug; it is the storage layer showing through. If that is unacceptable, you must ask for monotonic reads explicitly (e.g. by pinning a user&rsquo;s session to one replica).</p>
+<p>The practical punchline: <strong>you rarely pick one model for the whole system.</strong> You pick per operation. A bank ledger&rsquo;s balance is linearizable; the &ldquo;people also viewed&rdquo; widget is eventual; your own profile edits are read-your-writes. Post 4&rsquo;s advice — decide on purpose, not by accident of your connection pool — is exactly this, applied one query at a time.</p>
+<hr>
+<h2 id="quorums-tuning-the-dial-with-r-w-n">Quorums: tuning the dial with R + W &gt; N</h2>
+<p>Post 4 introduced leaderless (Dynamo-style) replication and mentioned the quorum rule. Here is the mechanism, because it is the clearest example of <em>tuning</em> the consistency/availability trade-off with a knob rather than an all-or-nothing switch.</p>
+<p>With <code>N</code> replicas holding each key, you require every write to be acknowledged by <code>W</code> of them and every read to consult <code>R</code> of them. If you choose values so that</p>
+<pre><code class="language-text">   R + W &gt; N
+
+   example: N = 3, W = 2, R = 2
+
+   write &quot;x=2&quot; ── ack ──&gt; [R1: x=2]  [R2: x=2]  [R3: x=1 (missed it)]
+                                \___________/
+                                 W = 2 acks → write succeeds
+
+   read x ── query ──&gt; pick any 2 of 3:
+        if the 2 include R1 or R2, you SEE x=2 (with a version/timestamp
+        you use to discard the stale x=1). R + W &gt; N guarantees the read
+        set and the write set OVERLAP by at least one replica.
+</code></pre>
+<p>Because the read set and the write set must share at least one node (that is what <code>R + W &gt; N</code> forces), every read is guaranteed to touch at least one replica that saw the latest write, and versioning lets it pick the newest value. That gives you strong-ish reads without a leader.</p>
+<p>The knob is which values you pick:</p>
+<ul>
+<li><code>W = N, R = 1</code> — fast reads, slow/fragile writes (a write needs <em>every</em> replica up).</li>
+<li><code>W = 1, R = N</code> — fast writes, slow reads.</li>
+<li><code>W = R = quorum</code> (majority) — balanced; survives one node down out of three.</li>
+</ul>
+<p><strong>The gotcha:</strong> <code>R + W &gt; N</code> buys you overlap, but it is not free and it is not full linearizability. Every read and every write now needs a <em>majority</em> to respond, so a single slow or down replica raises tail latency (you wait for the quorum) and, if enough nodes are unreachable, requests <em>fail</em> — you have traded away some availability for the freshness guarantee. Turning the dial toward consistency always turns it away from latency and availability; there is no setting that gives you all three. (And subtle races — a write seen by the read quorum but not yet by a majority — mean quorums approximate strong consistency rather than perfectly guaranteeing it.)</p>
+<hr>
+<h2 id="consensus-agreeing-on-one-value-despite-failures">Consensus: agreeing on one value despite failures</h2>
+<p>Quorums handle &ldquo;what is the current value of this key.&rdquo; A harder problem sits underneath much of distributed systems: getting a set of machines to <strong>agree on a single value</strong> — a decision, a leader, an ordering — even when some of them crash or messages are lost. That is <strong>consensus</strong>.</p>
+<p>You need it whenever the answer has to be <em>one thing</em> that everybody honors:</p>
+<ul>
+<li><strong>Who is the leader?</strong> (single-leader replication must elect one, and exactly one, after the old one dies — otherwise you get split-brain, two primaries accepting conflicting writes).</li>
+<li><strong>What is the order of these operations?</strong> (a replicated log where every node must apply the same commands in the same sequence).</li>
+<li><strong>Did this distributed transaction commit or abort?</strong> (everyone must reach the same verdict).</li>
+<li><strong>What is the current config / who owns this lock?</strong></li>
+</ul>
+<p>The foundational algorithm is <strong>Paxos</strong> (Lamport), which proved consensus is achievable with a majority of nodes even amid failures — but it is famously hard to understand and to implement correctly. <strong>Raft</strong> (Ongaro &amp; Ousterhout) was designed later with the explicit goal of being <em>understandable</em>, and it is what most modern systems actually use. Here is Raft at an intuition level.</p>
+<p><strong>Leader election.</strong> Nodes are in one of three roles: follower, candidate, leader. Time is divided into numbered <em>terms</em>. A follower that hears nothing from a leader for a randomized timeout becomes a candidate, bumps the term, and asks everyone to vote for it. If it collects votes from a <strong>majority</strong>, it becomes leader. Randomized timeouts make it unlikely two candidates tie repeatedly, so an election converges fast.</p>
+<p><strong>Log replication.</strong> All writes go to the leader. The leader appends each command to its log and ships it to followers.</p>
+<pre><code class="language-text">   client write ──&gt; [ LEADER ]  term 4
+                        | append to own log, then replicate
+          +-------------+--------------+
+          v             v              v
+    [follower]     [follower]     [follower(down)]
+     ack ✓          ack ✓            (no ack)
+          \_____________/
+        leader has a MAJORITY (2 of 3 followers + itself)
+                → entry is COMMITTED → applied to state machine
+                → leader tells client &quot;done&quot; and followers to commit
+</code></pre>
+<p><strong>Commit.</strong> Once a log entry is stored on a majority of nodes, the leader marks it <strong>committed</strong>, applies it to its state machine, and returns success to the client. A crashed follower catches up later by replaying the leader&rsquo;s log. Because a new leader can only be elected by a majority, and any majority overlaps the majority that committed an entry, a committed entry can never be lost — the new leader is guaranteed to have it. That overlap is the same <code>majority ∩ majority ≠ ∅</code> idea as quorums, which is not a coincidence.</p>
+<p>Note the cost: every committed write waits for a majority round trip. That is PACELC&rsquo;s &ldquo;else, latency&rdquo; term showing up at the very bottom of the stack.</p>
+<p><strong>The gotcha:</strong> do not roll your own consensus. It is one of the classic footguns in this field — the edge cases (split votes, network partitions healing, stale leaders that do not yet know they were deposed, log divergence) are exactly where naive implementations silently corrupt data. Use a library or a service that implements Raft/Paxos correctly and has been tested against them. Which is what everyone does — see below.</p>
+<hr>
+<h2 id="where-consensus-shows-up-in-practice">Where consensus shows up in practice</h2>
+<p>You will rarely write a consensus algorithm, but you will constantly <em>use</em> one, often without noticing:</p>
+<ul>
+<li><strong>etcd</strong> (Raft) is the consistent key-value store behind Kubernetes — it holds cluster state and config, and is the reference example of &ldquo;small amount of critical data, must be strongly consistent.&rdquo;</li>
+<li><strong>ZooKeeper</strong> (Zab, a Paxos-like protocol) plays the same role for the Hadoop/Kafka ecosystem: coordination, config, and naming.</li>
+<li><strong>Distributed locks and leader election.</strong> &ldquo;Only one worker should run this cron job&rdquo; or &ldquo;only one node is the primary&rdquo; is a consensus problem. You express it as a lease/lock in etcd or ZooKeeper rather than inventing a locking scheme.</li>
+<li><strong>Configuration and service discovery.</strong> The single source of truth for &ldquo;what is the current config&rdquo; needs every node to agree — a natural fit for a consensus-backed store.</li>
+<li><strong>Databases with strong guarantees.</strong> Spanner, CockroachDB, and YugabyteDB use Paxos/Raft groups under the hood to keep their replicas linearizable.</li>
+</ul>
+<p>The pattern is always the same: keep the <em>amount</em> of strongly-consistent, consensus-managed data small (leader identity, config, locks, critical metadata) and layer cheaper consistency models over the bulk of your data. Consensus is expensive, so you concentrate it — the same &ldquo;push the hard problem into a few purpose-built systems&rdquo; instinct from post 2.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>CAP is about partitions.</strong> &ldquo;Pick 2 of 3&rdquo; is wrong. Partitions are not optional, so the real choice is C-vs-A <em>during</em> a partition; &ldquo;CA&rdquo; is not a runtime option, just undefined behavior for the case that will happen.</li>
+<li><strong>PACELC completes the picture.</strong> Even with no partition, strong consistency costs latency on every request — the trade-off you pay 99.9% of the time.</li>
+<li><strong>Consistency is a spectrum, chosen per operation.</strong> Linearizable → causal → read-your-writes → monotonic reads → eventual. Match each to what the user is allowed to see; do not pick one model for the whole system.</li>
+<li><strong>Eventual consistency can go backwards.</strong> Without monotonic reads, a reader sees new-then-old — a storage artifact, not a UI bug.</li>
+<li><strong>Quorums (<code>R + W &gt; N</code>) are a dial, not a switch</strong> — they force read/write overlap for fresh reads, but every operation now needs a majority, costing latency and availability.</li>
+<li><strong>Consensus agrees on one value despite failures.</strong> Raft (understandable descendant of Paxos) does it via leader election, log replication, and majority commit. Never roll your own — use etcd, ZooKeeper, or a Raft library.</li>
+</ul>
+<p>Strong consistency is not &ldquo;better.&rdquo; It is a specific, expensive guarantee you buy with latency and availability, one operation at a time. The skill is knowing which operations truly need it — and letting everything else be cheap.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/">Brewer, &ldquo;CAP Twelve Years Later: How the &lsquo;Rules&rsquo; Have Changed&rdquo; (IEEE, 2012)</a> — the author&rsquo;s own correction of the folklore reading.</li>
+<li><a href="https://groups.csail.mit.edu/tds/papers/Gilbert/Brewer2.pdf">Gilbert &amp; Lynch, &ldquo;Brewer&rsquo;s Conjecture and the Feasibility of Consistent, Available, Partition-Tolerant Web Services&rdquo; (2002)</a> — the formal proof of CAP.</li>
+<li><a href="https://www.cs.umd.edu/~abadi/papers/abadi-pacelc.pdf">Abadi, &ldquo;Consistency Tradeoffs in Modern Distributed Database System Design&rdquo; (PACELC, IEEE, 2012)</a> — the paper that adds the latency term.</li>
+<li><a href="https://raft.github.io/raft.pdf">Ongaro &amp; Ousterhout, &ldquo;In Search of an Understandable Consensus Algorithm&rdquo; (Raft, USENIX ATC 2014)</a> — the Raft paper; also see <a href="https://raft.github.io/">raft.github.io</a> for the visualization.</li>
+<li><a href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf">Lamport, &ldquo;Paxos Made Simple&rdquo; (2001)</a> — the accessible statement of the ancestor algorithm.</li>
+<li><a href="https://etcd.io/docs/">etcd documentation</a> — a production Raft key-value store; read how it is used for coordination and config.</li>
+<li><a href="https://jepsen.io/analyses">Jepsen analyses</a> — empirical testing of real databases&rsquo; consistency claims under partitions; the best cure for hand-wavy guarantees.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/system-design-01-how-to-approach-system-design.html">How to Approach System Design</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/system-design-08-designing-a-system-end-to-end.html">Designing a System End to End</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/system-design-07-reliability-and-resilience.html">Reliability and Resilience</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

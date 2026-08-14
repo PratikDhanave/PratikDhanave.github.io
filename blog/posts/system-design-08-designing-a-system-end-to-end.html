@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Designing a System End to End — Pratik Dhanave</title>
+<meta name="description" content="The capstone: one worked design end to end — requirements, estimation, API and data model, high-level architecture, and deep dives applying the whole...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Designing a System End to End — Pratik Dhanave">
+<meta property="og:description" content="The capstone: one worked design end to end — requirements, estimation, API and data model, high-level architecture, and deep dives applying the whole series (scaling, caching, sharding, consistency, async, reliability) with explicit trade-offs.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/system-design-08-designing-a-system-end-to-end.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-14T00:00:00Z">
+<meta property="article:tag" content="System Design">
+<meta property="article:tag" content="Architecture">
+<meta property="article:tag" content="Case Study">
+<meta property="article:tag" content="Scalability">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Designing a System End to End — Pratik Dhanave">
+<meta name="twitter:description" content="The capstone: one worked design end to end — requirements, estimation, API and data model, high-level architecture, and deep dives applying the whole series (scaling, caching, sharding, consistency, async, reliability) with explicit trade-offs.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/system-design-08-designing-a-system-end-to-end.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Designing a System End to End",
+  "description": "The capstone: one worked design end to end \u2014 requirements, estimation, API and data model, high-level architecture, and deep dives applying the whole series (scaling, caching, sharding, consistency, async, reliability) with explicit trade-offs.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-14",
+  "dateModified": "2026-08-14",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "System Design, Architecture, Case Study, Scalability",
+  "url": "https://pratikdhanave.com/blog/posts/system-design-08-designing-a-system-end-to-end.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/system-design-08-designing-a-system-end-to-end.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Designing a System End to End</h1>
+    <p class="post-subtitle">The capstone — one problem, a home-timeline feed, designed the whole way through with the method from post one: clarify, estimate, contract, then high-level to deep-dive to bottleneck, naming the trade-off at every step and drawing on all seven earlier posts.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-14">August 14, 2026</time>
+      <span>·</span>
+      <span>15 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a><a href="/blog/tags/architecture/" class="tag-link"><span class="tag">#Architecture</span></a><a href="/blog/tags/case-study/" class="tag-link"><span class="tag">#Case Study</span></a><a href="/blog/tags/scalability/" class="tag-link"><span class="tag">#Scalability</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 8 of 8</span>
+    <span class="series-title">System Design Fundamentals</span>
+    <div class="series-nav"><a href="/blog/posts/system-design-07-reliability-and-resilience.html" class="series-prev">&larr; Part 7: Reliability and Resilience</a></div>
+  </div>
+
+
+
+  <p>Seven posts of this series built a toolbox: a method for approaching any design, then scaling, caching, data, consistency, async processing, and reliability. This finale spends the toolbox on a single problem, end to end, so you can see how the pieces compose under one set of requirements. The point is not the finished diagram — it is the <em>sequence of decisions</em> that produces it. If you memorize the diagram, you learn one system. If you internalize the sequence, you can design the next one, unseen.</p>
+<p>The problem: <strong>design the home timeline</strong> — the ranked-or-chronological feed of posts from the accounts a user follows, the core of any social product. It is a good capstone precisely because it is deceptively simple to state and brutally opinionated to build: the read path, the write path, and the social graph all pull in different directions, and where they collide is exactly where the earlier posts earn their keep.</p>
+<p>We will run the method from <strong>post 1</strong> in order: requirements, estimation, API and data model, then high-level design, deep-dives, and bottlenecks.</p>
+<hr>
+<h2 id="1-requirements-refuse-to-design-first">1. Requirements: refuse to design first</h2>
+<p>Before any boxes, ask what the system does and the properties it must hold — the two buckets from post 1.</p>
+<p><strong>Functional requirements</strong> (the verbs):</p>
+<ul>
+<li>Publish a post (text, optional media reference).</li>
+<li>Follow and unfollow another account.</li>
+<li>Read <em>my</em> home timeline — recent posts from everyone I follow, newest-first.</li>
+<li>See my own new post in my own timeline immediately.</li>
+</ul>
+<p>Everything else — ranking by an ML model, notifications, search, direct messages — is explicitly <strong>out of scope</strong>. Naming what you defer is part of the method, not a cop-out.</p>
+<p><strong>Non-functional requirements</strong> — the six from post 1, with the numbers extracted:</p>
+<ul>
+<li><strong>Scale:</strong> ~100M daily active users, average ~200 accounts followed each, heavily read (a user reads their feed far more often than they post). This is a <strong>read-heavy</strong> system with one nasty twist we will find in estimation.</li>
+<li><strong>Latency:</strong> feed read must feel instant — target p99 under ~200 ms. Publishing can be slower; a post appearing in followers&rsquo; feeds a few seconds late is fine.</li>
+<li><strong>Availability:</strong> high — four nines on the read path. People tolerate a delayed post far less than a feed that won&rsquo;t load.</li>
+<li><strong>Consistency:</strong> <strong>eventual</strong> is acceptable for other people&rsquo;s posts (a few seconds of lag is invisible), but <strong>read-your-own-writes</strong> is required for your own.</li>
+<li><strong>Durability:</strong> a published post must never be silently lost. The <em>materialized feed</em> can be lost and rebuilt — it is derived data.</li>
+<li><strong>Cost:</strong> commodity hardware, horizontal scale-out; no exotic infrastructure.</li>
+</ul>
+<p><strong>The gotcha:</strong> that split — eventual for others, read-your-own-writes for yourself, and a feed that is <em>derived, disposable data</em> while posts are <em>durable source-of-truth data</em> — is the single most load-bearing set of requirements in the whole design. Miss it and you either over-build (strong consistency on a feed nobody notices lagging) or under-build (losing posts to save a feed you could have recomputed). The requirements decide the architecture; extracting them <em>is</em> the design.</p>
+<hr>
+<h2 id="2-back-of-the-envelope-estimation">2. Back-of-the-envelope estimation</h2>
+<p>Now turn scale into numbers, the way post 1 did — rounding a day to ~10^5 seconds and working to one significant figure.</p>
+<pre><code class="language-text">Assumptions (stated, not precise):
+  Daily active users        100M   = 10^8
+  Avg accounts followed      200
+  Feed reads per user/day     20   (opens app, refreshes)
+  Posts per user/day         0.5   (most users lurk)
+
+Feed reads/sec:
+  10^8 users x 20 reads = 2 x 10^9 reads/day
+  2 x 10^9 / 10^5 s     ≈ 20,000 reads/sec   (peak ~2x ≈ 40,000/sec)
+
+Posts/sec (writes to source of truth):
+  10^8 x 0.5 = 5 x 10^7 posts/day
+  5 x 10^7 / 10^5 s     ≈ 500 posts/sec       (peak ~2x ≈ 1,000/sec)
+
+Fan-out amplification (the twist):
+  each post must reach ~200 followers' feeds
+  500 posts/sec x 200 ≈ 100,000 feed-writes/sec  (peak ~200,000/sec)
+
+Storage:
+  post ≈ 300 B (text + metadata; media lives elsewhere as a URL)
+  5 x 10^7 posts/day x 300 B = 1.5 x 10^10 B ≈ 15 GB/day
+  per year ≈ 5.5 TB ; over 5 years ≈ 27 TB
+
+Materialized feed cache (store latest ~500 post-ids per user):
+  500 ids x 8 B = 4 KB/user
+  10^8 users x 4 KB = 4 x 10^11 B ≈ 400 GB   (fits across a few RAM nodes)
+
+Read bandwidth (a feed page hydrates ~20 posts x 300 B ≈ 6 KB):
+  20,000 reads/sec x 6 KB ≈ 120 MB/sec outbound
+</code></pre>
+<p>Two minutes of arithmetic and the design has already declared itself. Reads outnumber posts 40:1, so we lean on caching and replicas (posts 2 and 3). Source-of-truth storage is tens of terabytes over five years, so it must shard (post 4). And the killer: <strong>fan-out amplifies 500 posts/sec into 100,000 feed-writes/sec</strong> — a 200x write multiplier that is invisible until you do the multiplication. That single number is why a naive &ldquo;just write to a table and query it&rdquo; design collapses, and why the write path, not the read path, is where the interesting engineering lives.</p>
+<p><strong>The gotcha:</strong> the amplification is the whole ballgame, and it is easy to miss because &ldquo;post a tweet&rdquo; <em>sounds</em> like one write. Never invent a precise QPS to sound authoritative — round hard, say your assumptions aloud, and let the multiplication surface the real load. The estimate is a decision tool, not a prediction.</p>
+<hr>
+<h2 id="3-api-and-data-model">3. API and data model</h2>
+<p>Write the contract before the boxes — it forces precision and surfaces hidden decisions.</p>
+<pre><code class="language-text">POST   /posts        { text, media_url? }        -&gt; { post_id, created_at }
+GET    /feed?cursor= &amp;limit=20                    -&gt; { posts[], next_cursor }
+POST   /follow       { target_id }               -&gt; 204
+DELETE /follow/{target_id}                        -&gt; 204
+</code></pre>
+<p>Pagination uses an <strong>opaque cursor</strong>, not an offset. Offsets shift as new posts arrive and reads become inconsistent; a cursor (encode the last seen post-id) gives stable, forward-only paging.</p>
+<p>The data model splits along the durability line the requirements drew:</p>
+<pre><code class="language-text">posts            (source of truth, durable)
+  post_id     snowflake id   (PK; time-sortable — id order == time order)
+  author_id   string
+  text        string
+  media_url   string?
+  created_at  timestamp
+
+follows          (the social graph, durable)
+  follower_id  string
+  followee_id  string
+  (indexed BOTH ways: by follower_id and by followee_id)
+
+feed             (materialized per reader; derived, disposable)
+  user_id     string
+  post_ids    ordered list (newest-first, capped ~500)
+</code></pre>
+<p>Two modeling choices matter. First, <strong><code>post_id</code> is a Snowflake-style id</strong> — a 64-bit value with a timestamp in the high bits — so ids sort in creation order. That makes &ldquo;newest 20&rdquo; a range scan and lets cursors be plain ids, no separate sort. Second, the <strong>follow graph is double-indexed</strong>: by <code>follower_id</code> to answer &ldquo;who do I follow?&rdquo; (the read path) and by <code>followee_id</code> to answer &ldquo;who follows this author?&rdquo; (the fan-out path). One index cannot serve both cheaply — you pay for two, a concrete instance of the read/write bargain from post 4.</p>
+<hr>
+<h2 id="4-high-level-design">4. High-level design</h2>
+<p>Now the boxes — low resolution, proving the whole thing hangs together.</p>
+<pre><code class="language-text">                         +------------------+
+  client ── LB ─────────&gt;|   API service    |  (stateless, scales out — post 2)
+                         +---+----------+---+
+                             |          |
+                 write path  |          |  read path
+                             v          v
+                    +----------------+  +-------------------------+
+                    |  post store    |  |  feed cache (RAM)       |
+                    |  (sharded DB)  |  |  user_id -&gt; post_ids    |
+                    +-------+--------+  +------------+------------+
+                            |                        | miss / celebrity merge
+                 post-created event                  v
+                            v                +----------------+
+                    +----------------+       |  post store    |
+                    |  fan-out queue |       |  (read replica)|
+                    +-------+--------+       +----------------+
+                            v
+                    +----------------+
+                    | fan-out workers|── expand followers, write feed cache
+                    +----------------+
+</code></pre>
+<p>The write path is deliberately asynchronous: publishing durably persists the post, emits an event, and returns — the expensive fan-out happens behind a queue. The read path is a cache lookup that almost always hits. The rest of the design is deep-diving these two paths where the numbers said the pressure is.</p>
+<hr>
+<h2 id="5-deep-dives-applying-the-series">5. Deep-dives: applying the series</h2>
+<h3 id="scaling-the-stateless-tier-post-2">Scaling the stateless tier (post 2)</h3>
+<p>The API service holds no session state — the token carries identity, the feed lives in the cache, posts live in the store. That statelessness is exactly what post 2 called the real enabler of scale-out: any request can hit any instance, so we put them behind an L7 load balancer with health checks and add instances until 40,000 peak reads/sec are comfortable. No vertical heroics; horizontal all the way.</p>
+<h3 id="caching-the-feed-post-3">Caching the feed (post 3)</h3>
+<p>The materialized <code>feed</code> is itself a cache — a <strong>cache-as-primary read path</strong>, not a lazy read-through. We keep the newest ~500 post-ids per user in RAM (~400 GB total, per estimation), so a feed read is one memory lookup for the ids plus a batched hydrate of ~20 posts. This is the latency-for-freshness trade from post 3 made literal: the feed is allowed to be a few seconds stale so the read can be a memory hit instead of a graph traversal plus 200-way query.</p>
+<p>The eviction policy is size- and recency-based: cap the list, drop cold users&rsquo; materialized feeds entirely and rebuild on demand (the pull path below is the miss handler). We size the hot set from the estimate rather than guessing.</p>
+<p><strong>The gotcha:</strong> the highest-leverage move here is not adding a cache in front of a query — it is <strong>precomputing the answer</strong> so the read never runs a query at all. But precomputation moves all the cost to write time, which is why the fan-out amplification from estimation dominates the design. You are not caching a computation; you are choosing to pay it 200x on the write side to make reads free.</p>
+<h3 id="the-datastore-and-shard-key-post-4">The datastore and shard key (post 4)</h3>
+<p>Two stores, two different shard keys — and post 4 warned the shard key is the highest-stakes decision you make.</p>
+<ul>
+<li><strong>Post store</strong>, sharded by <code>post_id</code>. Writes spread evenly (Snowflake ids embed a timestamp <em>and</em> a machine bit, avoiding a monotonic hotspot), and hydrating a feed is a batched multi-get across shards by id. Over five years this holds ~27 TB, well past one machine — sharding is mandatory, not optional.</li>
+<li><strong>Feed cache</strong>, sharded by <code>user_id</code> (the <em>reader</em>). A feed read touches exactly one shard: the reader&rsquo;s. Fan-out writes scatter across reader shards, which is what we want — no single shard owns a popular author&rsquo;s blast.</li>
+</ul>
+<p>The follow graph is the subtle one. Sharded by <code>follower_id</code>, &ldquo;who do I follow&rdquo; is one-shard; but fan-out needs &ldquo;who follows this author,&rdquo; which is scattered — hence the second index by <code>followee_id</code>. We accept the write-side cost of the double index because both access patterns are hot.</p>
+<h3 id="the-consistency-model-post-5">The consistency model (post 5)</h3>
+<p>We chose <strong>eventual consistency</strong> for other people&rsquo;s posts and it is the right call: a follower seeing a post two seconds after publish is imperceptible, and demanding strong consistency here would force synchronous fan-out to 200 feeds before the post could ack — trading the fast publish the requirements allow for a latency nobody asked for. This is post 5&rsquo;s lesson in the specific: pick the <em>weakest</em> consistency the requirement tolerates and buy availability and latency with the slack.</p>
+<p>The one exception is <strong>read-your-own-writes</strong>. Because fan-out is async, your own post may not be in your materialized feed for a second or two — unacceptable when <em>you</em> just posted. Fix: on a feed read, merge the reader&rsquo;s own most-recent posts (a tiny, single-author query on the reader&rsquo;s own id) on top of the cached feed. Your posts appear instantly; everyone else&rsquo;s arrive via fan-out. Cheap, and it satisfies the exact consistency guarantee the requirements named.</p>
+<p><strong>The gotcha:</strong> the shard key and the consistency choice are where the real design lives — everything else is plumbing. Get &ldquo;shard the feed by reader, shard posts by id, eventual-with-read-your-own-writes&rdquo; right and the system works; get it wrong and no amount of caching saves you. Interviewers and readers reward this reasoning, not the box count.</p>
+<h3 id="async-fan-out-post-6">Async fan-out (post 6)</h3>
+<p>Publishing enqueues a <code>post-created</code> event and returns; <strong>fan-out workers</strong> consume it, look up the author&rsquo;s followers, and append the <code>post_id</code> to each follower&rsquo;s feed cache. This is post 6&rsquo;s decoupling exactly: the producer (publish) is fast and the expensive, spiky consumer (200-way fan-out) runs behind a queue that absorbs bursts. When a spike pushes fan-out past 200,000 writes/sec, the queue depth grows and workers drain it — the publish latency never moves. Throughput smooths; the buffer eats the spike.</p>
+<h3 id="reliability-and-rate-limiting-post-7">Reliability and rate-limiting (post 7)</h3>
+<p>The failure that <em>will</em> happen, planned for per post 7:</p>
+<ul>
+<li><strong>Idempotent feed writes.</strong> A retried fan-out must not duplicate a post in a feed. Because the feed is a set/ordered-list keyed by <code>post_id</code>, re-appending the same id is a no-op — retries are safe by construction.</li>
+<li><strong>Dead-letter queue + retries with backoff.</strong> A follower shard that is briefly down doesn&rsquo;t drop the fan-out; the event retries, and a poison event lands in a DLQ for inspection instead of blocking the worker.</li>
+<li><strong>Rate-limit publishing</strong> with a per-user token bucket (from post 7) — caps spam and abuse, and protects the fan-out pipeline from a single account flooding it.</li>
+<li><strong>Graceful degradation.</strong> If a reader&rsquo;s feed-cache shard is unavailable, fall back to the <strong>pull path</strong>: query the reader&rsquo;s followees for their recent posts and merge at read time. Slower, but the feed still loads — availability preserved by trading latency, exactly the reliability/latency trade post 7 framed.</li>
+</ul>
+<hr>
+<h2 id="6-bottlenecks-and-trade-offs">6. Bottlenecks and trade-offs</h2>
+<p>Now attack the design, pass three of the method.</p>
+<p><strong>The celebrity problem (the real bottleneck).</strong> Pure fan-out-on-write assumes ~200 followers. An account with 10M followers turns <em>one</em> post into 10M feed writes — a fan-out storm that stalls the queue and hot-spots reader shards. The fix is a <strong>hybrid</strong> model: fan out on write for ordinary authors, but for high-follower accounts <strong>do not</strong> fan out — instead, at read time, pull the celebrity&rsquo;s recent posts and merge them into the reader&rsquo;s materialized feed. Normal authors stay push (cheap reads); celebrities go pull (cheap writes). The read path merges the two. This directly reuses post 3&rsquo;s hot-key insight — a handful of keys drive disproportionate load and need their own path.</p>
+<table><caption class="sr-only">6. Bottlenecks and trade-offs</caption>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Write cost</th>
+<th>Read cost</th>
+<th>Best for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fan-out on write (push)</td>
+<td>High (200x amplification)</td>
+<td>Very low (one lookup)</td>
+<td>Ordinary accounts</td>
+</tr>
+<tr>
+<td>Fan-out on read (pull)</td>
+<td>None</td>
+<td>High (query N followees)</td>
+<td>Celebrities, inactive users</td>
+</tr>
+<tr>
+<td>Hybrid (push + pull merge)</td>
+<td>Bounded</td>
+<td>Low + small merge</td>
+<td>The real system</td>
+</tr>
+</tbody>
+</table>
+<p><strong>At 10x scale</strong> (1B DAU): the fan-out queue and worker fleet become the constraint long before storage does. You would push the push/pull threshold lower (more accounts served by pull), partition the fan-out queue by author-shard to parallelize, and consider regional feed caches to keep reads local (post 1&rsquo;s cross-continent latency tax). Storage grows linearly and is boring; the write amplification grows and is not.</p>
+<p><strong>What we deliberately deferred:</strong> ML ranking (we ship chronological — ranking is a scoring layer over the same materialized feed, added later without touching the write path); media storage and CDN (posts carry a <code>media_url</code>; the blob layer is a separate design); full-text search; notifications; and multi-region active-active with its consistency headaches. Each is a real feature and each is <em>out of scope by choice</em>, so the core design stays legible.</p>
+<p><strong>The gotcha:</strong> always name what you deferred and why — deferral is a design decision, not an omission. And resist over-engineering for scale you don&rsquo;t have: at a few thousand users this entire architecture is malpractice, and a single Postgres with a well-indexed <code>posts</code> table and a query-time join over the follow graph handles far more load than people expect. Build the fan-out machine only when the estimation numbers demand it. The discipline cuts both ways — scale up when the arithmetic says so, and <em>not before</em>.</p>
+<hr>
+<h2 id="the-series-arc">The series arc</h2>
+<p>Step back and the whole series is one method applied seven times:</p>
+<pre><code class="language-text">1 method      -&gt; ask requirements, estimate, contract, spiral to bottleneck
+2 scaling     -&gt; stateless tier, scale out, load-balance the read fleet
+3 caching     -&gt; precompute the feed; latency bought with a little staleness
+4 data        -&gt; shard posts by id, feed by reader; the shard key decides everything
+5 consistency -&gt; eventual for others, read-your-own-writes for you
+6 async       -&gt; queue the fan-out; decouple fast publish from expensive spread
+7 reliability -&gt; idempotent retries, rate limits, degrade to pull on failure
+8 this design -&gt; compose all of the above under one set of requirements
+</code></pre>
+<p>Every arrow is a trade-off chosen on purpose, and every choice traces back to a requirement extracted in step one. That is the throughline of the entire series: <strong>system design is disciplined trade-off analysis, not a memorized parts list.</strong> The engineer who recites &ldquo;load balancer, cache, queue, sharded DB&rdquo; has a vocabulary; the engineer who can say <em>why the feed shards by reader, why fan-out is async, and why celebrities get a different path — and what each choice costs</em> — has a method. The vocabulary fails on the next unfamiliar problem. The method does not.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Run the method, don&rsquo;t recall a diagram.</strong> Requirements, estimation, contract, then high-level → deep-dive → bottleneck. The finished picture is a by-product of the sequence.</li>
+<li><strong>Estimation surfaces the hidden constraint.</strong> The 200x fan-out amplification is invisible until you multiply — and it, not the read rate, dictates the architecture.</li>
+<li><strong>The shard key and consistency model are the design.</strong> Feed sharded by reader, posts by id, eventual-with-read-your-own-writes — get these right and the rest is plumbing.</li>
+<li><strong>Precompute to make reads free, then pay for it asynchronously.</strong> Fan-out-on-write is caching the <em>answer</em>; the queue absorbs the write cost so publish stays fast.</li>
+<li><strong>Plan for the failure and the outlier.</strong> Idempotent retries, rate limits, degrade-to-pull, and a hybrid push/pull path for celebrities — the edge cases are where real designs are decided.</li>
+<li><strong>Name what you defer, and don&rsquo;t over-build.</strong> Chronological before ML ranking, one Postgres before a fan-out machine. Scale when the arithmetic demands it, not before.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://sre.google/sre-book/table-of-contents/">Google SRE Book</a> — Site Reliability Engineering; the chapters on SLOs, load balancing, addressing cascading failures, and handling overload underpin the reliability deep-dive.</li>
+<li><a href="https://sre.google/workbook/table-of-contents/">The Site Reliability Workbook</a> — the practical companion, with concrete patterns for load shedding, retries, and graceful degradation.</li>
+<li><a href="https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/">Amazon Builders&rsquo; Library: Timeouts, retries, and backoff with jitter</a> — primary-source guidance on making the fan-out and read paths resilient.</li>
+<li><a href="https://aws.amazon.com/builders-library/caching-challenges-and-strategies/">Amazon Builders&rsquo; Library: Caching challenges and strategies</a> — the materialized-feed-as-cache decisions, invalidation, and hot keys.</li>
+<li><a href="https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf">Amazon Dynamo paper</a> — the canonical treatment of partitioning, eventual consistency, and the availability/consistency trade-off.</li>
+<li><a href="https://redis.io/docs/latest/develop/data-types/sorted-sets/">Redis documentation: Sorted sets</a> — the data structure that maps directly onto a per-user materialized feed of time-ordered post ids.</li>
+<li><a href="https://users.ece.cmu.edu/~adrian/731-sp04/readings/GL-cap.pdf">Brewer&rsquo;s CAP theorem, formalized</a> — Gilbert and Lynch, the formal basis for the consistency choices made throughout the series.</li>
+<li><a href="https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html">AWS Well-Architected Framework</a> — the reliability, performance, and cost pillars, and the trade-offs between them, as a checklist against any finished design.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/system-design-02-scaling-fundamentals.html">Scaling Fundamentals</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/system-design-01-how-to-approach-system-design.html">How to Approach System Design</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    <li>
+      <a href="/blog/posts/system-design-04-databases-and-storage.html">Databases and Storage</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>

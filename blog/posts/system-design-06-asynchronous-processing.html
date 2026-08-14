@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Asynchronous Processing and Messaging — Pratik Dhanave</title>
+<meta name="description" content="Decoupling with queues and events: message queues vs pub/sub vs log-based streaming, delivery semantics (why exactly-once delivery is a myth — do...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Asynchronous Processing and Messaging — Pratik Dhanave">
+<meta property="og:description" content="Decoupling with queues and events: message queues vs pub/sub vs log-based streaming, delivery semantics (why exactly-once delivery is a myth — do idempotent processing), ordering, backpressure, the transactional outbox, and dead-letter queues.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/system-design-06-asynchronous-processing.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-12T00:00:00Z">
+<meta property="article:tag" content="System Design">
+<meta property="article:tag" content="Messaging">
+<meta property="article:tag" content="Event-Driven">
+<meta property="article:tag" content="Kafka">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Asynchronous Processing and Messaging — Pratik Dhanave">
+<meta name="twitter:description" content="Decoupling with queues and events: message queues vs pub/sub vs log-based streaming, delivery semantics (why exactly-once delivery is a myth — do idempotent processing), ordering, backpressure, the transactional outbox, and dead-letter queues.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/system-design-06-asynchronous-processing.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Asynchronous Processing and Messaging",
+  "description": "Decoupling with queues and events: message queues vs pub/sub vs log-based streaming, delivery semantics (why exactly-once delivery is a myth \u2014 do idempotent processing), ordering, backpressure, the transactional outbox, and dead-letter queues.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-12",
+  "dateModified": "2026-08-12",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "System Design, Messaging, Event-Driven, Kafka",
+  "url": "https://pratikdhanave.com/blog/posts/system-design-06-asynchronous-processing.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/system-design-06-asynchronous-processing.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Asynchronous Processing and Messaging</h1>
+    <p class="post-subtitle">How queues, pub/sub, and log-based streaming let systems stay responsive under load — the delivery semantics, ordering rules, backpressure, and outbox patterns that decide whether async saves you or sinks you.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-12">August 12, 2026</time>
+      <span>·</span>
+      <span>16 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a><a href="/blog/tags/messaging/" class="tag-link"><span class="tag">#Messaging</span></a><a href="/blog/tags/event-driven/" class="tag-link"><span class="tag">#Event-Driven</span></a><a href="/blog/tags/kafka/" class="tag-link"><span class="tag">#Kafka</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 6 of 8</span>
+    <span class="series-title">System Design Fundamentals</span>
+    <div class="series-nav"><a href="/blog/posts/system-design-05-consistency-availability-consensus.html" class="series-prev">&larr; Part 5: Consistency, Availability, and Consensus</a>
+<a href="/blog/posts/system-design-07-reliability-and-resilience.html" class="series-next">Part 7: Reliability and Resilience &rarr;</a></div>
+  </div>
+
+
+
+  <p>Every request-response system eventually hits the same wall: some work is too slow, too spiky, or too failure-prone to do while a user waits. Resizing an uploaded video, charging a card through a flaky third party, fanning out a notification to a million followers — do these on the request path and your latency is hostage to the slowest dependency you have. <strong>Asynchronous processing</strong> is the escape hatch. You accept the request, hand the slow work to a message broker, return immediately, and let a separate pool of workers grind through it on their own schedule.</p>
+<p>That single move — decoupling the producer of work from its consumer through a durable intermediary — is one of the highest-leverage decisions in system design. It also opens a box of trade-offs that trip up almost everyone the first time: what happens when a message is delivered twice, when the queue fills faster than workers drain it, or when your service crashes after writing to the database but before publishing the event. This post walks the whole terrain, trade-off first.</p>
+<hr>
+<h2 id="why-go-asynchronous-at-all">Why go asynchronous at all</h2>
+<p>Four distinct problems push a system toward async, and it helps to keep them separate because different messaging tools solve them differently.</p>
+<p><strong>Smoothing spikes.</strong> Traffic is bursty. A flash sale, a viral post, a batch job kicking off at midnight — the arrival rate briefly exceeds what your workers can process. If everything is synchronous, the excess load falls straight onto your database and your users see timeouts. A queue in front of the workers acts as a buffer: requests pile up in durable storage and drain at whatever steady rate the workers can sustain. The peak is absorbed, not amplified.</p>
+<p><strong>Decoupling producers from consumers.</strong> Synchronous calls bind two services together in time — both must be up, both must be fast, and the caller must know the callee&rsquo;s address. A broker breaks that binding. The producer writes a message and moves on; it does not know or care which service reads it, how many readers there are, or whether they are even running right now. You can add a second consumer of the same events tomorrow without touching the producer.</p>
+<p><strong>Getting slow work off the request path.</strong> A user clicks &ldquo;export report.&rdquo; Generating the report takes 40 seconds. Nobody should hold an HTTP connection open that long. Instead you enqueue an &ldquo;export requested&rdquo; job, return a 202 with a job id, and let the user poll or receive a push when it&rsquo;s done. The request stays fast; the slow work happens elsewhere.</p>
+<p><strong>Resilience.</strong> If the email provider is down, a synchronous send fails and the user&rsquo;s action fails with it. An asynchronous send parks the message in a queue; when the provider recovers, the worker retries and the message goes through. The failure is contained to the background, invisible to the user.</p>
+<p><strong>The gotcha:</strong> async is not free latency reduction — it is latency <em>relocation</em>. The work still happens; you have only moved it off the path the user waits on. If a user genuinely needs the result before they can continue, making it async just replaces a slow response with a fast-but-incomplete one plus a polling problem. Reach for async when the work can truly happen later, not when you wish it were faster.</p>
+<hr>
+<h2 id="three-shapes-of-messaging">Three shapes of messaging</h2>
+<p>&ldquo;Put a message on a queue&rdquo; hides three genuinely different architectures. Picking the wrong one is a common and expensive mistake.</p>
+<h3 id="point-to-point-queues">Point-to-point queues</h3>
+<p>A classic <strong>message queue</strong> — RabbitMQ, Amazon SQS, ActiveMQ — is a pipe with many possible readers but <em>each message goes to exactly one of them</em>. Producers push; a pool of competing consumers pulls; once a worker takes a message and acknowledges it, it&rsquo;s gone. This is the natural fit for <strong>work distribution</strong>: a hundred image-resize jobs land on the queue and ten workers each grab roughly ten of them. Scale by adding workers. The queue does not remember a message after it&rsquo;s acknowledged.</p>
+<h3 id="publishsubscribe">Publish/subscribe</h3>
+<p><strong>Pub/sub</strong> — SNS, Google Pub/Sub, a RabbitMQ fanout exchange — flips the cardinality. One published message is delivered to <em>every</em> subscriber. An &ldquo;order placed&rdquo; event goes simultaneously to the billing service, the inventory service, the analytics pipeline, and the email service, each with its own independent copy. This is the natural fit for <strong>broadcasting facts</strong>: the producer announces that something happened and any number of interested parties react, each unaware of the others.</p>
+<h3 id="log-based-streaming">Log-based streaming</h3>
+<p><strong>Log-based</strong> systems — Apache Kafka, Apache Pulsar, AWS Kinesis — look like a hybrid but are architecturally distinct. The broker is an append-only, partitioned <strong>log</strong> on disk. Producers append records to the end; consumers read forward at their own pace, tracking a numeric <strong>offset</strong> that marks how far they&rsquo;ve read. Crucially, reading does <em>not</em> delete: the record stays until a retention window expires (say, seven days), so multiple independent consumers can read the same stream, and any of them can rewind and <strong>replay</strong> history from an earlier offset. That combination — durable retention plus replayable, per-consumer position — is what makes the log the substrate for event sourcing, stream processing, and rebuilding a downstream store from scratch.</p>
+<table><caption class="sr-only">Log-based streaming</caption>
+<thead>
+<tr>
+<th>Property</th>
+<th>Point-to-point (SQS, RabbitMQ)</th>
+<th>Pub/sub (SNS, Pub/Sub)</th>
+<th>Log (Kafka, Pulsar)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Message reaches</td>
+<td>one consumer</td>
+<td>every subscriber</td>
+<td>every consumer group</td>
+</tr>
+<tr>
+<td>After consumption</td>
+<td>deleted on ack</td>
+<td>delivered, then gone</td>
+<td>retained until window expires</td>
+</tr>
+<tr>
+<td>Replay past messages</td>
+<td>no</td>
+<td>no</td>
+<td>yes, by resetting offset</td>
+</tr>
+<tr>
+<td>Ordering</td>
+<td>limited / per-group (FIFO)</td>
+<td>generally none</td>
+<td>strict per-partition</td>
+</tr>
+<tr>
+<td>Best for</td>
+<td>distributing work</td>
+<td>broadcasting events</td>
+<td>streaming, replay, event sourcing</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The gotcha:</strong> don&rsquo;t reach for Kafka just because it&rsquo;s the fashionable answer. A partitioned log is powerful but operationally heavy — partitions, consumer groups, offset management, retention tuning. If all you need is &ldquo;run these jobs on some workers,&rdquo; a managed queue like SQS is a fraction of the operational cost and gives you retries and dead-lettering for free. Match the tool to the cardinality and the replay requirement, not to the résumé.</p>
+<hr>
+<h2 id="delivery-semantics-and-the-exactly-once-myth">Delivery semantics, and the exactly-once myth</h2>
+<p>Once a network sits between producer and consumer, you must confront a hard truth: <strong>you cannot have both no-loss and no-duplication at the transport level.</strong> Brokers offer three semantics.</p>
+<ul>
+<li><strong>At-most-once.</strong> Fire and forget. The message is delivered zero or one times, never more. If the consumer crashes mid-processing, the message is simply lost. Fine for disposable telemetry where a dropped sample doesn&rsquo;t matter.</li>
+<li><strong>At-least-once.</strong> The broker keeps redelivering until the consumer acknowledges. Nothing is ever lost — but a consumer that processes a message and then crashes <em>before</em> its ack is sent will receive that same message again on restart. Duplicates are guaranteed to happen eventually. This is the default and the right choice for almost everything.</li>
+<li><strong>Effectively-once (a.k.a. &ldquo;exactly-once&rdquo;).</strong> Every message affects the system exactly one time — no loss, no duplicate effect.</li>
+</ul>
+<p><strong>The gotcha:</strong> &ldquo;exactly-once <em>delivery</em>&rdquo; over a network does not really exist, no matter what a product page implies. The reason is fundamental: after the consumer processes a message, its acknowledgement can be lost in flight. The broker, having heard nothing, must choose — redeliver (risking a duplicate) or not (risking a loss). No amount of protocol cleverness escapes that fork. What real systems achieve is exactly-once <em>effect</em>, and they get it by combining at-least-once delivery with <strong>idempotent processing</strong>: the consumer is written so that handling the same message twice produces the same result as handling it once (typically by recording a dedup key and skipping repeats). The broker&rsquo;s &ldquo;exactly-once&rdquo; features — Kafka&rsquo;s transactional producer, for instance — deliver this only within the broker&rsquo;s own boundary; the moment your handler touches an external database or API, idempotency is <em>your</em> job. We&rsquo;ll go deep on how to build idempotent consumers in the next post; for now, internalize the rule: <strong>design for at-least-once, and make duplicate processing harmless.</strong></p>
+<hr>
+<h2 id="ordering-cheaper-per-key-ruinous-globally">Ordering: cheaper per-key, ruinous globally</h2>
+<p>Message ordering is one of those guarantees that sounds trivial and turns out to cost throughput.</p>
+<p>A log gets its parallelism from <strong>partitions</strong>: the stream is split into N independent shards, and N consumers can read them concurrently. Within a single partition, records are strictly ordered — record 5 is always read after record 4. Across partitions there is <em>no</em> order at all, because they&rsquo;re being read independently and in parallel. To keep related messages ordered, you route them to the same partition with a <strong>partition key</strong>: use <code>account_id</code> as the key and every event for account 42 lands on the same partition, in order, while account 43&rsquo;s events flow through a different partition entirely.</p>
+<p><strong>The gotcha:</strong> insisting on <em>global</em> ordering — a single total order across every message in the system — collapses your parallelism to one. The only way to guarantee that message A is processed before message B when they might be on different partitions is to have a single partition and a single consumer, which is a throughput ceiling of one. The escape is to realize you almost never need global order. You need <em>per-entity</em> order: events for a given user, account, or document must be ordered relative to each other, but user 1&rsquo;s events have no meaningful ordering relationship with user 2&rsquo;s. Choose a partition key that captures exactly the ordering you need and no more, and you keep both correctness and parallelism.</p>
+<p>Consumer groups make this concrete. In Kafka, a <strong>consumer group</strong> is a set of workers that jointly consume a topic; the broker assigns each partition to exactly one member of the group, so adding consumers (up to the partition count) scales throughput while preserving per-partition order. Each group tracks its own offsets independently, which is how the same topic can feed both a real-time service and a nightly batch job without either interfering with the other — and how a consumer can rewind its offset to replay.</p>
+<hr>
+<h2 id="backpressure-the-queue-is-a-shock-absorber-not-a-black-hole">Backpressure: the queue is a shock absorber, not a black hole</h2>
+<p>Here is where a lot of async designs quietly rot. You put a queue between producer and consumer, load goes up, and for a while everything is fine — the queue absorbs the burst exactly as intended. Then the producer&rsquo;s average rate creeps above the consumer&rsquo;s drain rate, and the queue depth begins to climb. And climb. And climb.</p>
+<p>An unbounded queue does not fail loudly. It fails by growing: latency stretches because messages sit longer and longer before being processed (a message enqueued when depth is 2 million won&rsquo;t be touched for hours), and memory or disk fills until the broker or the process falls over. By the time you notice, the backlog is enormous and draining it takes as long as it took to build.</p>
+<p><strong>The gotcha:</strong> an unbounded queue is a capacity problem wearing a disguise. It converts &ldquo;we can&rsquo;t keep up&rdquo; — which should be an immediate, visible signal — into a slow-motion latency and memory leak that only detonates hours later. The fix is <strong>backpressure</strong>: bound the queue, and when it&rsquo;s full, push the pressure back onto the producer. A bounded queue that rejects or blocks new work forces the mismatch to surface at the source, where someone can act on it — shed load, return a 429, scale consumers, or slow the producer down. A queue should be a shock absorber that smooths <em>transient</em> bursts, not a hidden infinite buffer papering over a permanent throughput deficit. If your average arrival rate exceeds your average service rate, no queue size saves you; you need more consumers or less work.</p>
+<p>Flow control is the same idea generalized: the consumer signals how much it can handle (a prefetch limit in RabbitMQ, <code>max.poll.records</code> in Kafka, an in-flight cap in SQS) so the broker never floods it faster than it drains.</p>
+<hr>
+<h2 id="a-minimal-worker-in-go">A minimal worker in Go</h2>
+<p>The consumer side of async is usually a loop: pull, process, acknowledge, repeat — with bounded concurrency so a burst can&rsquo;t spawn unlimited goroutines. The sketch below shows the shape, with the two invariants that matter most: <strong>acknowledge only after successful processing</strong> (so a crash mid-work redelivers rather than loses), and <strong>process idempotently</strong> (so redelivery is harmless).</p>
+<pre><code class="language-go">// A bounded worker pool draining a queue. `sem` caps concurrency so a
+// backlog can't spawn unbounded goroutines — that's backpressure applied
+// to ourselves.
+func runWorkers(ctx context.Context, q Queue, n int) {
+    sem := make(chan struct{}, n) // at most n messages in flight
+    for {
+        msg, err := q.Receive(ctx) // blocks; respects flow-control limits
+        if err != nil {
+            return // context cancelled or queue closed
+        }
+        sem &lt;- struct{}{} // acquire a slot (blocks when n are busy)
+        go func(m Message) {
+            defer func() { &lt;-sem }() // release the slot
+            if alreadyProcessed(m.DedupKey) {
+                q.Ack(m) // duplicate from at-least-once redelivery — skip, but ack
+                return
+            }
+            if err := handle(m); err != nil {
+                q.Nack(m) // return to queue for retry; DLQ after max attempts
+                return
+            }
+            markProcessed(m.DedupKey)
+            q.Ack(m) // ack ONLY after success, so a crash redelivers
+        }(msg)
+    }
+}
+</code></pre>
+<p>The <code>sem</code> channel is the backpressure knob: when <code>n</code> messages are being handled, <code>q.Receive</code> stops being called until a slot frees, so the worker never pulls more than it can process. The <code>alreadyProcessed</code>/<code>markProcessed</code> pair is idempotency in miniature — the real version needs those two steps to be atomic, which is exactly the subject of the next post.</p>
+<hr>
+<h2 id="poison-messages-and-dead-letter-queues">Poison messages and dead-letter queues</h2>
+<p>Retries are essential, but retrying <em>forever</em> is a trap. Some messages can never succeed — malformed payload, a referenced record that was deleted, a bug in the handler. This is a <strong>poison message</strong>: it fails, gets redelivered, fails again, and if the broker keeps retrying it can block the partition behind it or spin a worker uselessly, starving healthy messages.</p>
+<p>The standard defense is a <strong>dead-letter queue (DLQ)</strong>: after a message fails some maximum number of attempts, the broker moves it to a separate queue instead of redelivering it. This does two good things at once — it unblocks the main flow so healthy messages keep moving, and it <em>preserves</em> the failed message for a human to inspect, fix, and replay rather than silently dropping it.</p>
+<p><strong>The gotcha:</strong> a DLQ is only useful if someone watches it. An unmonitored dead-letter queue is just a slow data-loss bucket — messages accumulate there unseen until someone wonders months later why a batch of orders never shipped. Alert on DLQ depth the same way you&rsquo;d alert on error rate, and treat a nonzero DLQ as an incident, not a curiosity.</p>
+<hr>
+<h2 id="the-dual-write-problem-and-the-outbox">The dual-write problem and the outbox</h2>
+<p>Here is the subtlest failure in the whole area, and it bites nearly every event-driven system that hasn&rsquo;t been designed for it.</p>
+<p>Your service needs to do two things when an order is placed: write the order row to its database, and publish an &ldquo;order placed&rdquo; event to the broker. The naive code does them one after the other:</p>
+<pre><code class="language-text">1. db.Save(order)          // succeeds
+2. broker.Publish(event)   // ...crash here
+</code></pre>
+<p>If the process dies between step 1 and step 2, the database has the order but the event was never published. Downstream services — billing, shipping, analytics — never hear about it. The order silently falls into a hole. Swap the order of the two writes and you get the opposite failure: an event published for an order that was never persisted. There is no ordering of two independent writes to two independent systems that is crash-safe, because they cannot share a transaction. This is the <strong>dual-write problem</strong>.</p>
+<p><strong>The gotcha:</strong> writing to your database and then publishing to a broker are two separate operations with no shared transaction — a crash in between loses the event (or invents one), and it happens rarely enough that you&rsquo;ll ship it to production before you notice. The fix is the <strong>transactional outbox</strong>: instead of publishing directly, write the event into an <code>outbox</code> table <em>in the same database transaction</em> as the business data. Now the order row and the event row commit atomically — either both land or neither does. A separate process (polling the outbox table, or tailing the database&rsquo;s change log via change-data-capture) reads unpublished rows and forwards them to the broker, marking them sent.</p>
+<pre><code class="language-text">── one atomic DB transaction ──
+   INSERT INTO orders     (...);
+   INSERT INTO outbox     (event='order_placed', payload=...);
+   COMMIT;                        // both or neither
+
+── separate relay process ──
+   SELECT * FROM outbox WHERE published = false;
+   broker.Publish(row); mark published = true;   // at-least-once to the broker
+</code></pre>
+<p>Note the relay publishes <em>at-least-once</em> — it may crash after publishing but before marking the row sent, re-sending on restart. Which is fine, because by now you know the answer: the consumer is idempotent, so a duplicate event is harmless. The outbox closes the atomicity gap; idempotent consumers absorb the duplicates the outbox&rsquo;s own retries create. The two patterns are partners.</p>
+<hr>
+<h2 id="event-driven-architecture-choreography-vs-orchestration">Event-driven architecture: choreography vs orchestration</h2>
+<p>Zoom out and these mechanics compose into a style: <strong>event-driven architecture</strong>, where services communicate primarily by emitting and reacting to events rather than calling each other directly. A multi-step business process — place order, charge card, reserve inventory, ship — can be coordinated two ways.</p>
+<p><strong>Choreography</strong> is decentralized. Each service listens for events and emits its own; there is no conductor. &ldquo;Order placed&rdquo; triggers the payment service, whose &ldquo;payment captured&rdquo; event triggers the inventory service, and so on. It&rsquo;s beautifully decoupled — adding a step means adding a listener, touching nothing else — but the overall flow exists nowhere explicit. Understanding &ldquo;what happens when an order is placed&rdquo; means tracing events across a dozen services, and cyclic or emergent behavior is easy to create by accident.</p>
+<p><strong>Orchestration</strong> is centralized. A coordinator (often a workflow engine) explicitly drives the sequence: it calls payment, waits, calls inventory, waits, calls shipping, and handles compensation if a step fails. The flow lives in one readable place and failure handling is explicit, at the cost of a central component every step depends on.</p>
+<p>The rule of thumb: choreography when steps are genuinely independent reactions to a fact; orchestration when a process has a definite sequence, needs a clear owner, or requires coordinated rollback across steps. Most mature systems use both — choreography for loose fan-out, orchestration for the critical transactional flows.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Async relocates work, it doesn&rsquo;t delete it.</strong> Use it when work can truly happen off the request path — to smooth spikes, decouple services, and contain failures — not as a wish for lower latency.</li>
+<li><strong>Three messaging shapes, three jobs.</strong> Point-to-point queues distribute work, pub/sub broadcasts facts, log-based streaming adds retention and replay. Don&rsquo;t reach for Kafka when SQS will do.</li>
+<li><strong>Design for at-least-once.</strong> Exactly-once <em>delivery</em> over a network is a myth; you get exactly-once <em>effect</em> by making processing idempotent. (Next post.)</li>
+<li><strong>Order per key, never globally.</strong> Partition by the entity that needs ordering; a single global order collapses parallelism to one.</li>
+<li><strong>Bound your queues.</strong> An unbounded queue hides a capacity problem until it detonates as latency and OOM. Apply backpressure so the mismatch surfaces at the source.</li>
+<li><strong>Close the atomicity gaps.</strong> The transactional outbox fixes the dual-write problem; dead-letter queues quarantine poison messages — but only if someone is watching the DLQ.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://kafka.apache.org/documentation/#design">Apache Kafka — Documentation &amp; Design</a> — the partitioned-log model, consumer groups, offsets, and delivery-semantics discussion straight from the source.</li>
+<li><a href="https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying">Jay Kreps, &ldquo;The Log: What every software engineer should know about real-time data&rsquo;s unifying abstraction&rdquo;</a> — the essay that reframed the log as a first-class primitive.</li>
+<li><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html">Amazon SQS Developer Guide</a> — standard vs FIFO queues, at-least-once delivery, visibility timeouts, and dead-letter queues.</li>
+<li><a href="https://microservices.io/patterns/data/transactional-outbox.html">Transactional Outbox pattern — microservices.io</a> — the canonical write-up of the dual-write problem and its fix.</li>
+<li><a href="https://microservices.io/patterns/data/saga.html">Saga pattern — microservices.io</a> — choreography vs orchestration for multi-step, cross-service transactions.</li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/system-design-08-designing-a-system-end-to-end.html">Designing a System End to End</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/system-design-07-reliability-and-resilience.html">Reliability and Resilience</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/system-design-05-consistency-availability-consensus.html">Consistency, Availability, and Consensus</a>
+      <span class="related-date">Aug 11</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
