@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Data Security and Privacy — Pratik Dhanave</title>
+<meta name="description" content="Protecting data in LLM systems: sensitive-information disclosure, PII in prompts and logs (your observability can be the leak), redaction with...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Data Security and Privacy — Pratik Dhanave">
+<meta property="og:description" content="Protecting data in LLM systems: sensitive-information disclosure, PII in prompts and logs (your observability can be the leak), redaction with Presidio, data residency, and per-user access control on the retrieval layer so RAG doesn&#x27;t leak across tenants.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-security-03-data-security-and-privacy.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-09T00:00:00Z">
+<meta property="article:tag" content="AI Security">
+<meta property="article:tag" content="Privacy">
+<meta property="article:tag" content="PII">
+<meta property="article:tag" content="Security">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Data Security and Privacy — Pratik Dhanave">
+<meta name="twitter:description" content="Protecting data in LLM systems: sensitive-information disclosure, PII in prompts and logs (your observability can be the leak), redaction with Presidio, data residency, and per-user access control on the retrieval layer so RAG doesn&#x27;t leak across tenants.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-security-03-data-security-and-privacy.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end;min-width:0}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:1240px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Data Security and Privacy",
+  "description": "Protecting data in LLM systems: sensitive-information disclosure, PII in prompts and logs (your observability can be the leak), redaction with Presidio, data residency, and per-user access control on the retrieval layer so RAG doesn't leak across tenants.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-09",
+  "dateModified": "2026-08-09",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Security, Privacy, PII, Security",
+  "url": "https://pratikdhanave.com/blog/posts/ai-security-03-data-security-and-privacy.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-security-03-data-security-and-privacy.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Data Security and Privacy</h1>
+    <p class="post-subtitle">Part three of the AI Security Engineering series: protecting the data that flows through an LLM system — how sensitive information leaks out of prompts, logs, and retrieval, and the engineering controls (redaction, data minimization, per-user retrieval authz, residency choices) that actually stop it.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-09">August 09, 2026</time>
+      <span>·</span>
+      <span>13 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-security/" class="tag-link"><span class="tag">#AI Security</span></a><a href="/blog/tags/privacy/" class="tag-link"><span class="tag">#Privacy</span></a><a href="/blog/tags/pii/" class="tag-link"><span class="tag">#PII</span></a><a href="/blog/tags/security/" class="tag-link"><span class="tag">#Security</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 3 of 8</span>
+    <span class="series-title">AI Security Engineering</span>
+    <div class="series-nav"><a href="/blog/posts/ai-security-02-prompt-injection-and-jailbreaks.html" class="series-prev">&larr; Part 2: Prompt Injection and Jailbreaks</a>
+<a href="/blog/posts/ai-security-04-insecure-output-and-excessive-agency.html" class="series-next">Part 4: Insecure Output Handling and Excessive Agency &rarr;</a></div>
+  </div>
+
+
+
+  <p>Most of the damage in an LLM system is not the model saying something rude. It is <em>data going where it should not</em> — a support agent surfacing another customer&rsquo;s phone number, an API key that ends up in a trace, a RAG pipeline that hands one tenant a document belonging to another. OWASP tracks this as <strong>LLM02: Sensitive Information Disclosure</strong>, and it is consistently one of the most common and most expensive failure modes in production.</p>
+<p>The uncomfortable truth is that the model is rarely the root cause. The pipeline around it is: what you put <em>into</em> the context, what you <em>log</em> along the way, and what you <em>retrieve</em> on the user&rsquo;s behalf. This post is about defending those three surfaces. Everything below is provider-agnostic — the controls hold whether you call a hosted API or run a model yourself.</p>
+<hr>
+<h2 id="where-sensitive-data-actually-leaks">Where sensitive data actually leaks</h2>
+<p>A model can reveal data from three places, and it helps to name them precisely because each has a different fix:</p>
+<ol>
+<li><strong>The context you gave it.</strong> Anything in the system prompt, the user turn, tool outputs, or retrieved documents is fair game for the model to repeat. If you paste a secret into the prompt, assume it can come out.</li>
+<li><strong>Its training data.</strong> Foundation models memorize fragments of what they were trained on. With the right prompt they can regurgitate snippets — sometimes PII, sometimes copyrighted text. You don&rsquo;t control this directly; you control it by <em>choosing</em> and <em>evaluating</em> the model.</li>
+<li><strong>Other users&rsquo; data — through your plumbing.</strong> This is the one teams cause themselves: shared caches, shared vector stores, logs that mingle tenants, or a fine-tuning set built from real user conversations.</li>
+</ol>
+<p><strong>The gotcha:</strong> &ldquo;the model won&rsquo;t repeat secrets&rdquo; is false. There is no privileged region of the context the model treats as confidential — the system prompt is not a vault. Anything you place in the context window can surface in an output, whether coaxed by a crafted prompt or spilled by accident. The engineering rule follows directly: <em>don&rsquo;t put a secret in the prompt if you&rsquo;d be harmed by it appearing in the reply.</em> Give the model a reference or a scoped tool, not the raw credential.</p>
+<hr>
+<h2 id="pii-in-prompts-logs-and-traces">PII in prompts, logs, and traces</h2>
+<p>Here is the mistake almost everyone makes at least once. You add observability — you log every request and response, you wire up tracing so you can debug agent runs, you sample conversations into a dataset for evals. All good practice. And every one of those systems just became a copy of your users&rsquo; personal data, sitting in a place with weaker access controls than your primary database.</p>
+<p><strong>The gotcha:</strong> your logs and traces are the sneakiest leak of all. The model output might be fine, but the raw prompt — full name, email, the paragraph the user pasted from a medical report — is now in your log aggregator, your tracing backend, and three months of retained snapshots, readable by anyone with a debugging login. Redact <em>before</em> the data is written, not after. &ldquo;We&rsquo;ll scrub the logs later&rdquo; is not a control; the data was exposed the moment it was written unredacted.</p>
+<p>So the redaction step has to sit on the path <em>into</em> the model and <em>into</em> the logs, before either sees raw text.</p>
+<hr>
+<h2 id="redaction-and-anonymization">Redaction and anonymization</h2>
+<p>Detecting and masking PII is its own small discipline. You can build a regex baseline for well-structured identifiers (emails, credit-card-shaped numbers, national IDs with checksums), but names, addresses, and free-form context need a proper recognizer. A widely used open-source option is <strong>Microsoft Presidio</strong>, which combines named-entity recognition with pattern recognizers and configurable anonymization operators. Presidio splits the job into two libraries — <code>presidio-analyzer</code> finds entities, <code>presidio-anonymizer</code> transforms them — and its exact API surface evolves, so treat the sketch below as the shape and confirm signatures against the current Presidio docs before you ship.</p>
+<p>Start with a regex baseline so the concept is unambiguous and dependency-free:</p>
+<pre><code class="language-python">import re
+
+# Deliberately conservative patterns — a baseline, not a complete PII catalogue.
+_PATTERNS = {
+    &quot;EMAIL&quot;: re.compile(r&quot;\b[\w.%+-]+@[\w.-]+\.[A-Za-z]{2,}\b&quot;),
+    &quot;PHONE&quot;: re.compile(r&quot;\b(?:\+?\d[\d ().-]{7,}\d)\b&quot;),
+    &quot;CREDIT_CARD&quot;: re.compile(r&quot;\b(?:\d[ -]?){13,16}\b&quot;),
+}
+
+def redact_baseline(text: str) -&gt; str:
+    &quot;&quot;&quot;Mask obvious structured PII. First line of defence, not the last.&quot;&quot;&quot;
+    for label, pattern in _PATTERNS.items():
+        text = pattern.sub(f&quot;[{label}]&quot;, text)
+    return text
+</code></pre>
+<p>For anything beyond structured identifiers, hand the text to a recognizer. The Presidio-style flow looks like this:</p>
+<pre><code class="language-python">from presidio_analyzer import AnalyzerEngine
+from presidio_anonymizer import AnonymizerEngine
+from presidio_anonymizer.entities import OperatorConfig
+
+analyzer = AnalyzerEngine()
+anonymizer = AnonymizerEngine()
+
+def redact(text: str, language: str = &quot;en&quot;) -&gt; str:
+    &quot;&quot;&quot;Detect PII entities, then replace each with a typed placeholder.&quot;&quot;&quot;
+    findings = analyzer.analyze(text=text, language=language)
+    result = anonymizer.anonymize(
+        text=text,
+        analyzer_results=findings,
+        # Replace with a label per entity type; 'replace' is one of several
+        # operators (others include hash, mask, encrypt) — check the docs.
+        operators={&quot;DEFAULT&quot;: OperatorConfig(&quot;replace&quot;, {&quot;new_value&quot;: &quot;[REDACTED]&quot;})},
+    )
+    return result.text
+</code></pre>
+<p>Now put redaction on <em>both</em> edges — the request path and the logging path — so raw PII never reaches the model or the log store:</p>
+<pre><code class="language-python">import logging
+
+logger = logging.getLogger(&quot;llm.audit&quot;)
+
+def handle_request(user_text: str, call_model) -&gt; str:
+    # 1. Minimise + redact BEFORE the model sees the input.
+    safe_input = redact(user_text)
+
+    # 2. Log the redacted form only. The raw text is never written.
+    logger.info(&quot;llm_request&quot;, extra={&quot;prompt&quot;: safe_input})
+
+    raw_output = call_model(safe_input)
+
+    # 3. Redact the OUTPUT too — the model can emit PII it inferred,
+    #    retrieved, or hallucinated. Log the safe version.
+    safe_output = redact(raw_output)
+    logger.info(&quot;llm_response&quot;, extra={&quot;completion&quot;: safe_output})
+
+    return safe_output
+</code></pre>
+<p>Two subtleties worth internalizing. First, redact the <em>output</em> as well as the input — a model can emit PII that came from a retrieved document or was inferred from context, so the response path is a leak surface too. Second, decide deliberately whether the <em>user</em> sees the redacted text or the original; often you redact only what goes to the model and the logs, and return the model&rsquo;s answer to the user unmodified. That is a design choice, not an accident — make it on purpose.</p>
+<p><strong>The gotcha:</strong> anonymization is lossy and, done naively, reversible. Masking the name and email is not enough when the remaining <em>quasi-identifiers</em> — ZIP code, birth date, gender, a rare job title — combine to re-identify a person. This is the well-documented re-identification problem behind k-anonymity and its successors. Detection recall is never 100% either: a recognizer will miss an unusual name or a novel ID format. Treat redaction as risk reduction, not a guarantee, and pair it with the access and retention controls below rather than leaning on it alone.</p>
+<hr>
+<h2 id="data-minimization">Data minimization</h2>
+<p>The cheapest data to protect is the data you never sent. <strong>Data minimization</strong> — a core principle in GDPR (Article 5&rsquo;s &ldquo;adequate, relevant and limited to what is necessary&rdquo;) and echoed in most modern privacy regimes — maps almost directly onto good LLM engineering: send the model only the fields the task actually needs.</p>
+<p>If the task is &ldquo;classify this support ticket&rsquo;s urgency,&rdquo; the model does not need the customer&rsquo;s account number, their full address, or the last four transactions. Build the prompt from a <em>projection</em> of the record, not the whole row:</p>
+<pre><code class="language-python">def ticket_features(ticket: dict) -&gt; dict:
+    &quot;&quot;&quot;Project only what the urgency classifier needs. Everything else stays home.&quot;&quot;&quot;
+    return {
+        &quot;subject&quot;: ticket[&quot;subject&quot;],
+        &quot;body&quot;: redact(ticket[&quot;body&quot;]),          # free text, so still redact
+        &quot;product_area&quot;: ticket[&quot;product_area&quot;],
+        &quot;account_age_days&quot;: ticket[&quot;account_age_days&quot;],
+        # deliberately omitted: name, email, account_number, billing_address, ...
+    }
+</code></pre>
+<p>Minimization compounds with everything else: less data in the prompt means less to leak from the output, less to redact, less sitting in your traces, and a smaller blast radius if the provider&rsquo;s logs are ever exposed. When in doubt, leave the field out and add it back only when a real task needs it.</p>
+<hr>
+<h2 id="data-residency-retention-and-tenancy">Data residency, retention, and tenancy</h2>
+<p>Once data leaves your process for a model provider, two questions decide your compliance posture: <em>where is it processed</em> and <em>how long is it retained</em>.</p>
+<ul>
+<li><strong>Residency.</strong> Regulated data (health records under HIPAA, EU personal data under GDPR) often must be processed in a specific region. Check whether your provider lets you pin the processing region, and whether that guarantee covers the model <em>and</em> any hosted tools (retrieval, code execution) you use alongside it.</li>
+<li><strong>Retention.</strong> Many providers retain prompts for some window — for abuse monitoring, quality, or their own model improvement — unless you opt out. Several offer a <strong>zero-retention</strong> or no-training mode for eligible accounts, and enterprise agreements frequently exclude your data from training by default. Do not assume; read the data-processing terms and confirm what applies to <em>your</em> tier.</li>
+<li><strong>Tenancy.</strong> In a multi-tenant product, the provider&rsquo;s data handling is one layer; the isolation <em>you</em> build is another. Shared prompt caches, a shared vector store, or a fine-tuning set drawn from all tenants&rsquo; conversations can all leak data across tenant boundaries even if the provider behaves perfectly.</li>
+</ul>
+<p>This is where the earlier posts in this series on <strong>model providers and vendor selection</strong> pay off. When residency or retention constraints are strict enough — regulated data, contractual data-locality requirements, an absolute no-third-party rule — the honest answer is often to <strong>self-host an open-weights model</strong> so the data never leaves your boundary at all. That trades operational burden for control. The right call depends on the sensitivity of the data, not on which option is fashionable.</p>
+<p><strong>The gotcha:</strong> &ldquo;we turned off training on our data&rdquo; and &ldquo;our data never leaves the region&rdquo; are <em>different</em> promises, and a vendor can honor one while breaking the other. Retention for abuse monitoring can still mean your prompts sit in the provider&rsquo;s storage for weeks; a hosted retrieval tool can process data in a different region than the base model. Verify each property independently, in writing, per feature you use.</p>
+<hr>
+<h2 id="retrieval-data-governance">Retrieval data governance</h2>
+<p>RAG is where careful teams still leak data across users, because the vector store quietly bypasses your application&rsquo;s authorization.</p>
+<p>Picture a company knowledge assistant. Your app enforces that a contractor can&rsquo;t open the executive-comp folder. But you embedded <em>every</em> document into one shared index, and at query time you retrieve the top-k most similar chunks for whatever the user asked. The retrieval layer has no idea who is asking — so a well-phrased question pulls the restricted chunk straight into the context, and the model helpfully summarizes it. The UI-level permission check never ran, because retrieval happened underneath it.</p>
+<p><strong>The gotcha:</strong> RAG bypasses application-layer authorization unless you filter retrieval by the caller&rsquo;s permissions. A shared vector store with no per-user filtering is a cross-tenant and cross-role leak waiting to happen — the model will surface any chunk that is semantically relevant, entitlement be damned. Authorization has to live <em>in the retrieval query</em>, not only in the UI or the API gateway.</p>
+<p>The fix is to make the retrieval layer permission-aware. Tag every chunk with the access metadata that governs its source document, then constrain the similarity search to what the caller is allowed to see — enforced <em>before</em> results come back, not filtered in the application afterward (post-filtering can starve the result set and still pull restricted vectors into scoring):</p>
+<pre><code class="language-python">def retrieve(query: str, user, k: int = 5):
+    &quot;&quot;&quot;Filter by the caller's entitlements INSIDE the vector query, not after.&quot;&quot;&quot;
+    # Compute the caller's allowed audience from their identity — never trust
+    # a value passed in from the client.
+    allowed = user.group_ids | {&quot;public&quot;}
+
+    query_vec = embed(query)
+
+    # Metadata filter runs server-side in the vector store, so restricted
+    # chunks are excluded from similarity scoring entirely.
+    return vector_store.search(
+        vector=query_vec,
+        top_k=k,
+        filter={&quot;acl_group&quot;: {&quot;$in&quot;: list(allowed)}},   # per-store syntax varies
+    )
+
+def index_document(doc):
+    &quot;&quot;&quot;At ingestion, carry the SOURCE document's ACL onto every chunk.&quot;&quot;&quot;
+    for chunk in split(doc.text):
+        vector_store.upsert(
+            id=chunk.id,
+            vector=embed(chunk.text),
+            metadata={
+                &quot;acl_group&quot;: doc.acl_group,     # inherited from the source
+                &quot;source_id&quot;: doc.id,
+            },
+        )
+</code></pre>
+<p>The exact filter syntax differs by vector database, and some deployments prefer physically separate indexes or namespaces per tenant over a shared store with metadata filters — a stronger boundary when tenants must never share infrastructure. Whichever you choose, the invariant is the same: <em>the set of chunks eligible for retrieval must be scoped to the caller before similarity scoring</em>, and the caller&rsquo;s entitlements must be derived from their authenticated identity, never from a parameter the client can set. And keep the chunk ACLs in sync with the source: when a document&rsquo;s permissions change or it is deleted, its vectors must be updated or purged, or you re-open the leak.</p>
+<hr>
+<h2 id="regulatory-framing-at-engineering-altitude">Regulatory framing, at engineering altitude</h2>
+<p>You don&rsquo;t need to be a lawyer, but a few privacy-law concepts translate straight into system requirements:</p>
+<ul>
+<li><strong>Purpose limitation (GDPR Art. 5).</strong> Data collected for one purpose shouldn&rsquo;t be silently repurposed. Reusing production conversations as a fine-tuning or eval dataset is a new purpose — it needs a lawful basis and usually explicit notice or consent. Don&rsquo;t quietly harvest user chats into training data.</li>
+<li><strong>Data-subject rights (GDPR / CCPA).</strong> People can request access to, correction of, or <strong>deletion</strong> of their data. Engineer for this: if a user&rsquo;s data can land in prompts, logs, traces, <em>and</em> a vector store, a deletion request has to reach all of them. A shadow copy of personal data in an un-inventoried tracing backend is exactly what turns a routine deletion request into a compliance incident.</li>
+<li><strong>Data minimization and storage limitation.</strong> Covered above — collect and retain the minimum, and set real retention limits (with automatic expiry) on logs, traces, and any conversation datasets.</li>
+</ul>
+<p>The engineering takeaway: maintain a <strong>data inventory</strong> for your LLM system. Know every place personal data can come to rest — prompts, model-provider retention, logs, traces, caches, vector stores, eval sets — because that map is what makes redaction, deletion, and residency guarantees actually enforceable instead of aspirational.</p>
+<hr>
+<h2 id="redaction-vs-access-control-vs-residency-what-each-one-buys-you">Redaction vs. access control vs. residency — what each one buys you</h2>
+<table><caption class="sr-only">Redaction vs. access control vs. residency — what each one buys you</caption>
+<thead>
+<tr>
+<th>Control</th>
+<th>Stops</th>
+<th>Doesn&rsquo;t stop</th>
+<th>Where it lives</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Redaction / anonymization</td>
+<td>Raw PII reaching the model or logs</td>
+<td>Re-identification via quasi-identifiers; recall gaps</td>
+<td>Request + logging + output paths</td>
+</tr>
+<tr>
+<td>Data minimization</td>
+<td>Unnecessary fields ever being exposed</td>
+<td>Leakage of the fields you <em>do</em> send</td>
+<td>Prompt construction</td>
+</tr>
+<tr>
+<td>Per-user retrieval authz</td>
+<td>RAG surfacing chunks the caller can&rsquo;t see</td>
+<td>Leaks from data you deliberately included</td>
+<td>The vector query itself</td>
+</tr>
+<tr>
+<td>Residency / zero-retention</td>
+<td>Data being stored or processed in the wrong place</td>
+<td>In-context leakage back to the same user</td>
+<td>Provider config + contract</td>
+</tr>
+<tr>
+<td>Self-hosting</td>
+<td>Data leaving your boundary at all</td>
+<td>Everything above still applies internally</td>
+<td>Your infrastructure</td>
+</tr>
+</tbody>
+</table>
+<p>No single row is sufficient. Data security in LLM systems is the <em>composition</em> of these controls across the whole pipeline.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>The model isn&rsquo;t the leak — the pipeline is.</strong> Sensitive-information disclosure (OWASP LLM02) usually traces back to what you put in the context, what you log, or what you retrieve.</li>
+<li><strong>Anything in the context can come out.</strong> There is no confidential region of the prompt; keep raw secrets out and pass scoped references or tools instead.</li>
+<li><strong>Redact before you log, not after.</strong> Your traces and log stores are the sneakiest PII leak. Put redaction on the input, output, <em>and</em> logging paths, and treat it as risk reduction, not a guarantee — quasi-identifiers still re-identify.</li>
+<li><strong>Minimize what you send.</strong> The safest data is the field you never included; project records down to what the task needs.</li>
+<li><strong>RAG needs its own authz.</strong> Filter retrieval by the caller&rsquo;s entitlements inside the vector query, or a shared store leaks across roles and tenants.</li>
+<li><strong>Verify residency and retention independently, per feature</strong> — and when constraints are strict enough, self-host so the data never leaves.</li>
+<li><strong>Engineer for data-subject rights.</strong> Keep a data inventory so deletion, access, and residency promises can actually be honored.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://genai.owasp.org/llmrisk/llm022025-sensitive-information-disclosure/">OWASP Top 10 for LLM Applications — LLM02: Sensitive Information Disclosure</a></li>
+<li><a href="https://genai.owasp.org/">OWASP GenAI Security Project</a></li>
+<li><a href="https://microsoft.github.io/presidio/">Microsoft Presidio — documentation</a></li>
+<li><a href="https://github.com/microsoft/presidio">Microsoft Presidio — GitHub repository</a></li>
+<li><a href="https://www.nist.gov/itl/ai-risk-management-framework">NIST AI Risk Management Framework (AI RMF 1.0)</a></li>
+<li><a href="https://gdpr-info.eu/art-5-gdpr/">GDPR — Article 5: Principles relating to processing of personal data</a></li>
+<li><a href="https://oag.ca.gov/privacy/ccpa">California Consumer Privacy Act (CCPA) — California Attorney General</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-security-08-red-teaming-and-testing.html">AI Red-Teaming and Testing</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-security-07-securing-the-ai-pipeline.html">Securing the AI Pipeline</a>
+      <span class="related-date">Aug 13</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-security-06-guardrails-and-content-safety.html">Guardrails and Content Safety</a>
+      <span class="related-date">Aug 12</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
