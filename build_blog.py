@@ -4630,26 +4630,28 @@ nav {
   margin: 0 auto;
   padding: 12px 22px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 10px 16px;
 }
 .nav-brand {
   font-weight: 700;
   font-size: 16px;
   color: var(--text);
   letter-spacing: -0.01em;
+  margin-right: auto;
 }
 .nav-brand:hover { text-decoration: none; color: var(--text); }
 .nav-links {
   display: flex;
-  flex-wrap: nowrap;
-  gap: 10px;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  gap: 8px 14px;
   list-style: none;
   font-size: 12px;
   font-weight: 500;
   justify-content: flex-end;
-  min-width: 0;
 }
 .nav-links a { color: var(--text-dim); min-height: 44px; display: inline-flex; align-items: center; }
 .nav-links a:hover { color: var(--accent); text-decoration: none; }
@@ -4661,7 +4663,7 @@ nav {
 .nav-toggle { display: none; }
 .nav-burger { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 36px; height: 36px; padding: 6px; cursor: pointer; margin-left: auto; border-radius: 6px; }
 .nav-burger span { display: block; height: 2px; width: 22px; background: var(--text); border-radius: 2px; transition: 0.2s; }
-@media (max-width: 1400px) {
+@media (max-width: 768px) {
   .nav-container { flex-wrap: wrap; }
   .nav-burger { display: flex; }
   .nav-links { display: none !important; width: 100%; flex-direction: column; align-items: stretch; gap: 0; padding: 6px 0 2px; }
