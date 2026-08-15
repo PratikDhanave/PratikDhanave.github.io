@@ -4661,7 +4661,7 @@ nav {
 .nav-toggle { display: none; }
 .nav-burger { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 36px; height: 36px; padding: 6px; cursor: pointer; margin-left: auto; border-radius: 6px; }
 .nav-burger span { display: block; height: 2px; width: 22px; background: var(--text); border-radius: 2px; transition: 0.2s; }
-@media (max-width: 1240px) {
+@media (max-width: 1400px) {
   .nav-container { flex-wrap: wrap; }
   .nav-burger { display: flex; }
   .nav-links { display: none !important; width: 100%; flex-direction: column; align-items: stretch; gap: 0; padding: 6px 0 2px; }
@@ -5132,7 +5132,7 @@ NAV_HTML = """<nav>
       <li><a href="/projects/">Projects</a></li>
       <li><a href="/architecture/">Architecture</a></li>
       <li><a href="/open-source/">Open Source</a></li>
-      <li><a href="/agent-framework/">Agent Framework Go</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
       <li><a href="/recommendations/">Recommendations</a></li>
       <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
       <li><a href="/mentoring/">Mentoring</a></li>
