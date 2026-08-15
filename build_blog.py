@@ -5136,7 +5136,6 @@ NAV_HTML = """<nav>
       <li><a href="/recommendations/">Recommendations</a></li>
       <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
       <li><a href="/mentoring/">Mentoring</a></li>
-      <li><a href="/emotional-intelligence/">Emotional Intelligence</a></li>
       <li><a href="/gsoc/">GSoC</a></li>
       <li><a href="/resume/">Resume</a></li>
       <li><a href="/certifications/">Certifications</a></li>
