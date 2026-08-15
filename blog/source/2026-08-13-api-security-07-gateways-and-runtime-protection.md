@@ -146,6 +146,6 @@ Then *alert* on these — a spike in per-caller authorization denials, a surge o
 - [OWASP API Security Top 10 — API8:2023 Security Misconfiguration](https://owasp.org/API-Security/editions/2023/en/0xa8-security-misconfiguration/)
 - [OWASP API Security Top 10 — API9:2023 Improper Inventory Management](https://owasp.org/API-Security/editions/2023/en/0xa9-improper-inventory-management/)
 - [OWASP Cheat Sheet — REST Security](https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html)
-- [Kong Gateway — Security reference](https://docs.konghq.com/gateway/latest/kong-enterprise/security/)
+- [Kong Gateway — Security reference](https://docs.konghq.com/gateway/latest/)
 - [Envoy Proxy — Security documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/security)
 - [AWS API Gateway — Security in Amazon API Gateway](https://docs.aws.amazon.com/apigateway/latest/developerguide/security.html)

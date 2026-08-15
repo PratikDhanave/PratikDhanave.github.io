@@ -209,7 +209,7 @@ Everything platform-specific here — exact SDK classes, metric names, and setup
 
 - [IBM watsonx.governance documentation](https://www.ibm.com/docs/en/watsonx/w-and-w/2.2.x?topic=governing-ai-assets) — governing AI assets, use-case inventory, and workflows.
 - [Evaluating and monitoring AI use cases (watsonx.governance)](https://www.ibm.com/docs/en/watsonx/w-and-w/2.2.x?topic=governance-evaluating-ai-models) — generative and classical monitors: quality, drift, fairness, faithfulness, and safety.
-- [AI factsheets and model lifecycle tracking](https://www.ibm.com/docs/en/watsonx/w-and-w/2.2.x?topic=assets-tracking-models-model-inventory) — how lineage is captured across develop → deploy.
+- [AI factsheets and model lifecycle tracking](https://www.ibm.com/products/watsonx-governance) — how lineage is captured across develop → deploy.
 - [`ibm-watsonx-gov` SDK documentation](https://ibm.github.io/ibm-watsonx-gov/) — the Python evaluation/metrics toolkit for generative use cases.
 - [`ibm-watsonx-gov` on PyPI](https://pypi.org/project/ibm-watsonx-gov/) — install and release notes.
 - [`ibm-watsonx-ai` SDK documentation](https://ibm.github.io/watsonx-ai-python-sdk/) — deployment spaces and model assets that governance tracks.

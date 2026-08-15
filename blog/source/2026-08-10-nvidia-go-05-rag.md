@@ -417,5 +417,5 @@ Production RAG puts the vectors in a **vector database** that indexes them for a
 - [NeMo Retriever Text Reranking NIM — documentation](https://docs.nvidia.com/nim/nemo-retriever/text-reranking/latest/overview.html) — confirm the ranking request/response fields for your version.
 - [NVIDIA RAG Blueprint](https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline) — NVIDIA's reference architecture for an enterprise RAG pipeline.
 - [Milvus documentation — GPU index](https://milvus.io/docs/gpu_index.md) — GPU-accelerated vector indexing in Milvus.
-- [NVIDIA cuVS](https://docs.rapids.ai/api/cuvs/stable/) — GPU-accelerated vector search primitives.
+- [NVIDIA cuVS](https://github.com/rapidsai/cuvs) — GPU-accelerated vector search primitives.
 - [Go `net/http` package reference](https://pkg.go.dev/net/http) — the whole transport layer of this pipeline.

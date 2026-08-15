@@ -267,5 +267,5 @@ The flow is worth internalizing because it's the skeleton of essentially every s
 
 - [NeMo Retriever documentation](https://docs.nvidia.com/nemo/retriever/) — the embedding and reranking NIMs, deployment, and model catalog.
 - [`langchain-nvidia-ai-endpoints` — text embeddings](https://python.langchain.com/docs/integrations/text_embedding/nvidia_ai_endpoints/) — `NVIDIAEmbeddings`, `embed_documents`, and `embed_query`.
-- [`langchain-nvidia-ai-endpoints` — reranking](https://python.langchain.com/docs/integrations/retrievers/nvidia_rerank/) — `NVIDIARerank` and `compress_documents`.
+- [`langchain-nvidia-ai-endpoints` — reranking](https://python.langchain.com/docs/integrations/providers/nvidia/) — `NVIDIARerank` and `compress_documents`.
 - [build.nvidia.com](https://build.nvidia.com) — the live catalog; confirm the exact embedding and reranking model ids and dimensions.

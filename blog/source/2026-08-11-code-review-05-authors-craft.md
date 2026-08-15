@@ -194,4 +194,4 @@ None of this is about being a nicer person (though it reads that way). It is abo
 - [Google Engineering Practices — Small CLs](https://google.github.io/eng-practices/review/developer/small-cls.html) — the case for small changelists and how to split large ones, from Google's public code-review guide.
 - [Google Engineering Practices — Writing good CL descriptions](https://google.github.io/eng-practices/review/developer/cl-descriptions.html) — what a first line and body should contain, with good and bad examples.
 - [Graphite — Stacked pull requests](https://graphite.dev/guides/stacked-pull-requests) — a primer on breaking a large change into an ordered chain of small, independently reviewable PRs.
-- [How to Write a Git Commit Message](https://cbea.ms/git-commit/) — Chris Beams's widely-cited guide to atomic commits and messages that explain the why.
+- [Git commit good practices (git-scm / Pro Git)](https://git-scm.com/docs/git-commit) — atomic commits and messages that explain the *why*, not just the what.

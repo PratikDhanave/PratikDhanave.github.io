@@ -168,7 +168,7 @@ Name your top few quality attributes, make them measurable, and accept that ever
 
 ## Further reading
 
-- [ISO/IEC 25010 — the software product quality model](https://iso25000.com/index.php/en/iso-25000-standards/iso-25010) — the standard taxonomy of quality characteristics (functional suitability, performance efficiency, reliability, security, maintainability, and more). A useful checklist to make sure you haven't forgotten an -ility during elicitation.
+- [ISO/IEC 25010 — the software product quality model](https://en.wikipedia.org/wiki/ISO/IEC_25010) — the standard taxonomy of quality characteristics (functional suitability, performance efficiency, reliability, security, maintainability, and more). A useful checklist to make sure you haven't forgotten an -ility during elicitation.
 - [Software Architecture in Practice (SEI) — the quality attribute scenario method](https://insights.sei.cmu.edu/library/software-architecture-in-practice-third-edition/) — the source of the source/stimulus/environment/response/measure structure and the idea of ranking scenarios by impact and risk.
 - [Martin Fowler — Software Architecture Guide](https://martinfowler.com/architecture/) — a practical, plain-language take on what architecture is and why the "hard-to-change decisions" framing matters.
-- [Martin Fowler — the CAP theorem, explained](https://martinfowler.com/bliki/CAP.html) — the canonical treatment of the consistency-vs-availability trade that recurs across every distributed system.
+- [CAP theorem](https://en.wikipedia.org/wiki/CAP_theorem) — the consistency-vs-availability trade that recurs across every distributed system (see also this series' post 5).

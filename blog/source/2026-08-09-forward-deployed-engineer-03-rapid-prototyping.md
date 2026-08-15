@@ -77,6 +77,5 @@ Sometimes the prototype's most valuable outcome is proving the idea *doesn't* wo
 
 ## Further reading
 
-- [Tom Chi — rapid prototyping / "maximize the rate of learning"](https://en.wikipedia.org/wiki/Tom_Chi) — the philosophy behind fast, cheap prototypes.
 - [IDEO — design thinking and prototyping](https://designthinking.ideo.com/) — building to think and to test.
 - [Eric Ries — The Lean Startup (MVP / build-measure-learn)](http://theleanstartup.com/) — the validated-learning loop an FDE runs at customer scale.

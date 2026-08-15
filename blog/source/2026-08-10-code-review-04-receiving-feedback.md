@@ -137,6 +137,6 @@ Closing the loop is the small courtesy that makes people want to work with you. 
 
 ## Further reading
 
-- [Douglas Stone & Sheila Heen, *Thanks for the Feedback*](https://www.stoneandheen.com/thanks-for-the-feedback) — the primary text on why receiving feedback is a distinct, learnable skill and how to separate the message from the relationship.
+- [Douglas Stone & Sheila Heen, *Thanks for the Feedback*](https://en.wikipedia.org/wiki/Thanks_for_the_Feedback) — the primary text on why receiving feedback is a distinct, learnable skill and how to separate the message from the relationship.
 - [Google's Code Review Developer Guide — The CL author's guide](https://google.github.io/eng-practices/review/developer/) — the author-side companion to Google's reviewer guidance, covering how to handle reviewer comments and pushback.
 - [Netflix's "disagree and commit" and the informed-captain model](https://igormroz.com/documents/netflix_culture.pdf) — how a high-trust team resolves disagreement without stalling on consensus.

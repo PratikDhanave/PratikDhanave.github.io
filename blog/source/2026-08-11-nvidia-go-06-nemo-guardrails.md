@@ -43,7 +43,7 @@ A NeMo Guardrails app is configured with a **config folder**, not code. Two kind
 - `config.yml` — declares which models to use and which rails are active.
 - One or more Colang files (`*.co`) — Colang is NeMo Guardrails' language for defining flows and dialog rails.
 
-Here is a small `config.yml`. It points the guardrails engine at a NIM model over the same OpenAI-compatible endpoint the rest of this series uses, and turns on an input and an output rail. **This example is illustrative** — it shows the shape of the file, not a verbatim spec. Field names and available options evolve, so check the [configuration guide](https://docs.nvidia.com/nemo/guardrails/latest/user-guides/configuration-guide.html) for the exact, current syntax before you copy it.
+Here is a small `config.yml`. It points the guardrails engine at a NIM model over the same OpenAI-compatible endpoint the rest of this series uses, and turns on an input and an output rail. **This example is illustrative** — it shows the shape of the file, not a verbatim spec. Field names and available options evolve, so check the [configuration guide](https://docs.nvidia.com/nemo/guardrails/) for the exact, current syntax before you copy it.
 
 ```yaml
 # config.yml (illustrative — verify field names against the current docs)
@@ -80,7 +80,7 @@ define flow
 
 Read that as: *these example phrasings signal one intent; when the model classifies a message as that intent, run this flow and give this refusal instead of answering.* The engine generalises from the sample utterances rather than string-matching them.
 
-**The gotcha:** don't invent Colang syntax from memory — the snippets above are deliberately minimal illustrations of the *idea*, and Colang has evolved across versions (Colang 1.0 vs 2.x differ). Treat the [Colang documentation](https://docs.nvidia.com/nemo/guardrails/latest/colang-2/overview.html) as the authority for real flows, and start from the project's example configs rather than hand-writing rails blind.
+**The gotcha:** don't invent Colang syntax from memory — the snippets above are deliberately minimal illustrations of the *idea*, and Colang has evolved across versions (Colang 1.0 vs 2.x differ). Treat the [Colang documentation](https://docs.nvidia.com/nemo/guardrails/) as the authority for real flows, and start from the project's example configs rather than hand-writing rails blind.
 
 ---
 
@@ -222,7 +222,7 @@ Think of it as layers that each catch what the others miss: edge validation, the
 ## Further reading
 
 - [NeMo Guardrails on GitHub](https://github.com/NVIDIA/NeMo-Guardrails) — the open-source project, examples, and issue tracker.
-- [NeMo Guardrails documentation](https://docs.nvidia.com/nemo/guardrails/latest/index.html) — the toolkit's concepts, rail types, and deployment modes.
-- [Configuration guide](https://docs.nvidia.com/nemo/guardrails/latest/user-guides/configuration-guide.html) — the authoritative reference for `config.yml` fields and rail wiring.
-- [Colang overview](https://docs.nvidia.com/nemo/guardrails/latest/colang-2/overview.html) — the language for defining flows and dialog rails; check the version that matches your install.
+- [NeMo Guardrails documentation](https://docs.nvidia.com/nemo/guardrails/) — the toolkit's concepts, rail types, and deployment modes.
+- [Configuration guide](https://docs.nvidia.com/nemo/guardrails/) — the authoritative reference for `config.yml` fields and rail wiring.
+- [Colang overview](https://docs.nvidia.com/nemo/guardrails/) — the language for defining flows and dialog rails; check the version that matches your install.
 - [NVIDIA NIM for LLMs — API reference](https://docs.nvidia.com/nim/large-language-models/latest/api-reference.html) — the OpenAI-compatible chat-completions contract both NIM and the guardrails server speak.

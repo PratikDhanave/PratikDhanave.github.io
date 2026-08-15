@@ -282,9 +282,9 @@ NVIDIA also publishes **RAG blueprints** — reference architectures (part of NV
 ## Further reading
 
 - [NeMo Retriever documentation](https://docs.nvidia.com/nemo/retriever/) — the embedding and reranking NIMs that power ingestion and retrieval.
-- [`langchain-nvidia-ai-endpoints` — reranking](https://python.langchain.com/docs/integrations/retrievers/nvidia_rerank/) — `NVIDIARerank`, `compress_documents`, and `ContextualCompressionRetriever` usage.
+- [`langchain-nvidia-ai-endpoints` — reranking](https://python.langchain.com/docs/integrations/providers/nvidia/) — `NVIDIARerank`, `compress_documents`, and `ContextualCompressionRetriever` usage.
 - [`langchain-nvidia-ai-endpoints` — text embeddings](https://python.langchain.com/docs/integrations/text_embedding/nvidia_ai_endpoints/) — `NVIDIAEmbeddings`, `embed_documents`, and `embed_query`.
 - [NVIDIA AI Blueprints — RAG](https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline) — the reference RAG pipeline built on NeMo Retriever NIMs.
 - [FAISS documentation](https://faiss.ai/) — the in-memory / on-disk vector index used above.
 - [Milvus documentation](https://milvus.io/docs) — a production vector database with GPU-accelerated indexing.
-- [NVIDIA cuVS](https://docs.rapids.ai/api/cuvs/stable/) — GPU-accelerated vector search primitives.
+- [NVIDIA cuVS](https://github.com/rapidsai/cuvs) — GPU-accelerated vector search primitives.

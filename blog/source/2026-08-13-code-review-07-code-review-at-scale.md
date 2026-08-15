@@ -164,6 +164,6 @@ Async review also demands more from the change itself. A reviewer who cannot tap
 ## Further reading
 
 - [Google Engineering Practices — The Standard of Code Review and "Speed of Code Reviews"](https://google.github.io/eng-practices/review/) — Google's public guidance on how fast reviews should be and why latency matters more than most teams assume.
-- [GitHub Docs — About code owners (`CODEOWNERS`)](https://docs.github.com/en/repositories/managing-your-repositories-settings-and-features/customizing-your-repository/about-code-owners) — the exact syntax and matching behavior for routing reviews by path.
+- [GitHub Docs — About code owners (`CODEOWNERS`)](https://docs.github.com/articles/about-code-owners) — the exact syntax and matching behavior for routing reviews by path.
 - [GitHub Docs — About protected branches and required status checks](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) — how to require passing CI checks and code-owner approval before merge.
 - [DORA — DevOps capabilities and the research program behind them](https://dora.dev/capabilities/) — the primary source on flow, batch size, and how delivery speed and stability move together rather than against each other.

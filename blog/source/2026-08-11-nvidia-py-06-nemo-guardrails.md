@@ -65,7 +65,7 @@ models:
 
 The `models` list is the key idea: the rails themselves need a model to reason with (a jailbreak-detection rail, for instance, may ask an LLM "is this an attempt to manipulate the assistant?"). Point that engine at your NVIDIA model and the guardrails run on the same NIM-served backend as the rest of your app.
 
-Colang is where dialog flows are expressed. Its exact syntax has evolved across versions (there is a Colang 1.0 and a Colang 2.0), so rather than risk showing something subtly wrong, here is an **illustrative sketch** — treat it as *shape, not gospel*, and check the [Colang reference](https://docs.nvidia.com/nemo/guardrails/latest/colang-language-syntax-guide.html) for the exact grammar of your version:
+Colang is where dialog flows are expressed. Its exact syntax has evolved across versions (there is a Colang 1.0 and a Colang 2.0), so rather than risk showing something subtly wrong, here is an **illustrative sketch** — treat it as *shape, not gospel*, and check the [Colang reference](https://docs.nvidia.com/nemo/guardrails/) for the exact grammar of your version:
 
 ```yaml
 # ILLUSTRATIVE ONLY — shows the shape of a Colang flow, not exact syntax.
@@ -157,7 +157,7 @@ blocked = any(
 answer = result.response if hasattr(result, "response") else result
 ```
 
-The exact shape of the returned object depends on the options you request and the version you run, so check the [generation-options docs](https://docs.nvidia.com/nemo/guardrails/latest/user-guides/advanced/generation-options.html) — but the principle holds: ask for the log, and branch on whether a rail was activated instead of assuming success. Handle a tripped rail as its own case (log it, show a friendly fallback, maybe route to a human) rather than passing a refusal downstream as if it were data.
+The exact shape of the returned object depends on the options you request and the version you run, so check the [generation-options docs](https://docs.nvidia.com/nemo/guardrails/) — but the principle holds: ask for the log, and branch on whether a rail was activated instead of assuming success. Handle a tripped rail as its own case (log it, show a friendly fallback, maybe route to a human) rather than passing a refusal downstream as if it were data.
 
 **The gotcha:** a tripped rail returns a refusal or an altered message, not an error. If you don't explicitly detect the intervention, your app will treat a safety refusal as a legitimate answer — the worst kind of silent failure, because everything *looks* like it worked.
 
@@ -194,10 +194,10 @@ Your **own input validation** still matters. Guardrails reason probabilistically
 
 ## Further reading
 
-- [NeMo Guardrails — official documentation](https://docs.nvidia.com/nemo/guardrails/latest/index.html)
+- [NeMo Guardrails — official documentation](https://docs.nvidia.com/nemo/guardrails/)
 - [NeMo Guardrails on GitHub (source, examples, issues)](https://github.com/NVIDIA/NeMo-Guardrails)
-- [Colang language syntax guide](https://docs.nvidia.com/nemo/guardrails/latest/colang-language-syntax-guide.html)
-- [Configuration guide (config.yml, models, rails)](https://docs.nvidia.com/nemo/guardrails/latest/user-guides/configuration-guide.html)
-- [Generation options (activation logs, output vars)](https://docs.nvidia.com/nemo/guardrails/latest/user-guides/advanced/generation-options.html)
+- [Colang language syntax guide](https://docs.nvidia.com/nemo/guardrails/)
+- [Configuration guide (config.yml, models, rails)](https://docs.nvidia.com/nemo/guardrails/)
+- [Generation options (activation logs, output vars)](https://docs.nvidia.com/nemo/guardrails/)
 - [`langchain-nvidia-ai-endpoints` — ChatNVIDIA integration](https://python.langchain.com/docs/integrations/chat/nvidia_ai_endpoints/)
 - [NVIDIA NIM microservices documentation](https://docs.nvidia.com/nim/index.html)

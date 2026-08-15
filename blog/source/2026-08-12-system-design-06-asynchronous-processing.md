@@ -193,7 +193,7 @@ The rule of thumb: choreography when steps are genuinely independent reactions t
 ## Further reading
 
 - [Apache Kafka — Documentation & Design](https://kafka.apache.org/documentation/#design) — the partitioned-log model, consumer groups, offsets, and delivery-semantics discussion straight from the source.
-- [Jay Kreps, "The Log: What every software engineer should know about real-time data's unifying abstraction"](https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying) — the essay that reframed the log as a first-class primitive.
+- [Apache Kafka — design](https://kafka.apache.org/documentation/#design) — the log-centric architecture popularized by Jay Kreps's essay "The Log," which reframed the log as a first-class primitive.
 - [Amazon SQS Developer Guide](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html) — standard vs FIFO queues, at-least-once delivery, visibility timeouts, and dead-letter queues.
 - [Transactional Outbox pattern — microservices.io](https://microservices.io/patterns/data/transactional-outbox.html) — the canonical write-up of the dual-write problem and its fix.
 - [Saga pattern — microservices.io](https://microservices.io/patterns/data/saga.html) — choreography vs orchestration for multi-step, cross-service transactions.
