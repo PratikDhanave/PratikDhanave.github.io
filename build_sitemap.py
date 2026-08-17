@@ -214,6 +214,26 @@ def collect_tag_pages(min_posts=3):
     return urls
 
 
+def collect_series_pages():
+    """Collect the series hub + every per-series landing page."""
+    series_dir = SITE_ROOT / "blog" / "series"
+    urls = []
+    if not series_dir.exists():
+        return urls
+    hub = series_dir / "index.html"
+    if hub.exists():
+        urls.append((f"{SITE_URL}/blog/series/", git_last_modified(hub), "weekly", "0.8"))
+    for sub in sorted(series_dir.iterdir()):
+        if not sub.is_dir():
+            continue
+        index_html = sub / "index.html"
+        if not index_html.exists():
+            continue
+        url = f"{SITE_URL}/blog/series/{sub.name}/"
+        urls.append((url, git_last_modified(index_html), "weekly", "0.75"))
+    return urls
+
+
 def collect_archive_pagination():
     """Collect archive pagination pages (page/2, page/3, etc.)."""
     archive_page_dir = SITE_ROOT / "blog" / "archive" / "page"
@@ -244,6 +264,7 @@ def main():
     blog_posts = collect_blog_posts()
     articles = collect_articles()
     tags = collect_tag_pages(min_posts=3)
+    series = collect_series_pages()
 
     # Include archive pagination pages alongside main pages
     all_pages = pages + archive_pages
@@ -267,11 +288,15 @@ def main():
         make_sitemap(tags, "sitemap-tags.xml")
         sitemaps.append(f"{SITE_URL}/sitemap-tags.xml")
 
+    if series:
+        make_sitemap(series, "sitemap-series.xml")
+        sitemaps.append(f"{SITE_URL}/sitemap-series.xml")
+
     # Write sitemap index
     if sitemaps:
         make_sitemap_index(sitemaps)
 
-    print(f"\nTotal: {len(all_pages)} pages ({len(pages)} static + {len(archive_pages)} archive pagination) + {len(blog_posts)} blog posts + {len(articles)} articles + {len(tags)} tag pages")
+    print(f"\nTotal: {len(all_pages)} pages ({len(pages)} static + {len(archive_pages)} archive pagination) + {len(blog_posts)} blog posts + {len(articles)} articles + {len(tags)} tag pages + {len(series)} series pages")
 
 
 if __name__ == "__main__":

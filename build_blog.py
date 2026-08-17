@@ -63,6 +63,13 @@ def tag_to_slug(tag):
     return tag.lower().replace(" ", "-")
 
 
+def series_to_slug(series_name):
+    """Normalize a series name to a URL-safe slug (handles em-dashes, commas, apostrophes)."""
+    s = series_name.lower().replace("'", "").replace("’", "")
+    s = re.sub(r"[^a-z0-9]+", "-", s)
+    return s.strip("-")
+
+
 # Display overrides: tag names that should render differently from their slug key.
 TAG_DISPLAY_NAMES = {
 }
@@ -4546,6 +4553,189 @@ POST_POPULARITY = {
 }
 
 # ---------------------------------------------------------------------------
+# Series metadata — descriptions for per-series landing pages
+# ---------------------------------------------------------------------------
+
+# One-line landing-page/meta descriptions per series. Missing series fall back
+# to an auto-generated sentence in render_series_page().
+SERIES_DESCRIPTIONS = {
+    "Microsoft Agent Framework Go — Every Lesson": "A lesson-by-lesson course through the Microsoft Agent Framework Go: agents, tools, workflows, memory, and production patterns, each with runnable Go code.",
+    "Microsoft Agent Framework Python — Every Lesson": "A comprehensive, lesson-by-lesson course through the Microsoft Agent Framework in Python — from first agent to multi-agent workflows and production deployment.",
+    "Learning the Microsoft Agent Framework — Go": "A guided introduction to the Microsoft Agent Framework in Go, building up the core concepts one focused lesson at a time.",
+    "Learning the Microsoft Agent Framework — Python": "A guided introduction to the Microsoft Agent Framework in Python, building up the core concepts one focused lesson at a time.",
+    "ADK to Microsoft Agent Framework Migration": "A practical migration path from Google's Agent Development Kit to the Microsoft Agent Framework — concept mapping, code translation, and the gotchas that bite.",
+    "Google ADK, Concept by Concept": "Google's Agent Development Kit explained one concept at a time — agents, tools, sessions, artifacts, and orchestration, with concrete examples.",
+    "LangGraph, Concept by Concept": "LangGraph explained one concept at a time — state, nodes, edges, checkpointing, and human-in-the-loop — for building reliable stateful agent graphs.",
+    "Road Go Ever On": "An original Go-language curriculum, from fundamentals through concurrency, tooling, and idiomatic production Go.",
+    "Python Programming": "An original Python-language curriculum, from fundamentals through idiomatic, production-ready Python.",
+    "AI Engineering in Go": "Building AI systems from scratch in Go — embeddings, retrieval, prompting, evaluation, and serving — without hiding behind a framework.",
+    "Amazon Bedrock in Go": "Using Amazon Bedrock from Go with the AWS SDK for Go v2 — models, tool use, streaming, embeddings, and guardrails.",
+    "NVIDIA AI Stack in Python": "The NVIDIA AI stack in Python — NIM microservices, NeMo, and Guardrails — wired together with the OpenAI client and LangChain.",
+    "NVIDIA AI Stack in Go": "The NVIDIA AI stack accessed from Go — NIM inference microservices, embeddings, and retrieval for production Go services.",
+    "IBM watsonx in Python": "IBM watsonx in Python — the watsonx.ai SDK and LangChain, Granite models, Granite Guardian, and watsonx.governance.",
+    "Harness Engineering in Go": "Engineering rigor in Go — testing, benchmarking, profiling, and the harness patterns that keep production Go services honest.",
+    "Evaluating Agents in Go": "Evaluating AI agents in Go — building the datasets, scorers, and regression harnesses that tell you whether an agent actually works.",
+    "The Fintech Engineering Handbook": "The engineering behind financial systems — ledgers, money movement, KYC/AML, ISO 20022, and the correctness guarantees fintech demands.",
+    "System Design Fundamentals": "The building blocks of large-scale systems — caching, sharding, queues, consistency, and the trade-offs behind every design decision.",
+    "The Software Architect's Path": "What it takes to grow into a software architect — quality attributes, trade-off analysis, documentation, and stakeholder-driven design.",
+    "DevSecOps": "Security woven into the delivery pipeline — supply-chain integrity, SAST/DAST, secrets, policy-as-code, and shifting security left.",
+    "Code Review": "The craft of code review — what to look for, how to give feedback, and the practices that make review a force multiplier, not a bottleneck.",
+    "Claude Code": "Working effectively with Claude Code — the agentic, terminal-native coding tool — from mental model to hooks, skills, and real workflows.",
+    "API Design": "Designing APIs people love to use — resource modeling, versioning, pagination, errors, and the conventions that age well.",
+    "API Security": "Securing APIs end to end — authentication, authorization, rate limiting, input validation, and the OWASP API risks that matter most.",
+    "AI Security Engineering": "Securing AI systems in production — the OWASP LLM Top 10, MITRE ATLAS, prompt injection, data exfiltration, and defensive engineering.",
+    "AI Governance for Engineers": "AI governance made concrete for engineers — the NIST AI RMF, EU AI Act, ISO/IEC 42001, and how to build them into the SDLC.",
+    "AI Red Teaming": "Red-teaming AI systems — adversarial testing, jailbreaks, attack taxonomies, and how to probe models and agents before attackers do.",
+    "Forward Deployed Engineering": "The forward-deployed engineer's playbook — embedding with customers, rapid iteration, and turning field work into durable product.",
+}
+
+# ---------------------------------------------------------------------------
+# Automatic tag enrichment — add accurate topic + keyword tags at build time
+# ---------------------------------------------------------------------------
+#
+# Rather than hand-editing tags across hundreds of POST_META entries, we enrich
+# each post's tag list at build time from two high-precision sources:
+#   1. its series  → canonical topic tags (100% accurate; the series is known)
+#   2. keyword matches on title/excerpt/existing-tags → cross-cutting topic tags
+# Results are deduped (by slug) and capped so pages stay clean, not stuffed.
+
+MAX_TAGS = 8
+
+# Series → topic tags always added to every post in that series.
+SERIES_TO_TOPIC_TAGS = {
+    "Microsoft Agent Framework Go — Every Lesson": ["Microsoft Agent Framework", "Go", "AI Agents"],
+    "Microsoft Agent Framework Python — Every Lesson": ["Microsoft Agent Framework", "Python", "AI Agents"],
+    "Learning the Microsoft Agent Framework — Go": ["Microsoft Agent Framework", "Go", "AI Agents"],
+    "Learning the Microsoft Agent Framework — Python": ["Microsoft Agent Framework", "Python", "AI Agents"],
+    "ADK to Microsoft Agent Framework Migration": ["Microsoft Agent Framework", "Google ADK", "Migration", "AI Agents"],
+    "Google ADK, Concept by Concept": ["Google ADK", "AI Agents"],
+    "LangGraph, Concept by Concept": ["LangGraph", "AI Agents"],
+    "Road Go Ever On": ["Go"],
+    "Python Programming": ["Python"],
+    "AI Engineering in Go": ["AI Engineering", "Go"],
+    "Amazon Bedrock in Go": ["Amazon Bedrock", "AWS", "Go", "AI Engineering"],
+    "NVIDIA AI Stack in Python": ["NVIDIA", "Python", "AI Engineering"],
+    "NVIDIA AI Stack in Go": ["NVIDIA", "Go", "AI Engineering"],
+    "IBM watsonx in Python": ["IBM watsonx", "Python", "AI Engineering"],
+    "Harness Engineering in Go": ["Go", "Engineering Practices"],
+    "Evaluating Agents in Go": ["Evaluation", "AI Agents", "Go"],
+    "The Fintech Engineering Handbook": ["Fintech", "Distributed Systems"],
+    "System Design Fundamentals": ["System Design", "Distributed Systems"],
+    "The Software Architect's Path": ["Software Architecture"],
+    "DevSecOps": ["DevSecOps", "Security"],
+    "Code Review": ["Code Review", "Engineering Practices"],
+    "Claude Code": ["Claude Code", "AI Agents"],
+    "API Design": ["API Design"],
+    "API Security": ["API Security", "Security"],
+    "AI Security Engineering": ["AI Security", "Security"],
+    "AI Governance for Engineers": ["AI Governance", "Governance"],
+    "AI Red Teaming": ["AI Red Teaming", "AI Security", "Security"],
+    "Forward Deployed Engineering": ["Forward Deployed Engineering"],
+}
+
+# (regex pattern, tag) — pattern matched (case-insensitive) against
+# title + excerpt + existing tags + series. Patterns use word boundaries to
+# avoid false positives (e.g. "rag" must not match "storage").
+KEYWORD_TAGS = [
+    (r"\brag\b|retrieval[- ]augmented", "RAG"),
+    (r"\bmcp\b|model context protocol", "MCP"),
+    (r"\bllms?\b|large language model", "LLMs"),
+    (r"embedding", "Embeddings"),
+    (r"vector (database|db|search|store|index)", "Vector Databases"),
+    (r"evaluat|\bevals?\b|benchmark", "Evaluation"),
+    (r"prompt", "Prompt Engineering"),
+    (r"fine[- ]?tun", "Fine-Tuning"),
+    (r"kubernetes|\bk8s\b", "Kubernetes"),
+    (r"\bdocker\b|containeri", "Containers"),
+    (r"observability|opentelemetry|tracing|telemetry", "Observability"),
+    (r"\bkafka\b", "Kafka"),
+    (r"\bgrpc\b", "gRPC"),
+    (r"multi[- ]agent|orchestrat", "Multi-Agent Systems"),
+    (r"guardrail", "Guardrails"),
+    (r"\btool (use|call|calling)\b|function calling", "Tool Use"),
+    (r"streaming", "Streaming"),
+    (r"concurren|goroutine|\bchannel", "Concurrency"),
+    (r"microservice", "Microservices"),
+    (r"distributed system", "Distributed Systems"),
+    (r"\btest(ing|s)?\b|unit test|integration test", "Testing"),
+    (r"prompt injection|jailbreak", "Prompt Injection"),
+    (r"\bapi\b", "APIs"),
+    (r"postgres|\bsql\b|\bdatabase", "Databases"),
+]
+_KEYWORD_TAGS_COMPILED = [(re.compile(p, re.I), t) for p, t in KEYWORD_TAGS]
+
+# Implication map: if a post already carries tag <slug>, add these umbrella tags
+# (deduped). Lets standalone posts (fintech, language-course) that already hold the
+# obvious specific tag also surface the broader topic they belong to.
+TAG_IMPLICATIONS = {
+    "fintech": ["Financial Systems"],
+    "payments": ["Payments", "Distributed Systems"],
+    "rails": ["Payment Rails", "Payments"],
+    "kyc": ["KYC and AML", "Compliance"],
+    "aml": ["KYC and AML"],
+    "trading": ["Trading", "Capital Markets"],
+    "markets": ["Capital Markets"],
+    "crypto": ["Cryptocurrency"],
+    "custody": ["Custody", "Security"],
+    "fx": ["Foreign Exchange", "Treasury"],
+    "treasury": ["Treasury"],
+    "cards": ["Card Payments"],
+    "lending": ["Lending"],
+    "credit": ["Credit Risk"],
+    "regulation": ["Regulation", "Compliance"],
+    "compliance": ["Governance"],
+    "reconciliation": ["Reconciliation", "Financial Systems"],
+    "python": ["Software Engineering"],
+    "go": ["Backend Engineering"],
+    "programming": ["Software Engineering"],
+    "concurrency": ["Backend Engineering"],
+    "type-system": ["Type Systems"],
+    "errors": ["Error Handling"],
+    "error-handling": ["Error Handling"],
+    "knowledge-graph": ["Knowledge Graphs"],
+    "entity-resolution": ["Data Engineering"],
+    "multi-cloud": ["Cloud Native"],
+    "networking": ["Networking"],
+    "observability": ["Reliability"],
+    "scalability": ["Distributed Systems"],
+}
+
+
+def enrich_tags(meta, title=""):
+    """Augment meta['tags'] with series-topic + keyword-derived tags (deduped, capped).
+
+    Idempotent and mutating: safe to call once per post during the build.
+    """
+    existing = list(meta.get("tags", []))
+    seen = {tag_to_slug(t) for t in existing}
+    result = list(existing)
+
+    def add(tag):
+        key = tag_to_slug(tag)
+        if key not in seen:
+            seen.add(key)
+            result.append(tag)
+
+    series = meta.get("series")
+    if series:
+        for t in SERIES_TO_TOPIC_TAGS.get(series, []):
+            add(t)
+
+    # Umbrella tags implied by the post's original specific tags.
+    for t in existing:
+        for implied in TAG_IMPLICATIONS.get(tag_to_slug(t), []):
+            add(implied)
+
+    haystack = " ".join([title, meta.get("excerpt", ""), " ".join(existing), series or ""]).lower()
+    for rx, tag in _KEYWORD_TAGS_COMPILED:
+        if rx.search(haystack):
+            add(tag)
+
+    meta["tags"] = result[:MAX_TAGS]
+    return meta["tags"]
+
+
+# ---------------------------------------------------------------------------
 # CSS minification — collapse whitespace for smaller inline styles
 # ---------------------------------------------------------------------------
 
@@ -5240,7 +5430,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 
         series_html = f"""  <div class="series-breadcrumb">
     <span class="series-label">Part {position} of {total}</span>
-    <span class="series-title">{series_name}</span>
+    <a class="series-title" href="/blog/series/{series_to_slug(series_name)}/">{series_name}</a>
     {series_nav}
   </div>"""
 
@@ -5519,6 +5709,30 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
   </div>
 </section>"""
 
+    # --- Course series (top series by lesson count) ---
+    series_counts = {}
+    for p in posts:
+        s = p["meta"].get("series")
+        if s:
+            series_counts[s] = series_counts.get(s, 0) + 1
+    series_index_html = ""
+    if series_counts:
+        top_series = sorted(series_counts.items(), key=lambda x: (-x[1], x[0].lower()))[:8]
+        chips = "".join(
+            f'<a href="/blog/series/{series_to_slug(name)}/"><span class="tag-cloud-item">{_html_escape(name)} <span class="tag-count">({cnt})</span></span></a>'
+            for name, cnt in top_series
+        )
+        series_index_html = f"""
+<section class="blog-section">
+  <h2 class="section-heading">Course Series</h2>
+  <div class="tag-cloud">
+    {chips}
+  </div>
+  <div class="view-all-cta">
+    <a href="/blog/series/">View all {len(series_counts)} series &rarr;</a>
+  </div>
+</section>"""
+
     # --- Recent posts (12, excluding featured & popular) ---
     shown_slugs = featured_slugs | popular_slugs
     recent = [p for p in posts if p["meta"]["slug"] not in shown_slugs][:12]
@@ -5645,7 +5859,7 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 <section class="blog-hero">
   <h1>Blog</h1>
   <p>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. Most posts grow out of work on <a href="/projects/bodh/">Bodh</a> &mdash; an open-source Go implementation of Microsoft Agent Framework pattern tuned for medical sequential diagnosis.</p>
-  <p style="margin-top:12px;font-size:0.95rem;"><a href="/featured/">Featured articles</a> &middot; <a href="/articles/">Browse by topic</a> &middot; <a href="/blog/archive/">Full archive</a> &middot; <a href="/blog/feed.xml">RSS feed</a></p>
+  <p style="margin-top:12px;font-size:0.95rem;"><a href="/blog/series/">Course series</a> &middot; <a href="/featured/">Featured articles</a> &middot; <a href="/articles/">Browse by topic</a> &middot; <a href="/blog/archive/">Full archive</a> &middot; <a href="/blog/feed.xml">RSS feed</a></p>
 </section>
 
 <div class="search-box">
@@ -5657,6 +5871,8 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 {featured_html}
 
 {popular_html}
+
+{series_index_html}
 
 {tag_cloud_html}
 
@@ -5938,6 +6154,237 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 
 <section class="blog-hero" style="padding-top: 32px; border-top: 1px solid var(--border); border-bottom: none; margin-top: 36px;">
   <p>All posts on this site are written by Pratik Dhanave, an Agentic AI Architect with 7+ years building production distributed systems, multi-agent AI platforms, and cloud-native infrastructure. <a href="/about/">About the author →</a> Each article includes working code, architecture diagrams, and references to the specific frameworks and standards discussed. Browse <a href="/blog/">all posts</a> or explore related topics using the tag cloud above.</p>
+</section>
+
+</main>
+
+{SITE_FOOTER}
+
+</body>
+</html>
+"""
+
+
+SERIES_EXTRA_CSS = _minify_css("""
+.series-part-badge { display:inline-block; background:var(--accent); color:#fff; font-size:0.72rem;
+  font-weight:700; padding:2px 9px; border-radius:999px; letter-spacing:0.02em; }
+.series-card .post-card-title { margin-top:6px; }
+.series-intro-meta { color:var(--text-muted); font-size:0.95rem; margin-top:8px; }
+""")
+
+
+def _series_page_head(title, description, canonical, schema, page_css):
+    """Shared <head> for the series hub and per-series pages (mirrors tag-page head)."""
+    desc = _html_escape(description, quote=True)
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{_html_escape(title)}</title>
+<meta name="description" content="{desc}">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="{_html_escape(title)}">
+<meta property="og:description" content="{desc}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{canonical}">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="{SITE_URL}/{OG_IMAGE}">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{_html_escape(title)}">
+<meta name="twitter:description" content="{desc}">
+<meta name="twitter:image" content="{SITE_URL}/{OG_IMAGE}">
+
+<link rel="canonical" href="{canonical}">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="{SITE_URL}/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id={GA4_ID}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','{GA4_ID}');</script>
+
+<style>{page_css}</style>
+{schema}
+</head>
+<body>
+
+{NAV_HTML}
+"""
+
+
+def render_series_index(series_summaries):
+    """The series hub: every course/series as a card, deepest first."""
+    series_summaries = sorted(series_summaries, key=lambda s: (-s["count"], s["name"].lower()))
+    total_series = len(series_summaries)
+    total_posts = sum(s["count"] for s in series_summaries)
+    canonical = f"{SITE_URL}/blog/series/"
+    page_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS + SERIES_EXTRA_CSS
+
+    list_items = ", ".join(
+        f'{{"@type": "ListItem", "position": {i+1}, "name": "{_json.dumps(s["name"])[1:-1]}", "url": "{SITE_URL}/blog/series/{s["slug"]}/"}}'
+        for i, s in enumerate(series_summaries)
+    )
+    schema = f"""
+<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Course Series — Pratik Dhanave",
+  "description": "{total_series} in-depth technical course series covering AI agents, AI engineering, Go, Python, system design, and security.",
+  "url": "{canonical}",
+  "mainEntity": {{
+    "@type": "ItemList",
+    "numberOfItems": {total_series},
+    "itemListElement": [{list_items}]
+  }}
+}}
+</script>
+<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {{"@type": "ListItem", "position": 1, "name": "Home", "item": "{SITE_URL}/"}},
+    {{"@type": "ListItem", "position": 2, "name": "Blog", "item": "{SITE_URL}/blog/"}},
+    {{"@type": "ListItem", "position": 3, "name": "Series", "item": "{canonical}"}}
+  ]
+}}
+</script>"""
+
+    cards = []
+    for s in series_summaries:
+        cards.append(f"""    <article class="post-card series-card">
+      <div class="post-card-meta"><span class="series-part-badge">{s['count']} part{'s' if s['count'] != 1 else ''}</span></div>
+      <h2 class="post-card-title"><a href="/blog/series/{s['slug']}/">{_html_escape(s['name'])}</a></h2>
+      <p class="post-card-excerpt">{_html_escape(s['desc'])}</p>
+      <div class="view-all-cta"><a href="/blog/series/{s['slug']}/">Start the series &rarr;</a></div>
+    </article>""")
+
+    head = _series_page_head(
+        "Course Series — Blog — Pratik Dhanave",
+        f"{total_series} in-depth technical course series ({total_posts} lessons) on AI agents, AI engineering, Go, Python, system design, and security — by Pratik Dhanave.",
+        canonical, schema, page_css)
+
+    return f"""{head}
+<main class="blog-index">
+
+<section class="blog-hero">
+  <h1>Course Series</h1>
+  <p>Deep, structured series that take a topic from first principles to production — {total_series} series, {total_posts} lessons in total. Each one is a self-contained curriculum you can work through in order.</p>
+  <p style="margin-top:12px;font-size:0.95rem;"><a href="/blog/">&larr; All posts</a> &middot; <a href="/blog/tags/">Browse by topic</a> &middot; <a href="/blog/archive/">Full archive</a></p>
+</section>
+
+<section class="post-list">
+{chr(10).join(cards)}
+</section>
+
+</main>
+
+{SITE_FOOTER}
+
+</body>
+</html>
+"""
+
+
+def render_series_page(series_name, series_posts, series_slug):
+    """Landing page for one series: ordered lessons + Course/CollectionPage JSON-LD."""
+    post_count = len(series_posts)
+    total = max((p["meta"].get("series_total", post_count) for p in series_posts), default=post_count)
+    desc = SERIES_DESCRIPTIONS.get(series_name) or f"A {post_count}-part series by Pratik Dhanave on {series_name}."
+    canonical = f"{SITE_URL}/blog/series/{series_slug}/"
+    page_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS + SERIES_EXTRA_CSS
+
+    name_json = _json.dumps(series_name)[1:-1]
+    desc_json = _json.dumps(desc)[1:-1]
+    part_items = ", ".join(
+        f'{{"@type": "ListItem", "position": {i+1}, "name": "{_json.dumps(p["title"])[1:-1]}", "url": "{SITE_URL}/blog/posts/{p["meta"]["slug"]}.html"}}'
+        for i, p in enumerate(series_posts)
+    )
+    schema = f"""
+<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "Course",
+  "name": "{name_json}",
+  "description": "{desc_json}",
+  "url": "{canonical}",
+  "provider": {{"@type": "Person", "name": "Pratik Dhanave", "url": "{SITE_URL}/about/"}},
+  "author": {{"@type": "Person", "name": "Pratik Dhanave"}}
+}}
+</script>
+<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "{name_json}",
+  "description": "{desc_json}",
+  "url": "{canonical}",
+  "numberOfItems": {post_count},
+  "mainEntity": {{"@type": "ItemList", "numberOfItems": {post_count}, "itemListElement": [{part_items}]}}
+}}
+</script>
+<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {{"@type": "ListItem", "position": 1, "name": "Home", "item": "{SITE_URL}/"}},
+    {{"@type": "ListItem", "position": 2, "name": "Blog", "item": "{SITE_URL}/blog/"}},
+    {{"@type": "ListItem", "position": 3, "name": "Series", "item": "{SITE_URL}/blog/series/"}},
+    {{"@type": "ListItem", "position": 4, "name": "{name_json}", "item": "{canonical}"}}
+  ]
+}}
+</script>"""
+
+    posts_html = []
+    for i, p in enumerate(series_posts):
+        pos = p["meta"].get("series_position", i + 1)
+        date_iso = p["meta"]["date"]
+        date_human = datetime.strptime(date_iso, "%Y-%m-%d").strftime("%b %d, %Y")
+        read_time = p.get("read_time", 0)
+        read_time_html = f'<span>·</span><span>{read_time} min read</span>' if read_time > 0 else ''
+        tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">#{tag_display(t)}</span></a>' for t in p["meta"]["tags"])
+        posts_html.append(f"""    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part {pos}</span>
+        <span>·</span>
+        <time datetime="{date_iso}">{date_human}</time>
+        {read_time_html}
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/{p['meta']['slug']}.html">{_html_escape(p['title'])}</a></h2>
+      <p class="post-card-subtitle">{_html_escape(p['subtitle'])}</p>
+      <p class="post-card-excerpt">{_html_escape(p['meta']['excerpt'])}</p>
+      <div class="post-tags">{tags_html}</div>
+    </article>""")
+
+    head = _series_page_head(
+        f"{series_name} — Series — Pratik Dhanave"[:120],
+        (desc[:150] + "…") if len(desc) > 150 else desc,
+        canonical, schema, page_css)
+
+    first_link = f'<a href="/blog/posts/{series_posts[0]["meta"]["slug"]}.html">Start with Part {series_posts[0]["meta"].get("series_position", 1)} &rarr;</a>' if series_posts else ""
+
+    return f"""{head}
+<main class="blog-index">
+
+<section class="blog-hero">
+  <h1>{_html_escape(series_name)}</h1>
+  <p>{_html_escape(desc)}</p>
+  <p class="series-intro-meta">{post_count} part{'s' if post_count != 1 else ''} · written by <a href="/about/">Pratik Dhanave</a>. {first_link}</p>
+  <p style="margin-top:12px;font-size:0.95rem;"><a href="/blog/series/">&larr; All series</a> &middot; <a href="/blog/">All posts</a></p>
+</section>
+
+<section class="post-list">
+{chr(10).join(posts_html)}
+</section>
+
+<section class="blog-hero" style="padding-top: 32px; border-top: 1px solid var(--border); border-bottom: none; margin-top: 36px;">
+  <p>This series is part of a larger body of work by Pratik Dhanave, an Agentic AI Architect writing about production AI systems, distributed systems, and cloud-native engineering. Explore <a href="/blog/series/">all course series</a>, browse <a href="/blog/">every post</a>, or find topics via the <a href="/blog/tags/">tag index</a>.</p>
 </section>
 
 </main>
@@ -6291,6 +6738,7 @@ def main():
             title, subtitle, body_md = parse_post(md_path)
             body_html = to_html(body_md)
             read_time = calculate_read_time(body_html)
+            enrich_tags(meta, title)  # augment tags from series + keywords (deduped, capped)
             rendered.append({"meta": meta, "title": title, "subtitle": subtitle, "read_time": read_time})
             posts_data[meta["slug"]] = {"body_html": body_html, "title": title, "subtitle": subtitle}
         else:
@@ -6302,6 +6750,7 @@ def main():
                 m = re.search(r"<title>([^<]+)</title>", raw, re.I)
                 post_title = _html_unescape(m.group(1)).replace(" — Pratik Dhanave", "").strip() if m else meta["slug"]
                 read_time = calculate_read_time(raw)
+                enrich_tags(meta, post_title)  # augment tags from series + keywords (deduped, capped)
                 rendered.append({"meta": meta, "title": post_title, "subtitle": "", "read_time": read_time})
             else:
                 print(f"SKIP missing: {md_path} and {html_path}", file=sys.stderr)
@@ -6434,6 +6883,31 @@ def main():
     if related_injected:
         print(f"  injected related posts into {related_injected} legacy post(s)")
 
+    # Sixth pass: refresh the visible tag block in legacy HTML-only posts so the
+    # build-time enriched tags (series + keyword) show on-page. Source-based posts
+    # already render enriched tags via render_post_html. Idempotent: rebuilt from
+    # meta["tags"] (deterministic) on every run.
+    tags_patched = 0
+    for post in rendered:
+        meta = post["meta"]
+        if meta["slug"] in posts_data:
+            continue  # source-based post — already enriched
+        html_path = POSTS_DIR / f"{meta['slug']}.html"
+        if not html_path.exists():
+            continue
+        raw = html_path.read_text(errors="ignore")
+        new_block = '<div class="post-tags">' + "".join(
+            f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">#{tag_display(t)}</span></a>'
+            for t in meta["tags"]
+        ) + '</div>'
+        updated, n = re.subn(r'<div class="post-tags">.*?</div>',
+                             lambda _m: new_block, raw, count=1, flags=re.DOTALL)
+        if n and updated != raw:
+            html_path.write_text(updated)
+            tags_patched += 1
+    if tags_patched:
+        print(f"  refreshed tags in {tags_patched} legacy post(s)")
+
     # Compute tag counts for tag cloud
     tag_counts = {}
     tag_posts = {}
@@ -6490,6 +6964,30 @@ def main():
         tag_name = tag_display_map.get(tag_key, tag_key)
         tag_file.write_text(render_tag_page(tag_name, posts_with_tag, all_tags, post_count=len(posts_with_tag), tag_counts=tag_counts))
         print(f"  wrote {tag_file.relative_to(SITE_ROOT)}")
+
+    # Generate series hub + per-series landing pages (auto-built from POST_META series data)
+    series_map = {}
+    for p in rendered:
+        s_name = p["meta"].get("series")
+        if s_name:
+            series_map.setdefault(s_name, []).append(p)
+    series_dir = SITE_ROOT / "blog" / "series"
+    series_dir.mkdir(parents=True, exist_ok=True)
+    series_summaries = []
+    for s_name, s_posts in series_map.items():
+        s_posts_sorted = sorted(s_posts, key=lambda p: p["meta"].get("series_position", 0))
+        s_slug = series_to_slug(s_name)
+        (series_dir / s_slug).mkdir(parents=True, exist_ok=True)
+        (series_dir / s_slug / "index.html").write_text(render_series_page(s_name, s_posts_sorted, s_slug))
+        series_summaries.append({
+            "name": s_name,
+            "slug": s_slug,
+            "count": len(s_posts),
+            "desc": SERIES_DESCRIPTIONS.get(s_name) or f"A {len(s_posts)}-part series by Pratik Dhanave on {s_name}.",
+        })
+        print(f"  wrote blog/series/{s_slug}/index.html ({len(s_posts)} posts)")
+    (series_dir / "index.html").write_text(render_series_index(series_summaries))
+    print(f"  wrote blog/series/index.html ({len(series_summaries)} series)")
 
     # Generate archive pages
     archive_by_date = {}
