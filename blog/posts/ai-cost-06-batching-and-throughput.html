@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Batching, Async, and Throughput — Pratik Dhanave</title>
+<meta name="description" content="Not all AI work needs an answer this second, and for the work that can wait, batching and asynchronous processing buy meaningfully cheaper tokens in...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Batching, Async, and Throughput — Pratik Dhanave">
+<meta property="og:description" content="Not all AI work needs an answer this second, and for the work that can wait, batching and asynchronous processing buy meaningfully cheaper tokens in exchange for latency you were not using anyway.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ai-cost-06-batching-and-throughput.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-17T00:00:00Z">
+<meta property="article:tag" content="AI Cost Optimization">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="LLMs">
+<meta property="article:tag" content="FinOps">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Batching, Async, and Throughput — Pratik Dhanave">
+<meta name="twitter:description" content="Not all AI work needs an answer this second, and for the work that can wait, batching and asynchronous processing buy meaningfully cheaper tokens in exchange for latency you were not using anyway.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ai-cost-06-batching-and-throughput.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){nav{background:rgba(13,17,23,0.85)}}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Batching, Async, and Throughput",
+  "description": "Not all AI work needs an answer this second, and for the work that can wait, batching and asynchronous processing buy meaningfully cheaper tokens in exchange for latency you were not using anyway.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-17",
+  "dateModified": "2026-08-17",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "AI Cost Optimization, AI Engineering, LLMs, FinOps",
+  "url": "https://pratikdhanave.com/blog/posts/ai-cost-06-batching-and-throughput.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ai-cost-06-batching-and-throughput.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Batching, Async, and Throughput</h1>
+    <p class="post-subtitle">Not all AI work needs an answer this second, and for the work that can wait, batching and asynchronous processing buy meaningfully cheaper tokens in exchange for latency you were not using anyway.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-17">August 17, 2026</time>
+      <span>·</span>
+      <span>5 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/ai-cost-optimization/" class="tag-link"><span class="tag">#AI Cost Optimization</span></a><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a><a href="/blog/tags/finops/" class="tag-link"><span class="tag">#FinOps</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 6 of 8</span>
+    <a class="series-title" href="/blog/series/ai-cost-optimization/">AI Cost Optimization</a>
+    <div class="series-nav"><a href="/blog/posts/ai-cost-05-caching.html" class="series-prev">&larr; Part 5: Caching: Not Paying Twice for the Same Work</a>
+<a href="/blog/posts/ai-cost-07-rag-finetuning-tradeoffs.html" class="series-next">Part 7: RAG, Fine-Tuning, and Self-Hosting Trade-offs &rarr;</a></div>
+  </div>
+
+
+
+  <p>Much of the cost conversation assumes interactive, real-time requests — a user waiting for a response. But a large fraction of AI workloads are not interactive at all: overnight document processing, bulk classification, enrichment pipelines, evaluation runs, content generation jobs. For this work, latency is cheap and throughput is what matters, and that opens a lever the interactive path cannot use: <strong>batching</strong>. This sixth post in the AI cost optimization series is about trading latency you do not need for cost you would rather not pay.</p>
+<h2 id="separate-the-real-time-from-the-deferrable">Separate the real-time from the deferrable</h2>
+<p>The first move is a classification of your own workload: which requests truly need an immediate answer, and which merely need an answer <em>eventually</em>? A chat reply is real-time; generating summaries for ten thousand documents overnight is not. Teams often run everything through the same synchronous, interactive path out of habit, paying interactive prices for work that had no deadline. Recognizing the deferrable portion is what unlocks the cheaper options — you cannot batch what a user is staring at, but you can batch almost everything else.</p>
+<p>This is an architectural decision worth making explicitly. Route deferrable work to a different, throughput-oriented path rather than the low-latency one. The two paths have different cost profiles, and mixing them wastes the savings the deferrable path could capture.</p>
+<h2 id="batch-apis-cheaper-tokens-for-patient-work">Batch APIs: cheaper tokens for patient work</h2>
+<p>Providers commonly offer a <strong>batch processing mode</strong> for exactly this situation: you submit a large set of requests to be processed asynchronously over some window rather than immediately, and in exchange the tokens are billed at a reduced rate compared to the synchronous, real-time path. The provider can schedule the work when it has spare capacity, and passes some of that efficiency back as a lower price.</p>
+<p>The trade is explicit and favorable when it fits: you accept that results arrive later — not in milliseconds but over minutes or hours — and you pay less per token for the same work. For bulk jobs with no user waiting, this is close to free money: the latency you gave up was latency you were not using. The pattern is to accumulate deferrable requests, submit them as a batch, and collect the results when they complete. Any workload you can express as &ldquo;here are many requests, tell me when they are all done&rdquo; is a candidate.</p>
+<h2 id="concurrency-versus-batching">Concurrency versus batching</h2>
+<p>It is worth distinguishing two things that both sound like &ldquo;doing more at once.&rdquo; <strong>Concurrency</strong> is issuing many synchronous requests in parallel to improve <em>throughput</em> and wall-clock time — useful for getting a large job done faster, but it does not change the per-token price; you are still on the real-time path, just using it in parallel. <strong>Batching</strong> in the provider&rsquo;s batch mode changes the <em>price</em> in exchange for latency. They solve different problems: concurrency for speed on the interactive path, batch mode for cost on the deferrable path. A well-built bulk pipeline often uses batch mode for the cost, and concurrency is what you reach for when a job must be fast but you cannot wait for a batch window.</p>
+<p>Concurrency also comes with its own discipline: providers enforce rate limits, so parallel request floods must respect those limits with backoff and queuing, or you trade cost problems for reliability problems. Getting throughput right is as much about staying within limits gracefully as about firing requests fast.</p>
+<h2 id="aggregating-small-requests">Aggregating small requests</h2>
+<p>A subtler form of batching is combining many small tasks into fewer, larger calls where the task allows. If you need to classify a hundred short snippets, one call that classifies a batch of them can be cheaper than a hundred calls that each re-pay the fixed overhead of a system prompt and setup. This has limits — very large aggregated inputs run into context-size and quality trade-offs, and combining unrelated tasks can confuse the model — but for uniform, small, independent items, thoughtful aggregation reduces per-item overhead. The judgment is balancing the fixed-cost savings of fewer calls against the context-size cost and quality risk of bigger ones.</p>
+<h2 id="when-batching-does-not-fit">When batching does not fit</h2>
+<p>Batching is not a universal answer, and forcing it where it does not belong creates worse problems than it solves. Interactive, user-facing requests cannot be deferred without hurting the product. Work with hard, near-real-time deadlines cannot wait for a batch window. And workloads that are genuinely low-volume may not have enough deferrable requests to make a batch worthwhile. The technique shines specifically for high-volume, latency-tolerant, bulk processing — and for that class it is one of the cleanest savings available, because it costs you nothing you were actually using. Match the tool to the workload: interactive work stays on the fast path, deferrable bulk work moves to the cheap one.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Classify your workload into real-time (needs an immediate answer) and deferrable (needs an answer eventually); deferrable work unlocks cheaper processing that interactive work cannot use.</li>
+<li>Provider batch modes process requests asynchronously over a window at a reduced per-token rate — trading latency you were not using for a lower price, close to free for bulk jobs.</li>
+<li>Concurrency (parallel synchronous requests) improves throughput and speed but not price; batch mode changes price for latency — they solve different problems and are often used together.</li>
+<li>Respect rate limits with backoff and queuing when running concurrently, and consider aggregating many small uniform tasks into fewer calls to cut per-call overhead (within context and quality limits).</li>
+<li>Batching fits high-volume, latency-tolerant bulk work; keep interactive and hard-deadline requests on the fast path rather than forcing them into a batch.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://github.com/openai/openai-cookbook">OpenAI Cookbook</a></li>
+<li><a href="https://docs.anthropic.com">Anthropic documentation</a></li>
+<li><a href="https://huggingface.co/docs">Hugging Face documentation</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-cost-08-observability-and-finops.html">Cost Observability and AI FinOps</a>
+      <span class="related-date">Aug 19</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-cost-07-rag-finetuning-tradeoffs.html">RAG, Fine-Tuning, and Self-Hosting Trade-offs</a>
+      <span class="related-date">Aug 18</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-cost-05-caching.html">Caching: Not Paying Twice for the Same Work</a>
+      <span class="related-date">Aug 16</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://github.com/openai/openai-cookbook" target="_blank" rel="noopener noreferrer">OpenAI Cookbook</a></div>
+      <div class="citation-context">Batch and throughput patterns</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
