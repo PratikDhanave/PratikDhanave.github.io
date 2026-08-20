@@ -24,6 +24,30 @@ The agent has four components, mapping directly to earlier posts:
 - a **reflect-and-refine** loop grounded in real feedback (posts 3 and 5);
 - an **evaluation gate** that every proposed change must pass before it persists (post 7).
 
+The four components form a single feedback loop — the agent acts through the model, the evaluation gate grades the result, and only what passes is written back to the evolving state that the next task draws on:
+
+```text
+        ┌─────────────┐   reason / act    ┌───────────────┐
+        │     LLM     │◄──────────────────│ Self-Evolving │◄── Task
+        │  (reasoning)│                   │    Agent      │
+        └─────────────┘                   └───────┬───────┘
+                          trajectory + result     │  ▲
+                                     ┌─────────────┘  │ retrieve
+                                     ▼                │ lessons + skills
+                             ┌───────────────┐        │
+                             │ Evaluation    │   ┌────┴─────────────────┐
+                             │ Gate          │   │  Evolving state      │
+                             │ (real signal) │   │  ┌────────┐┌────────┐│
+                             └──────┬────────┘   │  │ Memory ││ Skill  ││
+                    write reflection│  promote    │  │ store  ││ library││
+                                    └────────────►│  └────────┘└────────┘│
+                                   verified skill │  (persists across    │
+                                                  │   tasks)             │
+                                                  └──────────────────────┘
+```
+
+> **▸ [Open the interactive diagram](/blog/handbook-diagrams/self-evolving-agent-architecture.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
 Here is the shape, with the control flow that ties them together:
 
 ```python
