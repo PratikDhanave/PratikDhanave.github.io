@@ -4865,7 +4865,7 @@ POST_CSS = """
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0d1117;
     --bg-elev: #161b22;
     --bg-card: #161b22;
@@ -4881,6 +4881,22 @@ POST_CSS = """
     --code-border: #2d333b;
     --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
   }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117;
+  --bg-elev: #161b22;
+  --bg-card: #161b22;
+  --text: #e6edf3;
+  --text-dim: #c4ccd5;
+  --text-muted: #8b949e;
+  --border: #30363d;
+  --accent: #58a6ff;
+  --accent-hover: #79b8ff;
+  --tag-bg: #1e2d4a;
+  --tag-text: #79b8ff;
+  --code-bg: #1e242c;
+  --code-border: #2d333b;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -4907,8 +4923,9 @@ nav {
   border-bottom: 1px solid var(--border);
 }
 @media (prefers-color-scheme: dark) {
-  nav { background: rgba(13,17,23,0.85); }
+  :root:not([data-theme="light"]) nav { background: rgba(13,17,23,0.85); }
 }
+:root[data-theme="dark"] nav { background: rgba(13,17,23,0.85); }
 .nav-container {
   max-width: 1320px;
   margin: 0 auto;
@@ -5271,6 +5288,124 @@ footer.site-footer a { color: var(--text-muted); min-height: 44px; min-width: 44
 POST_CSS = _minify_css(POST_CSS)
 
 # ---------------------------------------------------------------------------
+# Reading-hub enhancements (post pages): progress bar, sticky TOC with
+# scroll-spy, light/dark toggle with persistence, copy-code buttons, back-to-top.
+# All vanilla + inline (CSP allows 'unsafe-inline' for script/style). No CDNs.
+# ---------------------------------------------------------------------------
+
+READING_HUB_CSS = _minify_css("""
+#read-progress { position: fixed; top: 0; left: 0; height: 3px; width: 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover)); z-index: 1000; transition: width .1s ease-out; }
+.rh-controls { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 10px; z-index: 900; }
+.rh-btn { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--bg-card); color: var(--text); cursor: pointer; display: flex; align-items: center;
+  justify-content: center; font-size: 18px; line-height: 1; box-shadow: var(--shadow); transition: transform .15s, color .15s, opacity .2s; }
+.rh-btn:hover { transform: translateY(-2px); color: var(--accent); }
+#rh-top { opacity: 0; pointer-events: none; }
+#rh-top.show { opacity: 1; pointer-events: auto; }
+#toc { position: fixed; top: 118px; right: 24px; width: 224px; max-height: 72vh; overflow-y: auto;
+  font-size: 13px; padding: 4px 0 4px 16px; border-left: 2px solid var(--border); z-index: 800; }
+#toc .toc-title { font-weight: 700; text-transform: uppercase; letter-spacing: .05em; font-size: 11px;
+  color: var(--text-muted); margin-bottom: 10px; }
+#toc a { display: block; color: var(--text-muted); padding: 4px 0 4px 14px; line-height: 1.35;
+  border-left: 2px solid transparent; margin-left: -16px; transition: color .15s, border-color .15s; }
+#toc a.h3 { padding-left: 26px; font-size: 12px; }
+#toc a:hover { color: var(--accent); text-decoration: none; }
+#toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+article pre { position: relative; }
+.copy-btn { position: absolute; top: 8px; right: 8px; padding: 3px 10px; font-size: 12px; font-family: inherit;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); color: var(--text-muted);
+  cursor: pointer; opacity: 0; transition: opacity .15s, color .15s, border-color .15s; }
+article pre:hover .copy-btn, .copy-btn:focus-visible { opacity: 1; }
+.copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+.copy-btn.copied { color: #2ea043; border-color: #2ea043; }
+@media (max-width: 1240px) { #toc { display: none; } }
+@media print { #read-progress, .rh-controls, #toc, .copy-btn { display: none !important; } }
+""")
+
+# Applied theme early (in <head>) to prevent a flash of the wrong theme.
+READING_HUB_EARLY = ("<script>(function(){try{var t=localStorage.getItem('theme');"
+                     "if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>")
+
+# Body elements (progress bar, controls, TOC container) + the driver script.
+READING_HUB_BODY = """
+<div id="read-progress" aria-hidden="true"></div>
+<nav id="toc" aria-label="Table of contents"></nav>
+<div class="rh-controls">
+  <button id="rh-theme" class="rh-btn" type="button" aria-label="Toggle light and dark theme" title="Toggle theme"></button>
+  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top">&uarr;</button>
+</div>
+<script>
+(function(){
+  var doc = document.documentElement;
+  function curTheme(){ return doc.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+  var themeBtn = document.getElementById('rh-theme');
+  function setIcon(){ if (themeBtn) themeBtn.textContent = curTheme() === 'dark' ? '\\u2600\\uFE0E' : '\\u263D'; }
+  setIcon();
+  if (themeBtn) themeBtn.addEventListener('click', function(){
+    var t = curTheme() === 'dark' ? 'light' : 'dark';
+    doc.setAttribute('data-theme', t);
+    try { localStorage.setItem('theme', t); } catch(e){}
+    setIcon();
+  });
+  var article = document.querySelector('article');
+  var toc = document.getElementById('toc');
+  if (article && toc) {
+    var heads = article.querySelectorAll('h2, h3');
+    if (heads.length >= 3) {
+      var title = document.createElement('div');
+      title.className = 'toc-title'; title.textContent = 'On this page';
+      toc.appendChild(title);
+      var links = [];
+      heads.forEach(function(h, i){
+        if (!h.id) h.id = 'sec-' + i;
+        var a = document.createElement('a');
+        if (h.tagName === 'H3') a.className = 'h3';
+        a.href = '#' + h.id;
+        a.textContent = h.textContent;
+        toc.appendChild(a);
+        links.push(a);
+      });
+      var byId = {}; links.forEach(function(a){ byId[a.getAttribute('href').slice(1)] = a; });
+      var obs = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if (e.isIntersecting) {
+            links.forEach(function(a){ a.classList.remove('active'); });
+            var a = byId[e.target.id]; if (a) a.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-80px 0px -70% 0px' });
+      heads.forEach(function(h){ obs.observe(h); });
+    } else { toc.style.display = 'none'; }
+  }
+  document.querySelectorAll('article pre').forEach(function(pre){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.type = 'button'; btn.textContent = 'Copy';
+    btn.addEventListener('click', function(){
+      var code = pre.querySelector('code');
+      var txt = code ? code.innerText : pre.innerText;
+      navigator.clipboard.writeText(txt).then(function(){
+        btn.textContent = 'Copied'; btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+  var bar = document.getElementById('read-progress');
+  var top = document.getElementById('rh-top');
+  function onScroll(){
+    var h = doc.scrollHeight - doc.clientHeight;
+    var p = h > 0 ? (doc.scrollTop / h) * 100 : 0;
+    if (bar) bar.style.width = p + '%';
+    if (top) { if (doc.scrollTop > 600) top.classList.add('show'); else top.classList.remove('show'); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+  if (top) top.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); });
+})();
+</script>"""
+
+# ---------------------------------------------------------------------------
 # Shared CSS components (used across index, tag, archive pages)
 # ---------------------------------------------------------------------------
 
@@ -5576,6 +5711,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
+{READING_HUB_EARLY}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
@@ -5606,7 +5742,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 <script async src="https://www.googletagmanager.com/gtag/js?id={GA4_ID}"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','{GA4_ID}');</script>
 
-<style>{POST_CSS}</style>
+<style>{POST_CSS}{READING_HUB_CSS}</style>
 
 <script type="application/ld+json">
 {{
@@ -5684,7 +5820,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 </main>
 
 {SITE_FOOTER}
-
+{READING_HUB_BODY}
 </body>
 </html>
 """
