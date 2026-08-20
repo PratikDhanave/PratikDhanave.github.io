@@ -53,7 +53,7 @@ n := new(int) // *int pointing at 0
 *n = 5
 ```
 
-**The gotcha:** don't agonize over this choice. The community convention is `&T{}` for structs (it reads as "a pointer to this specific value") and `new(T)` for the occasional pointer-to-primitive. Neither is faster; the compiler's escape analysis decides stack-versus-heap placement regardless of which spelling you used — that's the [escape analysis post](/blog/posts/production-go-37-escape-analysis-allocations.html) later in the series, not something the keyword controls.
+**The gotcha:** don't agonize over this choice. The community convention is `&T{}` for structs (it reads as "a pointer to this specific value") and `new(T)` for the occasional pointer-to-primitive. Neither is faster; the compiler's escape analysis decides stack-versus-heap placement regardless of which spelling you used — that's escape analysis, covered later in the series, not something the keyword controls.
 
 ---
 

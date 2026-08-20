@@ -1,6 +1,6 @@
 # step07 · Observability
 
-*How one middleware wraps every agent run in an OpenTelemetry span tagged with gen_ai.* attributes — the same one-line hook you use for logging.*
+*How one middleware wraps every agent run in an OpenTelemetry span tagged with the gen_ai semantic attributes — the same one-line hook you use for logging.*
 
 ---
 

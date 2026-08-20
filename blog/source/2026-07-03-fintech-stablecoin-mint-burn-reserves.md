@@ -10,6 +10,8 @@ This post walks through the moving parts: the mint and burn flows, the reserve l
 
 The core invariant is simple to state and worth writing down as a first-class check rather than an aspiration:
 
+```text
+backed_reserve >= circulating_supply     # 1:1 backing — alarm the instant circulating_supply > backed_reserve
 ```
 
 > **▸ [Open the interactive diagram](/blog/diagrams/fintech-stablecoin-mint-burn-reserves.html)** — pan, zoom, and trace every step (light/dark, self-contained).
