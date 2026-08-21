@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Database Internals — Series — Pratik Dhanave</title>
+<meta name="description" content="How databases actually work under the SQL — storage engines (B-tree vs LSM), pages and the buffer pool, the write-ahead log, indexes, transactions and…">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Database Internals — Series — Pratik Dhanave">
+<meta property="og:description" content="How databases actually work under the SQL — storage engines (B-tree vs LSM), pages and the buffer pool, the write-ahead log, indexes, transactions and…">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://pratikdhanave.com/blog/series/database-internals/">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Database Internals — Series — Pratik Dhanave">
+<meta name="twitter:description" content="How databases actually work under the SQL — storage engines (B-tree vs LSM), pages and the buffer pool, the write-ahead log, indexes, transactions and…">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/series/database-internals/">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}:root[data-theme="dark"]{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav{background:rgba(13,17,23,0.85)}}:root[data-theme="dark"] nav{background:rgba(13,17,23,0.85)}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.tag-cloud{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0 32px}.tag-cloud-item{display:inline-block;padding:8px 14px;background:var(--bg-elev);border:1px solid var(--border);border-radius:8px;font-size:14px;transition:all 0.15s}.tag-cloud-item:hover{background:var(--accent);color:var(--bg);border-color:var(--accent);text-decoration:none}main.blog-index{max-width:880px;padding-top:32px;padding-bottom:32px}.blog-hero{padding:56px 0 32px;border-bottom:1px solid var(--border);margin-bottom:36px}.blog-hero h1{font-size:clamp(1.8rem,4vw,2.5rem);font-weight:800;letter-spacing:-0.02em;margin-bottom:14px}.blog-hero p{font-size:1.05rem;color:var(--text-dim);max-width:640px}.post-list{display:flex;flex-direction:column;gap:18px}.post-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px 28px;transition:transform 0.15s,box-shadow 0.15s,border-color 0.15s}.post-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--accent)}.post-card-meta{display:flex;gap:8px;font-size:13px;color:var(--text-muted);margin-bottom:8px;align-items:center}.post-card-title{font-size:1.35rem;font-weight:700;letter-spacing:-0.01em;line-height:1.25;margin:0 0 8px}.post-card-title a{color:var(--text)}.post-card-title a:hover{color:var(--accent);text-decoration:none}.post-card-subtitle{font-size:0.97rem;font-style:italic;color:var(--text-dim);margin-bottom:8px}.post-card-excerpt{font-size:0.95rem;color:var(--text-dim);margin-bottom:14px}.series-part-badge{display:inline-block;background:var(--accent);color:#fff;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:999px;letter-spacing:0.02em}.series-card .post-card-title{margin-top:6px}.series-intro-meta{color:var(--text-muted);font-size:0.95rem;margin-top:8px}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Course",
+  "name": "Database Internals",
+  "description": "How databases actually work under the SQL \u2014 storage engines (B-tree vs LSM), pages and the buffer pool, the write-ahead log, indexes, transactions and isolation, MVCC, and query planning.",
+  "url": "https://pratikdhanave.com/blog/series/database-internals/",
+  "provider": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.com/about/"},
+  "author": {"@type": "Person", "name": "Pratik Dhanave"}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Database Internals",
+  "description": "How databases actually work under the SQL \u2014 storage engines (B-tree vs LSM), pages and the buffer pool, the write-ahead log, indexes, transactions and isolation, MVCC, and query planning.",
+  "url": "https://pratikdhanave.com/blog/series/database-internals/",
+  "numberOfItems": 8,
+  "mainEntity": {"@type": "ItemList", "numberOfItems": 8, "itemListElement": [{"@type": "ListItem", "position": 1, "name": "How a Database Stores Data", "url": "https://pratikdhanave.com/blog/posts/dbint-01-how-a-database-stores-data.html"}, {"@type": "ListItem", "position": 2, "name": "B-Trees vs LSM-Trees", "url": "https://pratikdhanave.com/blog/posts/dbint-02-btrees-vs-lsm-trees.html"}, {"@type": "ListItem", "position": 3, "name": "Pages and the Buffer Pool", "url": "https://pratikdhanave.com/blog/posts/dbint-03-pages-and-the-buffer-pool.html"}, {"@type": "ListItem", "position": 4, "name": "The Write-Ahead Log and Durability", "url": "https://pratikdhanave.com/blog/posts/dbint-04-write-ahead-log-and-durability.html"}, {"@type": "ListItem", "position": 5, "name": "Indexes", "url": "https://pratikdhanave.com/blog/posts/dbint-05-indexes.html"}, {"@type": "ListItem", "position": 6, "name": "Transactions and Isolation", "url": "https://pratikdhanave.com/blog/posts/dbint-06-transactions-and-isolation.html"}, {"@type": "ListItem", "position": 7, "name": "MVCC and Concurrency Control", "url": "https://pratikdhanave.com/blog/posts/dbint-07-mvcc-and-concurrency-control.html"}, {"@type": "ListItem", "position": 8, "name": "Query Planning and Execution", "url": "https://pratikdhanave.com/blog/posts/dbint-08-query-planning-and-execution.html"}]}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://pratikdhanave.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pratikdhanave.com/blog/"},
+    {"@type": "ListItem", "position": 3, "name": "Series", "item": "https://pratikdhanave.com/blog/series/"},
+    {"@type": "ListItem", "position": 4, "name": "Database Internals", "item": "https://pratikdhanave.com/blog/series/database-internals/"}
+  ]
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="blog-index">
+
+<section class="blog-hero">
+  <h1>Database Internals</h1>
+  <p>How databases actually work under the SQL — storage engines (B-tree vs LSM), pages and the buffer pool, the write-ahead log, indexes, transactions and isolation, MVCC, and query planning.</p>
+  <p class="series-intro-meta">8 parts · written by <a href="/about/">Pratik Dhanave</a>. <a href="/blog/posts/dbint-01-how-a-database-stores-data.html">Start with Part 1 &rarr;</a></p>
+  <p style="margin-top:12px;font-size:0.95rem;"><a href="/blog/series/">&larr; All series</a> &middot; <a href="/blog/">All posts</a></p>
+</section>
+
+<section class="post-list">
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 1</span>
+        <span>·</span>
+        <time datetime="2026-08-14">Aug 14, 2026</time>
+        <span>·</span><span>7 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/dbint-01-how-a-database-stores-data.html">How a Database Stores Data</a></h2>
+      <p class="post-card-subtitle">A database is not magic — it&#x27;s a program that turns your rows into bytes on a disk and finds them again quickly, correctly, and without losing them when the power fails. Understanding the machine underneath the SQL is what separates someone who writes queries from someone who knows why they&#x27;re slow.</p>
+      <p class="post-card-excerpt">A database is a program that turns your rows into bytes on a disk and finds them again quickly, correctly, and without losing them when the power fails. Understanding the machine underneath the SQL is what separates writing queries from knowing why they&#x27;re slow.</p>
+      <div class="post-tags"><a href="/blog/tags/databases/" class="tag-link"><span class="tag">#Databases</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a><a href="/blog/tags/software-architecture/" class="tag-link"><span class="tag">#Software Architecture</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 2</span>
+        <span>·</span>
+        <time datetime="2026-08-15">Aug 15, 2026</time>
+        <span>·</span><span>6 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/dbint-02-btrees-vs-lsm-trees.html">B-Trees vs LSM-Trees</a></h2>
+      <p class="post-card-subtitle">Almost every database on earth stores its data in one of two structures: a B-tree that updates in place, or an LSM-tree that only ever appends. This one choice ripples through everything — read speed, write speed, space usage, and latency predictability — so knowing which your database uses tells you more about its behavior than almost anything else.</p>
+      <p class="post-card-excerpt">Almost every database stores data in one of two structures: a B-tree that updates in place, or an LSM-tree that only appends. This one choice ripples through read speed, write speed, space, and latency predictability.</p>
+      <div class="post-tags"><a href="/blog/tags/databases/" class="tag-link"><span class="tag">#Databases</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/data-structures/" class="tag-link"><span class="tag">#Data Structures</span></a><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 3</span>
+        <span>·</span>
+        <time datetime="2026-08-16">Aug 16, 2026</time>
+        <span>·</span><span>7 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/dbint-03-pages-and-the-buffer-pool.html">Pages and the Buffer Pool</a></h2>
+      <p class="post-card-subtitle">The buffer pool is where a database spends most of its memory and wins or loses most of its performance. It&#x27;s a cache of disk pages in RAM, and the difference between a query that hits it and one that misses is the difference between a microsecond and a millisecond — a thousandfold gap that decides whether your database feels fast.</p>
+      <p class="post-card-excerpt">The buffer pool is where a database spends most of its memory and wins or loses most of its performance — a cache of disk pages in RAM, where a hit versus a miss is a thousandfold latency gap.</p>
+      <div class="post-tags"><a href="/blog/tags/databases/" class="tag-link"><span class="tag">#Databases</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/performance/" class="tag-link"><span class="tag">#Performance</span></a><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 4</span>
+        <span>·</span>
+        <time datetime="2026-08-17">Aug 17, 2026</time>
+        <span>·</span><span>6 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/dbint-04-write-ahead-log-and-durability.html">The Write-Ahead Log and Durability</a></h2>
+      <p class="post-card-subtitle">Durability — the promise that a committed transaction survives a crash — comes down to one deceptively simple rule: write down what you&#x27;re about to do before you do it. The write-ahead log is that rule made concrete, and it&#x27;s the reason a database can be both fast and crash-safe, two goals that otherwise pull in opposite directions.</p>
+      <p class="post-card-excerpt">Durability comes down to one deceptively simple rule: write down what you&#x27;re about to do before you do it. The write-ahead log is that rule made concrete — the reason a database can be both fast and crash-safe.</p>
+      <div class="post-tags"><a href="/blog/tags/databases/" class="tag-link"><span class="tag">#Databases</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 5</span>
+        <span>·</span>
+        <time datetime="2026-08-18">Aug 18, 2026</time>
+        <span>·</span><span>7 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/dbint-05-indexes.html">Indexes</a></h2>
+      <p class="post-card-subtitle">An index is a data structure that lets a database find rows without reading the whole table — the difference between flipping to a book&#x27;s index and reading every page. It&#x27;s the highest-leverage performance tool a database gives you, and also the most misused: every index you add speeds up reads and slows down writes, so the skill is knowing exactly which ones earn their cost.</p>
+      <p class="post-card-excerpt">An index lets a database find rows without reading the whole table — the highest-leverage performance tool a database gives you, and the most misused: every index speeds up reads and slows down writes.</p>
+      <div class="post-tags"><a href="/blog/tags/databases/" class="tag-link"><span class="tag">#Databases</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/performance/" class="tag-link"><span class="tag">#Performance</span></a><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 6</span>
+        <span>·</span>
+        <time datetime="2026-08-19">Aug 19, 2026</time>
+        <span>·</span><span>6 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/dbint-06-transactions-and-isolation.html">Transactions and Isolation</a></h2>
+      <p class="post-card-subtitle">A transaction is a promise that a group of operations happens all-or-nothing and doesn&#x27;t get corrupted by everyone else doing the same thing at once. Most developers know the word ACID; far fewer know that the &quot;I&quot; — isolation — is a dial with several settings, and that the default setting in most databases allows anomalies they&#x27;ve never heard of.</p>
+      <p class="post-card-excerpt">Most developers know ACID; far fewer know that the &#x27;I&#x27; — isolation — is a dial with several settings, and that the default in most databases allows anomalies they&#x27;ve never heard of.</p>
+      <div class="post-tags"><a href="/blog/tags/databases/" class="tag-link"><span class="tag">#Databases</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 7</span>
+        <span>·</span>
+        <time datetime="2026-08-20">Aug 20, 2026</time>
+        <span>·</span><span>6 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/dbint-07-mvcc-and-concurrency-control.html">MVCC and Concurrency Control</a></h2>
+      <p class="post-card-subtitle">The reason a long analytics query doesn&#x27;t block every writer in your database — and vice versa — is a single elegant idea: never overwrite data, keep multiple versions, and give each transaction a consistent snapshot in time. MVCC is how nearly every modern database delivers isolation without readers and writers fighting over locks.</p>
+      <p class="post-card-excerpt">The reason a long analytics query doesn&#x27;t block every writer — and vice versa — is a single elegant idea: never overwrite data, keep multiple versions, and give each transaction a consistent snapshot in time. That&#x27;s MVCC.</p>
+      <div class="post-tags"><a href="/blog/tags/databases/" class="tag-link"><span class="tag">#Databases</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/performance/" class="tag-link"><span class="tag">#Performance</span></a><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a><a href="/blog/tags/concurrency/" class="tag-link"><span class="tag">#Concurrency</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 8</span>
+        <span>·</span>
+        <time datetime="2026-08-21">Aug 21, 2026</time>
+        <span>·</span><span>7 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/dbint-08-query-planning-and-execution.html">Query Planning and Execution</a></h2>
+      <p class="post-card-subtitle">SQL is a language where you say what you want, not how to get it — and the component that invents the &quot;how&quot; is the query planner, the closest thing a database has to a brain. When a query is mysteriously slow, the answer is almost always in the plan, which is why reading `EXPLAIN` is the single most valuable database skill you can learn.</p>
+      <p class="post-card-excerpt">SQL says what you want, not how to get it — and the component that invents the &#x27;how&#x27; is the query planner, the closest thing a database has to a brain. Reading EXPLAIN is the single most valuable database skill you can learn.</p>
+      <div class="post-tags"><a href="/blog/tags/databases/" class="tag-link"><span class="tag">#Databases</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/performance/" class="tag-link"><span class="tag">#Performance</span></a><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a></div>
+    </article>
+</section>
+
+<section class="blog-hero" style="padding-top: 32px; border-top: 1px solid var(--border); border-bottom: none; margin-top: 36px;">
+  <p>This series is part of a larger body of work by Pratik Dhanave, an Agentic AI Architect writing about production AI systems, distributed systems, and cloud-native engineering. Explore <a href="/blog/series/">all course series</a>, browse <a href="/blog/">every post</a>, or find topics via the <a href="/blog/tags/">tag index</a>.</p>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
