@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Quantization — Pratik Dhanave</title>
+<meta name="description" content="Quantization stores a model&#x27;s numbers in fewer bits — and because decode is bottlenecked on moving those numbers from memory, making them smaller makes...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Quantization — Pratik Dhanave">
+<meta property="og:description" content="Quantization stores a model&#x27;s numbers in fewer bits — and because decode is bottlenecked on moving those numbers from memory, making them smaller makes inference cheaper to host and faster to run, if you respect the limits on quality.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/llmserve-04-quantization.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-17T00:00:00Z">
+<meta property="article:tag" content="LLM Inference">
+<meta property="article:tag" content="AI Engineering">
+<meta property="article:tag" content="Performance">
+<meta property="article:tag" content="AI Cost">
+<meta property="article:tag" content="LLMs">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Quantization — Pratik Dhanave">
+<meta name="twitter:description" content="Quantization stores a model&#x27;s numbers in fewer bits — and because decode is bottlenecked on moving those numbers from memory, making them smaller makes inference cheaper to host and faster to run, if you respect the limits on quality.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/llmserve-04-quantization.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}:root[data-theme="dark"]{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav{background:rgba(13,17,23,0.85)}}:root[data-theme="dark"] nav{background:rgba(13,17,23,0.85)}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}#read-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-hover));z-index:1000;transition:width .1s ease-out}.rh-controls{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:900}.rh-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;box-shadow:var(--shadow);transition:transform .15s,color .15s,opacity .2s}.rh-btn:hover{transform:translateY(-2px);color:var(--accent)}#rh-top{opacity:0;pointer-events:none}#rh-top.show{opacity:1;pointer-events:auto}#toc{position:fixed;top:118px;right:24px;width:224px;max-height:72vh;overflow-y:auto;font-size:13px;padding:4px 0 4px 16px;border-left:2px solid var(--border);z-index:800}#toc .toc-title{font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;color:var(--text-muted);margin-bottom:10px}#toc a{display:block;color:var(--text-muted);padding:4px 0 4px 14px;line-height:1.35;border-left:2px solid transparent;margin-left:-16px;transition:color .15s,border-color .15s}#toc a.h3{padding-left:26px;font-size:12px}#toc a:hover{color:var(--accent);text-decoration:none}#toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}article pre{position:relative}.copy-btn{position:absolute;top:8px;right:8px;padding:3px 10px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-muted);cursor:pointer;opacity:0;transition:opacity .15s,color .15s,border-color .15s}article pre:hover .copy-btn,.copy-btn:focus-visible{opacity:1}.copy-btn:hover{color:var(--accent);border-color:var(--accent)}.copy-btn.copied{color:#2ea043;border-color:#2ea043}@media (max-width:1240px){#toc{display:none}}@media print{#read-progress,.rh-controls,#toc,.copy-btn{display:none !important}}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Quantization",
+  "description": "Quantization stores a model's numbers in fewer bits \u2014 and because decode is bottlenecked on moving those numbers from memory, making them smaller makes inference cheaper to host and faster to run, if you respect the limits on quality.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-17",
+  "dateModified": "2026-08-17",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "LLM Inference, AI Engineering, Performance, AI Cost, LLMs",
+  "url": "https://pratikdhanave.com/blog/posts/llmserve-04-quantization.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/llmserve-04-quantization.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Quantization</h1>
+    <p class="post-subtitle">Quantization shrinks a model by storing its numbers in fewer bits — and because LLM decode is bottlenecked on moving those numbers from memory, making them smaller makes inference both cheaper to host and faster to run. It&#x27;s the rare optimization that improves memory, cost, and speed at once, if you respect its limits on quality.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-17">August 17, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/llm-inference/" class="tag-link"><span class="tag">#LLM Inference</span></a><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/performance/" class="tag-link"><span class="tag">#Performance</span></a><a href="/blog/tags/ai-cost/" class="tag-link"><span class="tag">#AI Cost</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 4 of 8</span>
+    <a class="series-title" href="/blog/series/llm-inference-and-serving/">LLM Inference and Serving</a>
+    <div class="series-nav"><a href="/blog/posts/llmserve-03-batching-and-throughput.html" class="series-prev">&larr; Part 3: Batching and Throughput</a>
+<a href="/blog/posts/llmserve-05-speculative-decoding.html" class="series-next">Part 5: Speculative Decoding &rarr;</a></div>
+  </div>
+
+
+
+  <p>The earlier posts established that model weights are huge and that decode is memory-bandwidth-bound — the GPU spends its time hauling weights from memory. <strong>Quantization</strong> attacks both problems directly: represent each weight in 8 or 4 bits instead of 16, and the model takes a quarter to half the memory and is proportionally faster to read. This post explains what quantization is, the main approaches, and the quality trade-off you must manage.</p>
+<h2 id="what-quantization-is">What quantization is</h2>
+<p>A trained model&rsquo;s weights are numbers, normally stored in 16-bit floating point (FP16/BF16). <strong>Quantization</strong> stores them in a lower-precision format — commonly 8-bit integers (INT8) or 4-bit (INT4) — mapping the original range of float values onto a smaller set of representable levels. Fewer bits per number means:</p>
+<ul>
+<li><strong>Less memory.</strong> INT8 halves the model&rsquo;s size versus FP16; INT4 quarters it. A model that needed 140 GB in FP16 fits in ~35 GB at INT4 — the difference between needing several GPUs and fitting on one.</li>
+<li><strong>Faster decode.</strong> Since decode is limited by <em>moving weights from memory</em>, smaller weights mean less data to move per step, so tokens generate faster. The speedup roughly tracks the memory reduction because the bottleneck is bandwidth.</li>
+<li><strong>Lower cost.</strong> Fitting a model on fewer/smaller GPUs, and freeing memory for more KV cache (hence larger batches), both cut cost per token.</li>
+</ul>
+<p>The catch, of course: fewer bits means less precision, and too little precision degrades the model&rsquo;s quality. The whole craft of quantization is getting the memory/speed benefit while keeping quality loss negligible.</p>
+<h2 id="the-core-trade-off-bits-vs-quality">The core trade-off: bits vs. quality</h2>
+<p>Every quantization choice trades precision for size, and the quality impact is non-linear:</p>
+<ul>
+<li><strong>FP16/BF16 (16-bit)</strong> — the standard baseline; full quality, full size.</li>
+<li><strong>INT8 (8-bit)</strong> — roughly half the size; with good methods, quality loss is typically very small to negligible. Often a safe default.</li>
+<li><strong>INT4 (4-bit)</strong> — a quarter of the size; larger potential quality loss, but modern methods keep it small for many models — the popular sweet spot for fitting big models on limited hardware.</li>
+<li><strong>Below 4-bit</strong> — aggressive; quality degradation becomes harder to avoid and depends heavily on model and method.</li>
+</ul>
+<p>The critical nuance is that <strong>not all weights are equally sensitive.</strong> A small fraction of weights (and activations) are <em>outliers</em> whose precision matters disproportionately — quantize them crudely and quality collapses; preserve them and you can quantize everything else aggressively. The best methods exist precisely to identify and protect these sensitive values, which is why &ldquo;4-bit&rdquo; from a good method can vastly outperform naive 4-bit rounding.</p>
+<h2 id="post-training-quantization-vs-quantization-aware-training">Post-training quantization vs. quantization-aware training</h2>
+<p>There are two broad strategies for <em>when</em> quantization happens:</p>
+<ul>
+<li><strong>Post-training quantization (PTQ)</strong> — take an already-trained model and quantize it directly, without retraining. This is by far the most common for serving because it&rsquo;s cheap and fast (no training run needed). The sophistication is in <em>how</em> you round to minimize error, which is where the well-known PTQ methods come in:</li>
+<li><strong>GPTQ</strong> — quantizes weights layer by layer using a small calibration dataset to minimize the error introduced, achieving good 4-bit quality.</li>
+<li><strong>AWQ (Activation-aware Weight Quantization)</strong> — protects the small set of <em>salient</em> weights that matter most (identified via activation statistics), preserving quality at low bit-widths.</li>
+<li><strong>GGUF/llama.cpp quantization</strong> — the popular formats for running quantized models on CPUs and consumer/edge hardware, with a range of bit-width presets.</li>
+<li><strong>Quantization-aware training (QAT)</strong> — simulate quantization <em>during</em> training/fine-tuning so the model learns weights robust to it. This can achieve better quality at very low bit-widths but requires a training run, so it&rsquo;s used when PTQ quality isn&rsquo;t sufficient and you can afford the compute.</li>
+</ul>
+<p>For most serving, PTQ with a good method (GPTQ/AWQ for GPU, GGUF for CPU/edge) is the practical default; QAT is the escalation when you need the last bit of quality at aggressive compression.</p>
+<h2 id="what-gets-quantized-weights-activations-and-the-kv-cache">What gets quantized: weights, activations, and the KV cache</h2>
+<p>Quantization isn&rsquo;t only about weights — there are three distinct targets, each with different implications:</p>
+<ul>
+<li><strong>Weight-only quantization</strong> — the most common; store weights in low precision but compute in higher precision (dequantize on the fly). This captures most of the memory and bandwidth benefit with the least quality risk, and it&rsquo;s ideal for the memory-bound decode phase.</li>
+<li><strong>Weight + activation quantization</strong> — quantize the activations (the intermediate values) too, enabling genuinely lower-precision <em>compute</em> (e.g. INT8 matrix math). This can speed the compute-bound prefill phase but is more sensitive to quality loss because activations have those troublesome outliers.</li>
+<li><strong>KV cache quantization</strong> — quantize the KV cache itself (e.g. to INT8/FP8). Since the KV cache often caps batch size, shrinking it lets you fit <em>more concurrent requests</em> or longer contexts — a direct throughput win, connecting quantization to the batching story.</li>
+</ul>
+<p>Recognizing these as separate decisions matters: weight-only 4-bit for memory, activation quantization for prefill compute, KV cache quantization for concurrency — you can mix them.</p>
+<h2 id="using-quantization-well">Using quantization well</h2>
+<p>Quantization is one of the highest-return serving optimizations, but it needs judgment:</p>
+<ul>
+<li><strong>Start with INT8 or a good 4-bit (GPTQ/AWQ) and measure quality on <em>your</em> tasks.</strong> Aggregate benchmarks can hide degradation that shows up on your specific workload; evaluate before and after on real evaluation data (the discipline from the AI production and RAG series).</li>
+<li><strong>Prefer proven methods over naive rounding.</strong> The gap between AWQ/GPTQ 4-bit and naive 4-bit is the difference between &ldquo;indistinguishable&rdquo; and &ldquo;noticeably worse.&rdquo;</li>
+<li><strong>Match the target to the bottleneck.</strong> Weight-only for memory/decode; KV cache quantization to raise batch size; activation quantization when prefill compute dominates.</li>
+<li><strong>Watch for task-specific sensitivity.</strong> Reasoning, code, and math tasks can be more sensitive to precision loss than casual chat — test the capabilities you actually rely on.</li>
+<li><strong>Combine with the rest of the stack.</strong> Quantization frees memory that becomes more KV cache → larger batches → higher throughput; the optimizations compound.</li>
+</ul>
+<p>Quantization is the lever that makes large models affordable to serve, and — because inference is memory-bound — one of the few that improves cost, memory, <em>and</em> speed together. The next post covers a different kind of speedup that attacks decode&rsquo;s sequential nature head-on: speculative decoding.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Quantization stores weights in fewer bits (INT8 halves, INT4 quarters the size vs FP16); because decode is memory-bandwidth-bound, smaller weights mean less memory, faster generation, and lower cost — improving all three at once.</li>
+<li>The trade-off is precision vs. quality, and it&rsquo;s non-linear: INT8 is often near-lossless, 4-bit is the popular sweet spot with good methods, and below 4-bit gets risky — largely because a few outlier weights matter disproportionately.</li>
+<li>Post-training quantization (PTQ) — GPTQ, AWQ, GGUF — quantizes a trained model cheaply and is the serving default; quantization-aware training (QAT) costs a training run but achieves better quality at very low bit-widths.</li>
+<li>There are three targets: weight-only (most memory benefit, least risk, ideal for decode), weight+activation (enables low-precision compute for prefill, more sensitive), and KV cache quantization (shrinks per-request cache → more concurrency/longer context).</li>
+<li>Use it with judgment: prefer proven methods over naive rounding, match the target to your bottleneck, and always measure quality on your own tasks (reasoning/code/math are more sensitive) — the benefits compound with batching by freeing memory for more KV cache.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://huggingface.co/docs/transformers/main/en/quantization/overview">Hugging Face — Quantization overview</a></li>
+<li><a href="/blog/posts/llmserve-03-batching-and-throughput.html">Batching and throughput (previous post)</a></li>
+<li><a href="/blog/series/ai-cost-optimization/">On-device and edge AI depends heavily on quantization — AI Cost Optimization series</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/llmserve-08-latency-throughput-cost.html">Latency, Throughput, and Cost</a>
+      <span class="related-date">Aug 21</span>
+    </li>
+    <li>
+      <a href="/blog/posts/llmserve-07-scaling-across-gpus.html">Scaling Across GPUs</a>
+      <span class="related-date">Aug 20</span>
+    </li>
+    <li>
+      <a href="/blog/posts/llmserve-06-serving-engines.html">Serving Engines and PagedAttention</a>
+      <span class="related-date">Aug 19</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://huggingface.co/docs/transformers/main/en/quantization/overview" target="_blank" rel="noopener noreferrer">Hugging Face — Quantization overview</a></div>
+      <div class="citation-context">Quantization methods (GPTQ, AWQ)</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+<div id="read-progress" aria-hidden="true"></div>
+<nav id="toc" aria-label="Table of contents"></nav>
+<div class="rh-controls">
+  <button id="rh-theme" class="rh-btn" type="button" aria-label="Toggle light and dark theme" title="Toggle theme"></button>
+  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top">&uarr;</button>
+</div>
+<script>
+(function(){
+  var doc = document.documentElement;
+  function curTheme(){ return doc.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+  var themeBtn = document.getElementById('rh-theme');
+  function setIcon(){ if (themeBtn) themeBtn.textContent = curTheme() === 'dark' ? '\u2600\uFE0E' : '\u263D'; }
+  setIcon();
+  if (themeBtn) themeBtn.addEventListener('click', function(){
+    var t = curTheme() === 'dark' ? 'light' : 'dark';
+    doc.setAttribute('data-theme', t);
+    try { localStorage.setItem('theme', t); } catch(e){}
+    setIcon();
+  });
+  var article = document.querySelector('article');
+  var toc = document.getElementById('toc');
+  if (article && toc) {
+    var heads = article.querySelectorAll('h2, h3');
+    if (heads.length >= 3) {
+      var title = document.createElement('div');
+      title.className = 'toc-title'; title.textContent = 'On this page';
+      toc.appendChild(title);
+      var links = [];
+      heads.forEach(function(h, i){
+        if (!h.id) h.id = 'sec-' + i;
+        var a = document.createElement('a');
+        if (h.tagName === 'H3') a.className = 'h3';
+        a.href = '#' + h.id;
+        a.textContent = h.textContent;
+        toc.appendChild(a);
+        links.push(a);
+      });
+      var byId = {}; links.forEach(function(a){ byId[a.getAttribute('href').slice(1)] = a; });
+      var obs = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if (e.isIntersecting) {
+            links.forEach(function(a){ a.classList.remove('active'); });
+            var a = byId[e.target.id]; if (a) a.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-80px 0px -70% 0px' });
+      heads.forEach(function(h){ obs.observe(h); });
+    } else { toc.style.display = 'none'; }
+  }
+  document.querySelectorAll('article pre').forEach(function(pre){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.type = 'button'; btn.textContent = 'Copy';
+    btn.addEventListener('click', function(){
+      var code = pre.querySelector('code');
+      var txt = code ? code.innerText : pre.innerText;
+      navigator.clipboard.writeText(txt).then(function(){
+        btn.textContent = 'Copied'; btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+  var bar = document.getElementById('read-progress');
+  var top = document.getElementById('rh-top');
+  function onScroll(){
+    var h = doc.scrollHeight - doc.clientHeight;
+    var p = h > 0 ? (doc.scrollTop / h) * 100 : 0;
+    if (bar) bar.style.width = p + '%';
+    if (top) { if (doc.scrollTop > 600) top.classList.add('show'); else top.classList.remove('show'); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+  if (top) top.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); });
+})();
+</script>
+</body>
+</html>
