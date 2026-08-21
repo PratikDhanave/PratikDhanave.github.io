@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Load Balancing and Proxies — Pratik Dhanave</title>
+<meta name="description" content="Almost nothing on the modern internet talks directly to the server that answers it. In between sit proxies and load balancers — the traffic directors...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Load Balancing and Proxies — Pratik Dhanave">
+<meta property="og:description" content="Almost nothing on the modern internet talks directly to the server that answers it. In between sit proxies and load balancers — the traffic directors that spread load, terminate TLS, cache, and shield your backends — turning one domain into a system that scales.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/net-07-load-balancing-and-proxies.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-20T00:00:00Z">
+<meta property="article:tag" content="Computer Networking">
+<meta property="article:tag" content="Backend Engineering">
+<meta property="article:tag" content="System Design">
+<meta property="article:tag" content="Distributed Systems">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Load Balancing and Proxies — Pratik Dhanave">
+<meta name="twitter:description" content="Almost nothing on the modern internet talks directly to the server that answers it. In between sit proxies and load balancers — the traffic directors that spread load, terminate TLS, cache, and shield your backends — turning one domain into a system that scales.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/net-07-load-balancing-and-proxies.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}:root[data-theme="dark"]{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav{background:rgba(13,17,23,0.85)}}:root[data-theme="dark"] nav{background:rgba(13,17,23,0.85)}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}#read-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-hover));z-index:1000;transition:width .1s ease-out}.rh-controls{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:900}.rh-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;box-shadow:var(--shadow);transition:transform .15s,color .15s,opacity .2s}.rh-btn:hover{transform:translateY(-2px);color:var(--accent)}#rh-top{opacity:0;pointer-events:none}#rh-top.show{opacity:1;pointer-events:auto}#toc{position:fixed;top:118px;right:24px;width:224px;max-height:72vh;overflow-y:auto;font-size:13px;padding:4px 0 4px 16px;border-left:2px solid var(--border);z-index:800}#toc .toc-title{font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;color:var(--text-muted);margin-bottom:10px}#toc a{display:block;color:var(--text-muted);padding:4px 0 4px 14px;line-height:1.35;border-left:2px solid transparent;margin-left:-16px;transition:color .15s,border-color .15s}#toc a.h3{padding-left:26px;font-size:12px}#toc a:hover{color:var(--accent);text-decoration:none}#toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}article pre{position:relative}.copy-btn{position:absolute;top:8px;right:8px;padding:3px 10px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-muted);cursor:pointer;opacity:0;transition:opacity .15s,color .15s,border-color .15s}article pre:hover .copy-btn,.copy-btn:focus-visible{opacity:1}.copy-btn:hover{color:var(--accent);border-color:var(--accent)}.copy-btn.copied{color:#2ea043;border-color:#2ea043}@media (max-width:1240px){#toc{display:none}}@media print{#read-progress,.rh-controls,#toc,.copy-btn{display:none !important}}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Load Balancing and Proxies",
+  "description": "Almost nothing on the modern internet talks directly to the server that answers it. In between sit proxies and load balancers \u2014 the traffic directors that spread load, terminate TLS, cache, and shield your backends \u2014 turning one domain into a system that scales.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-20",
+  "dateModified": "2026-08-20",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Computer Networking, Backend Engineering, System Design, Distributed Systems",
+  "url": "https://pratikdhanave.com/blog/posts/net-07-load-balancing-and-proxies.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/net-07-load-balancing-and-proxies.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Load Balancing and Proxies</h1>
+    <p class="post-subtitle">Almost nothing on the modern internet talks directly to the server that answers it. In between sit proxies and load balancers — the traffic directors that spread load across many servers, terminate TLS, cache responses, and shield your backends. Understanding this layer is understanding how a single domain name serves millions of users from hundreds of machines.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-20">August 20, 2026</time>
+      <span>·</span>
+      <span>7 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/computer-networking/" class="tag-link"><span class="tag">#Computer Networking</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 7 of 8</span>
+    <a class="series-title" href="/blog/series/computer-networking-for-backend-engineers/">Computer Networking for Backend Engineers</a>
+    <div class="series-nav"><a href="/blog/posts/net-06-http-evolution.html" class="series-prev">&larr; Part 6: HTTP Evolution: 1.1 to 2 to 3</a>
+<a href="/blog/posts/net-08-networking-in-practice.html" class="series-next">Part 8: Networking in Practice for Backend Engineers &rarr;</a></div>
+  </div>
+
+
+
+  <p>The previous posts got a secure HTTP request from client to server. But &ldquo;the server&rdquo; is usually a fiction — behind one address are many servers, with <strong>load balancers</strong> and <strong>proxies</strong> directing traffic among them. This infrastructure layer is where scalability, resilience, and much operational control live. This post covers reverse vs forward proxies, load balancing and its algorithms, the crucial L4-vs-L7 distinction, and CDNs — the pieces that turn &ldquo;a server&rdquo; into &ldquo;a system that scales.&rdquo;</p>
+<h2 id="proxies-intermediaries-with-a-purpose">Proxies: intermediaries with a purpose</h2>
+<p>A <strong>proxy</strong> is an intermediary that sits between client and server, forwarding requests and responses. The direction it faces defines its type, and confusing the two is common:</p>
+<ul>
+<li><strong>Forward proxy</strong> — sits in front of <em>clients</em>, forwarding their requests out to the internet. It acts on behalf of the <em>client</em> (corporate proxies, content filters, some VPNs). The server sees the proxy, not the client.</li>
+<li><strong>Reverse proxy</strong> — sits in front of <em>servers</em>, receiving requests from the internet and forwarding them to backend servers. It acts on behalf of the <em>server</em>. The client sees the proxy, not the individual backend.</li>
+</ul>
+<p>The <strong>reverse proxy</strong> is the one central to backend architecture, because it&rsquo;s the single entry point in front of your servers and the natural home for a whole set of jobs:</p>
+<ul>
+<li><strong>Load balancing</strong> — distributing requests across many backends (below).</li>
+<li><strong>TLS termination</strong> — handling HTTPS/certificates centrally (the TLS post) so backends don&rsquo;t each manage TLS.</li>
+<li><strong>Caching</strong> — serving cached responses without hitting backends.</li>
+<li><strong>Compression, rate limiting, request routing, and security filtering</strong> — cross-cutting concerns handled once, at the edge, instead of in every backend.</li>
+</ul>
+<p>A reverse proxy is thus the control point in front of your system — one place to terminate TLS, spread load, cache, and enforce policy. Common reverse proxies (nginx, Envoy, HAProxy, cloud load balancers) are foundational infrastructure.</p>
+<h2 id="load-balancing-one-address-many-servers">Load balancing: one address, many servers</h2>
+<p><strong>Load balancing</strong> is the reverse proxy&rsquo;s headline job: distribute incoming requests across a pool of backend servers so no single one is overwhelmed. It&rsquo;s what makes horizontal scaling possible — add more servers behind the balancer to handle more load — and it delivers two things at once:</p>
+<ul>
+<li><strong>Scalability</strong> — spread traffic across many machines, so capacity grows by adding servers (the horizontal-scaling story from System Design).</li>
+<li><strong>Availability</strong> — if a backend fails, the balancer stops sending it traffic (via health checks) and routes to healthy ones, so one server&rsquo;s death doesn&rsquo;t take down the service. This is the resilience the distributed-systems series called for, realized in infrastructure.</li>
+</ul>
+<p>The balancer decides <em>which</em> backend gets each request using a <strong>load-balancing algorithm</strong>:</p>
+<ul>
+<li><strong>Round robin</strong> — each request to the next server in turn. Simple, even distribution when servers and requests are uniform.</li>
+<li><strong>Least connections</strong> — send to the server with the fewest active connections. Better when requests vary in duration, avoiding piling onto a busy server.</li>
+<li><strong>IP hash / consistent hashing</strong> — route based on a hash of the client (or key), so a given client consistently hits the same backend — useful for session affinity (below) and, via consistent hashing (the partitioning post), for minimizing disruption when servers are added/removed.</li>
+<li><strong>Weighted</strong> variants — send more traffic to more capable servers.</li>
+</ul>
+<p><strong>Health checks</strong> underpin all of it: the balancer continuously checks backends and routes only to healthy ones, which is how failures are handled automatically. Choosing an algorithm depends on your traffic; round robin and least-connections cover most cases.</p>
+<h2 id="l4-vs-l7-the-crucial-distinction">L4 vs L7: the crucial distinction</h2>
+<p>The most important concept in this post is <em>at which layer</em> a load balancer operates, because it determines what it can do — and it ties directly back to the network stack from post one:</p>
+<ul>
+<li><strong>Layer 4 (transport) load balancing</strong> — operates at the TCP/UDP level. It routes based on <strong>IP address and port</strong>, forwarding packets/connections <em>without looking at their content</em>. It doesn&rsquo;t know or care whether the traffic is HTTP; it just balances connections. This makes it <strong>fast and simple</strong> (minimal processing) but <strong>limited</strong> — it can&rsquo;t make decisions based on the request&rsquo;s content (URL, headers, cookies) because it doesn&rsquo;t inspect them.</li>
+<li><strong>Layer 7 (application) load balancing</strong> — operates at the HTTP level. It <em>understands the request</em> — URL path, headers, cookies, method — and can route based on them: send <code>/api/*</code> to one pool and <code>/images/*</code> to another, route by hostname, do cookie-based session affinity, rewrite requests, and cache. This is <strong>more powerful</strong> (content-aware routing, the reverse-proxy features above) but does <strong>more work</strong> per request.</li>
+</ul>
+<pre><code class="language-text">L4: routes on IP:port, blind to content        → fast, simple, connection-level
+L7: routes on URL/headers/cookies, HTTP-aware   → powerful, content-based, request-level
+</code></pre>
+<p>The practical guidance: <strong>L7 for HTTP applications</strong> (you almost always want content-aware routing, TLS termination, and the reverse-proxy features), <strong>L4 when you need raw speed</strong> or are balancing non-HTTP traffic where you don&rsquo;t need to inspect content. Most web-application load balancing is L7; L4 shines for high-throughput, protocol-agnostic, or lowest-latency cases. Knowing which layer your balancer works at tells you what routing decisions it can (and can&rsquo;t) make.</p>
+<h2 id="session-affinity-a-caveat">Session affinity: a caveat</h2>
+<p>One recurring wrinkle: <strong>session affinity (sticky sessions)</strong> — configuring the balancer to send a given user consistently to the same backend (via cookie or IP hash). This is sometimes needed when a backend holds per-user <em>state</em> in memory (a session). But it&rsquo;s usually a <strong>design smell</strong>: it undermines even load distribution and resilience (if that server dies, the user&rsquo;s state is lost), and it complicates scaling. The better pattern, from the distributed-systems and sessions discussions, is to make backends <strong>stateless</strong> — store session state externally (a shared cache/database) so <em>any</em> backend can serve <em>any</em> request, and the balancer can distribute freely. Reach for sticky sessions only when you must; prefer stateless backends that don&rsquo;t need them.</p>
+<h2 id="cdns-load-balancing-across-the-globe">CDNs: load balancing across the globe</h2>
+<p>Extending these ideas geographically gives the <strong>CDN (Content Delivery Network)</strong> — a globally distributed network of proxy/cache servers that serve users from a location <em>near them</em>:</p>
+<ul>
+<li><strong>Latency</strong> — serving content from a nearby edge server (rather than a distant origin) cuts the network round-trip time (the physics of distance from post one), making responses much faster for a global audience.</li>
+<li><strong>Caching at the edge</strong> — CDNs cache static (and increasingly dynamic) content at edge locations, serving it without hitting your origin — reducing origin load and speeding delivery.</li>
+<li><strong>Scale and resilience</strong> — CDNs absorb huge traffic (including DDoS) and shield your origin, acting as a massive distributed reverse proxy in front of everything.</li>
+</ul>
+<p>A CDN is essentially reverse-proxy + caching + load balancing applied <em>globally</em>, routing each user to a nearby edge — the geographic realization of this whole layer. For any service with a global audience or significant static content, a CDN is standard infrastructure.</p>
+<h2 id="the-infrastructure-that-makes-a-server-scale">The infrastructure that makes &ldquo;a server&rdquo; scale</h2>
+<p>Load balancers, proxies, and CDNs are the layer that turns a single domain into a scalable, resilient system: a reverse proxy fronts your servers (terminating TLS, caching, filtering), a load balancer spreads traffic across many backends and routes around failures (L7 for content-aware HTTP, L4 for raw speed), stateless backends let it distribute freely, and a CDN extends it all globally for latency and scale. This is where the network knowledge from the whole series meets real architecture. The final post brings it down to earth: the networking concerns backend engineers handle in day-to-day code.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>A proxy is an intermediary: a forward proxy fronts clients (acting for the client), a reverse proxy fronts servers (acting for the server) — the reverse proxy is the central entry point for load balancing, TLS termination, caching, and security filtering.</li>
+<li>Load balancing distributes requests across many backends for scalability (add servers to grow capacity) and availability (health checks route around failed servers), using algorithms like round robin, least connections, IP/consistent hash, and weighted.</li>
+<li>The key distinction is L4 vs L7: L4 balances on IP:port without inspecting content (fast, simple, connection-level), L7 understands HTTP (URL/headers/cookies) for content-based routing and reverse-proxy features (powerful, request-level) — use L7 for web apps, L4 for raw speed or non-HTTP.</li>
+<li>Session affinity (sticky sessions) pins a user to one backend for in-memory state but undermines load balancing and resilience — prefer stateless backends with externalized session state so any backend serves any request.</li>
+<li>CDNs apply reverse-proxy + caching + load balancing globally, serving users from nearby edge servers to cut latency, cache at the edge to offload origin, and absorb traffic/DDoS — standard for global or static-heavy services.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/net-06-http-evolution.html">HTTP evolution (previous post)</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Load_balancing_(computing)">Wikipedia — load balancing</a></li>
+<li><a href="/blog/series/system-design-fundamentals/">System Design Fundamentals series</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/net-02-ip-and-routing.html">IP and Routing</a>
+      <span class="related-date">Aug 15</span>
+    </li>
+    <li>
+      <a href="/blog/posts/net-08-networking-in-practice.html">Networking in Practice for Backend Engineers</a>
+      <span class="related-date">Aug 21</span>
+    </li>
+    <li>
+      <a href="/blog/posts/distsys-07-consensus-and-raft.html">Consensus and Raft</a>
+      <span class="related-date">Aug 20</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://en.wikipedia.org/wiki/Load_balancing_(computing)" target="_blank" rel="noopener noreferrer">Wikipedia — load balancing</a></div>
+      <div class="citation-context">Load balancing and proxies</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+<div id="read-progress" aria-hidden="true"></div>
+<nav id="toc" aria-label="Table of contents"></nav>
+<div class="rh-controls">
+  <button id="rh-theme" class="rh-btn" type="button" aria-label="Toggle light and dark theme" title="Toggle theme"></button>
+  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top">&uarr;</button>
+</div>
+<script>
+(function(){
+  var doc = document.documentElement;
+  function curTheme(){ return doc.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+  var themeBtn = document.getElementById('rh-theme');
+  function setIcon(){ if (themeBtn) themeBtn.textContent = curTheme() === 'dark' ? '\u2600\uFE0E' : '\u263D'; }
+  setIcon();
+  if (themeBtn) themeBtn.addEventListener('click', function(){
+    var t = curTheme() === 'dark' ? 'light' : 'dark';
+    doc.setAttribute('data-theme', t);
+    try { localStorage.setItem('theme', t); } catch(e){}
+    setIcon();
+  });
+  var article = document.querySelector('article');
+  var toc = document.getElementById('toc');
+  if (article && toc) {
+    var heads = article.querySelectorAll('h2, h3');
+    if (heads.length >= 3) {
+      var title = document.createElement('div');
+      title.className = 'toc-title'; title.textContent = 'On this page';
+      toc.appendChild(title);
+      var links = [];
+      heads.forEach(function(h, i){
+        if (!h.id) h.id = 'sec-' + i;
+        var a = document.createElement('a');
+        if (h.tagName === 'H3') a.className = 'h3';
+        a.href = '#' + h.id;
+        a.textContent = h.textContent;
+        toc.appendChild(a);
+        links.push(a);
+      });
+      var byId = {}; links.forEach(function(a){ byId[a.getAttribute('href').slice(1)] = a; });
+      var obs = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if (e.isIntersecting) {
+            links.forEach(function(a){ a.classList.remove('active'); });
+            var a = byId[e.target.id]; if (a) a.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-80px 0px -70% 0px' });
+      heads.forEach(function(h){ obs.observe(h); });
+    } else { toc.style.display = 'none'; }
+  }
+  document.querySelectorAll('article pre').forEach(function(pre){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.type = 'button'; btn.textContent = 'Copy';
+    btn.addEventListener('click', function(){
+      var code = pre.querySelector('code');
+      var txt = code ? code.innerText : pre.innerText;
+      navigator.clipboard.writeText(txt).then(function(){
+        btn.textContent = 'Copied'; btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+  var bar = document.getElementById('read-progress');
+  var top = document.getElementById('rh-top');
+  function onScroll(){
+    var h = doc.scrollHeight - doc.clientHeight;
+    var p = h > 0 ? (doc.scrollTop / h) * 100 : 0;
+    if (bar) bar.style.width = p + '%';
+    if (top) { if (doc.scrollTop > 600) top.classList.add('show'); else top.classList.remove('show'); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+  if (top) top.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); });
+})();
+</script>
+</body>
+</html>

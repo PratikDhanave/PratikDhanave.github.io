@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>TLS and HTTPS — Pratik Dhanave</title>
+<meta name="description" content="The &#x27;s&#x27; in HTTPS is TLS, and it does three things engineers often conflate: encrypts the connection, verifies you&#x27;re talking to the real server, and...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="TLS and HTTPS — Pratik Dhanave">
+<meta property="og:description" content="The &#x27;s&#x27; in HTTPS is TLS, and it does three things engineers often conflate: encrypts the connection, verifies you&#x27;re talking to the real server, and detects tampering. Understanding the handshake, certificates, and chain of trust demystifies the padlock and the cert errors.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/net-05-tls-and-https.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-18T00:00:00Z">
+<meta property="article:tag" content="Computer Networking">
+<meta property="article:tag" content="Security">
+<meta property="article:tag" content="Backend Engineering">
+<meta property="article:tag" content="Web Development">
+<meta property="article:tag" content="System Design">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="TLS and HTTPS — Pratik Dhanave">
+<meta name="twitter:description" content="The &#x27;s&#x27; in HTTPS is TLS, and it does three things engineers often conflate: encrypts the connection, verifies you&#x27;re talking to the real server, and detects tampering. Understanding the handshake, certificates, and chain of trust demystifies the padlock and the cert errors.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/net-05-tls-and-https.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}:root[data-theme="dark"]{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav{background:rgba(13,17,23,0.85)}}:root[data-theme="dark"] nav{background:rgba(13,17,23,0.85)}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}#read-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-hover));z-index:1000;transition:width .1s ease-out}.rh-controls{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:900}.rh-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;box-shadow:var(--shadow);transition:transform .15s,color .15s,opacity .2s}.rh-btn:hover{transform:translateY(-2px);color:var(--accent)}#rh-top{opacity:0;pointer-events:none}#rh-top.show{opacity:1;pointer-events:auto}#toc{position:fixed;top:118px;right:24px;width:224px;max-height:72vh;overflow-y:auto;font-size:13px;padding:4px 0 4px 16px;border-left:2px solid var(--border);z-index:800}#toc .toc-title{font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;color:var(--text-muted);margin-bottom:10px}#toc a{display:block;color:var(--text-muted);padding:4px 0 4px 14px;line-height:1.35;border-left:2px solid transparent;margin-left:-16px;transition:color .15s,border-color .15s}#toc a.h3{padding-left:26px;font-size:12px}#toc a:hover{color:var(--accent);text-decoration:none}#toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}article pre{position:relative}.copy-btn{position:absolute;top:8px;right:8px;padding:3px 10px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-muted);cursor:pointer;opacity:0;transition:opacity .15s,color .15s,border-color .15s}article pre:hover .copy-btn,.copy-btn:focus-visible{opacity:1}.copy-btn:hover{color:var(--accent);border-color:var(--accent)}.copy-btn.copied{color:#2ea043;border-color:#2ea043}@media (max-width:1240px){#toc{display:none}}@media print{#read-progress,.rh-controls,#toc,.copy-btn{display:none !important}}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TLS and HTTPS",
+  "description": "The 's' in HTTPS is TLS, and it does three things engineers often conflate: encrypts the connection, verifies you're talking to the real server, and detects tampering. Understanding the handshake, certificates, and chain of trust demystifies the padlock and the cert errors.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-18",
+  "dateModified": "2026-08-18",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Computer Networking, Security, Backend Engineering, Web Development, System Design",
+  "url": "https://pratikdhanave.com/blog/posts/net-05-tls-and-https.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/net-05-tls-and-https.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>TLS and HTTPS</h1>
+    <p class="post-subtitle">The &quot;s&quot; in HTTPS is TLS, and it does three things at once that most engineers conflate: it encrypts the connection, verifies you&#x27;re talking to the real server, and detects tampering. Understanding how — the handshake, the certificates, the chain of trust — demystifies the padlock icon and the certificate errors that block deploys, and it&#x27;s foundational to every secure connection you make.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-18">August 18, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/computer-networking/" class="tag-link"><span class="tag">#Computer Networking</span></a><a href="/blog/tags/security/" class="tag-link"><span class="tag">#Security</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/web-development/" class="tag-link"><span class="tag">#Web Development</span></a><a href="/blog/tags/system-design/" class="tag-link"><span class="tag">#System Design</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 5 of 8</span>
+    <a class="series-title" href="/blog/series/computer-networking-for-backend-engineers/">Computer Networking for Backend Engineers</a>
+    <div class="series-nav"><a href="/blog/posts/net-04-dns.html" class="series-prev">&larr; Part 4: DNS</a>
+<a href="/blog/posts/net-06-http-evolution.html" class="series-next">Part 6: HTTP Evolution: 1.1 to 2 to 3 &rarr;</a></div>
+  </div>
+
+
+
+  <p>DNS gave you the server&rsquo;s address; TCP will connect you; but over the open internet, anyone on the path can read or alter unencrypted traffic. <strong>TLS (Transport Layer Security)</strong> is what makes a connection private and authenticated — it&rsquo;s the layer that turns HTTP into HTTPS. This post covers what TLS guarantees, how the handshake establishes a secure channel, how certificates prove server identity, and the performance cost that connects back to the connection-reuse theme.</p>
+<h2 id="what-tls-guarantees">What TLS guarantees</h2>
+<p>TLS provides three distinct security properties on a connection, and separating them clarifies a lot:</p>
+<ul>
+<li><strong>Encryption (confidentiality)</strong> — data is encrypted in transit, so anyone intercepting the traffic (on the network, at a router, on shared Wi-Fi) sees only ciphertext, not your data. This is what people usually mean by &ldquo;secure,&rdquo; but it&rsquo;s only one of the three.</li>
+<li><strong>Authentication (identity)</strong> — TLS verifies you&rsquo;re talking to the <em>real</em> server you intended, not an impostor. This is the certificate&rsquo;s job (below), and it&rsquo;s what prevents a man-in-the-middle from impersonating the server. Encryption without authentication is useless — you&rsquo;d have a private conversation with an attacker.</li>
+<li><strong>Integrity (tamper-detection)</strong> — TLS detects if data was modified in transit, so an attacker can&rsquo;t silently alter the bytes. You receive exactly what was sent, or the connection fails.</li>
+</ul>
+<p>All three matter together: encryption keeps it private, authentication ensures it&rsquo;s the right party, integrity ensures it wasn&rsquo;t changed. HTTPS is simply HTTP running over a TLS-secured connection, gaining all three. A common mistake is thinking HTTPS is &ldquo;just encryption&rdquo; — the <em>authentication</em> (are you really talking to your bank?) is equally essential.</p>
+<h2 id="the-handshake-establishing-a-secure-channel">The handshake: establishing a secure channel</h2>
+<p>Before encrypted data flows, TLS performs a <strong>handshake</strong> to agree on how to secure the connection and to verify the server&rsquo;s identity. Conceptually:</p>
+<pre><code class="language-text">(after the TCP handshake completes)
+Client → Server:  &quot;Hello&quot; — TLS versions and cipher suites I support, random data
+Server → Client:  &quot;Hello&quot; — chosen version/cipher, the server's CERTIFICATE, random data
+Client:           verifies the certificate (is this really the server? — below)
+Both:             use key exchange to derive a shared SESSION KEY (without ever
+                  sending it across the wire)
+→ from here, all data is encrypted with the shared session key
+</code></pre>
+<p>The handshake accomplishes two things: <strong>negotiation</strong> (agreeing on the TLS version and cipher suite both support) and <strong>key establishment</strong> (deriving a shared symmetric session key via key exchange, so both sides can encrypt/decrypt without the key ever traveling the network). The clever part is asymmetric cryptography letting two parties who&rsquo;ve never met agree on a secret key over a public channel — after which they switch to fast symmetric encryption for the actual data.</p>
+<p>The cost: the handshake takes <strong>round-trips</strong>, adding latency <em>on top of</em> the TCP handshake. This is the compounding setup cost from the TCP post — an HTTPS connection pays the TCP handshake <em>and</em> the TLS handshake before any application data. Modern TLS (version 1.3) reduced this to about one round-trip (down from two), and session resumption can skip most of it for repeat connections — but the principle stands: <strong>new HTTPS connections have real setup latency, so reusing connections matters even more with TLS.</strong> This is a major reason keep-alive, connection pooling, and HTTP/2/3 (later posts) are so valuable.</p>
+<h2 id="certificates-and-the-chain-of-trust">Certificates and the chain of trust</h2>
+<p>The <em>authentication</em> property hinges on <strong>certificates</strong>. A TLS certificate is a document, presented by the server during the handshake, that binds a domain name to a cryptographic public key and is <em>signed</em> by a trusted authority. It&rsquo;s how the client answers &ldquo;is this really <code>example.com</code>?&rdquo; The mechanism is a <strong>chain of trust</strong>:</p>
+<pre><code class="language-text">Root CA (trusted, pre-installed in your OS/browser)
+   │ signs
+Intermediate CA
+   │ signs
+Server certificate (for example.com)
+   → client verifies the chain up to a root it already trusts
+</code></pre>
+<ul>
+<li><strong>Certificate Authorities (CAs)</strong> are organizations trusted to vouch for identities. Your operating system and browser ship with a set of trusted <strong>root CA</strong> certificates pre-installed — the anchors of trust.</li>
+<li><strong>The server&rsquo;s certificate is signed</strong> (directly or via intermediates) by a CA. During the handshake, the client verifies the signature chain up to a root it already trusts, confirming the certificate is legitimate and issued for this domain.</li>
+<li><strong>This is what defeats impersonation</strong> — an attacker can&rsquo;t present a valid certificate for <code>example.com</code> because they can&rsquo;t get a trusted CA to sign one for a domain they don&rsquo;t control.</li>
+</ul>
+<p>This chain of trust is why <strong>certificate errors matter and must never be ignored</strong>: an invalid, expired, self-signed, or wrong-domain certificate means the <em>authentication</em> guarantee is broken — you might be talking to an impostor. The browser warning (&ldquo;your connection is not private&rdquo;) is TLS refusing to proceed because it can&rsquo;t verify identity. Two everyday realities follow:</p>
+<ul>
+<li><strong>Certificate expiry causes outages.</strong> Certificates have validity periods and <em>expire</em>; a lapsed certificate breaks HTTPS for everyone, instantly. Expired certs are a shockingly common, entirely preventable cause of outages — automate renewal (e.g. via ACME/Let&rsquo;s Encrypt) so it never happens.</li>
+<li><strong>Don&rsquo;t disable certificate verification.</strong> The tempting &ldquo;just skip the cert check&rdquo; to make an error go away discards the authentication guarantee entirely, opening you to man-in-the-middle attacks. Fix the certificate instead.</li>
+</ul>
+<h2 id="tls-in-practice-for-backend-engineers">TLS in practice for backend engineers</h2>
+<p>TLS shows up in day-to-day backend work in a few recurring ways:</p>
+<ul>
+<li><strong>Terminate TLS deliberately.</strong> Often TLS is <em>terminated</em> at a load balancer or reverse proxy (the next-but-one post), which handles certificates and encryption, then forwards to backends — sometimes over plain HTTP inside a trusted network, sometimes re-encrypted. Know where in your architecture TLS ends.</li>
+<li><strong>Automate certificate management.</strong> Use automated issuance and renewal (ACME/Let&rsquo;s Encrypt or your cloud&rsquo;s certificate manager) so certificates never silently expire — the single highest-value TLS operational practice.</li>
+<li><strong>Keep TLS versions current.</strong> Use modern TLS (1.3, or at least 1.2) and disable old, insecure versions and ciphers; outdated TLS is a real vulnerability.</li>
+<li><strong>Reuse connections.</strong> Because the TLS handshake adds setup latency, connection reuse and session resumption materially cut cost — reinforcing the connection-pooling lesson.</li>
+<li><strong>HTTPS everywhere.</strong> Encrypt all traffic, not just &ldquo;sensitive&rdquo; pages — mixed HTTP/HTTPS leaks data and enables downgrade attacks, and there&rsquo;s no good reason to serve anything over plain HTTP today.</li>
+</ul>
+<p>TLS is the security layer that makes the web trustworthy — private, authenticated, tamper-proof connections — at the cost of handshake latency that (again) rewards connection reuse. With a secure connection established, the next post covers what actually flows over it and how it evolved: HTTP, from 1.1 to 2 to 3.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>TLS provides three guarantees together — encryption (confidentiality), authentication (you&rsquo;re talking to the real server), and integrity (tamper detection); HTTPS is HTTP over TLS, and treating it as &ldquo;just encryption&rdquo; misses the equally vital authentication.</li>
+<li>The TLS handshake negotiates version/cipher and establishes a shared session key via asymmetric key exchange (the key never crosses the wire), then switches to fast symmetric encryption — costing round-trips on top of the TCP handshake (reduced but not eliminated in TLS 1.3).</li>
+<li>Authentication relies on certificates and a chain of trust: a CA-signed certificate binds a domain to a public key, and the client verifies the signature chain up to a pre-trusted root CA — which is what defeats server impersonation.</li>
+<li>Certificate errors must never be ignored (they mean the authentication guarantee is broken); expired certificates are a common preventable outage cause, so automate renewal (ACME/Let&rsquo;s Encrypt) and never disable verification to silence an error.</li>
+<li>In practice: know where TLS terminates (often at a load balancer/proxy), automate certificate management, keep TLS versions modern, reuse connections to amortize handshake latency, and serve HTTPS everywhere.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/net-04-dns.html">DNS (previous post)</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/Security/Transport_Layer_Security">MDN — Transport Layer Security</a></li>
+<li><a href="/blog/posts/identity-08-securing-identity.html">Web Identity: securing identity — TLS in the broader security picture</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/net-06-http-evolution.html">HTTP Evolution: 1.1 to 2 to 3</a>
+      <span class="related-date">Aug 19</span>
+    </li>
+    <li>
+      <a href="/blog/posts/net-04-dns.html">DNS</a>
+      <span class="related-date">Aug 17</span>
+    </li>
+    <li>
+      <a href="/blog/posts/net-01-the-network-stack.html">The Network Stack</a>
+      <span class="related-date">Aug 14</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://developer.mozilla.org/en-US/docs/Web/Security/Transport_Layer_Security" target="_blank" rel="noopener noreferrer">MDN — Transport Layer Security</a></div>
+      <div class="citation-context">TLS and HTTPS</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+<div id="read-progress" aria-hidden="true"></div>
+<nav id="toc" aria-label="Table of contents"></nav>
+<div class="rh-controls">
+  <button id="rh-theme" class="rh-btn" type="button" aria-label="Toggle light and dark theme" title="Toggle theme"></button>
+  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top">&uarr;</button>
+</div>
+<script>
+(function(){
+  var doc = document.documentElement;
+  function curTheme(){ return doc.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+  var themeBtn = document.getElementById('rh-theme');
+  function setIcon(){ if (themeBtn) themeBtn.textContent = curTheme() === 'dark' ? '\u2600\uFE0E' : '\u263D'; }
+  setIcon();
+  if (themeBtn) themeBtn.addEventListener('click', function(){
+    var t = curTheme() === 'dark' ? 'light' : 'dark';
+    doc.setAttribute('data-theme', t);
+    try { localStorage.setItem('theme', t); } catch(e){}
+    setIcon();
+  });
+  var article = document.querySelector('article');
+  var toc = document.getElementById('toc');
+  if (article && toc) {
+    var heads = article.querySelectorAll('h2, h3');
+    if (heads.length >= 3) {
+      var title = document.createElement('div');
+      title.className = 'toc-title'; title.textContent = 'On this page';
+      toc.appendChild(title);
+      var links = [];
+      heads.forEach(function(h, i){
+        if (!h.id) h.id = 'sec-' + i;
+        var a = document.createElement('a');
+        if (h.tagName === 'H3') a.className = 'h3';
+        a.href = '#' + h.id;
+        a.textContent = h.textContent;
+        toc.appendChild(a);
+        links.push(a);
+      });
+      var byId = {}; links.forEach(function(a){ byId[a.getAttribute('href').slice(1)] = a; });
+      var obs = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if (e.isIntersecting) {
+            links.forEach(function(a){ a.classList.remove('active'); });
+            var a = byId[e.target.id]; if (a) a.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-80px 0px -70% 0px' });
+      heads.forEach(function(h){ obs.observe(h); });
+    } else { toc.style.display = 'none'; }
+  }
+  document.querySelectorAll('article pre').forEach(function(pre){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.type = 'button'; btn.textContent = 'Copy';
+    btn.addEventListener('click', function(){
+      var code = pre.querySelector('code');
+      var txt = code ? code.innerText : pre.innerText;
+      navigator.clipboard.writeText(txt).then(function(){
+        btn.textContent = 'Copied'; btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+  var bar = document.getElementById('read-progress');
+  var top = document.getElementById('rh-top');
+  function onScroll(){
+    var h = doc.scrollHeight - doc.clientHeight;
+    var p = h > 0 ? (doc.scrollTop / h) * 100 : 0;
+    if (bar) bar.style.width = p + '%';
+    if (top) { if (doc.scrollTop > 600) top.classList.add('show'); else top.classList.remove('show'); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+  if (top) top.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); });
+})();
+</script>
+</body>
+</html>
