@@ -1,0 +1,62 @@
+# Software Licensing and Open Source
+
+*Every engineer uses open-source software constantly, and almost none read the licenses — which is a quiet risk, because those licenses are legally binding terms that govern what you can and can't do with the code, including obligations that can affect your own product. The difference between a permissive license and a copyleft one can determine whether you can keep your code proprietary. Understanding software licensing, especially open source, is among the most practically important legal knowledge for a working engineer. (Educational, not legal advice.)*
+
+**Software licensing** — the legal permissions governing how software can be used — is crucial for engineers, especially **open-source licenses**. This post covers what a software license is, the key open-source distinction (**permissive** vs **copyleft**), why it matters, and license compliance. It builds on copyright (licenses grant permission around copyright) and is among the most practically relevant legal knowledge for engineers (who use licensed/open-source code constantly). (Educational, not legal advice — license terms and their effects are situation-specific; consult a lawyer for real licensing decisions.)
+
+## What a software license is
+
+A **software license** is a *legal grant of permission* governing how software can be *used* — permission around the copyright the owner holds:
+
+- **A license grants permission to use copyrighted software.** Since software is *copyrighted* (the copyright post) — you can't use it without permission — a *license* is the copyright holder's *grant of permission* to use the software under *specified terms*. The license says *what you're allowed to do* (and not do) with the software. A license is permission-with-terms around copyright. Permission to use, with conditions.
+- **Licenses set the terms of use.** A license specifies the *conditions* — what uses are allowed (copy, modify, distribute?), any *obligations* (must you share changes? attribute?), restrictions, and disclaimers. Using the software means *agreeing to* and being *bound by* these terms. The license defines the rules for using the software. Terms you must follow. Rules, not just permission.
+- **They're legally binding.** License terms are *legally binding* — using software *outside* its license terms can *violate* the license (and the copyright), with legal consequences. So licenses aren't optional fine print; they're *binding legal terms* you must *comply with*. Ignoring them is a real (if often unappreciated) risk. Licenses are binding — comply with them. Not optional fine print.
+
+A software license is a legal grant of permission (around the software's copyright) that sets binding terms for how the software can be used — what's allowed, any obligations, restrictions. Using software means being bound by its license. This matters most for the open-source software engineers use constantly, where the key distinction is permissive vs copyleft.
+
+## Open source: permissive vs copyleft
+
+The most important licensing distinction for engineers is between **permissive** and **copyleft** open-source licenses — because it affects what you can do with the code (including keeping your own proprietary):
+
+- **Open-source licenses let you use, modify, and share the code.** *Open-source* software comes with licenses that *permit* using, modifying, and distributing the source code (with conditions) — far more freely than proprietary software. But open-source licenses have *different terms*, and the key split is *permissive* vs *copyleft*. Open source grants broad permissions, with conditions. Free to use, with terms.
+- **Permissive licenses: few obligations.** *Permissive* open-source licenses (like MIT, BSD, Apache-style) allow you to *use, modify, and distribute* the code with *minimal obligations* — typically just *attribution* (credit the original). Crucially, they *let you use the code in proprietary/closed products* (you don't have to open-source your own code). Permissive = few strings, can use in proprietary software. Minimal obligations, proprietary-friendly.
+- **Copyleft licenses: share-alike obligations.** *Copyleft* licenses (like the GPL family) allow use/modification/distribution *but* impose a *share-alike* obligation — if you *distribute* software that *incorporates* copyleft code (depending on the license and how it's used), you may be *required to* release *your* code under the *same* (open) license too. Copyleft "spreads" the openness. This can *require open-sourcing your own code* in some scenarios. Copyleft = must share your derived code openly (in some cases). Openness that propagates.
+- **The distinction can determine your proprietary rights.** The permissive-vs-copyleft difference is *hugely consequential*: using *permissive* code lets you keep your product *proprietary*; using *copyleft* code *may obligate* you to open-source your code (in certain uses). For a company wanting *proprietary* software, this distinction *matters enormously* (using copyleft code carelessly could obligate open-sourcing). Permissive vs copyleft can determine whether you can stay proprietary. A consequential difference.
+
+The key open-source distinction is permissive (like MIT/BSD/Apache — minimal obligations, usually just attribution, usable in proprietary products) vs copyleft (like GPL — share-alike obligations that may require open-sourcing your own code that incorporates it in some scenarios). This difference can determine whether you can keep your product proprietary — hugely consequential. Understanding *why* it matters (and getting it right) is critical.
+
+## Why licensing matters (and the risks)
+
+Software licensing matters practically because engineers *constantly* use licensed/open-source code, and *ignoring* licenses carries real (often unappreciated) risks:
+
+- **You use licensed code constantly.** Engineers use *open-source libraries and dependencies* *constantly* — and *each* comes with a *license* whose terms *bind* your use. Modern software is built *on* open-source (many dependencies), so you're *constantly* subject to license terms — usually without reading them. You're bound by many licenses at once. Every dependency has a license.
+- **Ignoring licenses is a real risk.** Not understanding/complying with the licenses of code you use is a *real risk* — using copyleft code in a way that obligates open-sourcing (surprising you), violating attribution requirements, or otherwise breaching terms. These risks are *often unappreciated* (people don't read licenses) until they *surface* (a compliance issue, especially at acquisition/due-diligence, or a dispute). License non-compliance is a lurking risk. Unread licenses can bite.
+- **License compatibility matters.** When combining code under *different* licenses, they must be *compatible* — some licenses *conflict* (you can't legally combine them). *License compatibility* (can these licenses coexist in one product?) is a real concern when using multiple open-source components. Licenses must be compatible to combine. Not all licenses mix.
+- **It's especially important for products and companies.** Licensing matters *especially* for *commercial products/companies* — where using open-source code carelessly can create *obligations* (open-sourcing) or *risks* (non-compliance) that affect the *product and business* (and surface in due diligence during funding/acquisition — the funding series). Companies must *manage* their open-source licensing. Companies must manage open-source licensing carefully. Real business stakes.
+
+Software licensing matters because engineers constantly use licensed/open-source code (bound by its terms, usually unread), ignoring licenses is a real (often unappreciated) risk (surprise obligations, non-compliance surfacing at due diligence), license compatibility matters when combining components, and it's especially consequential for commercial products/companies. Managing this is license compliance.
+
+## License compliance
+
+**License compliance** — following the license terms of the software you use — is the practical discipline, and it's a real, manageable responsibility:
+
+- **Know the licenses of what you use.** Compliance starts with *knowing* the licenses of your dependencies — what license each open-source component uses and what it *obligates*. You can't comply with terms you don't know. Tracking dependency licenses (there are tools for this) is the foundation. Know your dependencies' licenses. Track what you're using.
+- **Understand and follow the obligations.** Comply by *understanding and following* each license's *obligations* — attribution (credit the original), share-alike (copyleft — open-source your derived code where required), and any other terms. Following the obligations is what compliance *is*. Follow each license's obligations. Do what the license requires.
+- **Choose dependencies with license in mind.** Be *deliberate* about the licenses of code you *adopt* — especially avoiding *copyleft* code in *proprietary* products where its obligations would be problematic (choosing *permissive* alternatives instead). Considering license *before* adopting a dependency avoids problems later. Choose dependencies with their license in mind. License-aware dependency choices.
+- **Manage compliance systematically (and get advice).** For companies/products, *systematically manage* open-source compliance (tracking licenses, checking compatibility, following obligations, using tooling) — and for *significant* licensing questions (especially copyleft implications, compatibility, commercial products), *get legal advice*. License compliance is a real, manageable responsibility that becomes critical at company scale. Manage compliance; get legal help for the tricky parts. Systematic, with advice when needed.
+
+Software licensing — the binding legal permissions governing software use, especially the open-source permissive (minimal obligations, proprietary-friendly) vs copyleft (share-alike, may require open-sourcing your code) distinction — is among the most practically important legal knowledge for engineers, who constantly use licensed code. Compliance (knowing and following the licenses of what you use) is a real, manageable responsibility. Next: contracts and agreements. (Educational, not legal advice.)
+
+## Key takeaways
+
+- A software license is a legal grant of permission (around the software's copyright) setting *binding* terms for how the software can be used (what's allowed, obligations, restrictions) — using software means being bound by its license, which isn't optional fine print but enforceable legal terms.
+- The key open-source distinction is permissive (MIT/BSD/Apache-style — minimal obligations, usually just attribution, and usable in *proprietary/closed* products without open-sourcing your own code) vs copyleft (GPL family — share-alike obligations that may *require* releasing your own code under the same open license if it incorporates the copyleft code, in certain distribution scenarios).
+- This distinction can determine whether you can keep your product proprietary (permissive lets you; copyleft may obligate open-sourcing your code in some uses) — hugely consequential for companies wanting proprietary software, so using copyleft code carelessly is a real risk.
+- Licensing matters practically because engineers constantly use licensed/open-source dependencies (bound by their terms, usually unread), ignoring licenses is a real often-unappreciated risk (surprise obligations, non-compliance surfacing at due diligence/acquisition), license compatibility matters when combining components, and it's especially consequential for commercial products/companies.
+- License compliance (a real, manageable responsibility) means knowing the licenses of your dependencies (track them, with tooling), understanding and following each one's obligations (attribution, share-alike), choosing dependencies with their license in mind (avoiding copyleft in proprietary products), and managing it systematically — getting legal advice for significant/tricky questions.
+
+## Further reading
+
+- [Software license (Wikipedia)](https://en.wikipedia.org/wiki/Software_license)
+- [Open-source license (Wikipedia)](https://en.wikipedia.org/wiki/Open-source_license)
+- [Copyright and software (previous post)](/blog/posts/legal-04-copyright-and-software.html)
