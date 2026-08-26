@@ -1,0 +1,59 @@
+# Data Quality and Governance
+
+*The most dangerous failure in data engineering is the one that doesn't announce itself. A crashed pipeline gets noticed; silently wrong data flows straight into dashboards and models, where people trust it and make decisions on it — wrong decisions, confidently made. Data quality and governance are the disciplines that guard against this: ensuring data is correct, trustworthy, and well-managed. They're the least glamorous and most important part of production data engineering, because without them, all the pipelines and warehouses just deliver garbage efficiently.*
+
+**Data quality** (ensuring data is correct and trustworthy) and **data governance** (managing data properly — access, lineage, compliance) are what make data *reliable* and *trustworthy* — essential because everything downstream depends on the data being good. This post covers why data quality is uniquely critical (silent failures), how to ensure it (testing, observability), data governance, and lineage. It's the reliability-and-trust dimension of data engineering, building on all the prior posts.
+
+## Why data quality is critical
+
+**Data quality** — whether data is correct, complete, consistent, and trustworthy — is uniquely critical in data engineering, largely because of *silent failures*:
+
+- **Bad data breaks everything downstream, silently.** Since analytics, BI, and ML all depend on the data (from the first post), *bad data* produces *bad results* — wrong dashboards, wrong reports, wrong ML models, wrong decisions. And crucially, this often happens *silently*: bad data usually still *looks* like data (numbers still appear, dashboards still render), so wrong results flow downstream *without any error*, and people *trust and act on them*. Silent bad data is worse than a crash — a crash gets noticed and fixed; silently wrong data misleads confidently. This silent-failure property makes data quality uniquely dangerous.
+- **Wrong data is worse than no data.** A confidently-wrong number that people trust and decide on is often *worse* than a missing number (which prompts investigation). Bad data that's trusted leads to bad decisions made with false confidence — a serious harm. So ensuring data is *correct* (not just present) is critical. Data quality is about trustworthiness, not just availability.
+- **Trust is the whole point.** The value of a data platform is that people can *trust and use* its data. If the data is unreliable (or people can't trust it), the whole platform loses value — no one trusts the dashboards, decisions revert to gut feel, ML models fail. Data quality *is* the trustworthiness that makes data valuable. Without it, all the engineering is for nothing. Trust, once lost (from a visible bad-data incident), is hard to rebuild.
+
+Data quality is uniquely critical because bad data breaks everything downstream *silently* (wrong results flow without errors, trusted and acted on — worse than a visible crash), because wrong-but-trusted data is worse than missing data, and because trust is the entire value of a data platform. Ensuring data is correct, not just present, is essential. This requires deliberate quality practices.
+
+## Ensuring data quality: testing and observability
+
+Data quality doesn't happen by accident — it requires *deliberate* practices, chiefly **testing** and **observability**, borrowing from software engineering:
+
+- **Data testing.** Just as software has tests, data pipelines should have *data tests* — automated checks that data meets expectations: validity (values in expected ranges/formats), completeness (no unexpected missing data), consistency (relationships hold), uniqueness (no unexpected duplicates), and freshness (data is current). Data tests *catch bad data* before it flows downstream (or alert when it does), turning silent failures into caught, visible ones. (Tools like dbt include data testing.) Testing data is as important as testing code — and increasingly standard. Test your data, not just your pipelines.
+- **Data observability.** *Data observability* monitors the *health* of data and pipelines — tracking data freshness, volume, schema changes, quality metrics, and pipeline runs, and *alerting* on anomalies (data stopped arriving, volume dropped, values look wrong, schema changed unexpectedly). It gives *visibility* into whether data is healthy, catching problems (including the silent ones) that would otherwise go unnoticed. Observability turns invisible data problems visible. It's monitoring for data, addressing the silent-failure problem directly.
+- **Catching silent failures is the goal.** Both practices target the core problem — *silent* data failures — by making them *visible*: tests catch bad data at defined checkpoints, observability detects anomalies across the system. Together they turn "bad data flows silently downstream" into "bad data is caught and flagged," which is the essence of ensuring data quality. Making the invisible visible is the whole game. You can't fix what you can't see.
+
+Ensuring data quality requires deliberate practices — data testing (automated checks for validity, completeness, consistency, freshness that catch bad data at checkpoints) and data observability (monitoring data/pipeline health and alerting on anomalies) — both aimed at turning *silent* data failures into caught, visible ones. These bring software-engineering rigor to data reliability. Beyond correctness, data must also be well-*managed* — governance.
+
+## Data governance
+
+**Data governance** is the management of data — ensuring it's *properly controlled, documented, secure, and compliant*. It's about managing data as an asset responsibly:
+
+- **What governance covers.** Governance encompasses *access control* (who can see/use what data — especially sensitive data), *data documentation/cataloging* (knowing what data exists and what it means — a data catalog), *lineage* (where data comes from and how it flows — below), *compliance* (meeting privacy/regulatory requirements — GDPR, etc.), and *security* (protecting data). It's the discipline of managing data properly across these dimensions. Governance is data management as a responsible discipline.
+- **Why it matters.** As data grows and becomes central, *managing* it responsibly matters: controlling access to sensitive data (privacy, security), knowing what data exists and means (usability — avoiding the "data swamp" from the lake post), meeting legal/regulatory obligations (compliance — real requirements with real penalties), and maintaining trust. Poor governance leads to security breaches, compliance violations, unusable/undocumented data, and lost trust. Governance is what keeps a growing data platform trustworthy, usable, and legal. It's increasingly non-optional (regulation, scale).
+- **It's especially important at scale and with sensitive data.** Governance matters more as data volume, users, and sensitivity grow — a small dataset needs little governance; a large platform with many users and sensitive/regulated data needs serious governance (access controls, cataloging, compliance, lineage). Governance scales in importance with the stakes. (For regulated domains — finance, health — it's critical; connecting to the RegTech and AI-governance series.) The more data and the more sensitive, the more governance is essential.
+
+Data governance is the responsible management of data — access control, documentation/cataloging, lineage, compliance, and security — increasingly essential as data grows in volume, users, and sensitivity, keeping a data platform trustworthy, usable, and legal. It complements data quality (correct data) with proper *management* of data. A key governance (and debugging) tool is lineage.
+
+## Data lineage
+
+**Data lineage** — tracking *where data comes from and how it flows and transforms* through the system — is a crucial capability for both governance and reliability:
+
+- **The data's journey, traced.** Lineage records the *path* of data — its sources, the transformations applied, and where it ends up — so you can trace any piece of data *back* to its origins and *forward* to its uses. It's a map of how data flows through the pipelines and transformations. Lineage answers "where did this number come from?" and "what depends on this data?"
+- **Why lineage matters: debugging and trust.** Lineage is invaluable for *debugging* (when data is wrong, trace it back to find where the problem entered — essential given silent failures), *impact analysis* (before changing a source or pipeline, see what downstream depends on it), *trust* (understanding where data comes from builds confidence in it), and *compliance* (proving data provenance for regulations). Lineage makes the data flow *understandable and traceable*, which is essential for maintaining a complex data platform. Without lineage, debugging bad data and understanding dependencies is guesswork.
+- **It ties quality and governance together.** Lineage supports both *quality* (tracing bad data to its source) and *governance* (provenance, impact analysis, compliance) — a shared capability underpinning reliable, well-managed data. It's a foundational tool for operating a trustworthy data platform. Knowing the data's journey is central to keeping it good and well-governed.
+
+Data quality (ensuring data is correct and trustworthy, via testing and observability that catch silent failures) and data governance (managing data responsibly — access, documentation, lineage, compliance, security) are the reliability-and-trust dimension of data engineering — the least glamorous, most essential part, because without them the platform efficiently delivers untrustworthy garbage. Lineage underpins both. Next, the final post: data engineering in practice — the role, and building reliable data systems.
+
+## Key takeaways
+
+- Data quality (correct, complete, consistent, trustworthy data) is uniquely critical because bad data breaks everything downstream *silently* — wrong results still look like data and flow without errors, so they're trusted and acted on (worse than a visible crash that gets fixed) — and wrong-but-trusted data is worse than missing data; trust is the entire value of a data platform.
+- Ensuring quality requires deliberate practices borrowing from software engineering: data testing (automated checks for validity, completeness, consistency, uniqueness, freshness that catch bad data at checkpoints — e.g. via dbt) and data observability (monitoring data/pipeline health — freshness, volume, schema, quality — and alerting on anomalies) — both turning *silent* failures into caught, visible ones.
+- Data governance is the responsible management of data — access control (who sees sensitive data), documentation/cataloging (what data exists and means), lineage, compliance (privacy/regulatory — real penalties), and security — keeping a growing platform trustworthy, usable, and legal.
+- Governance matters more as data volume, users, and sensitivity grow (a large platform with sensitive/regulated data needs serious governance — access controls, cataloging, compliance), and it's critical in regulated domains — poor governance causes breaches, compliance violations, unusable data, and lost trust.
+- Data lineage (tracking where data comes from and how it flows/transforms) is crucial for debugging (trace wrong data to its source — essential given silent failures), impact analysis (what depends on this before changing it), trust (understanding provenance), and compliance — underpinning both quality and governance by making the data's journey traceable.
+
+## Further reading
+
+- [Data governance (Wikipedia)](https://en.wikipedia.org/wiki/Data_governance)
+- [Observability Engineering — monitoring and observability principles](/blog/series/observability-engineering/)
+- [The modern data stack (previous post)](/blog/posts/de-06-the-modern-data-stack.html)
