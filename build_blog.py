@@ -5810,7 +5810,7 @@ READING_HUB_BODY = """
 <nav id="toc" aria-label="Table of contents"></nav>
 <div class="rh-controls">
   <button id="rh-theme" class="rh-btn" type="button" aria-label="Toggle light and dark theme" title="Toggle theme"></button>
-  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top">&uarr;</button>
+  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top"><span aria-hidden="true">&uarr;</span></button>
 </div>
 <script>
 (function(){
@@ -6188,9 +6188,9 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
-{READING_HUB_EARLY}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+{READING_HUB_EARLY}
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
 <title>{meta_title_html}</title>
 <meta name="description" content="{desc_html}">
