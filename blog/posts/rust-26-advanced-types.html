@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Advanced Types — Pratik Dhanave</title>
+<meta name="description" content="Rust&#x27;s type system has a few corners that don&#x27;t come up in beginner code but explain things you&#x27;ve quietly wondered about — why some functions &#x27;return&#x27;...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Advanced Types — Pratik Dhanave">
+<meta property="og:description" content="Rust&#x27;s type system has a few corners that don&#x27;t come up in beginner code but explain things you&#x27;ve quietly wondered about — why some functions &#x27;return&#x27; a type that isn&#x27;t really a type, why `str` behaves differently, and how to give a complicated type a readable name.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/rust-26-advanced-types.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-03-30T00:00:00Z">
+<meta property="article:tag" content="Rust">
+<meta property="article:tag" content="Type Systems">
+<meta property="article:tag" content="Programming Languages">
+<meta property="article:tag" content="Systems Programming">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Advanced Types — Pratik Dhanave">
+<meta name="twitter:description" content="Rust&#x27;s type system has a few corners that don&#x27;t come up in beginner code but explain things you&#x27;ve quietly wondered about — why some functions &#x27;return&#x27; a type that isn&#x27;t really a type, why `str` behaves differently, and how to give a complicated type a readable name.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/rust-26-advanced-types.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}:root[data-theme="dark"]{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav{background:rgba(13,17,23,0.85)}}:root[data-theme="dark"] nav{background:rgba(13,17,23,0.85)}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}#read-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-hover));z-index:1000;transition:width .1s ease-out}.rh-controls{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:900}.rh-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;box-shadow:var(--shadow);transition:transform .15s,color .15s,opacity .2s}.rh-btn:hover{transform:translateY(-2px);color:var(--accent)}#rh-top{opacity:0;pointer-events:none}#rh-top.show{opacity:1;pointer-events:auto}#toc{position:fixed;top:118px;right:24px;width:224px;max-height:72vh;overflow-y:auto;font-size:13px;padding:4px 0 4px 16px;border-left:2px solid var(--border);z-index:800}#toc .toc-title{font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;color:var(--text-muted);margin-bottom:10px}#toc a{display:block;color:var(--text-muted);padding:4px 0 4px 14px;line-height:1.35;border-left:2px solid transparent;margin-left:-16px;transition:color .15s,border-color .15s}#toc a.h3{padding-left:26px;font-size:12px}#toc a:hover{color:var(--accent);text-decoration:none}#toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}article pre{position:relative}.copy-btn{position:absolute;top:8px;right:8px;padding:3px 10px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-muted);cursor:pointer;opacity:0;transition:opacity .15s,color .15s,border-color .15s}article pre:hover .copy-btn,.copy-btn:focus-visible{opacity:1}.copy-btn:hover{color:var(--accent);border-color:var(--accent)}.copy-btn.copied{color:#2ea043;border-color:#2ea043}@media (max-width:1240px){#toc{display:none}}@media print{#read-progress,.rh-controls,#toc,.copy-btn{display:none !important}}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Advanced Types",
+  "description": "Rust's type system has a few corners that don't come up in beginner code but explain things you've quietly wondered about \u2014 why some functions 'return' a type that isn't really a type, why `str` behaves differently, and how to give a complicated type a readable name.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-03-30",
+  "dateModified": "2026-03-30",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Rust, Type Systems, Programming Languages, Systems Programming",
+  "url": "https://pratikdhanave.com/blog/posts/rust-26-advanced-types.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/rust-26-advanced-types.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Advanced Types</h1>
+    <p class="post-subtitle">Rust&#x27;s type system has a few corners that don&#x27;t come up in beginner code but explain things you&#x27;ve quietly wondered about — why some functions &quot;return&quot; a type that isn&#x27;t really a type, why `str` behaves differently from other types, and how to give a complicated type a readable name. These advanced type features are small individually but together deepen your understanding of how Rust&#x27;s type system actually works, which pays off when reading real code and library internals.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-03-30">March 30, 2026</time>
+      <span>·</span>
+      <span>7 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/rust/" class="tag-link"><span class="tag">#Rust</span></a><a href="/blog/tags/type-systems/" class="tag-link"><span class="tag">#Type Systems</span></a><a href="/blog/tags/programming-languages/" class="tag-link"><span class="tag">#Programming Languages</span></a><a href="/blog/tags/systems-programming/" class="tag-link"><span class="tag">#Systems Programming</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 26 of 32</span>
+    <a class="series-title" href="/blog/series/rust-from-the-ground-up/">Rust from the Ground Up</a>
+    <div class="series-nav"><a href="/blog/posts/rust-25-advanced-traits.html" class="series-prev">&larr; Part 25: Advanced Traits</a>
+<a href="/blog/posts/rust-27-unsafe-rust.html" class="series-next">Part 27: Unsafe Rust &rarr;</a></div>
+  </div>
+
+
+
+  <p>Continuing Module 4&rsquo;s advanced features, this post covers <strong>advanced types</strong>: <strong>type aliases</strong> (giving types readable names), the <strong>never type</strong> <code>!</code>, and <strong>dynamically sized types</strong> and the <code>Sized</code> trait. These are lesser-known corners of Rust&rsquo;s type system that explain real behavior and appear in serious code. Together with advanced traits (the previous post), they round out your understanding of Rust&rsquo;s type system. None is essential daily, but each clarifies how Rust works.</p>
+<h2 id="type-aliases">Type aliases</h2>
+<p>A <strong>type alias</strong> gives an <em>existing</em> type a <em>new name</em> — reducing repetition and improving readability for complicated types:</p>
+<pre><code class="language-rust">// A type alias: Kilometers is another name for i32.
+type Kilometers = i32;
+
+// More useful: a readable name for a verbose type.
+type Thunk = Box&lt;dyn Fn() + Send + 'static&gt;;
+
+fn takes_long_type(f: Thunk) { /* ... */ }
+fn returns_long_type() -&gt; Thunk { Box::new(|| println!(&quot;hi&quot;)) }
+
+fn main() {
+    let x: i32 = 5;
+    let y: Kilometers = 5;
+    // Kilometers IS i32 — they're interchangeable (unlike a newtype).
+    println!(&quot;{}&quot;, x + y); // 10
+}
+</code></pre>
+<ul>
+<li><strong>A type alias is just another name.</strong> <code>type Kilometers = i32;</code> makes <code>Kilometers</code> a <em>synonym</em> for <code>i32</code> — they&rsquo;re the <em>same type</em> (interchangeable, no distinction). Unlike a <em>newtype</em> (which creates a <em>distinct</em> type — the previous post), a type alias is <em>just a name</em> for an existing type. Alias = synonym; newtype = distinct type. A key difference.</li>
+<li><strong>Its main value: readability for complex types.</strong> Type aliases shine for <em>verbose, repeated</em> types — <code>Box&lt;dyn Fn() + Send + 'static&gt;</code> is a mouthful; aliasing it to <code>Thunk</code> makes code <em>readable</em> and <em>DRY</em> (write the long type once). Aliases reduce repetition of complex types. Readability for verbose types.</li>
+<li><strong>It&rsquo;s not for type safety (that&rsquo;s newtypes).</strong> Since an alias is the <em>same</em> type (interchangeable), it gives <em>no</em> type-safety distinction (<code>Kilometers</code> and <code>i32</code> mix freely). For <em>distinct</em> types (preventing mixing), use a <em>newtype</em> (previous post). Aliases are for <em>readability</em>, newtypes for <em>distinctness</em>. Use the right tool. Alias for naming, newtype for safety.</li>
+</ul>
+<p>A type alias (<code>type Name = ExistingType</code>) gives an existing type a new <em>name</em> (a synonym, interchangeable — unlike a distinct newtype) — mainly valuable for readability with verbose, repeated types (like a long boxed closure type), not for type safety. A stranger corner is the never type.</p>
+<h2 id="the-never-type">The never type</h2>
+<p>The <strong>never type</strong> <code>!</code> is a special type representing computations that <em>never return</em> — it enables things you&rsquo;ve relied on without knowing:</p>
+<ul>
+<li><strong><code>!</code> is the type that has no values.</strong> The <em>never type</em> <code>!</code> (written as <code>!</code>) is a type with <em>no values</em> — it represents a computation that <em>never produces a value</em> because it <em>never returns</em> (it diverges: panics, loops forever, or exits). Functions returning <code>!</code> are &ldquo;diverging functions.&rdquo; A type for &ldquo;never returns.&rdquo; No values.</li>
+<li><strong>It coerces to any type.</strong> The key property: <code>!</code> can <em>coerce to any type</em> — because a computation that never returns can be used <em>anywhere</em> (it never produces a wrong-typed value; it just doesn&rsquo;t return). This lets expressions that <em>diverge</em> fit in <em>any</em> type context. <code>!</code> fits any type. Diverging fits anywhere.</li>
+<li><strong>Why it matters: <code>match</code> arms and <code>continue</code>/<code>panic!</code>.</strong> This is why <code>match</code> arms can <code>continue</code>, <code>break</code>, <code>return</code>, or <code>panic!</code> — those have type <code>!</code>, which coerces to match the other arms&rsquo; type:</li>
+</ul>
+<pre><code class="language-rust">fn main() {
+    let values = vec![&quot;1&quot;, &quot;two&quot;, &quot;3&quot;];
+    for v in values {
+        // parse() returns Result; the Err arm uses `continue` (type `!`),
+        // which coerces to match the Ok arm's type (u32). Without `!` coercion,
+        // the match arms would have mismatched types.
+        let num: u32 = match v.parse() {
+            Ok(n) =&gt; n,
+            Err(_) =&gt; continue, // type `!`, coerces to u32
+        };
+        println!(&quot;{num}&quot;);
+    }
+}
+</code></pre>
+<ul>
+<li><strong>It&rsquo;s usually invisible.</strong> You rarely <em>write</em> <code>!</code> explicitly (it appears in some function signatures), but you <em>rely on</em> it constantly (every <code>match</code> with a <code>panic!</code>/<code>continue</code> arm, every diverging expression). The never type makes such code type-check. <code>!</code> works behind the scenes. You use it without seeing it.</li>
+</ul>
+<p>The never type <code>!</code> (a type with no values, for computations that never return — panics, infinite loops, <code>continue</code>) <em>coerces to any type</em>, which is <em>why</em> <code>match</code> arms can <code>continue</code>/<code>panic!</code>/<code>return</code> (they have type <code>!</code> that fits the other arms&rsquo; type) — a mostly-invisible feature you rely on constantly. Another type-system corner explains <code>str</code> and trait objects.</p>
+<h2 id="dynamically-sized-types-and-sized">Dynamically sized types and Sized</h2>
+<p><strong>Dynamically sized types (DSTs)</strong> are types whose <em>size isn&rsquo;t known at compile time</em> — and the <code>Sized</code> trait, which is <em>automatic</em>, governs how Rust handles them:</p>
+<ul>
+<li><strong>Most types have a known size; DSTs don&rsquo;t.</strong> Most types have a <em>fixed, compile-time-known size</em> (an <code>i32</code> is 4 bytes). But some — <em>dynamically sized types</em> — have a size known only at <em>runtime</em>: notably <code>str</code> (a string slice — its length varies) and <em>trait objects</em> (<code>dyn Trait</code> — the concrete type/size varies). DSTs&rsquo; size isn&rsquo;t known at compile time. Variable-size types.</li>
+<li><strong>DSTs must be used behind a pointer.</strong> Because Rust needs to know sizes to lay out memory, DSTs <em>can&rsquo;t</em> be used <em>directly</em> (you can&rsquo;t have a bare <code>str</code> variable) — they must be used <em>behind a pointer</em> (like <code>&amp;str</code>, <code>Box&lt;str&gt;</code>, <code>&amp;dyn Trait</code>, <code>Box&lt;dyn Trait&gt;</code>), which <em>has</em> a known size (a pointer, plus length/vtable metadata — a &ldquo;fat pointer&rdquo;). This is <em>why</em> you always see <code>&amp;str</code> (never bare <code>str</code>) and <code>Box&lt;dyn Trait&gt;</code> (never bare <code>dyn Trait</code>). DSTs live behind (fat) pointers. Why <code>&amp;str</code> and <code>Box&lt;dyn Trait&gt;</code>.</li>
+<li><strong>The <code>Sized</code> trait marks known-size types.</strong> Rust has a <code>Sized</code> marker trait (automatic) that marks types with a <em>known compile-time size</em>. <em>Most</em> types are <code>Sized</code> (automatically); DSTs are <em>not</em> <code>Sized</code>. Generic functions <em>implicitly require</em> <code>Sized</code> (<code>fn foo&lt;T&gt;</code> is really <code>fn foo&lt;T: Sized&gt;</code>), which is why generics work with normal types by default. <code>Sized</code> marks known-size types (automatic). Implicit on generics.</li>
+<li><strong><code>?Sized</code> relaxes the requirement.</strong> To write a generic that <em>also</em> accepts DSTs, you use <code>?Sized</code> (<code>fn foo&lt;T: ?Sized&gt;</code>) — relaxing the implicit <code>Sized</code> bound (and then <code>T</code> must be behind a pointer). <code>?Sized</code> is how you write generics over possibly-unsized types. Relax <code>Sized</code> for DSTs. Opt into unsized.</li>
+</ul>
+<p>Dynamically sized types (like <code>str</code> and <code>dyn Trait</code>) have runtime-known sizes, so they must be used behind (fat) pointers (<code>&amp;str</code>, <code>Box&lt;dyn Trait&gt;</code>) — which is <em>why</em> you always see those forms — and the automatic <code>Sized</code> marker trait (implicitly required on generics) marks known-size types, with <code>?Sized</code> relaxing it to accept DSTs. Advanced types — type aliases (readable names), the never type <code>!</code> (diverging computations, <code>match</code>-arm coercion), and DSTs/<code>Sized</code> (variable-size types behind fat pointers) — are lesser-known corners that explain real Rust behavior. Next: unsafe Rust.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>A type alias (<code>type Name = ExistingType</code>) gives an existing type a new <em>name</em> — a synonym, fully interchangeable (unlike a distinct newtype) — mainly valuable for readability and DRY-ness with verbose, repeated types (like <code>Box&lt;dyn Fn() + Send + 'static&gt;</code> aliased to <code>Thunk</code>); it gives no type-safety distinction (use a newtype for that).</li>
+<li>The never type <code>!</code> is a type with <em>no values</em>, representing computations that never return (panic, infinite loop, <code>continue</code>, <code>return</code>) — and it <em>coerces to any type</em> (a never-returning computation fits any context).</li>
+<li>This coercion is <em>why</em> <code>match</code> arms can use <code>continue</code>/<code>panic!</code>/<code>return</code>/<code>break</code> (those expressions have type <code>!</code>, which coerces to match the other arms&rsquo; type) — a mostly-invisible feature you rely on constantly.</li>
+<li>Dynamically sized types (DSTs) like <code>str</code> and trait objects (<code>dyn Trait</code>) have sizes known only at runtime, so they can&rsquo;t be used directly — they must be used behind a (fat) pointer (<code>&amp;str</code>, <code>Box&lt;str&gt;</code>, <code>Box&lt;dyn Trait&gt;</code>) that has a known size — which is <em>why</em> you always see <code>&amp;str</code> and <code>Box&lt;dyn Trait&gt;</code> rather than bare <code>str</code>/<code>dyn Trait</code>.</li>
+<li>The automatic <code>Sized</code> marker trait marks types with a compile-time-known size (most types), and generics implicitly require it (<code>fn foo&lt;T&gt;</code> means <code>T: Sized</code>), which is why generics work with normal types by default — <code>?Sized</code> relaxes this bound to write generics that also accept DSTs (then behind a pointer).</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://doc.rust-lang.org/book/ch20-04-advanced-types.html">The Rust Book — Advanced Types</a></li>
+<li><a href="/blog/posts/rust-25-advanced-traits.html">Advanced traits (previous post)</a></li>
+<li><a href="/blog/posts/rust-12-trait-objects.html">Rust: Trait objects and dynamic dispatch (Module 2)</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/rust-19-send-and-sync.html">Send and Sync: The Traits Behind Fearless Concurrency</a>
+      <span class="related-date">May 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/rust-25-advanced-traits.html">Advanced Traits</a>
+      <span class="related-date">Mar 29</span>
+    </li>
+    <li>
+      <a href="/blog/posts/rust-16-modules-and-crates.html">Modules, Crates, and Project Structure</a>
+      <span class="related-date">Aug 25</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://doc.rust-lang.org/book/ch20-04-advanced-types.html" target="_blank" rel="noopener noreferrer">The Rust Book — Advanced Types</a></div>
+      <div class="citation-context">Type aliases, the never type, DSTs</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+<div id="read-progress" aria-hidden="true"></div>
+<nav id="toc" aria-label="Table of contents"></nav>
+<div class="rh-controls">
+  <button id="rh-theme" class="rh-btn" type="button" aria-label="Toggle light and dark theme" title="Toggle theme"></button>
+  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top">&uarr;</button>
+</div>
+<script>
+(function(){
+  var doc = document.documentElement;
+  function curTheme(){ return doc.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+  var themeBtn = document.getElementById('rh-theme');
+  function setIcon(){ if (themeBtn) themeBtn.textContent = curTheme() === 'dark' ? '\u2600\uFE0E' : '\u263D'; }
+  setIcon();
+  if (themeBtn) themeBtn.addEventListener('click', function(){
+    var t = curTheme() === 'dark' ? 'light' : 'dark';
+    doc.setAttribute('data-theme', t);
+    try { localStorage.setItem('theme', t); } catch(e){}
+    setIcon();
+  });
+  var article = document.querySelector('article');
+  var toc = document.getElementById('toc');
+  if (article && toc) {
+    var heads = article.querySelectorAll('h2, h3');
+    if (heads.length >= 3) {
+      var title = document.createElement('div');
+      title.className = 'toc-title'; title.textContent = 'On this page';
+      toc.appendChild(title);
+      var links = [];
+      heads.forEach(function(h, i){
+        if (!h.id) h.id = 'sec-' + i;
+        var a = document.createElement('a');
+        if (h.tagName === 'H3') a.className = 'h3';
+        a.href = '#' + h.id;
+        a.textContent = h.textContent;
+        toc.appendChild(a);
+        links.push(a);
+      });
+      var byId = {}; links.forEach(function(a){ byId[a.getAttribute('href').slice(1)] = a; });
+      var obs = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if (e.isIntersecting) {
+            links.forEach(function(a){ a.classList.remove('active'); });
+            var a = byId[e.target.id]; if (a) a.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-80px 0px -70% 0px' });
+      heads.forEach(function(h){ obs.observe(h); });
+    } else { toc.style.display = 'none'; }
+  }
+  document.querySelectorAll('article pre').forEach(function(pre){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.type = 'button'; btn.textContent = 'Copy';
+    btn.addEventListener('click', function(){
+      var code = pre.querySelector('code');
+      var txt = code ? code.innerText : pre.innerText;
+      navigator.clipboard.writeText(txt).then(function(){
+        btn.textContent = 'Copied'; btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+  var bar = document.getElementById('read-progress');
+  var top = document.getElementById('rh-top');
+  function onScroll(){
+    var h = doc.scrollHeight - doc.clientHeight;
+    var p = h > 0 ? (doc.scrollTop / h) * 100 : 0;
+    if (bar) bar.style.width = p + '%';
+    if (top) { if (doc.scrollTop > 600) top.classList.add('show'); else top.classList.remove('show'); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+  if (top) top.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); });
+})();
+</script>
+</body>
+</html>
