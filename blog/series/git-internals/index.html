@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git Internals — Series — Pratik Dhanave</title>
+<meta name="description" content="How Git actually works, from the storage model up — the content-addressed object model (blob/tree/commit/tag named by content hash), refs/HEAD and his…">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Git Internals — Series — Pratik Dhanave">
+<meta property="og:description" content="How Git actually works, from the storage model up — the content-addressed object model (blob/tree/commit/tag named by content hash), refs/HEAD and his…">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://pratikdhanave.com/blog/series/git-internals/">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Git Internals — Series — Pratik Dhanave">
+<meta name="twitter:description" content="How Git actually works, from the storage model up — the content-addressed object model (blob/tree/commit/tag named by content hash), refs/HEAD and his…">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/series/git-internals/">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}:root[data-theme="dark"]{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav{background:rgba(13,17,23,0.85)}}:root[data-theme="dark"] nav{background:rgba(13,17,23,0.85)}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.tag-cloud{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0 32px}.tag-cloud-item{display:inline-block;padding:8px 14px;background:var(--bg-elev);border:1px solid var(--border);border-radius:8px;font-size:14px;transition:all 0.15s}.tag-cloud-item:hover{background:var(--accent);color:var(--bg);border-color:var(--accent);text-decoration:none}main.blog-index{max-width:880px;padding-top:32px;padding-bottom:32px}.blog-hero{padding:56px 0 32px;border-bottom:1px solid var(--border);margin-bottom:36px}.blog-hero h1{font-size:clamp(1.8rem,4vw,2.5rem);font-weight:800;letter-spacing:-0.02em;margin-bottom:14px}.blog-hero p{font-size:1.05rem;color:var(--text-dim);max-width:640px}.post-list{display:flex;flex-direction:column;gap:18px}.post-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px 28px;transition:transform 0.15s,box-shadow 0.15s,border-color 0.15s}.post-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--accent)}.post-card-meta{display:flex;gap:8px;font-size:13px;color:var(--text-muted);margin-bottom:8px;align-items:center}.post-card-title{font-size:1.35rem;font-weight:700;letter-spacing:-0.01em;line-height:1.25;margin:0 0 8px}.post-card-title a{color:var(--text)}.post-card-title a:hover{color:var(--accent);text-decoration:none}.post-card-subtitle{font-size:0.97rem;font-style:italic;color:var(--text-dim);margin-bottom:8px}.post-card-excerpt{font-size:0.95rem;color:var(--text-dim);margin-bottom:14px}.series-part-badge{display:inline-block;background:var(--accent);color:#fff;font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:999px;letter-spacing:0.02em}.series-card .post-card-title{margin-top:6px}.series-intro-meta{color:var(--text-muted);font-size:0.95rem;margin-top:8px}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Course",
+  "name": "Git Internals",
+  "description": "How Git actually works, from the storage model up \u2014 the content-addressed object model (blob/tree/commit/tag named by content hash), refs/HEAD and history as a directed acyclic graph (branches are pointers, reachability is the organizing idea), the index as a real staging-area file (the three trees), merge vs rebase demystified (the merge base, three-way merge, replaying commits), packfiles and delta compression (why snapshot-per-commit stays small), the reflog as a safety net (unreachable is not deleted), remotes/refspecs/fetch/push (collaboration as the same model across repos), and rewriting history safely (the golden rule, force-with-lease, revert for public history).",
+  "url": "https://pratikdhanave.com/blog/series/git-internals/",
+  "provider": {"@type": "Person", "name": "Pratik Dhanave", "url": "https://pratikdhanave.com/about/"},
+  "author": {"@type": "Person", "name": "Pratik Dhanave"}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Git Internals",
+  "description": "How Git actually works, from the storage model up \u2014 the content-addressed object model (blob/tree/commit/tag named by content hash), refs/HEAD and history as a directed acyclic graph (branches are pointers, reachability is the organizing idea), the index as a real staging-area file (the three trees), merge vs rebase demystified (the merge base, three-way merge, replaying commits), packfiles and delta compression (why snapshot-per-commit stays small), the reflog as a safety net (unreachable is not deleted), remotes/refspecs/fetch/push (collaboration as the same model across repos), and rewriting history safely (the golden rule, force-with-lease, revert for public history).",
+  "url": "https://pratikdhanave.com/blog/series/git-internals/",
+  "numberOfItems": 8,
+  "mainEntity": {"@type": "ItemList", "numberOfItems": 8, "itemListElement": [{"@type": "ListItem", "position": 1, "name": "The Git Object Model", "url": "https://pratikdhanave.com/blog/posts/git-01-the-object-model.html"}, {"@type": "ListItem", "position": 2, "name": "Refs, HEAD, and the Commit DAG", "url": "https://pratikdhanave.com/blog/posts/git-02-refs-head-and-the-dag.html"}, {"@type": "ListItem", "position": 3, "name": "The Index: Git's Staging Area", "url": "https://pratikdhanave.com/blog/posts/git-03-the-index-and-staging.html"}, {"@type": "ListItem", "position": 4, "name": "Merge and Rebase, Demystified", "url": "https://pratikdhanave.com/blog/posts/git-04-merge-and-rebase.html"}, {"@type": "ListItem", "position": 5, "name": "Packfiles and How Git Stays Small", "url": "https://pratikdhanave.com/blog/posts/git-05-packfiles-and-compression.html"}, {"@type": "ListItem", "position": 6, "name": "The Reflog: Git's Safety Net", "url": "https://pratikdhanave.com/blog/posts/git-06-reflog-and-recovery.html"}, {"@type": "ListItem", "position": 7, "name": "Remotes, Refspecs, and How Fetch and Push Work", "url": "https://pratikdhanave.com/blog/posts/git-07-remotes-and-transfer.html"}, {"@type": "ListItem", "position": 8, "name": "Rewriting History Safely", "url": "https://pratikdhanave.com/blog/posts/git-08-rewriting-history-safely.html"}]}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://pratikdhanave.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pratikdhanave.com/blog/"},
+    {"@type": "ListItem", "position": 3, "name": "Series", "item": "https://pratikdhanave.com/blog/series/"},
+    {"@type": "ListItem", "position": 4, "name": "Git Internals", "item": "https://pratikdhanave.com/blog/series/git-internals/"}
+  ]
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="blog-index">
+
+<section class="blog-hero">
+  <h1>Git Internals</h1>
+  <p>How Git actually works, from the storage model up — the content-addressed object model (blob/tree/commit/tag named by content hash), refs/HEAD and history as a directed acyclic graph (branches are pointers, reachability is the organizing idea), the index as a real staging-area file (the three trees), merge vs rebase demystified (the merge base, three-way merge, replaying commits), packfiles and delta compression (why snapshot-per-commit stays small), the reflog as a safety net (unreachable is not deleted), remotes/refspecs/fetch/push (collaboration as the same model across repos), and rewriting history safely (the golden rule, force-with-lease, revert for public history).</p>
+  <p class="series-intro-meta">8 parts · written by <a href="/about/">Pratik Dhanave</a>. <a href="/blog/posts/git-01-the-object-model.html">Start with Part 1 &rarr;</a></p>
+  <p style="margin-top:12px;font-size:0.95rem;"><a href="/blog/series/">&larr; All series</a> &middot; <a href="/blog/">All posts</a></p>
+</section>
+
+<section class="post-list">
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 1</span>
+        <span>·</span>
+        <time datetime="2026-08-21">Aug 21, 2026</time>
+        <span>·</span><span>5 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/git-01-the-object-model.html">The Git Object Model</a></h2>
+      <p class="post-card-subtitle">Git looks like a tool for tracking changes, but underneath it is something simpler and stranger: a small content-addressed key-value store. Four object types — blob, tree, commit, tag — are all it keeps, each named by the hash of its own bytes. Once you see that everything else (branches, history, staging) is a thin layer over these four objects, Git stops being a bag of memorized commands and becomes a system you can reason about.</p>
+      <p class="post-card-excerpt">Underneath the commands, Git is a small content-addressed key-value store built on four object types — blob, tree, commit, tag — each named by the hash of its own bytes. Seeing that everything else is a thin layer over these objects turns Git from memorized incantations into a system you can reason about.</p>
+      <div class="post-tags"><a href="/blog/tags/git/" class="tag-link"><span class="tag">#Git</span></a><a href="/blog/tags/version-control/" class="tag-link"><span class="tag">#Version Control</span></a><a href="/blog/tags/developer-tools/" class="tag-link"><span class="tag">#Developer Tools</span></a><a href="/blog/tags/computer-science/" class="tag-link"><span class="tag">#Computer Science</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 2</span>
+        <span>·</span>
+        <time datetime="2026-08-22">Aug 22, 2026</time>
+        <span>·</span><span>6 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/git-02-refs-head-and-the-dag.html">Refs, HEAD, and the Commit DAG</a></h2>
+      <p class="post-card-subtitle">If commits are content-addressed and immutable, how does anything ever move forward? The answer is refs: tiny mutable files, most of them containing nothing but a 40-character hash. A branch is not a copy of your work or a container for commits — it is a single sticky note pointing at one commit. Understanding that branches are pointers, and history is a graph, dissolves most of the confusion around Git.</p>
+      <p class="post-card-excerpt">A branch is not a copy of your work or a container for commits — it is a ~41-byte file holding one hash. Understanding that refs are movable pointers, HEAD points at your current branch, and history is a directed acyclic graph dissolves most Git confusion via one idea: reachability.</p>
+      <div class="post-tags"><a href="/blog/tags/git/" class="tag-link"><span class="tag">#Git</span></a><a href="/blog/tags/version-control/" class="tag-link"><span class="tag">#Version Control</span></a><a href="/blog/tags/branching/" class="tag-link"><span class="tag">#Branching</span></a><a href="/blog/tags/computer-science/" class="tag-link"><span class="tag">#Computer Science</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 3</span>
+        <span>·</span>
+        <time datetime="2026-08-23">Aug 23, 2026</time>
+        <span>·</span><span>6 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/git-03-the-index-and-staging.html">The Index: Git&#x27;s Staging Area</a></h2>
+      <p class="post-card-subtitle">Every Git user meets the staging area on day one — `git add` puts things there, `git commit` takes them out — but almost nobody knows what it actually is. The index is a real file, a binary snapshot-in-progress that sits between your working directory and the object store. Understanding it turns `add`, `reset`, and the difference between &quot;staged&quot; and &quot;modified&quot; from memorized rules into a picture you can see.</p>
+      <p class="post-card-excerpt">Everyone meets the staging area on day one, but almost nobody knows what it is: a real binary file holding a snapshot-in-progress between your working directory and the object store. Understanding the index turns add, reset, and the staged-vs-modified distinction into a picture you can see.</p>
+      <div class="post-tags"><a href="/blog/tags/git/" class="tag-link"><span class="tag">#Git</span></a><a href="/blog/tags/version-control/" class="tag-link"><span class="tag">#Version Control</span></a><a href="/blog/tags/developer-tools/" class="tag-link"><span class="tag">#Developer Tools</span></a><a href="/blog/tags/computer-science/" class="tag-link"><span class="tag">#Computer Science</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 4</span>
+        <span>·</span>
+        <time datetime="2026-08-24">Aug 24, 2026</time>
+        <span>·</span><span>6 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/git-04-merge-and-rebase.html">Merge and Rebase, Demystified</a></h2>
+      <p class="post-card-subtitle">Merge and rebase are where Git&#x27;s DAG earns its keep — and where most fear lives. Both integrate one line of work into another; they differ only in the shape of history they leave behind. Merge preserves the fork and records a convergence; rebase rewrites your commits as if you&#x27;d started later, producing a straight line. Neither is magic. Once you know what a merge base is, both become predictable.</p>
+      <p class="post-card-excerpt">Merge and rebase both integrate one line of work into another; they differ only in the shape of history they leave. Merge preserves the fork and records a convergence; rebase replays your commits as new objects into a straight line. Once you know what a merge base is, both become predictable.</p>
+      <div class="post-tags"><a href="/blog/tags/git/" class="tag-link"><span class="tag">#Git</span></a><a href="/blog/tags/version-control/" class="tag-link"><span class="tag">#Version Control</span></a><a href="/blog/tags/branching/" class="tag-link"><span class="tag">#Branching</span></a><a href="/blog/tags/computer-science/" class="tag-link"><span class="tag">#Computer Science</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 5</span>
+        <span>·</span>
+        <time datetime="2026-08-25">Aug 25, 2026</time>
+        <span>·</span><span>5 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/git-05-packfiles-and-compression.html">Packfiles and How Git Stays Small</a></h2>
+      <p class="post-card-subtitle">A snapshot-per-commit model sounds like it should balloon a repository to enormous size. It doesn&#x27;t — a project with a decade of history often clones smaller than a single day&#x27;s build artifacts. The trick is packfiles: Git periodically takes its loose objects, deltas the similar ones against each other, and compresses the result. This is where &quot;Git stores snapshots&quot; and &quot;Git repositories are tiny&quot; stop seeming contradictory.</p>
+      <p class="post-card-excerpt">A snapshot-per-commit model sounds like it should balloon a repository, yet a decade of history often clones smaller than a day&#x27;s build artifacts. Packfiles are the trick: Git deltas similar objects against each other and compresses the result — a storage layer under the snapshot model, invisible in daily use.</p>
+      <div class="post-tags"><a href="/blog/tags/git/" class="tag-link"><span class="tag">#Git</span></a><a href="/blog/tags/version-control/" class="tag-link"><span class="tag">#Version Control</span></a><a href="/blog/tags/compression/" class="tag-link"><span class="tag">#Compression</span></a><a href="/blog/tags/computer-science/" class="tag-link"><span class="tag">#Computer Science</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 6</span>
+        <span>·</span>
+        <time datetime="2026-08-26">Aug 26, 2026</time>
+        <span>·</span><span>5 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/git-06-reflog-and-recovery.html">The Reflog: Git&#x27;s Safety Net</a></h2>
+      <p class="post-card-subtitle">&quot;I lost my commits&quot; is almost never true. A bad reset, a botched rebase, a deleted branch — the commits are usually still there, sitting unreachable in the object store, waiting out their grace period before garbage collection. The reflog is the log of everywhere your refs have been, and it&#x27;s the tool that turns &quot;I destroyed my work&quot; into a thirty-second recovery. Knowing it exists changes how fearlessly you can use Git.</p>
+      <p class="post-card-excerpt">&quot;I lost my commits&quot; is almost never true. A bad reset or botched rebase leaves the commits sitting unreachable in the object store, waiting out a grace period. The reflog is the log of everywhere your refs have been — the tool that turns &quot;I destroyed my work&quot; into a thirty-second recovery.</p>
+      <div class="post-tags"><a href="/blog/tags/git/" class="tag-link"><span class="tag">#Git</span></a><a href="/blog/tags/version-control/" class="tag-link"><span class="tag">#Version Control</span></a><a href="/blog/tags/developer-tools/" class="tag-link"><span class="tag">#Developer Tools</span></a><a href="/blog/tags/computer-science/" class="tag-link"><span class="tag">#Computer Science</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 7</span>
+        <span>·</span>
+        <time datetime="2026-08-27">Aug 27, 2026</time>
+        <span>·</span><span>5 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/git-07-remotes-and-transfer.html">Remotes, Refspecs, and How Fetch and Push Work</a></h2>
+      <p class="post-card-subtitle">Collaboration in Git is the same object model, stretched across two repositories. A remote is just a named URL; a remote-tracking branch is just a local pointer that remembers where the other side was; fetch and push are just object transfers plus ref updates, governed by a small syntax called the refspec. Nothing new is invented for the network — it&#x27;s the graph and the pointers, reaching across a wire.</p>
+      <p class="post-card-excerpt">Collaboration in Git is the same object model stretched across two repositories. A remote is a named URL; a remote-tracking branch is a pointer remembering where the other side was; fetch and push are object transfers plus ref updates governed by refspecs. The network adds almost no new concepts.</p>
+      <div class="post-tags"><a href="/blog/tags/git/" class="tag-link"><span class="tag">#Git</span></a><a href="/blog/tags/version-control/" class="tag-link"><span class="tag">#Version Control</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/computer-science/" class="tag-link"><span class="tag">#Computer Science</span></a></div>
+    </article>
+    <article class="post-card">
+      <div class="post-card-meta">
+        <span class="series-part-badge">Part 8</span>
+        <span>·</span>
+        <time datetime="2026-08-28">Aug 28, 2026</time>
+        <span>·</span><span>6 min read</span>
+      </div>
+      <h2 class="post-card-title"><a href="/blog/posts/git-08-rewriting-history-safely.html">Rewriting History Safely</a></h2>
+      <p class="post-card-subtitle">Git lets you rewrite history — amend a commit, squash a messy branch, drop a secret that was committed by mistake. But &quot;rewrite&quot; is a misnomer: you never edit a commit, you replace it with a new one and move a pointer. Once you understand that, the rules for doing it safely become obvious, and the one genuine danger — rewriting history other people are building on — comes into sharp focus. This closing post turns the whole series into a working discipline.</p>
+      <p class="post-card-excerpt">&quot;Rewrite&quot; is a misnomer: you never edit a commit, you replace it with a new one and move a pointer. Once you see that, the rules for doing it safely become obvious — and the one real danger, rewriting history others build on, comes into sharp focus. The capstone that turns the series into a discipline.</p>
+      <div class="post-tags"><a href="/blog/tags/git/" class="tag-link"><span class="tag">#Git</span></a><a href="/blog/tags/version-control/" class="tag-link"><span class="tag">#Version Control</span></a><a href="/blog/tags/best-practices/" class="tag-link"><span class="tag">#Best Practices</span></a><a href="/blog/tags/computer-science/" class="tag-link"><span class="tag">#Computer Science</span></a></div>
+    </article>
+</section>
+
+<section class="blog-hero" style="padding-top: 32px; border-top: 1px solid var(--border); border-bottom: none; margin-top: 36px;">
+  <p>This series is part of a larger body of work by Pratik Dhanave, an Agentic AI Architect writing about production AI systems, distributed systems, and cloud-native engineering. Explore <a href="/blog/series/">all course series</a>, browse <a href="/blog/">every post</a>, or find topics via the <a href="/blog/tags/">tag index</a>.</p>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+</body>
+</html>
