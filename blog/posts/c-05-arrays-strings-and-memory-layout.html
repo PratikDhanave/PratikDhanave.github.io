@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Arrays, Strings, and Memory Layout — Pratik Dhanave</title>
+<meta name="description" content="Arrays and strings are where the pointer model becomes concrete — and where C&#x27;s most infamous security bugs live. An array is a contiguous block whose...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Arrays, Strings, and Memory Layout — Pratik Dhanave">
+<meta property="og:description" content="Arrays and strings are where the pointer model becomes concrete — and where C&#x27;s most infamous security bugs live. An array is a contiguous block whose name decays to a pointer; a string is just a char array with a null terminator and no length field. Understanding both, and the buffer overflows they invite, is essential C literacy.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/c-05-arrays-strings-and-memory-layout.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-24T00:00:00Z">
+<meta property="article:tag" content="C">
+<meta property="article:tag" content="Memory">
+<meta property="article:tag" content="Systems Programming">
+<meta property="article:tag" content="Security">
+<meta property="article:tag" content="Programming Languages">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Arrays, Strings, and Memory Layout — Pratik Dhanave">
+<meta name="twitter:description" content="Arrays and strings are where the pointer model becomes concrete — and where C&#x27;s most infamous security bugs live. An array is a contiguous block whose name decays to a pointer; a string is just a char array with a null terminator and no length field. Understanding both, and the buffer overflows they invite, is essential C literacy.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/c-05-arrays-strings-and-memory-layout.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}:root[data-theme="dark"]{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav{background:rgba(13,17,23,0.85)}}:root[data-theme="dark"] nav{background:rgba(13,17,23,0.85)}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}#read-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-hover));z-index:1000;transition:width .1s ease-out}.rh-controls{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:900}.rh-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;box-shadow:var(--shadow);transition:transform .15s,color .15s,opacity .2s}.rh-btn:hover{transform:translateY(-2px);color:var(--accent)}#rh-top{opacity:0;pointer-events:none}#rh-top.show{opacity:1;pointer-events:auto}#toc{position:fixed;top:118px;right:24px;width:224px;max-height:72vh;overflow-y:auto;font-size:13px;padding:4px 0 4px 16px;border-left:2px solid var(--border);z-index:800}#toc .toc-title{font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;color:var(--text-muted);margin-bottom:10px}#toc a{display:block;color:var(--text-muted);padding:4px 0 4px 14px;line-height:1.35;border-left:2px solid transparent;margin-left:-16px;transition:color .15s,border-color .15s}#toc a.h3{padding-left:26px;font-size:12px}#toc a:hover{color:var(--accent);text-decoration:none}#toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}article pre{position:relative}.copy-btn{position:absolute;top:8px;right:8px;padding:3px 10px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-muted);cursor:pointer;opacity:0;transition:opacity .15s,color .15s,border-color .15s}article pre:hover .copy-btn,.copy-btn:focus-visible{opacity:1}.copy-btn:hover{color:var(--accent);border-color:var(--accent)}.copy-btn.copied{color:#2ea043;border-color:#2ea043}@media (max-width:1240px){#toc{display:none}}@media print{#read-progress,.rh-controls,#toc,.copy-btn{display:none !important}}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Arrays, Strings, and Memory Layout",
+  "description": "Arrays and strings are where the pointer model becomes concrete \u2014 and where C's most infamous security bugs live. An array is a contiguous block whose name decays to a pointer; a string is just a char array with a null terminator and no length field. Understanding both, and the buffer overflows they invite, is essential C literacy.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-24",
+  "dateModified": "2026-07-24",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "C, Memory, Systems Programming, Security, Programming Languages",
+  "url": "https://pratikdhanave.com/blog/posts/c-05-arrays-strings-and-memory-layout.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/c-05-arrays-strings-and-memory-layout.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Arrays, Strings, and Memory Layout</h1>
+    <p class="post-subtitle">Arrays and strings in C are where the pointer model from the last post becomes concrete — and where C&#x27;s most infamous security bugs live. An array is a contiguous block of memory whose name decays to a pointer; a string is just an array of characters with a null terminator and no length field. Understanding both, and the buffer overflows they invite, is essential C literacy.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-24">July 24, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/c/" class="tag-link"><span class="tag">#C</span></a><a href="/blog/tags/memory/" class="tag-link"><span class="tag">#Memory</span></a><a href="/blog/tags/systems-programming/" class="tag-link"><span class="tag">#Systems Programming</span></a><a href="/blog/tags/security/" class="tag-link"><span class="tag">#Security</span></a><a href="/blog/tags/programming-languages/" class="tag-link"><span class="tag">#Programming Languages</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 5 of 8</span>
+    <a class="series-title" href="/blog/series/c-from-the-ground-up/">C from the Ground Up</a>
+    <div class="series-nav"><a href="/blog/posts/c-04-pointers.html" class="series-prev">&larr; Part 4: Pointers</a>
+<a href="/blog/posts/c-06-dynamic-memory-management.html" class="series-next">Part 6: Dynamic Memory Management &rarr;</a></div>
+  </div>
+
+
+
+  <p>Pointers gave us the mechanism; now we apply it to the two most-used aggregate types. Arrays and C strings look simple but hide subtleties — array-to-pointer decay, the invisible null terminator, the total absence of bounds checking — that cause real bugs and real vulnerabilities. This post makes the memory layout explicit so those subtleties stop surprising you.</p>
+<h2 id="arrays-are-contiguous-memory">Arrays are contiguous memory</h2>
+<p>An <strong>array</strong> in C is a fixed-size, contiguous block of elements of the same type, laid out back-to-back in memory:</p>
+<pre><code class="language-c">int nums[5] = {10, 20, 30, 40, 50};
+// memory:  [10][20][30][40][50]  — five ints, adjacent
+printf(&quot;%d\n&quot;, nums[2]);   // 30
+</code></pre>
+<p><code>nums[i]</code> accesses the i-th element (indices start at 0). The contiguity is the whole point: elements are exactly <code>sizeof(int)</code> apart, which is why the type-aware pointer arithmetic from the last post walks an array perfectly. In fact, <code>nums[i]</code> is <em>defined</em> as <code>*(nums + i)</code> — indexing is pointer arithmetic in disguise.</p>
+<p>The critical, dangerous fact: <strong>C does not check array bounds.</strong> <code>nums[10]</code>, or <code>nums[-1]</code>, compiles and runs — it reads or writes whatever memory happens to be there, past the end of your array. There&rsquo;s no exception, no error; just silent access to memory you don&rsquo;t own (undefined behavior). This absence of bounds checking is the source of a huge fraction of C&rsquo;s security vulnerabilities, and it&rsquo;s on <em>you</em> to stay in range.</p>
+<h2 id="array-to-pointer-decay">Array-to-pointer decay</h2>
+<p>Here&rsquo;s the subtlety that confuses everyone learning C: in most contexts, <strong>an array&rsquo;s name &ldquo;decays&rdquo; to a pointer to its first element.</strong> When you use <code>nums</code> in an expression (or pass it to a function), you get <code>&amp;nums[0]</code> — a pointer — not the array as a whole.</p>
+<pre><code class="language-c">int nums[5] = {10, 20, 30, 40, 50};
+int *p = nums;        // legal: nums decays to &amp;nums[0]
+printf(&quot;%d\n&quot;, *p);       // 10
+printf(&quot;%d\n&quot;, p[2]);     // 30 — pointers can be indexed too
+</code></pre>
+<p>This decay has a major consequence for functions: <strong>you cannot pass an array by value.</strong> When you write a function taking <code>int arr[]</code>, what it <em>actually</em> receives is a <em>pointer</em> (<code>int *</code>) — a copy of the address, not a copy of the elements. So the function can modify the caller&rsquo;s array (it has the address), and — crucially — it <em>does not know the array&rsquo;s length</em>, because a pointer carries no size information:</p>
+<pre><code class="language-c">void printAll(int *arr, size_t len) {   // MUST pass length separately
+    for (size_t i = 0; i &lt; len; i++) printf(&quot;%d &quot;, arr[i]);
+}
+int nums[5] = {10, 20, 30, 40, 50};
+printAll(nums, 5);                       // pass array (decays) + its length
+</code></pre>
+<p>This is why C functions taking arrays <em>always</em> take a separate length parameter — the array itself has forgotten how big it is the moment it decayed to a pointer. (A related trap: <code>sizeof(arr)</code> inside such a function gives the size of the <em>pointer</em>, not the array. <code>sizeof</code> on the array only works where the real array type is in scope.)</p>
+<h2 id="c-strings-null-terminated-character-arrays">C strings: null-terminated character arrays</h2>
+<p>C has no dedicated string type. A <strong>string</strong> is simply an array of <code>char</code> ending with a <strong>null terminator</strong> — the byte <code>'\0'</code> (value 0) — that marks where the string stops:</p>
+<pre><code class="language-c">char greeting[] = &quot;hello&quot;;
+// memory: ['h']['e']['l']['l']['o']['\0']  — SIX bytes, not five
+</code></pre>
+<p>The string literal <code>"hello"</code> is five characters plus an automatically-added <code>'\0'</code>, so it occupies six bytes. This trailing null is how every C string function knows where the string ends — there&rsquo;s <em>no separate length field</em>. <code>strlen("hello")</code> returns 5 by scanning from the start until it hits <code>'\0'</code>. Two consequences flow from this design:</p>
+<ul>
+<li><strong>Length is O(n), not O(1).</strong> Because there&rsquo;s no stored length, finding a string&rsquo;s length means scanning for the terminator. Repeatedly calling <code>strlen</code> in a loop is a classic performance trap.</li>
+<li><strong>The terminator is load-bearing and easy to lose.</strong> If a string&rsquo;s <code>'\0'</code> is missing or overwritten, string functions run off the end into adjacent memory until they <em>happen</em> to find a zero byte — reading garbage or crashing. Every operation that builds a string must ensure the terminator is present.</li>
+</ul>
+<p>The standard string functions live in <code>&lt;string.h&gt;</code>: <code>strlen</code> (length), <code>strcpy</code>/<code>strncpy</code> (copy), <code>strcmp</code> (compare), <code>strcat</code>/<code>strncat</code> (concatenate), <code>strchr</code>/<code>strstr</code> (search). They all rely on the null terminator.</p>
+<h2 id="buffer-overflows-cs-signature-vulnerability">Buffer overflows: C&rsquo;s signature vulnerability</h2>
+<p>Combine &ldquo;no bounds checking&rdquo; with &ldquo;strings have no length field&rdquo; and you get the <strong>buffer overflow</strong> — writing past the end of a buffer into adjacent memory — the most notorious class of C bug and a foundational security vulnerability:</p>
+<pre><code class="language-c">char buf[8];
+strcpy(buf, &quot;this string is way too long&quot;);  // DISASTER: writes past buf[7]
+</code></pre>
+<p><code>strcpy</code> copies until it hits the source&rsquo;s null terminator, with <em>no idea</em> that <code>buf</code> only holds 8 bytes. It happily writes past the end, corrupting whatever is next in memory — other variables, the function&rsquo;s return address on the stack, anything. At best it crashes; at worst, an attacker who controls the input can overwrite the return address and hijack execution (the classic &ldquo;stack smashing&rdquo; exploit). This single pattern is behind decades of security incidents.</p>
+<p>The defenses are discipline, since the language won&rsquo;t help:</p>
+<ul>
+<li><strong>Use the bounded variants</strong> — <code>strncpy</code>, <code>strncat</code>, <code>snprintf</code> — which take a maximum length and won&rsquo;t write past it. (Note <code>strncpy</code> has its own trap: it may <em>not</em> null-terminate if the source fills the buffer, so terminate manually.)</li>
+<li><strong>Always size buffers for content plus the terminator</strong>, and track how much space remains.</li>
+<li><strong>Validate input length</strong> before copying into a fixed buffer — never trust that input fits.</li>
+</ul>
+<p>Modern C treats &ldquo;never call an unbounded string function on untrusted input&rdquo; as a firm rule. The vulnerability is inherent to the null-terminated, unchecked design; safety comes entirely from the programmer.</p>
+<h2 id="the-memory-layout-view">The memory-layout view</h2>
+<p>Pulling it together, arrays and strings make C&rsquo;s memory model tangible: data is bytes laid out contiguously, an array name is really the address of the first byte, indexing is pointer arithmetic, and a string is that same byte array with a sentinel <code>'\0'</code> marking its end. Nothing tracks sizes for you — not array bounds, not string length — so you carry that information yourself (a length parameter, a known buffer size) and the discipline to stay within it. This is C&rsquo;s bargain in miniature: total control over memory layout, total responsibility for using it safely. The dynamic-memory post next takes this a step further, letting you allocate arrays whose size you decide at runtime — with the same responsibility, now including freeing what you allocate.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>An <strong>array is contiguous memory</strong> of same-type elements; <code>nums[i]</code> is defined as <code>*(nums + i)</code> (indexing <em>is</em> pointer arithmetic), and C performs <strong>no bounds checking</strong> — out-of-range access silently reads/writes memory you don&rsquo;t own.</li>
+<li>An array name <strong>decays to a pointer</strong> to its first element in most contexts, so you <strong>can&rsquo;t pass an array by value</strong> — functions receive a pointer (which carries no size), which is why C array functions <strong>always take a separate length parameter</strong> (and <code>sizeof</code> inside them measures the pointer, not the array).</li>
+<li>A <strong>C string is a <code>char</code> array ending in a null terminator <code>'\0'</code></strong> with no separate length field — <code>"hello"</code> is 6 bytes — so <code>strlen</code> is O(n) (it scans for the terminator) and losing the terminator sends string functions running off the end.</li>
+<li><strong>Buffer overflows</strong> — writing past a buffer&rsquo;s end because nothing checks bounds or length — are C&rsquo;s signature vulnerability (crashes at best, execution hijacking at worst); <code>strcpy</code> on oversized input is the classic trigger.</li>
+<li>Defend with <strong>bounded functions</strong> (<code>strncpy</code>, <code>snprintf</code>), sizing buffers for content <strong>plus terminator</strong>, and validating input length — the language provides no safety, so it&rsquo;s entirely the programmer&rsquo;s discipline.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://en.cppreference.com/w/c/language/array">cppreference — Array declarations</a></li>
+<li><a href="https://en.cppreference.com/w/c/string/byte">cppreference — Null-terminated byte strings</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/c-06-dynamic-memory-management.html">Dynamic Memory Management</a>
+      <span class="related-date">Jul 25</span>
+    </li>
+    <li>
+      <a href="/blog/posts/c-08-preprocessor-undefined-behavior-and-idioms.html">The Preprocessor, Undefined Behavior, and Safe C</a>
+      <span class="related-date">Jul 27</span>
+    </li>
+    <li>
+      <a href="/blog/posts/c-07-structs-unions-and-data-structures.html">Structs, Unions, and Data Structures</a>
+      <span class="related-date">Jul 26</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://en.cppreference.com/w/c/language/array" target="_blank" rel="noopener noreferrer">cppreference — Array declarations</a></div>
+      <div class="citation-context">Arrays, decay, and layout</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+<div id="read-progress" aria-hidden="true"></div>
+<nav id="toc" aria-label="Table of contents"></nav>
+<div class="rh-controls">
+  <button id="rh-theme" class="rh-btn" type="button" aria-label="Toggle light and dark theme" title="Toggle theme"></button>
+  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top"><span aria-hidden="true">&uarr;</span></button>
+</div>
+<script>
+(function(){
+  var doc = document.documentElement;
+  function curTheme(){ return doc.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+  var themeBtn = document.getElementById('rh-theme');
+  function setIcon(){ if (themeBtn) themeBtn.textContent = curTheme() === 'dark' ? '\u2600\uFE0E' : '\u263D'; }
+  setIcon();
+  if (themeBtn) themeBtn.addEventListener('click', function(){
+    var t = curTheme() === 'dark' ? 'light' : 'dark';
+    doc.setAttribute('data-theme', t);
+    try { localStorage.setItem('theme', t); } catch(e){}
+    setIcon();
+  });
+  var article = document.querySelector('article');
+  var toc = document.getElementById('toc');
+  if (article && toc) {
+    var heads = article.querySelectorAll('h2, h3');
+    if (heads.length >= 3) {
+      var title = document.createElement('div');
+      title.className = 'toc-title'; title.textContent = 'On this page';
+      toc.appendChild(title);
+      var links = [];
+      heads.forEach(function(h, i){
+        if (!h.id) h.id = 'sec-' + i;
+        var a = document.createElement('a');
+        if (h.tagName === 'H3') a.className = 'h3';
+        a.href = '#' + h.id;
+        a.textContent = h.textContent;
+        toc.appendChild(a);
+        links.push(a);
+      });
+      var byId = {}; links.forEach(function(a){ byId[a.getAttribute('href').slice(1)] = a; });
+      var obs = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if (e.isIntersecting) {
+            links.forEach(function(a){ a.classList.remove('active'); });
+            var a = byId[e.target.id]; if (a) a.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-80px 0px -70% 0px' });
+      heads.forEach(function(h){ obs.observe(h); });
+    } else { toc.style.display = 'none'; }
+  }
+  document.querySelectorAll('article pre').forEach(function(pre){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.type = 'button'; btn.textContent = 'Copy';
+    btn.addEventListener('click', function(){
+      var code = pre.querySelector('code');
+      var txt = code ? code.innerText : pre.innerText;
+      navigator.clipboard.writeText(txt).then(function(){
+        btn.textContent = 'Copied'; btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+  var bar = document.getElementById('read-progress');
+  var top = document.getElementById('rh-top');
+  function onScroll(){
+    var h = doc.scrollHeight - doc.clientHeight;
+    var p = h > 0 ? (doc.scrollTop / h) * 100 : 0;
+    if (bar) bar.style.width = p + '%';
+    if (top) { if (doc.scrollTop > 600) top.classList.add('show'); else top.classList.remove('show'); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+  if (top) top.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); });
+})();
+</script>
+</body>
+</html>
