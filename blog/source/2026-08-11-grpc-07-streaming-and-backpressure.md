@@ -10,17 +10,21 @@ A streaming RPC gives you a *stream object* you read from or write to repeatedly
 
 ```go
 func (s *userServer) ListUsers(req *pb.ListUsersRequest, stream pb.UserService_ListUsersServer) error {
-    rows, err := s.db.QueryUsers(stream.Context(), req.GetPageSize())
+    rows, err := s.db.Query(stream.Context(), req.GetPageSize())
     if err != nil {
         return status.Error(codes.Internal, "query failed")
     }
+    defer rows.Close()
     for rows.Next() {
-        u := rows.Scan()
-        if err := stream.Send(toProto(u)); err != nil {   // may block for flow control
+        var u User
+        if err := rows.Scan(&u.ID, &u.Name); err != nil {   // Scan fills u, returns only error
+            return status.Error(codes.Internal, "scan failed")
+        }
+        if err := stream.Send(toProto(&u)); err != nil {    // may block for flow control
             return err   // client gone or stream broken
         }
     }
-    return nil   // returning nil closes the stream successfully
+    return rows.Err()   // returning nil closes the stream successfully
 }
 ```
 

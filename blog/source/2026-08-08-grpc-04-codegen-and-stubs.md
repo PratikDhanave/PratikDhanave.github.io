@@ -31,6 +31,7 @@ On the **server** side, you implement the generated interface — writing only t
 ```go
 type userServer struct {
     pb.UnimplementedUserServiceServer   // forward-compatibility embed
+    db UserStore                        // your data layer, injected at construction
 }
 
 func (s *userServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.User, error) {
