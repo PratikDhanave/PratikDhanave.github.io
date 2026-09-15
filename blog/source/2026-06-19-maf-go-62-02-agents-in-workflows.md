@@ -54,6 +54,18 @@ Each executor makes a real Foundry model call, so the program needs `az login` p
 
 **Run it:** `go run ./tutorial/03-workflows/01-start-here/02_agents_in_workflows`. The offline test builds the identical graph with a fake credential and asserts its wiring with no network; the live end-to-end run is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- `agentworkflow.New(agent, cfg)` wraps a real `agent.Agent` as a workflow executor, so the same agent you called directly now lives inside a graph that decides what runs next.
+- `DisableForwardIncomingMessages: true` is the load-bearing setting: it makes each node forward only its own output, so the Spanish agent translates the French text — not the original English. Leave it off and the pipeline stops being a pipeline.
+- A run advances by sending a `workflow.TurnToken` after `RunStreaming` seeds the start node; with `EmitEvents` set, hosting executors surface their streaming updates as workflow events.
+- Only the designated output node yields an `OutputEvent`, whose `Output` you type-assert to `*agent.ResponseUpdate`.
+
+## Further reading
+
+- [01 · Streaming — your first workflow](/blog/posts/maf-go-61-01-streaming.html) — the plain-function version of this graph
+- [03 · Agent Workflow Patterns](/blog/posts/maf-go-63-03-agent-workflow-patterns.html) — the same agents dropped into sequential, concurrent, and group-chat shapes
+
 ---
 
 Next: [03 · Agent Workflow Patterns (sequential · concurrent · group chat)](/blog/posts/maf-go-63-03-agent-workflow-patterns.html)

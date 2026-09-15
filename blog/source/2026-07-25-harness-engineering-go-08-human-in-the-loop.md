@@ -166,4 +166,20 @@ There is exactly one seam left un-swapped, and it's the one I stubbed on purpose
 
 ---
 
+## Key takeaways
+
+- Suspension is not a new mechanism — `RequestApproval` just writes an `awaiting_approval` checkpoint to the same `durable.Store` from Lesson 2 and returns without touching the action, so a crash or a week's idle loses nothing. That is why Lesson 2 was the spine.
+- `Resume` checks the deadline *first*, against an injected `now`: past the window, the action does not run even on a "yes" — a late approval is void, not "better late than never" (a refund approved after the dispute, a deploy approved after the rollback).
+- Rejected means the action is never performed, and it's enforced structurally, not by trusting the caller; approved-and-on-time runs the action and records `performed=true` plus its output, so "the action ran" is itself durable.
+- Every function takes `now time.Time` and never reads the wall clock, which makes deadline behavior testable with `base.Add(2*time.Hour)` as a value — no `time.Sleep`, no flaky tests.
+- State the leak twice: a real request/response executor also *routes* the request to a person, authenticates who may approve, and correlates the reply — this stand-in does none of that; and execution is at-least-once, so the sensitive action must be idempotent (an idempotency key like `refund_id: rf_123`) since a crash after the action but before the terminal checkpoint re-runs it.
+
+## Further reading
+
+- [Durable execution: checkpoint every step](/blog/posts/harness-engineering-go-03-durable-execution.html) — Lesson 2, the store this approval gate reuses.
+- [The seam (series overview)](/blog/posts/harness-engineering-go-01-the-seam.html) — the interface-and-local-stand-in pattern the whole arc is built on.
+- [microsoft/agent-framework-go](https://github.com/microsoft/agent-framework-go) — the request/response executor and `foundryprovider` the final swap targets.
+
+---
+
 Next: [My upstream Microsoft Agent Framework Go contributions](/agent-framework/)

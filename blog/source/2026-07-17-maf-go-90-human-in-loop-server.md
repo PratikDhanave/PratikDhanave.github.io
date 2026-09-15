@@ -48,3 +48,16 @@ a := foundryprovider.NewAgent(
 ---
 
 Next: [AG-UI State Management — The Server](/blog/posts/maf-go-91-state-management-server.html)
+
+## Key takeaways
+
+- Human-in-the-loop is a pause enforced by the server: an approval-required tool makes the agent emit an approval request over AG-UI instead of running the call, and it proceeds only after a human's decision comes back.
+- The load-bearing line is `tool.ApprovalRequiredFunc(newExpenseTool())`: approval is a per-tool *wrapper*, not a config flag, so you can host approval-gated and freely-running tools side by side in the same `Tools` slice — unlike frontend tools, which flip `DisableFuncAutoCall`.
+- Keep the underlying function plain (`approveExpenseReport(ctx, id string)` returns a string, no framework/network) so the offline test can call it directly, independent of the tool's JSON encoding.
+- The test builds tool, agent, and handler with a fake credential and checks the tool is approval-required, the agent carries it, and the handler is non-nil — no model call; the live bind needs `AF_LIVE`.
+
+## Further reading
+
+- [AG-UI Frontend Tools — The Server](/blog/posts/maf-go-89-frontend-tools-server.html)
+- [AG-UI State Management — The Server](/blog/posts/maf-go-91-state-management-server.html)
+- [agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)

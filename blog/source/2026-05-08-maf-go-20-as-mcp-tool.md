@@ -46,6 +46,19 @@ npx @modelcontextprotocol/inspector go run ./tutorial/02-agents/agents/step10_as
 
 The offline structural test runs anywhere; the running server needs `az login` + `FOUNDRY_PROJECT_ENDPOINT`, and the live path is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **Two wrappers, applied in order, publish an agent as an MCP tool.** `agenttool.New(a, ...)` adapts the `*agent.Agent` into a `tool.FuncTool`; `mcptool.AddTool(srv, ...)` registers that FuncTool on the MCP server, translating each MCP tool call into an agent run.
+- **The agent's identity is the public contract.** The tool name is `a.Name()`, so `Name: "Joker"` and its description are exactly what clients see when they list tools — rename the agent and the tool renames.
+- **The published tool's input schema is a single required `query` string**, an `object` schema the offline structural test asserts without opening a transport.
+- Only `main` opens the transport — `srv.Run(ctx, &mcp.StdioTransport{})` speaks JSON-RPC over stdin/stdout — which is the part that needs a live model behind each call.
+
+## Further reading
+
+- [mcp · Agent with tools from an MCP Server](/blog/posts/maf-go-32-agent-mcp-server.html) — the reverse direction: borrow tools *from* a remote MCP server.
+- [12 · Agent as a Function Tool](/blog/posts/maf-go-22-as-function-tool.html) — the same `agenttool.New` adapter used for in-process delegation.
+- [Model Context Protocol](https://modelcontextprotocol.io/) — the open protocol this lesson serves the agent over.
+
 ---
 
 Next: [step11 · Using Images (multi-modality)](/blog/posts/maf-go-21-using-images.html)

@@ -77,3 +77,18 @@ Modelling failed-as-recoverable and cancelled-as-terminal separately is what kee
 Three properties fall out for free once the mandate is the stateful object. First, **the authorisation question is always answerable**: current state plus headroom tell you, in one row, whether a charge is legal right now. Second, **retries stay contained**: because retry is a sub-flow of a charge and not a mandate state, an exhausted retry schedule can escalate to dunning or cancellation without special-casing the rest of the engine. Third, **every money movement is idempotent and replayable**: charges are keyed by `(mandate_id, period)`, usage by `(mandate_id, period, event_id)`, so re-running a billing job double-charges nobody and a corrected usage event re-rates cleanly.
 
 The through-line is the same one that makes any billing system trustworthy: separate the thing that has *state* (the mandate) from the things that are *events* (usage, invoices, charge attempts). Get that boundary right and proration becomes arithmetic, metering becomes an append log, and retries become a small local loop — instead of three tangled concerns fighting over a single overloaded status column.
+
+## Key takeaways
+
+- Model the **mandate** as the stateful object, not the invoice or the retry counter. A VRP mandate is a bounded authorisation (max per period, max per transaction, a period window), and its `consumed`/`headroom` fields are maintained on transition so the ceiling check is atomic with the charge.
+- Keep metering decoupled from the cycle: usage events are a high-frequency idempotent append keyed by `(mandate_id, period, event_id)`, and the mandate only moves state once per period when accumulated usage is *rated* against the price book.
+- Treat proration as closing one sub-period and opening another, then rating each on its own plan and day-count — two auditable rated lines defend themselves in a dispute where a single netted "adjustment" line cannot.
+- Distinguish a **failed** charge (recoverable — drops into a bounded dunning retry that rejoins at charged) from a **cancelled** mandate (terminal — consent withdrawn, no legal pull regardless of headroom). Collapsing the two is how systems pull from de-authorised accounts.
+- Charges keyed by `(mandate_id, period)` and usage by `(mandate_id, period, event_id)` make every money movement idempotent and re-runnable.
+
+## Further reading
+
+- [The dunning and retry engine](/blog/posts/fintech-dunning-retry-engine.html)
+- [Pricing, rating, and billing engines](/blog/posts/fintech-pricing-rating-billing-engine.html)
+- [Revenue recognition engine](/blog/posts/fintech-revenue-recognition-engine.html)
+- [Request-to-pay and mandates](/blog/posts/fintech-request-to-pay-mandates.html)

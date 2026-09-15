@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-20">July 20, 2026</time>
       <span>·</span>
-      <span>5 min read</span>
+      <span>6 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/google-adk/" class="tag-link"><span class="tag">#Google ADK</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/software-engineering/" class="tag-link"><span class="tag">#Software Engineering</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -234,6 +234,20 @@ func (c AgentConfig) Validate() error {
 <p>That <code>isIdentifier</code> check on <code>name</code> is not incidental — it&rsquo;s the same rule ADK enforces (Python&rsquo;s <code>name.isidentifier()</code>): a name must start with a letter or underscore and contain only letters, digits, and underscores. Mirroring the struct gives you the <em>shape</em> of Agent Config in Go and lets you round-trip the exact same <code>agent.yaml</code> a Python <code>from_config</code> reads. What you don&rsquo;t get, in the current release, is the loader that builds a live agent from it.</p>
 <h2 id="mental-model">Mental model</h2>
 <p>Think of Agent Config as <strong>the serialized form of an agent&rsquo;s pure-configuration part</strong>. <code>from_config</code> is the deserializer, and a <code>Runner</code> can&rsquo;t tell whether the agent it got came from a constructor call or a YAML file. Reach for it when the agent is mostly prompt + model + wiring and you want that editable by people who don&rsquo;t touch the source; reach for code the moment you need genuine logic. Today that door is fully open in Python and still behind an <code>internal/</code> wall in Go.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Agent Config describes an agent in YAML (<code>agent_class</code>, <code>name</code>, <code>model</code>, <code>instruction</code>, <code>description</code>, <code>tools</code>, <code>sub_agents</code>), with fields that map one-to-one onto the constructor arguments — the agent stops being a program and becomes data.</li>
+<li><code>from_config</code> reads the YAML, resolves <code>agent_class</code> to a concrete class, validates, and constructs — but it <em>never contacts the model</em>, so you can build, inspect, and test a YAML agent offline with no API key.</li>
+<li>The ceiling: prompt, model, and wiring live comfortably in data, but real logic (custom tools, callbacks, dynamic instructions) stays in code and the YAML merely references it by name.</li>
+<li>Data has different affordances than code: non-engineers can edit it, changes are reviewable diffs, it is toolable (the <code>adk web</code> Visual Builder emits this same YAML), and it is portable across languages.</li>
+<li>The two-language symmetry breaks here — adk-go&rsquo;s config engine exists but lives in <code>internal/</code>, so there is no public Go <code>from_config</code>. The honest workaround is to mirror the struct with <code>yaml.v3</code> and validate it yourself, including the <code>name.isidentifier()</code> rule.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/adk-23-context-caching.html">Context caching in ADK</a> — another App-level, Python-first ADK feature with an honest Go note.</li>
+<li><a href="/blog/posts/adk-25-glossary.html">Google ADK glossary</a> — every core concept in one reference.</li>
+<li><a href="https://google.github.io/adk-docs/">ADK docs</a> — the canonical Agent Config and <code>from_config</code> reference.</li>
+</ul>
 <p><em>This is the final concept in the series — the declarative capstone over everything from your first agent through tools, state, memory, multi-agent systems, evaluation, deployment, and observability.</em></p>
 
 

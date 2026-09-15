@@ -53,3 +53,18 @@ Signal drift comes in two flavors. **Device drift** is per-device: OS updates, n
 None of this is exempt from privacy law or from user trust, and passive collection is exactly the kind of processing regulators scrutinize. The defensible posture rests on a few commitments baked into the pipeline rather than bolted on. **Consent first:** behavioral capture in particular should sit behind an opt-in gate, which is why the consent stage precedes any storage or scoring in the flow above. **Data minimization:** store the derived fingerprint and behavioral feature vectors, not the raw keystroke timings or the full attribute dump — you need the model input, not a reconstructable dossier. **Purpose limitation:** signals collected for fraud and auth are used for fraud and auth, not quietly repurposed for ad targeting. **Transparency:** the privacy policy should say, in plain language, that device and interaction signals are analyzed for security, and give users a way to understand and object.
 
 The trade-off is real and worth stating plainly. The same signal that stops an account takeover is, viewed differently, tracking. The engineering answer is not to collect less signal blindly but to collect *purposefully* — minimize what you retain, gate what is sensitive, be transparent about why, and delete what you no longer need. A trust system that users would resent if they understood it is not actually trustworthy. Build the version you would be comfortable explaining out loud.
+
+## Key takeaways
+
+- A device fingerprint is not a hash-everything equality check — it is a stable core plus soft attributes matched by similarity, so a font or timezone change still resolves to the same device. Forward-update the stored profile or genuine devices slowly become strangers.
+- Behavioral signals (keystroke dwell/flight, mouse trajectory, PIN-hold pattern) are hard to steal even with a stolen credential, but both signal families are *evidence* for a risk score, never standalone authenticators.
+- The false-positive rate governs the economics: wrongly challenging 5% of genuine users in abandoned checkouts and support tickets can outweigh the fraud a model prevents.
+- Two drift modes need different responses — per-device drift is absorbed by similarity matching and forward-updating; population drift (a browser vendor randomizing an attribute overnight) is a monitoring problem: track a feature's discriminating power and retire it when it collapses.
+- Privacy is designed in, not bolted on: a consent gate precedes storage, you retain derived fingerprints and feature vectors rather than raw signals, and purpose is limited to fraud/auth.
+
+## Further reading
+
+- [Rules vs. ML for fraud scoring](/blog/posts/fintech-rules-vs-ml-fraud-scoring.html) — how a risk score becomes an allow/step-up/block decision.
+- [Supervised fraud detection with imbalanced data](/blog/posts/finai-supervised-fraud-imbalanced-data.html) — choosing a threshold by the money it saves.
+- [Fraud ring detection with graphs](/blog/posts/fintech-fraud-ring-graph-detection.html) — the complementary network view of the same problem.
+- [Device fingerprint (Wikipedia)](https://en.wikipedia.org/wiki/Device_fingerprint) — background on the technique and its entropy sources.

@@ -79,3 +79,17 @@ Instrument the reconstruction, not just the transport. The metrics that actually
 - **Crossed-book counter** — best bid at or above best ask should be impossible on a correct book; every occurrence is a reconstruction defect, and it must alert, not just log.
 
 The mental model to hold onto: you are not receiving a market, you are receiving a recipe for one. Sequence numbers tell you the steps are in order; snapshots give you a clean pot to start from when a step goes missing. Everything faithful about your book falls out of respecting those two invariants and refusing to proceed when either one breaks.
+
+## Key takeaways
+
+- A market-data feed hands you a stream of edits, not a picture — the book you trade against is a *reconstruction* you maintain by applying deltas in exact order, and a dropped or duplicated message silently diverges your copy with nothing crashing.
+- **Sequence numbers are the entire correctness contract**: `seq == expected` applies and advances, `seq < expected` is a duplicate to discard, `seq > expected` is a gap that makes the whole book untrustworthy — and the danger is every message *after* the lost one.
+- Recovery is snapshot-plus-delta with a deterministic join: buffer deltas, read the snapshot's `snap_seq`, discard buffered deltas `<= snap_seq`, verify the first survivor is exactly `snap_seq + 1` (or refuse and refetch), then replay. Step 4 is what keeps it deterministic — you never interpolate.
+- Two correctness details when applying deltas: know whether the venue sends absolute level sizes or relative changes, and treat a size of zero as a delete, not a zero-quantity level.
+- Instrument the reconstruction, not just transport: gap rate, recovery latency, snapshot-refetch count, and a crossed-book counter that must *alert*, since best-bid ≥ best-ask is impossible on a correct book.
+
+## Further reading
+
+- [Matching engine design](/blog/posts/fintech-matching-engine-design.html)
+- [Order types and time-in-force as a lifecycle](/blog/posts/fintech-order-types-time-in-force.html)
+- [Pre-trade risk, positions, and real-time P&L](/blog/posts/fintech-pretrade-risk-position-pnl.html)

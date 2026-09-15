@@ -85,3 +85,18 @@ The controls engine is also the natural home for cardholder-facing controls: fre
 Three failure modes dominate operations. The first is configuration lag: a limit change or a freeze that does not reach the auth engine fast enough, so the card behaves according to stale rules. Solve it by making configuration propagation a first-class, monitored path with an explicit staleness bound. The second is key management drift: HSM keys have ceremonies, rotations, and expirations, and a missed rotation can strand a whole BIN. Automate the calendar and rehearse the ceremonies. The third is ledger and authorization divergence: holds that never clear, settlements that exceed their authorization, reversals that get lost. Reconcile continuously and alert on the gap between pending and settled, because that gap is where money quietly leaks.
 
 Build the issuer side as a forward-flowing chain with a hard cryptographic boundary in the middle and a hot, config-reading engine at the end, and most of the hard problems become boring — which, in payments, is exactly what you want.
+
+## Key takeaways
+
+- The issuer side owns the approve/decline decision, mints the credentials, holds the cryptographic keys, and carries the liability — a strict forward chain (BIN/program config → production → HSM PIN → activation → auth engine) where state flows forward but authorization pressure flows backward.
+- Treat program configuration as immutable, versioned, append-only data that the hot path *reads* (never computes), and pin `program_version` on the card at issuance so a later program change can't silently rewrite terms of cards already in the field.
+- Keep the raw PAN out of application databases entirely — services carry a token or vault reference — which is the single decision that keeps most of the platform out of the hardest compliance tier.
+- The HSM is the trust anchor: it performs key derivation and PIN generation without ever exposing key material, returning only ciphertext and check values across a hard security-zone boundary with its own access controls and dual control.
+- Activation is a real state machine (`PRODUCED → ACTIVE`, with `SUSPENDED`/`CLOSED`), each transition an audited event, published through the same fast config channel the latency-bound auth engine reads — and cardholder controls (freeze, category block, per-transaction cap) are just entries in that same rule set, so they take effect instantly.
+
+## Further reading
+
+- [Key ceremonies and HSM key hierarchies](/blog/posts/fintech-hsm-key-management-ceremony.html)
+- [Network tokenization and PCI scope](/blog/posts/fintech-network-tokenization-pci-scope.html)
+- [Card authorization, capture and clearing](/blog/posts/fintech-card-auth-capture-clearing.html)
+- [EMV cryptograms and the ARQC](/blog/posts/fintech-emv-cryptogram-arqc.html)

@@ -97,3 +97,18 @@ That single normalized stream is also what makes the whole orchestrator observab
 ## Where to start
 
 Do not build all of this on day one. Start with two providers, a static priority order, and clean normalization — that alone buys you failover and one event stream. Add the scoring function once you have enough of your own outcome data to trust it, and add circuit breakers the first time a provider has a bad day. The architecture above is the destination; the value shows up long before you arrive.
+
+## Key takeaways
+
+- An orchestration layer lets your app think in a payment *intent* (amount, currency, method, constraints) instead of "Stripe" or "Adyen," and it hands you one consistent event stream no matter which provider ran the charge.
+- Before routing, the orchestrator does three boring-but-critical things — validate the intent, enforce idempotency (a client key plus a derived per-provider key so a timeout never double-charges), and persist the attempt.
+- Model routing as a small, explainable scoring function over cost, expected auth rate, and health that returns an ordered *list* (the failover sequence computed once), with weights in config so an analyst can tune it without a deploy.
+- Make health a circuit breaker over a rolling window and distinguish soft declines (issuer said no — normal business) from hard failures (timeouts, 5xx) — only hard failures move the health needle, or a healthy fraud spike trips your breakers.
+- Failover only retries provider-attributable or explicitly-retryable declines (never an issuer's "do not honor"), bounded by a per-intent attempt budget, and a normalization layer maps each provider's webhooks to canonical events (verify signature, dedupe on event id) so downstream systems learn your vocabulary, not each provider's.
+
+## Further reading
+
+- [Moving money across services with a saga](/blog/posts/fintech-saga-compensation-payments.html)
+- [Merchant settlement and payout](/blog/posts/fintech-merchant-settlement-payout.html)
+- [Payments observability and SLOs](/blog/posts/fintech-payments-observability-slos.html)
+- [The 3-D Secure 2 authentication flow](/blog/posts/fintech-3ds2-authentication-flow.html)

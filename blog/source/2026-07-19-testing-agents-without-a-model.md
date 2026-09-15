@@ -68,3 +68,17 @@ Keeping those gates separate is what keeps CI fast and trustworthy. Your unit an
 ## Why it matters
 
 The label "untestable" is a self-inflicted wound. Couple your orchestration to a live model and every test inherits the model's cost, latency, and nondeterminism. Put the seam at the classifier — one interface, a deterministic implementation for tests, the live agent for production and evals — and the orchestration becomes ordinary software: fast to test, cheap to run, reproducible byte-for-byte. The model stops being a prerequisite for your test suite and becomes what it always should have been: a dependency you can swap out. Build the seam first, before the pipeline grows, and you will never have to argue that your agents are untestable again.
+
+## Key takeaways
+
+- Put the seam at the classifier: every phase calls a `Router` interface, with a `LiveModelRouter` (tokens, network) and a deterministic `KeywordRouter` ($0, offline) behind it. The pipeline downstream cannot tell them apart.
+- Router selection is config-driven, not code-driven — a startup normalization of `model_provider` — so CI with no provider configured gets the deterministic path automatically, and a developer with a real endpoint gets the live path with zero code changes.
+- A deterministic runner serves canned plans per route, so an end-to-end pipeline test costs $0 and runs in milliseconds, including honest suspend/resume of the human-in-the-loop gate via a serialized checkpoint.
+- API integration tests mount the FastAPI app and call it through `httpx` with an `ASGITransport`, so requests travel in-process with no sockets opened — a hermetic suite that behaves identically on a laptop, in CI, and offline.
+- Reserve the real model for a *separate* eval gate: "does the orchestration route/gate/suspend/serialize correctly?" is a deterministic CI question; "does the model classify well enough?" is a statistical question answered on a schedule.
+
+## Further reading
+
+- [EXHAUSTED is not failure: bounding agent runs](/blog/posts/exhausted-is-not-failure-bounded-agent-runs.html) — the same swap-a-deterministic-runner-for-a-live-one contract, applied to run outcomes.
+- [The seam (Harness Engineering in Go)](/blog/posts/harness-engineering-go-01-the-seam.html) — the interface-plus-local-stand-in pattern in a different language.
+- [Policy is code, not a prompt](/blog/posts/policy-is-code-not-a-prompt.html) — the governance layer the same pipeline runs its tool calls through.

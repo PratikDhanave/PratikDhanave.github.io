@@ -103,6 +103,20 @@ newSession.Set(userMemorySourceID, state)  // remembered without ever chatting
 
 Two objects, one additive contract, and JSON for durability. Next I'll look at shaping a single run from the outside — instructions, tools, and structured output.
 
+## Key takeaways
+
+- `RunText` is stateless on its own — a `Session` threaded via `agent.WithSession` is what turns a sequence of calls into a conversation; drop it on turn 2 and the agent forgets turn 1.
+- A `ContextProvider` is durable memory across a run: `Provide` injects instructions *before* the model call and `Store` persists what it learned *after*, and that memory lives in the `Session` (keyed by `SourceID`), never in a Go struct field.
+- The provider contract is **additive** — it contributes messages, options, or state and never reaches in to overwrite the agent.
+- A `Session` implements `MarshalJSON`/`UnmarshalJSON`, so persistence is the whole story: marshal the bytes, store them anywhere keyed by conversation ID, and unmarshal into a fresh `Session` so a different process resumes the same chat.
+- Because memory is just data, you can seed a brand-new session with saved state (`session.Set(sourceID, state)`) and skip the conversation entirely.
+
+## Further reading
+
+- [Giving an Agent Tools — Microsoft Agent Framework in Go](/blog/posts/maf-go-03-giving-agents-tools.html)
+- [Persisted conversation — Microsoft Agent Framework in Go](/blog/posts/maf-go-16-persisted-conversation.html)
+- [microsoft/agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)
+
 ---
 
 Next: [Shaping a Run — Microsoft Agent Framework in Go](/blog/posts/maf-go-05-shaping-a-run.html)

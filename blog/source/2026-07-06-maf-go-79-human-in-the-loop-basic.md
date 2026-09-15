@@ -49,6 +49,21 @@ go run ./tutorial/03-workflows/human-in-the-loop/human_in_the_loop_basic
 
 No model or network — but it is interactive: run it in a terminal and it reads your guesses from stdin. The offline test asserts the port↔judge cycle without touching stdin.
 
+## Key takeaways
+
+- A `RequestPort` is a typed door to the outside world: its `Request` type is what you ask the human, its `Response` type is what they hand back, and `CreateResponse` refuses to send the wrong type.
+- The pause is an **event, not a blocking call** — the workflow emits a `RequestInfoEvent` and suspends, and you answer at your leisure with `SendResponse`, which is what makes it durable across process boundaries.
+- Executors declare their protocol as struct fields (`AttrSendsMessage`/`AttrYieldsOutput`), letting the builder type-check edges and outputs at compile time.
+- State survives each round-trip via `ctx.ReadOrInitState`/`ctx.QueueStateUpdate`, so the "tries" counter is intact even though every guess is a separate resumption.
+- Because the port emits an event and resumes on a response, it pairs naturally with the checkpoint lessons — pause, persist, and rehydrate later — and generalises to any external approval or input step.
+
+## Further reading
+
+- [loop · A Cyclic Workflow (guess-the-number)](/blog/posts/maf-go-80-loop.html)
+- [Checkpoint with human in the loop — Microsoft Agent Framework in Go](/blog/posts/maf-go-73-checkpoint-with-human-in-the-loop.html)
+- [Human in the loop — Microsoft Agent Framework in Go](/blog/posts/maf-go-30-human-in-loop.html)
+- [microsoft/agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)
+
 ---
 
 Next: [loop · A Cyclic Workflow (guess-the-number)](/blog/posts/maf-go-80-loop.html)

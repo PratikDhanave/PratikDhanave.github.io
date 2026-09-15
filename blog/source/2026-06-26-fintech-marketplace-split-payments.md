@@ -76,3 +76,18 @@ The regulatory shape of all this depends on one architectural choice. As a **pay
 This is not cosmetic. MoR means tax liability, chargeback exposure, and refund obligation sit on the platform, so your ledger needs a full tax-liability account and dispute reserves. Facilitator means lighter tax handling but stricter KYC/onboarding duties on each connected account, because you're enabling *them* to accept money. Pick the model before you design the accounts — retrofitting tax remittance and dispute ownership onto a ledger that assumed pass-through is a painful migration. Encode the choice explicitly so every split, every payout, and every dispute entry knows which party owns the obligation.
 
 Build the money layer around one non-negotiable rule: every charge, split, payout, refund, and reserve is a balanced double-entry event, and at any instant the connected balances plus retained revenue plus in-transit payouts reconcile exactly to the real bank position. If that identity holds, the marketplace can scale sellers, rails, and regions without the arithmetic ever drifting.
+
+## Key takeaways
+
+- Keep two balance planes: the platform balance (where the acquirer settles one net amount to *you*) and per-seller connected-account balances that are liabilities on your books, not separate bank accounts.
+- Model each seller balance in at least three states — pending, available, reserved — because collapsing them into one integer loses the ability to reason about *why* a balance can't be paid out yet.
+- Freeze the fee-schedule version onto the order and let the seller's net be the *residual* (`total − fee − tax`) so the split always closes to the cent and a mid-flight rate edit can't unbalance in-flight orders.
+- Make payouts idempotent per (seller, period) with the balance decrement and payout-record insert in one transaction; only move money out of the connected account when the payout reaches `paid`.
+- Negative balances (refunds outrunning payouts) are receivables, not holes — engineer for recovery with rolling reserves, debit-first ordering, payout gating, and a collection workflow.
+
+## Further reading
+
+- [Merchant Settlement and Payout](/blog/posts/fintech-merchant-settlement-payout.html)
+- [Engineering Escrow: Conditional Hold and Release](/blog/posts/fintech-escrow-hold-release.html)
+- [The Ledger (fintech handbook)](/blog/posts/fintech-handbook-02-the-ledger.html)
+- [Double-entry bookkeeping (Wikipedia)](https://en.wikipedia.org/wiki/Double-entry_bookkeeping)

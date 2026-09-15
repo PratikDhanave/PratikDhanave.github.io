@@ -89,3 +89,17 @@ Money movement is unforgiving because the failures are visible, expensive, and s
 An explicit state machine makes "where is my money" a single column read. Invariants enforced inside the transaction mean the system fails closed — it refuses to invent money — instead of committing a corruption you find in a reconciliation report weeks later. Reserve-then-capture makes concurrency and partial failure survivable instead of catastrophic. And a deliberate overdraft policy turns "how did this account go negative" into a configured, defensible number.
 
 None of this is exotic. It is the boring, load-bearing machinery that lets you move real money and still sleep. Model the states, guard the edges, reserve before you commit — and decide, on purpose, what an overdraft means before your system decides it for you.
+
+## Key takeaways
+
+- A transfer is a state machine, not an `is_complete` boolean — persist the current state and make illegal transitions inexpressible through one transition table, so "where is this payment?" becomes a single column read instead of 3am forensics.
+- Enforce invariants inside the same database transaction as the state change: balances never go negative unless overdraft is permitted, a transfer's postings sum to zero, and reserved funds are never double-spent — ideally backed by a `CHECK` constraint as a seatbelt.
+- Reserve first, capture second: reserving records a claim (`available = current_balance - active_holds + overdraft_limit`) without moving money, which is what makes double-spending impossible and partial failures reversible via release.
+- Make hold expiry a first-class transition with an `expires_at`, and resolve the capture-vs-expiry race deterministically — a capture only succeeds against a hold still in `FUNDS_RESERVED`, never let both win.
+- An overdraft is a per-account policy decision, not an accident: a hard stop floors availability at zero; an allowed overdraft shifts the invariant to "balance never drops below `overdraft_limit`," enforced by the same `CHECK` and one number that varies.
+
+## Further reading
+
+- [The ledger: double-entry bookkeeping](/blog/posts/fintech-handbook-02-the-ledger.html) — the balanced postings capture writes.
+- [Idempotency and full resumability](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html) — the next chapter, surviving retries and crashes across these steps.
+- [Saga compensation for payments](/blog/posts/fintech-saga-compensation-payments.html) — rolling back a half-succeeded flow, where each reservation is a compensable step.

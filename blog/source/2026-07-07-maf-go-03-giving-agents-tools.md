@@ -106,6 +106,21 @@ One detail the offline test pins: a plain function tool wraps its single argumen
 
 Coming from Python, I kept looking for a decorator. There isn't one — in Go the tool is a `functool.MustNew` value you put in a slice. Once that clicked, the pattern was clean: type your function well (the schema is inferred from it), name and describe it clearly (that's what the model reads), and drop it in `Config.Tools`.
 
+## Key takeaways
+
+- A tool is a normal typed Go function wrapped with `functool.MustNew` — the JSON input schema is inferred from the handler's parameter type, so you never hand-write schema; `Name` and `Description` are the "documentation" the model reads when deciding to call it.
+- Keeping the handler a named function (not an inline closure) lets an offline test call it directly and assert the exact result with no model and no network.
+- The tool reaches the agent through one field, `Config.Tools`, and tool-calling behaves identically whether you `.Collect()` the response or stream it. The model never executes Go — it emits a call, the framework runs your function and feeds the result back, and the loop repeats.
+- A whole agent can be wrapped as a tool with `agenttool.New`: its `Name`/`Description` come from the inner agent, so an orchestrator delegates to a specialist with no routing code.
+- One argument-shape detail the offline test pins: a plain function tool wraps its single argument as `Arg0`, but an agent-as-tool takes a `{"query": "..."}` object that feeds the inner agent.
+
+## Further reading
+
+- [Your First Agent — Microsoft Agent Framework in Go](/blog/posts/maf-go-02-your-first-agent.html)
+- [Using function tools — Microsoft Agent Framework in Go](/blog/posts/maf-go-13-using-function-tools.html)
+- [An agent as a function tool — Microsoft Agent Framework in Go](/blog/posts/maf-go-22-as-function-tool.html)
+- [microsoft/agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)
+
 ---
 
 Next: [Conversation and Memory — Microsoft Agent Framework in Go](/blog/posts/maf-go-04-conversation-and-memory.html)

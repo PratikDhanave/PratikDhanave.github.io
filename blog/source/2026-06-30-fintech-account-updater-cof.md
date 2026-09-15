@@ -64,3 +64,17 @@ Tokenization does not make Account Updater obsolete, though. Not every card in a
 Account Updater is not a fire-and-forget integration. The engineering that surrounds it matters as much as the connection itself. Schedule batches to run ahead of your billing cycle so refreshed credentials are in place before charges fire, not after they fail. Match every response back to a stored credential idempotently, so a re-sent file never double-applies a change. Record the reason code and update timestamp against each credential — that history is what lets you distinguish a card that was genuinely updated from one you should stop billing. And instrument the outcome: the metric that proves the program is working is a falling involuntary-churn rate, measured as recovered charges that would otherwise have declined.
 
 Done well, the whole lifecycle is invisible. A customer's bank sends them a new card, they activate it, and their subscriptions keep running as if nothing happened. That silence is the product.
+
+## Key takeaways
+
+- Stale stored credentials cause *involuntary churn* — cancellation from payment failure, not intent — and Account Updater (Visa VAU / Mastercard ABU) keeps a merchant's card-on-file vault synchronized with the issuer's current view.
+- The service is a matching service returning a *delta*, not a full portfolio dump: submit stored PANs, receive only the credentials that changed, keyed so you can match each response back to a stored card.
+- Batch and real-time models coexist — batch keeps the whole vault broadly current, real-time rescues a specific charge about to fail — and mature systems use both.
+- The value is entirely in handling the response reason codes: respect *closed/do-not-honor* and *contact cardholder* as firmly as *updated*, or you reintroduce the decline noise the program was meant to remove (and risk network fines).
+- Network tokenization is the complementary fix from the other side — a stable token self-heals across reissues — so tokenize what you can and run an updater over the untokenizable remainder; measure success as a falling involuntary-churn rate.
+
+## Further reading
+
+- [Network Tokenization and PCI Scope](/blog/posts/fintech-network-tokenization-pci-scope.html)
+- [Building a Dunning and Retry Engine for Failed Payments](/blog/posts/fintech-dunning-retry-engine.html)
+- [VRP and Subscription Billing](/blog/posts/fintech-vrp-subscription-billing.html)

@@ -121,3 +121,17 @@ LangGraph's `app.invoke(...)` is **synchronous** — you call it and get the fin
 Four calls — `add_edge`, `START`, `END`, `compile` — plus `invoke` are enough to turn any set of nodes into a program. Everything else in LangGraph is a richer way to decide *which* edge fires.
 
 Next in the series: **conditional edges** — routing to different nodes at runtime based on the state.
+
+## Key takeaways
+
+- An unconditional `add_edge(source, target)` just records a `(source, target)` tuple; the builder captures your intent as plain data and `compile()` lowers it into an executable structure later.
+- `START` and `END` are reserved sentinels (`"__start__"` / `"__end__"`), not nodes you write: an edge *from* `START` sets the entry point, an edge *to* `END` marks a path's terminal that surfaces the final state.
+- A graph must have an entry point — `add_edge(START, n)` and `set_entry_point(n)` are identical ways to set it, and compiling without one is an error.
+- `compile()` is a real phase transition: it validates the wiring and returns a reusable `CompiledStateGraph`; `invoke()` runs it from the entry point superstep by superstep to `END` and returns the final state dict.
+- `invoke` is a synchronous front door over an async engine (nodes dispatched concurrently within a superstep, awaited at a barrier); `ainvoke` lets you await it directly.
+
+## Further reading
+
+- [Conditional Edges: Routing with a Function and a Path Map](/blog/posts/langgraph-05-conditional-edges.html)
+- [Nodes](/blog/posts/langgraph-03-nodes.html)
+- [LangGraph low-level concepts](https://langchain-ai.github.io/langgraph/concepts/low_level/)

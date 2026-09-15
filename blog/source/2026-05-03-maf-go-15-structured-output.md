@@ -46,6 +46,19 @@ go run ./tutorial/02-agents/agents/step05_structured_output
 
 The same person prints twice — once decoded via `WithStructuredOutput`, once from streamed JSON you unmarshal. The program needs Foundry; the schema and decoding helpers are tested offline, and the live call is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **Two altitudes for the same idea.** `agent.WithStructuredOutput(&v)` is a per-run option that decodes the model's JSON *for* you; `agent.WithResponseFormat(jsonformat.MustFor[T]())` in `Config.RunOptions` constrains *every* run to `T`'s schema but leaves you to unmarshal the streamed bytes.
+- **The struct is the schema.** `jsonformat.MustFor[PersonInfo]()` reflects over the `json` tags to build a JSON schema sent to Foundry as a `response_format = json_schema` constraint — no prompt-engineering the format.
+- **`RunOptions` are prepended to every run**, so a baked-in response format applies without repeating it at the call site — but you must still drain (range) the run before reading the decoded value.
+- Generics keep it reusable: `runFor[T]` works for any output type unchanged.
+
+## Further reading
+
+- [Structured Output on Azure AI Foundry](/blog/posts/maf-go-44-structured-output.html) — the provider-family take, with the pointer-and-`Stream(false)` gotcha spelled out.
+- [02 · step03 — Using Function Tools](/blog/posts/maf-go-13-using-function-tools.html) — the tool-schema mechanism that structured output complements.
+- [step06 · Persisted Conversation](/blog/posts/maf-go-16-persisted-conversation.html) — serialize the session that carries these runs.
+
 ---
 
 Next: [step06 · Persisted Conversation](/blog/posts/maf-go-16-persisted-conversation.html)

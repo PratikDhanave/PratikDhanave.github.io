@@ -57,3 +57,18 @@ The offline test builds the workflow + wrapping agent with a fake credential and
 ---
 
 Next: [checkpoint_and_rehydrate](/blog/posts/maf-go-71-checkpoint-and-rehydrate.html)
+
+## Key takeaways
+
+- `agentworkflow.NewAgent(wf, ...)` collapses a whole workflow into an ordinary `*agent.Agent` — `CreateSession`, `RunText`, and `agent.Stream(true)` are then the same API you use on a leaf agent.
+- `IncludeOutputsInResponse: true` is the crux: without it the workflow's terminal `OutputEvent` (the merged French + English answer) is silently dropped and only hosted agents' `ResponseUpdate`s surface.
+- A concurrent builder fans one input out to both agents in parallel and aggregates; swapping in a sequential builder turns the *same wrapping code* into a pipeline the caller never notices.
+- Reusing the same `agent.WithSession(session)` across turns keeps one streaming workflow run alive rather than starting fresh.
+- Because a wrapped workflow *is* an agent, multi-agent subsystems nest cleanly inside larger workflows — the composition payoff of the pattern.
+
+## Further reading
+
+- [group_chat_tool_approval · Human-in-the-loop inside a group chat](/blog/posts/maf-go-69-group-chat-tool-approval.html)
+- [checkpoint_and_rehydrate](/blog/posts/maf-go-71-checkpoint-and-rehydrate.html)
+- [concurrent · Fan-out / Fan-in Workflow](/blog/posts/maf-go-74-concurrent.html)
+- [Microsoft Agent Framework for Go](https://github.com/microsoft/agent-framework-go)

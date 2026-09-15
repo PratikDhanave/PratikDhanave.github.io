@@ -82,3 +82,18 @@ The reconciliation phase is what makes STIP honest. Continuity is delivered at t
 Reduced to a state machine, STIP is a clean lesson in designing for partial failure. The happy path — online auth to reconciled ledger — is a straight rail. Everything interesting hangs off the later phases as bounded exceptions: an over-limit decline that terminates immediately, an advice that retries then expires, a reconciled item the issuer later reverses.
 
 The engineering discipline is in the boundaries. Stand-in is not "approve when unsure"; it is "approve *this much*, *this often*, for *these categories*, and record every approval as a durable, idempotent promise you will make good the instant the issuer is reachable." Build the limits too tight and you recreate the decline storm you were avoiding. Build them too loose and an issuer outage becomes an issuer *loss event*. STIP lives in the narrow band between availability and exposure — and the advice queue is the ledger that keeps that trade honest.
+
+## Key takeaways
+
+- Declining everything during an issuer outage is safe and terrible — a decline storm strands every cardholder of that bank at once, so issuers pre-authorize a bounded fallback posture the network enforces on their behalf.
+- The fallback trigger is a cascade, not a flag: hard connectivity loss, timeout (2–5s), or malformed/repeated failures; a timeout is ambiguous because the issuer may have approved before the response was lost.
+- Stand-in decisions ride an intentionally conservative envelope: per-transaction ceiling, cumulative exposure cap, velocity rules, category/geography filters, and card-status checks — anything above the envelope is a terminal decline.
+- Every stand-in approval generates an ISO 8583 advice (0120/0220) held in a durable, idempotent, TTL-bounded store-and-forward queue — that queue *is* the risk ledger of money the issuer owes but hasn't booked.
+- Reconciliation squares the exposure when the issuer signs back on: it posts normal cases, deduplicates the timeout ambiguity by reference number, and occasionally reverses an untenable approval into the dispute rails — continuity at the outage, correctness afterward.
+
+## Further reading
+
+- [ISO 8583 Codec](/blog/posts/fintech-iso-8583-codec.html)
+- [Card Authorization, Capture, and Clearing](/blog/posts/fintech-card-auth-capture-clearing.html)
+- [Payments Observability and SLOs](/blog/posts/fintech-payments-observability-slos.html)
+- [ISO 8583 (Wikipedia)](https://en.wikipedia.org/wiki/ISO_8583)

@@ -235,6 +235,19 @@ def set_alert(user_id: str, alert_type: str, threshold: float) -> None:
 
 Advisors can set any alert. Clients can only set critical/weekly. OPA enforces it.
 
+## Key takeaways
+
+- Porting a tool starts with `@tool`: the function signature and docstring become the model-facing schema, exactly as they did in ADK.
+- Governance wrappers — `@governed_query`, `@governed_write`, `@governed_delete` — layer on DLP, audit logging, and approval gates; write/delete operations can require human approval and enforce an `amount_limit`.
+- When a policy is too complex for flags (for example "user can only access their own data unless they have a manager role"), `@opa_governed_tool` delegates the allow/deny decision to Open Policy Agent evaluating a Rego policy.
+- Governance, tracing, and retry are independent, composable layers wrapped around a raw API call, so each can be unit-tested in isolation from the others.
+
+## Further reading
+
+- [Callbacks and Middleware](/blog/posts/adk-to-maf-callbacks.html) — the composable decorator pattern these wrappers build on
+- [Provider Abstraction and .env Configuration](/blog/posts/adk-to-maf-provider-config.html) — swapping the model behind these tools without code changes
+- [Lessons from Converting 18 Agents in 90 Days](/blog/posts/adk-to-maf-lessons.html) — how governed tools held up across a real migration
+
 ---
 
 Next: [Provider Abstraction and .env Configuration](/blog/posts/adk-to-maf-provider-config.html)

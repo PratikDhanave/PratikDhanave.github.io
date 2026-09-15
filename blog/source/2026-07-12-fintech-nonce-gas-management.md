@@ -79,3 +79,17 @@ A dependable sender comes down to a handful of properties you can encode and tes
 - **Pending is not failure.** A timeout triggers replacement, not a second transaction. Only eviction is terminal.
 
 Model the sender as this lifecycle first — allocate, price, broadcast, and treat stuck as a first-class state with a replacement loop — and the reliability problems stop being mysterious mempool folklore. They become transitions you can observe, alert on, and prove correct.
+
+## Key takeaways
+
+- An account is a serial channel: transactions from one address are mined only in strict ascending nonce order with no gaps, so one underpriced transaction head-of-line-blocks every transaction behind it.
+- Assign nonces from a local allocator that tracks the highest *dispatched* nonce under a per-address lock — never from the node's transaction count, which reflects only *mined* transactions and lags under concurrency.
+- A nonce you assign but never confirm leaves a hole that stalls its successors; releasing/reusing that exact nonce on failure is a liveness requirement, not an optimization.
+- Gas has two independent jobs — the limit caps computation (underestimate → out-of-gas revert), the price bids for inclusion (underbid → stuck) — and pricing is a retry-time decision because the base fee moves block to block.
+- "Still pending" is not failure: recover by *replacing* the stuck transaction at the **same nonce** with a fee that clears the network's minimum-bump threshold, never by resending at a fresh nonce. Only eviction (Dropped) is terminal.
+
+## Further reading
+
+- [HD Wallets and Deposit Sweeping](/blog/posts/fintech-hd-wallet-deposit-sweeping.html)
+- [On-Chain Settlement and Reorg Handling](/blog/posts/fintech-onchain-settlement-reorg.html)
+- [Idempotency and Resumability](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html)

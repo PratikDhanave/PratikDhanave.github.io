@@ -91,3 +91,17 @@ Three controls make the automation trustworthy:
 ## Where to start
 
 You do not need the whole pipeline on day one. The highest-leverage first build is the **trial-balance assembly with the out-of-balance query wired to a hard gate** — it catches the errors that cause the worst late nights. Add the posting-date guard next so the cutoff is a real control. Accrual automation and reversing entries come after, once the shape of your recurring accruals is stable. The state machine ties it together: once every step is a named transition with a gate, the month-end fire drill becomes a pipeline run you can trust and, eventually, schedule.
+
+## Key takeaways
+
+- Model the close as a state machine — open → freeze → accruals → trial balance → (adjusting-entry loop) → sign-off → hard close → open next — so the work between transitions becomes deterministic instead of tribal knowledge.
+- The cutoff is a control, not a wall clock: a posting-date guard rejects new *operational* journals in a frozen period (admitting only close journals), and an origin flag makes the delta between frozen and final trial balances fully attributable.
+- Accruals recognize activity not yet captured operationally; the reversing entry (an auto-mirror dated day 1 of the next period) prevents double-counting when the real invoice arrives, and accrual runs are idempotent keyed by `(period, accrual_rule, source_ref)`.
+- Out-of-balance detection checks total debits == total credits; if per-journal balance is enforced at write time, a failing global check points *outside* the ledger's guarantees (partial batch, rounding residue, unvalidated import) — so localize the break to a specific `journal_id` and delta.
+- A soft close warns and stays reopenable for early management reporting; a hard close makes the period immutable and snapshots the trial balance, so any later correction is a new journal in a later period or a formally audited reopen.
+
+## Further reading
+
+- [Chart of Accounts and Sub-Ledger Modeling](/blog/posts/fintech-chart-of-accounts-modeling.html) — the account and posting-rule model the trial balance rolls up
+- [Sub-Ledger to GL Posting](/blog/posts/fintech-subledger-gl-posting.html) — the sub-ledger reconciliation the completeness checks depend on
+- [Multi-Currency Accounting and FX Revaluation](/blog/posts/fintech-multi-currency-revaluation.html) — the reversing revaluation journals posted before sign-off

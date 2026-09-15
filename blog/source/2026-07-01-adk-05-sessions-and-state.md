@@ -107,3 +107,17 @@ await svc.append_event(s, Event(author="user",
 The cursor is not a special API — it is `cart` with a different name. Point the driver at a database backend and the same scan resumes after a restart. That is the whole payoff of the delta-on-event discipline: your working memory, your resumable jobs, and your audit log are all one mechanism.
 
 **Next in the series:** Memory — long-term recall *across* sessions, versus state, which lives within one.
+
+## Key takeaways
+
+- A `Session` is an ordered list of events plus a `state` bag; state is working memory within one conversation — not the model's context window and not cross-conversation long-term memory.
+- The key prefix *is* the scope API: no prefix = session, `user:` follows the user across sessions, `app:` is shared by all users, `temp:` is stripped the instant the turn commits. There is no separate scope argument.
+- You never mutate state and expect it to persist — you attach a `state_delta` to an event and the `SessionService` applies it on append, so every change is auditable, replayable, and safe under concurrent branches.
+- Instructions support `{key}` templating that substitutes the scoped state value before the prompt reaches the model, so a `user:`-scoped value written in a past conversation flows into this one's prompt without manual string-building.
+- Swapping the `SessionService` backend (in-memory → database → Vertex AI) never touches agent code; a resumable scan is just a session-scoped cursor integer, because reconstructing state is a pure fold over the event log's deltas.
+
+## Further reading
+
+- [Tools in ADK](/blog/posts/adk-04-tools.html) — the code that reads and mutates state
+- [Memory in ADK](/blog/posts/adk-06-memory.html) — long-term recall across sessions
+- [Google ADK documentation](https://google.github.io/adk-docs/)

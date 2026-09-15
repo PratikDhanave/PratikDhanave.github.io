@@ -84,3 +84,17 @@ A lifecycle is only trustworthy if its exits are explicit. A forward leaves the 
 **Matured** is the natural end: the value date arrives, the contract is due, and it moves to settlement. **Settled** is terminal success — both currency legs have been exchanged, the obligation is discharged, and the position drops out of your live MTM population. Keep these two distinct: a contract that has matured but not yet settled is still an operational risk (a payment could fail) and must not be silently treated as done.
 
 **Cancelled** is the other terminal exit, and it happens *before* maturity — a counterparty agreement to tear up the trade, or an early unwind. The critical engineering rule is that cancellation crystallises the current mark-to-market as a realised amount and then removes the contract from all forward-looking valuation. A cancelled forward that still appears in tomorrow's MTM run is a double count. Model it as a hard terminal state with no path back into the active loop, and the daily revaluation stays truthful — which, in the end, is the only thing a hedging book is for.
+
+## Key takeaways
+
+- A forward is a contract that *lives*, not a one-shot conversion — the hard problem is the daily revaluation, the roll, and the terminal-state discipline after booking, not booking itself.
+- The two dates are the point: `trade_date` freezes the economics, `value_date` is when cash moves, and the gap is why the contract needs revaluing. Store the all-in `contract_rate` (spot plus forward points, from covered interest parity), not the points.
+- Mark-to-market is a state the contract *returns to daily*, not a one-time transition: re-interpolate the forward-points curve at the shrinking remaining tenor each run, apply the settlement-currency discount factor, and let the sign follow direction.
+- A roll is structurally an FX swap — a near leg closing the maturing forward and a far leg opening the extended one — modeled as a branch off mark-to-market that keeps the hedge's identity and history intact (which auditors and hedge accounting care about).
+- Keep the three exits distinct: `matured` (due, awaiting settlement — still operational risk), `settled` (terminal success), and `cancelled` (pre-maturity, crystallises MTM as realised and leaves the forward-looking population). A cancelled forward in tomorrow's MTM run is a double count.
+
+## Further reading
+
+- [CLS and PvP FX settlement](/blog/posts/fintech-cls-pvp-fx-settlement.html)
+- [Multi-currency revaluation](/blog/posts/fintech-multi-currency-revaluation.html)
+- [Building a cash-flow forecasting pipeline for treasury](/blog/posts/fintech-cashflow-forecasting.html)

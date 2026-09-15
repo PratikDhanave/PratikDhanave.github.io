@@ -129,4 +129,17 @@ adk run greeting_agent   # terminal REPL against the same agent
 
 That is the whole foundation. Every later concept — richer instructions, structured output, memory, sub-agents, evaluation, deployment — plugs into these same four sockets.
 
-**Next in the series:** LLM Agents — going deeper on instructions, model configuration, and structured output.
+## Key takeaways
+
+- ADK is model-agnostic and deployment-agnostic, and ships as both `google-adk` (Python) and `google.golang.org/adk/v2` (Go) — this series works through both side by side.
+- Four primitives carry everything later: the agent (instruction + tools), the runner (the reason→act→observe loop), the session (message history + state), and the `adk` CLI.
+- An `LlmAgent` is a bundle of `name`, `model`, `instruction`, and `tools`; Python resolves a model *string* lazily while Go wants a constructed `*gemini.Model` value up front, so model setup can fail and Go threads `ctx`/errors through.
+- Conventions do quiet work: `root_agent` is the exact module-level name the CLI discovers, and tools returning a `dict` with a `status` key let the model branch on success vs. failure instead of parsing prose.
+- `adk web` gives a dev UI with a full event trace, `adk run` a terminal REPL, and a programmatic `Runner` is the production path where you own sessions, streaming, and persistence.
+
+## Further reading
+
+- [LLM Agents in Google ADK: The Four Knobs You Actually Tune](/blog/posts/adk-01-llm-agents.html)
+- [Workflow Agents: Deterministic Orchestration in ADK](/blog/posts/adk-02-workflow-agents.html)
+- [Sessions and State](/blog/posts/adk-05-sessions-and-state.html)
+- [Google ADK documentation](https://google.github.io/adk-docs/)

@@ -256,6 +256,17 @@ The hard cases aren't a different discipline — they're the same primitives, ar
 
 ---
 
+## Key takeaways
+
+- A conversation has two orthogonal axes: per-turn trajectory quality and overall task success judged by a `GoalMet` predicate over the whole transcript; they come apart in both directions, so report two numbers rather than one average.
+- Simulate the user side (a deterministic state machine for CI stability, an LLM-backed persona for coverage) and never reset session state between turns — that persistence is the entire fidelity of a multi-turn test.
+- In multi-agent systems, record each step's author so a failed trajectory names a culprit; add handoff-correctness checks, and keep the full authored trajectory because the root cause is frequently one hop upstream of the symptom.
+- Rubric, safety, and hallucination checks are the same mechanism — an LLM judge scoring a transcript against a criterion — so use a separate judge model, force strict JSON, and let the threshold encode intent (safety 1.0, hallucination ~0.9).
+- Match metric to altitude: task success and safety gate the system, while per-turn trajectory and component rubrics diagnose which agent to open.
+
 ## Further reading
 
+- [CI regression gating for agent evals](/blog/posts/eval-agents-go-07-ci-regression-gating.html)
+- [Trajectory evaluation](/blog/posts/eval-agents-go-04-trajectory-evaluation.html)
+- [Building eval datasets](/blog/posts/eval-agents-go-06-eval-datasets.html)
 - [ADK evaluation documentation](https://adk.dev/evaluate/) — the metric names (`multi_turn_task_success_v1`, `multi_turn_trajectory_quality_v1`, `rubric_based_*`, `safety_v1`, `hallucinations_v1`) and the conceptual model this series ports to Go.

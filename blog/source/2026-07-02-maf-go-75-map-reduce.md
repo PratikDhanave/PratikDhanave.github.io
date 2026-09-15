@@ -49,3 +49,17 @@ The offline tests assert both the graph wiring and an end-to-end word count (`a:
 ---
 
 Next: [01 · Edge Condition (conditional edges)](/blog/posts/maf-go-76-01-edge-condition.html)
+
+## Key takeaways
+
+- MapReduce is built entirely on the workflow engine — no agent, no LLM — and runs fully offline and deterministically, proving the same engine scales from a two-node join to a multi-stage pipeline.
+- The graph stacks `AddFanOutEdge` / `AddFanInBarrierEdge` twice (splitter → mappers → shuffler → reducers → completion), so the shuffler fires once after all maps and completion fires once after all reduces.
+- Keep edge messages tiny ("done, here's a path") and move bulk data out of band: the word list and chunk ranges go through `ctx.QueueStateUpdate` / `ctx.ReadState`, and per-stage results go to files under a temp dir.
+- A broadcast edge feeding addressed work uses the selective fan-out pattern — every reducer receives every `ShuffleComplete`, and a `if msg.ReducerID != id { return nil }` guard makes each process only its shard.
+- Stateless stages are `NewExecutor` closures; stages that accumulate across a barrier use `BindNewExecutorFunc` (a fresh value per run) and compare their count against the `expected` source count to decide when "all arrived."
+
+## Further reading
+
+- [concurrent · Fan-out / Fan-in Workflow](/blog/posts/maf-go-74-concurrent.html) — the single-barrier lesson this builds on
+- [01 · Edge Condition (conditional edges)](/blog/posts/maf-go-76-01-edge-condition.html)
+- [Workflow Mechanics — Microsoft Agent Framework Go](/blog/posts/maf-go-08-workflow-mechanics.html)

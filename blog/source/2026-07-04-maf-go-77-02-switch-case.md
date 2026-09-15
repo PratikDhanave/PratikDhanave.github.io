@@ -47,3 +47,18 @@ Fully offline. The built-in input mentions "invoice", so the detector returns `U
 ---
 
 Next: [03 · Multi-Selection Fan-Out (edge assigner)](/blog/posts/maf-go-78-03-multi-selection.html)
+
+## Key takeaways
+
+- The switch builder fans one edge into N mutually-exclusive branches — sugar over conditional edges, building one fan-out edge whose assigner picks a single target per message.
+- `WithDefault` is what makes it safe: unlike raw conditional edges (which drop a message if no predicate matches), a switch guarantees exactly one branch always fires, so an `Uncertain` email lands in review rather than vanishing.
+- `AddToBuilder(b)` is the join back — the switch is built on a sub-builder and you must commit it before the outer builder sees those edges; forgetting it silently leaves the branches unwired.
+- Cases are evaluated in order and the first matching predicate wins, so order `AddCase` calls from most specific to least, and keep classification a plain function outside the executor so node and tests reason about it directly.
+- This is the ergonomic construct for deterministic routing between agents ("billing questions to the finance agent, everything else to the general agent") and stays fully offline because the classifier is a pure function, not a model call.
+
+## Further reading
+
+- [01 · Edge Condition (conditional edges)](/blog/posts/maf-go-76-01-edge-condition.html) — the two-branch primitive this is sugar over
+- [03 · Multi-Selection Fan-Out (edge assigner)](/blog/posts/maf-go-78-03-multi-selection.html)
+- [Workflow Mechanics — Microsoft Agent Framework Go](/blog/posts/maf-go-08-workflow-mechanics.html)
+- [Microsoft Agent Framework Go source](https://github.com/microsoft/agent-framework-go)

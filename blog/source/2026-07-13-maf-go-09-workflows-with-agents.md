@@ -89,3 +89,17 @@ Once agents are just executors, orchestration isn't a separate framework — it'
 ---
 
 Next: [Orchestration Patterns — Microsoft Agent Framework in Go](/blog/posts/maf-go-10-orchestrations.html)
+
+## Key takeaways
+
+- The graph doesn't care whether a node calls a model or is a pure Go function — both are executors wired the same way — so you mix them freely and spend model calls only where reasoning is required.
+- An agent node emits a *typed* structured result (`agent.WithStructuredOutput(&result)`), which is what makes it routable; `AddHandlerRaw(msgType, outType, fn)` keys handlers by the Go type of the incoming message.
+- `AddSwitch`/`AddCase`/`WithDefault` is the workflow analogue of `switch`/`case`/`default`, delivering a message to exactly one downstream executor.
+- `AddFanOutEdge` broadcasts to parallel workers; `AddFanInBarrierEdge` waits until *all* sources fire — the barrier turns a race into a join, and chaining them gives you map-reduce. Keep edge messages tiny; move bulk data through shared state.
+- `ctx.YieldOutput(x)` ends the run with `x`; `ctx.SendMessage("", x)` pushes work downstream (empty target = all outgoing edges). A graph may contain cycles — termination is the executors' job, not the graph's.
+
+## Further reading
+
+- [Orchestration Patterns — Microsoft Agent Framework in Go](/blog/posts/maf-go-10-orchestrations.html)
+- [Workflow Mechanics — Microsoft Agent Framework in Go](/blog/posts/maf-go-08-workflow-mechanics.html)
+- [agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)

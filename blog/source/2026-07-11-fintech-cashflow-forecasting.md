@@ -77,3 +77,17 @@ Everything upstream exists to produce one thing: a decision to move money. Where
 Two properties make these proposals safe to act on. First, they must respect *value dates*, not trade dates: a spot FX trade to cover a Thursday shortfall has to settle by Thursday, which given standard settlement means acting earlier. Second, the proposal should carry its own confidence. A breach driven by firm known outflows warrants a firm funding action now; a breach that only appears at the pessimistic edge of predicted flows warrants watching, not committing, until the flows firm up.
 
 The forecast should never silently auto-execute. Its job is to surface the shortfall, size it, date it, and attribute its certainty — then hand a treasurer a ranked list of proposals. The pipeline turns a wall of individual flows into that short, dated, confidence-tagged list, and that is the entire value it delivers.
+
+## Key takeaways
+
+- A forecast is a pipeline, not a nightly balance dump: it ingests two kinds of flows, aggregates them onto a currency-by-date grid, rolls them into projected positions, and closes the loop with variance against actuals.
+- Split flows into **known** (contractual/instructed — firm amount, changed only by an explicit event, stored append-only) and **predicted** (statistical — carry a confidence band, stored in a regenerable table stamped with model version). Treating a prediction as certain is how forecasts quietly lie.
+- Aggregate onto a grid, not a single number — currencies don't net, so project onto `(currency, value_date)` cells and keep the known vs. predicted split (and a confidence band) inside each cell.
+- The number a treasurer acts on is the running **ending balance** per currency per day, not net movements — you can't net across time any more than across currency, so accumulate forward and scan each curve for buffer breaches.
+- Variance keeps it honest: attribute each miss by cell and class — a known miss points at a data/plumbing bug, a predicted miss at model drift — and feed residuals back to improve the model.
+
+## Further reading
+
+- [Liquidity and cash sweeps](/blog/posts/fintech-liquidity-cash-sweeps.html)
+- [Booking and revaluing FX forwards and swaps for hedging](/blog/posts/fintech-fx-forwards-swaps-hedging.html)
+- [LCR/NSFR liquidity reporting](/blog/posts/fintech-lcr-nsfr-liquidity-reporting.html)

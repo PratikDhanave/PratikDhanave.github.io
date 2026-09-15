@@ -172,6 +172,21 @@
 <p>To keep replay bounded, snapshot the full book state at periodic sequence numbers. Recovery then loads the latest snapshot and replays only the tail of inputs after it. The snapshot must be taken <em>between</em> sequenced inputs, never mid-match, so it always represents a clean, reproducible state boundary.</p>
 <h2 id="what-to-get-right-first">What to get right first</h2>
 <p>If you build one of these, the invariants matter more than throughput. Integer prices and quantities, never floats. A sequencer that is the single linearization point, so ordering is decided once. A core that reads no clock, no random source, and no shared mutable state outside the book. And an event stream that is append-only and gap-checked end to end. Get those four right and you have an engine whose behavior you can prove; optimize the match loop afterward, because a fast engine that cannot be replayed is not an exchange core — it is a liability with good latency numbers.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>The book is two priced ladders under price-time priority; store prices as integer ticks (<code>int64</code>), never floats, so &ldquo;best price&rdquo; is an exact integer min/max — and each trade prints at the <em>resting</em> order&rsquo;s price (passive sets, aggressor pays).</li>
+<li>Every order type is one match loop parameterized by three fields (limit price, time-in-force, fill constraint); only FOK needs a dry-run pass over the book before mutating state.</li>
+<li>The single-threaded core is a feature: determinism requires state transitions be a pure function of the input sequence, so all non-deterministic work (I/O, parsing, risk checks, allocation) is front-loaded before the core.</li>
+<li>The sequencer is the single linearization point — its monotonic sequence number <em>is</em> the clock, so the engine never reads wall-clock time inside a decision — and scaling is done by sharding per instrument, not parallelizing one book.</li>
+<li>The gap-free, sequence-tagged event stream is the source of truth; journaling the sequenced inputs plus periodic between-input snapshots lets you replay bit-for-bit for recovery, hot standby, and dispute resolution.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-order-types-time-in-force.html">Order types and time-in-force</a></li>
+<li><a href="/blog/posts/fintech-market-data-orderbook-reconstruction.html">Order-book reconstruction from market data</a></li>
+<li><a href="/blog/posts/fintech-smart-order-routing-best-ex.html">Smart order routing and best execution</a></li>
+<li><a href="/blog/posts/fintech-pretrade-risk-position-pnl.html">Pre-trade risk, position and P&amp;L</a></li>
+</ul>
 
 
   <aside class="related-posts">

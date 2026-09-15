@@ -107,3 +107,18 @@ The fan-*in* half uses machinery from post 2: each `summarize` copy returns an u
 None of these four are new engine capabilities — they are compositions of primitives from earlier posts. `interrupt()` is checkpointing plus a suspend signal. `create_react_agent` is a two-node graph with a conditional edge and an `add_messages` reducer. Tools are functions with a reflected schema. `Send` is a dynamic conditional edge whose results fan back through a reducer channel. Once the engine is solid, the agent framework on top is a thin, readable layer.
 
 Next in the series: the final post ties the engine together and looks at what LangGraph deliberately leaves to its surrounding ecosystem.
+
+## Key takeaways
+
+- `interrupt()` is checkpointing plus a suspend signal — it *requires* a checkpointer, because the paused state must be durably parked; resume re-enters the *same node* with the human's answer as `interrupt()`'s return value via `Command(resume=...)`.
+- `create_react_agent` is just a `StateGraph`: a model node and a `ToolNode` joined by a conditional edge that loops until the model emits no tool calls, over state `{"messages": Annotated[list, add_messages]}`.
+- A tool is a plain function; LangChain derives its JSON schema (name, args, description) from the signature and docstring by reflection — that is the only "magic."
+- The `Send` API is dynamic fan-out (the *map* of map-reduce): a conditional edge returns a list of `Send(node, state)` objects to dispatch N parallel node runs when N is known only at runtime; fan-in merges them through a reducer channel.
+- None of the four are new engine capabilities — they are compositions of primitives from earlier posts (checkpointing, conditional edges, reducers).
+
+## Further reading
+
+- [Checkpointing and persistence](/blog/posts/langgraph-09-checkpointing-persistence.html) — the prerequisite that makes `interrupt()` work.
+- [Cycles and the agent loop](/blog/posts/langgraph-06-cycles-agent-loop.html) — the back-edge behind `create_react_agent`.
+- [The LangGraph glossary](/blog/posts/langgraph-11-glossary.html) — every term in one place.
+- [LangGraph docs](https://langchain-ai.github.io/langgraph/) — the official reference for `interrupt`, `Send`, and prebuilt agents.

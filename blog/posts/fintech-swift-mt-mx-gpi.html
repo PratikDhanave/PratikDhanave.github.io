@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-08-02">August 02, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/rails/" class="tag-link"><span class="tag">#Rails</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/payment-rails/" class="tag-link"><span class="tag">#Payment Rails</span></a></div>
   </header>
@@ -213,6 +213,21 @@
 <h2 id="what-to-build">What to build</h2>
 <p>Treat the migration surface as three cooperating components rather than one translator. A <strong>codec layer</strong> parses MT into typed field objects and validates MX against the schema, so bad messages fail at the edge. A <strong>mapping layer</strong> transforms between the typed MT model and the MX tree with an explicit, tested table and a truncation policy that preserves the canonical payload. A <strong>tracking layer</strong> owns the UETR invariant and posts idempotent status events to the gpi tracker.</p>
 <p>Kept separate, each is testable in isolation: golden-file tests for the codec, round-trip property tests for the mapping (MT to MX to MT should lose only what your policy documents as lossy), and idempotency tests for the tracker. The coexistence window will last longer than anyone plans for, so the code that carries you through it should read like infrastructure — boring, typed, and impossible to accidentally break the one identifier that keeps every payment findable.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>The MT-to-MX migration is a long coexistence window, not a flag day: a single payment may be re-formatted between block-and-tag MT (MT103, MT202) and XML MX (<code>pacs.008</code>, <code>pacs.009</code>, <code>pacs.002</code>) several times before it reaches the beneficiary.</li>
+<li>The UETR is the invariant — a UUIDv4 minted once at origination and copied, never regenerated; a correspondent that mints a fresh one severs the trace. It lives in the MX transaction group header and in MT field 121 of the block-3 user header.</li>
+<li>Parse MT fields as typed extractors: convert amounts to integer minor units immediately (no floats) and pull the currency exponent from a table, since a naive <code>* 100</code> corrupts zero-decimal currencies like JPY.</li>
+<li>MX-to-MT is the lossy direction — structured names, addresses, and remittance get truncated — so persist the full MX payload as the record of truth, emit the truncated MT for the hop that needs it, and flag it as truncated.</li>
+<li>gpi tracking needs idempotency at two layers: the UETR keys the payment, and a status-event key derived from <code>(UETR, BIC, status, settlement-date)</code> collapses duplicate tracker posts. Watch for charge-bearer drift and value-date vs settlement-date confusion.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-iso-20022-message-modeling.html">Modeling ISO 20022 payment messages</a></li>
+<li><a href="/blog/posts/fintech-nostro-vostro-reconciliation.html">Nostro/vostro reconciliation</a></li>
+<li><a href="/blog/posts/fintech-interbank-mtls-message-signing.html">Interbank mTLS and message signing</a></li>
+<li><a href="/blog/posts/fintech-cls-pvp-fx-settlement.html">CLS and PvP FX settlement</a></li>
+</ul>
 
 
   <aside class="related-posts">

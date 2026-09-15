@@ -87,3 +87,17 @@ It is not the containment boundary. If an agent is compromised, an app-layer pol
 ## Why it matters
 
 Layered policy is how real authorization scales: org → team → agent, or here workload → agent. But layers only compose *safely* under most-restrictive-wins, and most-restrictive-wins only works if you refuse to conflate an explicit forbid with an absence. Nail that one distinction and the net guarantee falls out for free: a specialist agent can be strictly more constrained than its workload, or fill a gap the workload never spoke to — but it can never, ever loosen a floor someone deliberately laid down. That's delegation without privilege escalation, and it's the property you actually want when you start handing tools to a swarm of agents.
+
+## Key takeaways
+
+- Every tool call is evaluated against two independent scopes — workload `(workload_id, tool)` and agent `(agent_id, tool)` — each resolving to `allow`, `require_approval`, `read_only`, or `forbid`, then composed into one effective decision.
+- The scopes stack rather than vote: the workload sets a ceiling (and sometimes a floor), the agent operates inside it, and composition is "most-restrictive-wins" on the rank `forbid > read_only > require_approval > allow` — almost.
+- The "almost" is the whole point: an explicit `forbid` is a deliberate floor that no tighter layer can loosen, while *silence* (no workload entry) is an absence a more specific layer may fill — collapsing both to one boolean is the common bug.
+- The four rules: an agent can tighten, can fill a silence, cannot loosen an explicit forbid, and `agent_id=""` reproduces workload-only behavior (a no-op compatibility layer). Guard ordering matters — check `forbid` before silence and before the generic max.
+- This is app-layer *attribution* (per-agent accountability and least-privilege intent), not *containment* — a compromised agent's app-layer check runs inside the blast radius, so pair it with a distinct cloud identity per agent for real isolation.
+
+## Further reading
+
+- [The Cheapest Reliable Executor Wins](/blog/posts/cheapest-reliable-executor-wins.html)
+- [Policy Is Code, Not a Prompt](/blog/posts/policy-is-code-not-a-prompt.html)
+- [Policy as Code Without Shipping Code](/blog/posts/policy-as-code-without-shipping-code.html)

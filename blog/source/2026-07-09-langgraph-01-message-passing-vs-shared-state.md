@@ -113,3 +113,17 @@ Once you see the graph as a Pregel program, the rest of LangGraph stops being a 
 Every one of those is "a thing that happens at a barrier." That's the payoff of the mental model: you're not memorizing an API, you're reading a Pregel program.
 
 **Next in the series:** we go deep on state, channels, and reducers — the `{channel: reducer}` contract that turns partial updates into shared state.
+
+## Key takeaways
+
+- The core distinction is *what flows on an edge*: in **message-passing** a node emits a payload the engine routes; in LangGraph's **shared-state** model there is one state object every node reads in full, and a node returns only a partial update (`{channel: value}`).
+- Reducers decide how each channel merges: no reducer means overwrite (last write wins), `add_messages` appends, `operator.add` sums. `Annotated[T, reducer]` is the vocabulary that attaches the merge function to a channel.
+- LangGraph's runtime is Pregel / Bulk-Synchronous-Parallel: a superstep is compute (all active nodes run concurrently on the start-of-step snapshot) → barrier (wait for all) → route (reduce updates, pick next nodes).
+- That barrier is why shared state is safe under parallelism — every node reads the same immutable snapshot and updates apply only at the barrier, so there's no read-write race and determinism is free.
+- This framing explains the rest of LangGraph as "things that happen at a barrier": reducers, edges, cycles (a back-edge just reschedules a node — hence `recursion_limit`, not a stack limit), checkpointers, and streaming.
+
+## Further reading
+
+- [State, channels, and reducers: how LangGraph merges updates](/blog/posts/langgraph-02-state-and-reducers.html)
+- [Cycles and the agent loop](/blog/posts/langgraph-06-cycles-agent-loop.html)
+- [LangGraph documentation](https://langchain-ai.github.io/langgraph/)

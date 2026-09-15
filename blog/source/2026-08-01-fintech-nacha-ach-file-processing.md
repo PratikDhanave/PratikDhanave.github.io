@@ -83,3 +83,18 @@ Every transition should post a corresponding ledger movement — a settled entry
 ## What to get right first
 
 If you are building this from scratch, the ordering that saves pain is: get byte-exact serialization and the entry-hash fold correct before anything else, because a malformed file never even enters the return flow. Then build the effective-date warehouse on banking-day math, since a wrong effective date corrupts every downstream reconciliation. Only then wire the return/NOC handler — but design its code table as data, not a switch statement, because the R and C code sets grow and their required actions are regulated, not up to you. An ACH processor is ultimately a small set of pure functions (parse, hash, classify) wrapped around one scheduler and one durable state machine — keeping those boundaries clean is what lets you sleep while money moves overnight.
+
+## Key takeaways
+
+- A NACHA file is a strict four-level tree of 94-character lines (File → Batch → Entry → Addenda) plus control records; model it as a real tree, keep the raw line for byte-exact round-tripping, and pad to blocks of ten with all-nines filler.
+- The entry hash is not cryptographic — it is the sum of the first eight routing digits across entries, truncated to ten low-order digits; compute all control totals as a fold over the tree at serialization time, never via running counters that drift on a reversal.
+- Warehouse entries by effective date and release them on banking-day math against a Fed holiday calendar with cutoff awareness; the warehouse is the single point where a submitted entry becomes irrevocable, so idempotency must hold there.
+- Return handling is a state machine driven by R-series codes: soft returns (R01, R09) are re-presentable within a capped budget, hard returns (R02, R03) kill the payment method, and unauthorized returns (R05, R10) carry a 60-day window and must never auto-retry.
+- Notifications of change (C-series) mean the entry posted but account data was wrong — apply them to stored records or eventually face fines; post a ledger movement on every transition so the money ledger and ACH state machine never disagree.
+
+## Further reading
+
+- [SEPA credit transfers and direct debit mandates](/blog/posts/fintech-sepa-sct-sdd-mandates.html)
+- [Modeling ISO 20022 payment messages](/blog/posts/fintech-iso-20022-message-modeling.html)
+- [RTP and FedNow instant payments](/blog/posts/fintech-rtp-fednow-instant-payments.html)
+- [The dunning and retry engine](/blog/posts/fintech-dunning-retry-engine.html)

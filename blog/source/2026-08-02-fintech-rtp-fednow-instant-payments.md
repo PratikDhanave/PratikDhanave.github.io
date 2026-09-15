@@ -78,3 +78,18 @@ Pulling it together, four assumptions from the batch world stop holding:
 - **Risk moves into the request.** Liquidity and fraud decisions run inline under a hard latency budget, which pushes you toward precomputed limits, cached signals, and fast-failing checks rather than deep synchronous lookups.
 
 None of this is exotic once you accept the core constraint: the money is final in seconds and the rail never sleeps, so correctness has to be established before you emit the message and reconciled from the rail's own answer afterward. Build for the ambiguous timeout and the irrevocable credit first, and the happy path takes care of itself.
+
+## Key takeaways
+
+- An instant payment is a synchronous request/response, not a fire-and-forget batch submission — you hold an open connection and in-flight transaction for the whole round trip, so you size for concurrent in-flight payments and tail latency, not nightly throughput.
+- Finality happens at the far end (receiving bank accepts) but your service learns it second-hand via the `pacs.002` status; that gap is where reliability engineering lives, so reconciliation against rail outcomes is a first-class subsystem.
+- Request-for-payment (`pain.013`) is a pull *request*, not a mandate or direct debit; model it as its own object with a lifecycle (requested/presented/accepted/declined/expired) that is only linked to the eventual `pacs.008`, not the same record.
+- Liquidity and fraud checks move into the hot path under the rail's timeout budget, and every mutation keys off a once-derived end-to-end identifier so a retry after an ambiguous timeout is a no-op, never a double-debit.
+- There is no cancel: correcting a settled transfer means originating a compensating payment, and a timed-out payment stays pending-verification (resolved via a status inquiry on the e2e id) rather than being booked as success or failure.
+
+## Further reading
+
+- [Modeling ISO 20022 payment messages](/blog/posts/fintech-iso-20022-message-modeling.html)
+- [Request-to-pay mandates](/blog/posts/fintech-request-to-pay-mandates.html)
+- [RTGS vs DNS settlement architecture](/blog/posts/fintech-rtgs-vs-dns-architecture.html)
+- [Idempotency and resumability](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html)

@@ -134,3 +134,17 @@ The next post builds **Lesson 1 — the agent harness itself**: guardrails as mi
 From there we go down the list: durable execution, sandboxing, memory, orchestration, supervision, and the human-in-the-loop approval gate — each one a runnable Go package, each one honest about its leak.
 
 If you want to read ahead, the code is one `go build ./...` away — every lesson is a package under `internal/`, and none of them need Azure to run.
+
+## Key takeaways
+
+- The "harness" is everything *around* the model call — input guardrails, durable execution, a sandbox, memory, routing, supervision, an approval gate. The model itself stays a stub that echoes your message until the very last step of the series.
+- Every managed-Azure boundary gets a small Go interface (a *seam*) with a local, zero-dependency stand-in behind it. The caller talks to the interface, so wiring Azure later is *adding an implementation*, not restructuring code.
+- Each stand-in's doc comment "states the leak" — it names the Azure service it imitates and exactly where it is weaker (e.g. a substring blocklist standing in for ML-based Content Safety Prompt Shields).
+- Lesson 2 (durable execution) is the spine: human-in-the-loop in Lesson 7 is literally a checkpoint marked `awaiting_approval`, so the store is built once and reused.
+- Execution is at-least-once, so step functions and approved actions must be idempotent — that is true of Cosmos DB too, not a weakness of the local file store.
+
+## Further reading
+
+- [The Agent Harness: guardrails as middleware](/blog/posts/harness-engineering-go-02-agent-harness-guardrails.html) — Lesson 1, the first pattern.
+- [Durable Execution: checkpoint every step](/blog/posts/harness-engineering-go-03-durable-execution.html) — Lesson 2, the spine of the series.
+- [microsoft/agent-framework-go](https://github.com/microsoft/agent-framework-go) — the Azure-side framework each seam targets.

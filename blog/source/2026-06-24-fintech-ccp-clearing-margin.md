@@ -99,3 +99,9 @@ If you build systems for a clearing member, the CCP's numbers are inputs you mus
 ## What to remember
 
 Novation concentrates and mutualizes counterparty risk into the CCP; it doesn't erase it. IM covers potential future exposure and is held; VM settles realized moves and is paid. The margin cycle is a relentless daily-plus-intraday clock, and the default waterfall — defaulter's margin, defaulter's fund, CCP skin-in-the-game, mutualized fund, assessments — is the ordered stack that decides who pays when a member fails. Build member systems that can forecast the call, reconcile and dispute it, fund it under stress, and post the right collateral — because in cleared markets, being unable to meet a margin call *is* the default.
+
+## Further reading
+
+- [Designing a Netting Engine](/blog/posts/fintech-netting-engine-design.html) — the multilateral netting that novation enables
+- [Securities Lending and Repo](/blog/posts/fintech-securities-lending-repo.html) — the same haircut, mark-to-market, and margin-call mechanics on collateralized loans
+- [Securities Settlement and DvP](/blog/posts/fintech-securities-settlement-dvp.html) — delivery-versus-payment settlement of the cleared positions

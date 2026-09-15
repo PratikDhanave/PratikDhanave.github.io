@@ -46,3 +46,16 @@ The agent behind it comes from `buildAgent(agentType)`, which returns a `foundry
 ---
 
 Next: [Capstone · DocQA — answer questions about your own documents](/blog/posts/maf-go-86-docqa.html)
+
+## Key takeaways
+
+- An A2A server wraps a single Foundry agent (chosen with `--agentType`) behind an `a2aprovider` executor and exposes two routes: `/.well-known/agent-card.json` for discovery and `/` for the JSON-RPC endpoint.
+- The card is the contract: the `Name`, `Skills`, and `SupportedInterfaces` URL that `buildAgent`/`newMux` set are exactly the fields the client reads back — mismatch the URL and discovery fails, which is why client and server are a *pair*.
+- Only the invoice agent carries real tools (three `functool.MustNew` queries over a seeded in-memory dataset); policy and logistics are instruction-only agents that reply with fixed text.
+- `buildAgent` returning an error for unknown types (rather than exiting) lets the offline test build every card, drive both routes with `httptest`, and exercise the invoice queries using a fake credential — the live bind is gated behind `AF_LIVE=1`.
+
+## Further reading
+
+- [A2A Client](/blog/posts/maf-go-84-a2a-client.html) — the other half of the pair
+- [Capstone · DocQA](/blog/posts/maf-go-86-docqa.html)
+- [agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)

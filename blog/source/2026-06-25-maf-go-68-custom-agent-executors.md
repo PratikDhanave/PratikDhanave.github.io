@@ -51,6 +51,18 @@ go run ./tutorial/03-workflows/agents/custom_agent_executors
 
 Most lessons build and test offline; live model calls are gated behind credentials (and elsewhere behind `AF_LIVE=1`).
 
+## Key takeaways
+
+- A workflow graph is allowed to contain cycles; termination is the executors' responsibility, not the graph's. The `FeedbackProvider` either calls `ctx.YieldOutput(...)` to end or `ctx.SendMessage(...)` to push work back to the writer.
+- Its `attempts` counter lives in the executor factory closure, so it persists across the cycle for a single run — that's what caps the revisions.
+- Typed messages route the graph: `AddHandlerRaw(msgType, outType, …)` keys a handler by the Go type of the incoming message, so `SloganWriter` can have separate handlers for the initial `string` and a returning `FeedbackResult`.
+- Structured output (`agent.WithStructuredOutput`) is the glue — each agent's answer arrives as a typed Go struct, which is what makes it routable between nodes.
+
+## Further reading
+
+- [07 · Writer ⇄ Critic Workflow](/blog/posts/maf-go-67-07-writer-critic-workflow.html) — the same loop expressed with `AddSwitch` instead of hand-written executors
+- [group_chat_tool_approval · Human-in-the-loop inside a group chat](/blog/posts/maf-go-69-group-chat-tool-approval.html) — the next lesson in the workflows/agents track
+
 ---
 
 Next: [group_chat_tool_approval · Human-in-the-loop inside a group chat](/blog/posts/maf-go-69-group-chat-tool-approval.html)

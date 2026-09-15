@@ -83,3 +83,18 @@ This post is about *where* you enforce policy. For how you author it, I've writt
 ## Why it matters
 
 Every serious agent system eventually has to answer one question: when the model is wrong — because it was fooled, or jailbroken, or simply confused — does anything bad actually happen? If your answer lives in the system prompt, you don't have an answer; you have a hope, and you're pinning it on the exact component an attacker gets to manipulate. Move the enforcement out-of-band, into a fail-closed middleware pipeline the model never sees, and the question resolves itself: the model can be as wrong as it likes, and the forbidden call still doesn't run. A prompt is advice. A middleware pipeline is a control. Build the thing that can't be talked out of anything.
+
+## Key takeaways
+
+- A system prompt is advice, not a security control — an attacker with a crafted input can talk the model out of any prose rule, so access control that lives in the same text stream the model reads is enforced by the least trustworthy component in the system.
+- Treat everything the model emits as untrusted input. The interesting question is not "can the model be tricked into *trying* something bad?" (assume yes) but "when it tries, what actually happens?" — and the answer must depend on code the model never executes.
+- Every tool call passes through the Governed Gateway, a composable middleware pipeline that resolves one decision (`allow`, `require_approval`, `read_only`, `forbid`) per `(workload_id, tool_name)`; the model emits an intent, the gateway disposes.
+- This makes prompt injection irrelevant to access control: injection can change what the model *outputs*, but the forbidden call short-circuits at the Policy stage and the tool never runs. The attacker plays in the model's sandbox; they never reach the control.
+- Fail-closed is the difference between a control and theater: a tool with no policy entry is denied, so forgetting a rule fails loud ("the tool doesn't work") rather than silent ("the tool works for everyone").
+
+## Further reading
+
+- [Governing the tools you didn't write](/blog/posts/governing-the-tools-you-didnt-write.html) — extending the fail-closed default to runtime-injected tools.
+- [Policy as code without shipping code](/blog/posts/policy-as-code-without-shipping-code.html) — how to author the policy the gateway enforces.
+- [The board policy is a YAML file](/blog/posts/the-board-policy-is-a-yaml-file.html) — making that policy a reviewable artifact.
+- [OWASP Top 10 for LLM Applications](https://owasp.org/www-project-top-10-for-large-language-model-applications/) — where prompt injection ranks in the threat model.

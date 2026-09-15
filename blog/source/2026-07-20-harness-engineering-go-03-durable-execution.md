@@ -174,3 +174,17 @@ Durable execution gives the agent a memory that survives crashes — but the nex
 ---
 
 Next: [Secure Sandboxing: Running Agent-Written Code Behind a Timeout](/blog/posts/harness-engineering-go-04-secure-sandboxing.html)
+
+## Key takeaways
+
+- `workflow.Run` takes a `runID` and named steps, checkpoints after each one lands, and on re-run loads the last checkpoint and resumes from the next step — there is no separate "begin" and "resume" API, just `Run`.
+- `Load` returning `nil` is a fresh start, not an error; the checkpoint is written *after* a step's function returns, carrying the index of the last completed step, and the loaded state is cloned before mutation so a resume never corrupts what it loaded from.
+- `FileStore` writes atomically: marshal to a temp file, then `os.Rename` over the target, because `rename(2)` is atomic on POSIX — a crash mid-write leaves the old checkpoints intact rather than a truncated, unparseable file.
+- Execution is at-least-once (step runs, then checkpoint saves), so step functions *must be idempotent* — append keyed by `runID`, set `status=done`, use deterministic tool-call IDs. This is the honest guarantee of any checkpoint-after model, true of Cosmos DB too.
+- The durability claim is proven by a test that re-execs the binary and calls `os.Exit(3)` mid-run — a real process death that can't be deferred past — then resumes from a fresh `FileStore` and sees only the unfinished step re-run.
+
+## Further reading
+
+- [The Agent Harness: guardrails as middleware](/blog/posts/harness-engineering-go-02-agent-harness-guardrails.html) — Lesson 1, the guardrail this workflow sits behind.
+- [Human-in-the-loop: an approval gate on durable state](/blog/posts/harness-engineering-go-08-human-in-the-loop.html) — Lesson 7, which reuses this exact store to park a pending approval.
+- [microsoft/agent-framework-go](https://github.com/microsoft/agent-framework-go) — the checkpointed-workflow model the Cosmos DB seam targets.

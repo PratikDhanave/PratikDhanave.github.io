@@ -48,6 +48,19 @@ go run ./tutorial/02-agents/agents/step01_running
 
 Most lessons build and test offline; the live model call is gated behind `AF_LIVE=1` (and needs `az login` plus a Foundry endpoint). Here `TestRunLogger_PassesThrough` exercises the middleware directly, asserting updates come back unchanged and the counter advances 1 → 2 — no network.
 
+## Key takeaways
+
+- **A middleware is one function.** `agent.MiddlewareFunc` adapts a plain func to the `agent.Middleware` interface; returning `next(ctx, messages, options...)` unchanged makes it a transparent observer.
+- **The signature is the crux.** To *transform* behaviour you wrap the returned iterator, edit `messages` before calling `next`, or short-circuit and yield your own updates — everything cross-cutting (logging, tracing, guardrails) lives here.
+- **State held in a middleware is shared across every run** of that agent — which is why the run counter reaches `Run 2` on the second call, a subtle gotcha if the state is mutable.
+- Middleware is baked into `agent.Config.Middlewares`, not passed per call, so it applies uniformly and is provider-agnostic — the same seam works against Foundry, OpenAI, or Anthropic.
+
+## Further reading
+
+- [02 · Multi-Turn Conversation](/blog/posts/maf-go-12-multiturn-conversation.html) — thread a session through the same middleware-wrapped agent.
+- [step07 · Observability (OpenTelemetry)](/blog/posts/maf-go-18-observability.html) — where a real tracing span slots into this middleware seam.
+- [AG-UI State Management](/blog/posts/maf-go-31-state-management.html) — a middleware that emits extra `DataContent` updates rather than just observing.
+
 ---
 
 Next: [02 · Multi-Turn Conversation](/blog/posts/maf-go-12-multiturn-conversation.html)

@@ -65,3 +65,18 @@ This is also what makes reversal safe. Relief gets granted in error; a borrower 
 The recurring failure is optimizing for the happy path — current, modified, cured — and bolting on the rest. But the branches carry the risk and the regulatory exposure. A denied request that silently vanishes is a fair-lending question waiting to be asked. A re-default that reuses the "modified" state without distinguishing a first concession from a second understates loss. A re-aging with no cap and no audit trail is how a portfolio's delinquency numbers get quietly laundered.
 
 Draw the whole machine — every terminal state, every guard, every compensating edge — before writing the first migration. In lending, the states you forgot to model are exactly the ones the regulator will ask about.
+
+## Key takeaways
+
+- Hardship relief is a transition in a state machine, not a flag on a row: requesting relief (hardship-requested → under-review) is not receiving it, and a *denied* request must be recorded, not silently discarded, or it keeps aging as if nothing happened.
+- "Modified" covers mechanically different things — payment holiday/deferral (waive, capitalize, or park the interest), term extension, re-aging (resets the delinquency counter, capped by regulators), and full restructuring — each a different money movement.
+- A single transition fans out into three subsystems that must read the same state: delinquency status (a deferral suppresses progression), interest accrual (may fork to non-accrual), and accounting (a concession stamps a sticky TDR/modified-loan flag that survives cure until seasoning).
+- Model transitions as an append-only event log with the current status a *projection*; use guarded transitions (preconditions + idempotency keys, illegal edges rejected) and events that carry their own justification (from/to, actor, effective vs. booking date, modification parameters).
+- Reversals are compensating events that move the loan back and explain themselves — you never edit history, because the questions that matter in lending are historical: what did we know, when, and who decided.
+
+## Further reading
+
+- [Delinquency and NPA State Machine](/blog/posts/fintech-delinquency-npa-state-machine.html)
+- [Collections and Recovery Workflow](/blog/posts/fintech-collections-recovery-workflow.html)
+- [Loan Origination System](/blog/posts/fintech-loan-origination-system.html)
+- [Audit Trails and Event Sourcing](/blog/posts/fintech-handbook-03-audit-trails-event-sourcing.html)

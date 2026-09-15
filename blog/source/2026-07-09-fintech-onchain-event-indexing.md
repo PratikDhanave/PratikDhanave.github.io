@@ -73,3 +73,17 @@ Launching against a chain with years of history means backfilling. Run backfill 
 ## What holds it together
 
 Strip away the vocabulary and an on-chain indexer is a stream processor with three unusual constraints: its input can rewrite its own recent past, its output must be queryable like a warehouse, and "correct" is defined by a finality rule rather than a wall clock. The `(block, log index)` key makes writes idempotent, parent-hash detection plus a bounded rollback range makes them reorg-safe, and a finalized checkpoint makes the whole thing consistent with what the chain will actually keep. Get those three right and everything else — backfills, retries, multiple contracts — reduces to replaying the same safe write.
+
+## Key takeaways
+
+- Ingest in **ordered, gapless** fashion behind a single cursor that advances by one only after a block's writes commit — run a WebSocket subscription for freshness plus a polling loop as the source of truth to close gaps.
+- Decode logs against a **versioned** ABI registry keyed by contract address and block range (proxies change event shapes), and record undecodable logs with an "undecoded" marker rather than dropping them — a visible gap is recoverable, a silent discard is gone.
+- The single most important design decision is keying writes by `(block_number, log_index)`, which turns every insert into an idempotent upsert; derived state (balances, positions) is recomputed from event rows, never written independently.
+- Recent blocks are not final: detect reorgs by parent-hash mismatch, recover with a bounded rollback range (delete `block_number > fork_point`, reprocess), and the idempotent key makes the reprocess just more upserts.
+- Distinguish the live head from the finalized head — money-moving queries read only to the finalized checkpoint, and that checkpoint is also the crash-restart anchor. Backfills run as a separate worker through the same idempotent path with zero coordination.
+
+## Further reading
+
+- [On-chain settlement and reorgs](/blog/posts/fintech-onchain-settlement-reorg.html)
+- [HD wallets and deposit sweeping](/blog/posts/fintech-hd-wallet-deposit-sweeping.html)
+- [On-chain AML address screening](/blog/posts/fintech-onchain-aml-address-screening.html)

@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-12">July 12, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/lending/" class="tag-link"><span class="tag">#Lending</span></a><a href="/blog/tags/ledger/" class="tag-link"><span class="tag">#Ledger</span></a><a href="/blog/tags/credit/" class="tag-link"><span class="tag">#Credit</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/credit-risk/" class="tag-link"><span class="tag">#Credit Risk</span></a></div>
   </header>
@@ -174,6 +174,21 @@
 <h2 id="putting-it-together">Putting it together</h2>
 <p>The engine&rsquo;s contract is small and strict: take a <code>(loan snapshot, payment, effective-dated config)</code> and return an ordered list of ledger entries plus a new status — as a <strong>pure function</strong>, with idempotency and persistence wrapped around it as a thin, transactional shell. Keeping the allocation math pure is what makes it unit-testable against the tricky cases: the payment that exactly clears one period, the one cent short of curing, the overpayment that spans two future installments, the payment applied under a since-changed waterfall order.</p>
 <p>A repayment waterfall looks like arithmetic. It is really a policy engine whose every output is a promise to a borrower and a line in a regulatory report. Treat the ordering as versioned configuration, make the core deterministic and pure, write immutable ledger entries, and guard posting with an idempotency key — and &ldquo;split this payment&rdquo; becomes a decision you can explain, reproduce, and defend years later.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>The bucket order (fees → interest → principal) is <em>policy, not a constant</em> — it varies by product and regulation — so model it as an ordered list of bucket definitions attached to the product, versioned and effective-dated.</li>
+<li>Allocation is two-dimensional: within a period you walk the bucket order, across periods you settle the oldest past-due period first, so a partial payment that covers one month of arrears advances the delinquency clock by exactly one period rather than curing the account.</li>
+<li>Overpayment surplus must go somewhere explicit — an advance (prepaid installments) or a suspense account — never silently absorbed into principal, which would rewrite the agreed amortization schedule.</li>
+<li>Allocation <em>is</em> the decision, not after-the-fact bookkeeping: it drives delinquency status (credit reporting, collections) and interest accrual (accrues on outstanding principal), so a mis-posting propagates into every downstream number.</li>
+<li>Trustworthiness rests on three properties — deterministic (pass the value date in, integer/decimal money, fixed rounding), auditable (immutable ledger entries, corrections as reversing entries), and idempotent (dedup on a payment key, dedup-and-write in one transaction).</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-amortization-schedule-engine.html">Amortization Schedule Engine</a></li>
+<li><a href="/blog/posts/fintech-interest-accrual-engine.html">Interest Accrual Engine</a></li>
+<li><a href="/blog/posts/fintech-delinquency-npa-state-machine.html">Delinquency and NPA State Machine</a></li>
+<li><a href="/blog/posts/fintech-handbook-05-idempotency-and-resumability.html">Idempotency and Resumability</a></li>
+</ul>
 
 
   <aside class="related-posts">

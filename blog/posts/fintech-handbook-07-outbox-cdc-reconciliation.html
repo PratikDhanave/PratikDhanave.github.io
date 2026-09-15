@@ -112,7 +112,7 @@
       <span>·</span>
       <time datetime="2026-07-31">July 31, 2026</time>
       <span>·</span>
-      <span>7 min read</span>
+      <span>8 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">#Reliability</span></a><a href="/blog/tags/cdc/" class="tag-link"><span class="tag">#CDC</span></a><a href="/blog/tags/reconciliation/" class="tag-link"><span class="tag">#Reconciliation</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/databases/" class="tag-link"><span class="tag">#Databases</span></a></div>
   </header>
@@ -203,6 +203,21 @@ for row in rows:
 <p>Run reconciliation on a schedule — hourly for high-value flows, at least daily for everything — and track the age and count of open breaks as a first-class metric. Rising, aging breaks are the earliest honest signal that something upstream is broken.</p>
 <h2 id="why-it-matters">Why it matters</h2>
 <p>The outbox stops you losing events. CDC gets state out with minimal ceremony. Idempotent consumers absorb the duplicates that at-least-once delivery guarantees you will produce. And reconciliation is the backstop that assumes all of it will still, occasionally, be wrong — because across a system boundary, it will be. In most domains a dropped event is an inconvenience. In fintech it is someone&rsquo;s rent. Reconciliation is not a feature you bolt on after launch; it is the only mechanism by which you can <em>say</em> your books are right instead of hoping they are.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>The dual-write problem has no &ldquo;be careful&rdquo; fix: committing the DB then publishing can lose an event, and publishing then committing can announce a phantom. A crash between the two lines breaks either order.</li>
+<li>The transactional outbox collapses two writes into one — insert the event row in the same transaction as the state change — so the event is durable the moment the business transaction commits.</li>
+<li>The outbox is at-least-once, so the relay can republish after a crash; every consumer must be idempotent on a stable event ID (dedup table or a unique constraint on the effect).</li>
+<li>CDC tails the write-ahead log and needs no outbox table, but it emits row diffs, not domain events — reach for the outbox for deliberate domain events, CDC for low-touch replication to a warehouse, cache, or index.</li>
+<li>Delivery guarantees only cover your own events; internal books and an external party&rsquo;s statement still drift. Reconciliation matches on (external_id, amount, date), auto-resolves known breaks, and escalates the rest — track break age and count as a first-class metric.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-handbook-06-apis-and-webhooks.html">The transactional outbox pattern</a> — the APIs and webhooks that consume these events</li>
+<li><a href="/blog/posts/fintech-handbook-05-idempotency-and-resumability.html">Idempotency and resumability</a> — the consumer-side discipline that makes at-least-once safe</li>
+<li><a href="/blog/posts/fintech-reconciliation-break-detection.html">Reconciliation and break detection</a> — the matching and classification engine in depth</li>
+<li><a href="https://en.wikipedia.org/wiki/Change_data_capture">Change data capture</a> — Wikipedia background on log-based CDC</li>
+</ul>
 
 
   <aside class="related-posts">

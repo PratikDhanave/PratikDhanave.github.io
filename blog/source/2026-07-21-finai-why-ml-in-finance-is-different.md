@@ -64,3 +64,17 @@ Put those forces together and a different workflow falls out. You do not start w
 > **▸ [Open the interactive diagram](/blog/diagrams/finai-why-ml-in-finance-is-different.html)** — the domain-first financial ML workflow: from a money metric through constraints, modeling, an assurance gate, and live guardrails against fraud and regime change.
 
 The model-first habit optimizes a score and hopes the business follows. The domain-first approach makes the money metric, the regulator, the messy data, the shifting world, and the adversary explicit from the first design decision. It usually produces simpler models — and systems that are still standing when the regime changes.
+
+## Key takeaways
+
+- The loss that matters is denominated in currency, not symmetric classification error: the cost of a false positive and a false negative are rarely equal or even constant (missed-fraud cost scales with transaction size), and plain accuracy on imbalanced data rewards a useless "predict the majority" model.
+- Regulators can demand a reason for every decision, so explainability is a hard requirement that changes model selection at the root — sometimes the transparent model beats a marginally sharper black box you cannot defend.
+- Point-in-time correctness is the field's core data discipline: joined financial data makes it dangerously easy to leak future information (a later label, a status field that already reflects the fraud) into a training row.
+- Finance violates the same-distribution assumption as a matter of course (regime change), so a random train/test split is often wrong — time-aware, walk-forward validation is the honest test.
+- The environment is adversarial: your data distribution shifts *because* your model exists, inputs may be poisoned, and guardrails plus a named retrain-or-halt owner must exist before an incident, not during one.
+
+## Further reading
+
+- [The production gap: why financial ML models get shelved](/blog/posts/finai-production-gap-model-to-money.html) — designing backward from the money metric, gate by gate.
+- [Building a credit scorecard](/blog/posts/finai-credit-scorecard-from-data-to-score.html) — the interpretable-model-wins argument made concrete.
+- [Supervised fraud detection with imbalanced data](/blog/posts/finai-supervised-fraud-imbalanced-data.html) — the imbalance and cost-asymmetry problems in depth.

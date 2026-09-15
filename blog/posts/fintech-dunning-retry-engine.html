@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-06-27">June 27, 2026</time>
       <span>·</span>
-      <span>5 min read</span>
+      <span>6 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">#Reliability</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a></div>
   </header>
@@ -185,6 +185,21 @@ def classify(raw_code: str) -&gt; Policy:
 <h2 id="operating-the-engine">Operating the engine</h2>
 <p>Instrument the funnel, not just the endpoints. The metric that matters is <em>recovery rate by decline class and attempt number</em> — it tells you where retries are wasted and where an extra attempt would pay for itself. Watch attempt-1 recovery separately from attempt-4: if late attempts almost never succeed, tighten the budget and save the fees. Track updater/token-refresh hit rate as its own line, since it is usually the cheapest recovery lever you have.</p>
 <p>A dunning engine is deceptively simple to sketch and easy to get wrong in ways that quietly lose money or annoy customers. The discipline is in the classification table, the reason-aware scheduling, and the replay safety — get those three right and the rest is tuning.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>The whole system turns on one early decision: is the decline hard (instrument fundamentally unusable — stop and dunning-cancel) or soft (transient — schedule a retry)? Never hard-code raw processor strings; normalize them into your own taxonomy with a per-entry policy, and give unknown codes a cautious single retry, never a hard cancel.</li>
+<li>Backoff spacing follows the <em>reason</em> for the decline, not a generic exponential curve — retry <code>insufficient_funds</code> near payday cadence, <code>issuer_unavailable</code> on short backoff — and snap each attempt into an allowed business-hours window.</li>
+<li>Enforce a per-instrument retry budget (often a global per-billing-period cap too) so one dunning cycle can&rsquo;t fire ten authorizations.</li>
+<li>The highest-leverage recovery move is fixing the credential, not the timing: run Account Updater and network-token refresh <em>before</em> consuming a retry attempt on <code>expired_card</code>.</li>
+<li>Replay safety rests on three invariants — idempotency per attempt, a single writer of dunning state, and ledger reconciliation — so a retry that succeeded at the network but timed out on your side can&rsquo;t become a phantom double-charge.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-account-updater-cof.html">Account Updater and the Card-on-File Lifecycle</a></li>
+<li><a href="/blog/posts/fintech-network-tokenization-pci-scope.html">Network Tokenization and PCI Scope</a></li>
+<li><a href="/blog/posts/fintech-vrp-subscription-billing.html">VRP and Subscription Billing</a></li>
+<li><a href="/blog/posts/fintech-card-auth-capture-clearing.html">Card Authorization, Capture, and Clearing</a></li>
+</ul>
 
 
   <aside class="related-posts">

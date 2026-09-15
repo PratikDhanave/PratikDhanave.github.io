@@ -49,6 +49,19 @@ go run ./tutorial/02-agents/providers/azure/openai_chat_completion
 
 Live runs need `az login` plus `AZURE_OPENAI_ENDPOINT` (and optional `AZURE_OPENAI_DEPLOYMENT_NAME`). The structural test runs offline with a fake credential; live calls are gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **`openaiprovider.NewChatCompletionsAgent` backs the agent with Azure OpenAI's Chat Completions API**, using the OpenAI Go SDK client pointed at your Azure resource — the same provider, a different endpoint shape than the Responses constructor.
+- **On Azure the `Model` field is your *deployment name*, not a catalog model ID.** The lesson reads `AZURE_OPENAI_DEPLOYMENT_NAME` (default `gpt-4o-mini`) and the endpoint from `AZURE_OPENAI_ENDPOINT`.
+- **The credential scope differs from Foundry.** This constructor uses `azure.WithTokenCredential(cred)` with the *default* scope — not the `ai.azure.com` scope a Foundry model resource needs — which is the distinction between an Azure OpenAI resource and a Foundry model resource.
+- Choosing between `NewChatCompletionsAgent` and `NewResponsesAgent` is the entire provider decision; the `agent.Config` (name, instructions, middleware) is shared.
+
+## Further reading
+
+- [02 · Providers · Azure · OpenAI Responses](/blog/posts/maf-go-38-openai-responses.html) — the newer, stateful Responses API and its `DisableStoreOutput` knob.
+- [providers/azure · Azure AI Project](/blog/posts/maf-go-35-ai-project.html) — the Foundry project path and its differing credential scope.
+- [Azure OpenAI documentation](https://learn.microsoft.com/azure/ai-foundry/) — deployment names and the Chat Completions vs. Responses APIs.
+
 ---
 
 Next: [02 · Providers · Azure · OpenAI Responses](/blog/posts/maf-go-38-openai-responses.html)

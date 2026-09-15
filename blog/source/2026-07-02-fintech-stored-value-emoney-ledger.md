@@ -65,3 +65,18 @@ Every top-up must land in safeguarding before — or atomically with — the wal
 ## Why the discipline pays off
 
 A wallet built this way is auditable by construction. Any balance can be replayed from its postings; any discrepancy is a named ledger break, not a mystery; and the safeguarding invariant turns "are we solvent?" into a query you can run on demand rather than a quarterly hope. The lifecycle — top-up, available, hold, spend, settle, with refunds and withdrawals hanging off the end — is not incidental structure. It is the set of states in which money is allowed to exist, and every one of them is a balanced pair of entries in an append-only book.
+
+## Key takeaways
+
+- The balance is derived from an append-only ledger of double-entry postings, never a mutable column; every movement is balanced debits = credits, rejected before write if it isn't, and corrected by reversal rather than edit.
+- Money moves through a lifecycle — top-up → available → hold → spend → settle, with refund and withdrawal branches — and each transition is a ledger event.
+- `available = ledger balance − Σ(active holds)`: a tap places a hold that leaves the ledger unchanged but drops spendable balance; model holds as first-class objects with an expiry so this stays correct under concurrency and heals on expiry.
+- The safeguarding invariant `Σ(customer wallet balances) ≤ safeguarding account balance` is the core solvency rule — e-money must be held 1:1 in a segregated account, never lent or commingled — and top-ups/withdrawals must move the ledger and the bank together.
+- Idempotency keys (payment ID, auth ID) enforced by a unique constraint make top-ups, holds, captures, releases, and refunds safe against retries and out-of-order webhooks; reconciliation proves ledger-vs-bank agreement and fixes breaks only through new postings.
+
+## Further reading
+
+- [The ledger](/blog/posts/fintech-handbook-02-the-ledger.html)
+- [Representing money](/blog/posts/fintech-handbook-01-representing-money.html)
+- [Escrow hold and release](/blog/posts/fintech-escrow-hold-release.html)
+- [Subledger and GL posting](/blog/posts/fintech-subledger-gl-posting.html)

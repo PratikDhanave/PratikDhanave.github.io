@@ -83,6 +83,18 @@ That's the arc this series walks, one post per track. My promise for each: real 
 
 Next post: the smallest possible thing that works — a client, instructions, and one `run()` call.
 
+## Key takeaways
+
+- Strip the framework down and it's two primitives plus plumbing: an **agent** (chat client + instructions + optional tools, run in a loop) and a **workflow** (a graph of executors where *you* decide the path, not the model).
+- The rule of thumb: reach for an agent when the task is open-ended and the model should decide the steps; reach for a workflow when the process has defined steps and multiple agents must coordinate.
+- Every lesson targets Azure AI Foundry with credential-based auth (`FoundryChatClient` + `AzureCliCredential`) — no stored keys; pinning to one provider keeps the learning in the agent/workflow APIs.
+- The curriculum is topologically sorted across 12 tracks so no lesson depends on a later one, ending in a grounded, cited document-Q&A capstone.
+
+## Further reading
+
+- [Your First Agent — Microsoft Agent Framework in Python](/blog/posts/maf-python-02-your-first-agent.html) — the smallest thing that works: client, instructions, one `run()`
+- [step07 · Observability](/blog/posts/maf-go-46-observability.html) — the same framework in the Go SDK, if you prefer Go
+
 ---
 
 Next: [Your First Agent — Microsoft Agent Framework in Python](/blog/posts/maf-python-02-your-first-agent.html)

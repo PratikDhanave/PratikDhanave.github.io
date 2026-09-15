@@ -77,3 +77,18 @@ The caller upstream passes a token and gets back an approval or decline. It cann
 The payoff is concrete. With the vault and proxy as the only PAN-aware components, the number of systems requiring PCI controls typically collapses from "most of the platform" to a handful, which is the difference between a manageable annual assessment and a permanent tax on every team. Network tokens add a second benefit that is not about compliance at all: because the scheme keeps the token current across card reissuance and expiry, card-on-file and subscription charges stop failing when customers get new plastic, and issuers approve token-cryptogram traffic at higher rates than raw PANs.
 
 The things that bite are operational. Network tokens are provisioned per card *and per token requestor*, so lifecycle events — a card reported lost, a token suspended by the scheme — arrive as asynchronous notifications you must consume and reconcile against your vault entries. Detokenization is a hard dependency in the auth path, so the proxy and vault need the availability budget of the rail itself. And the boundary only holds if you police it: a single log line, a debugging endpoint, or an analytics export that captures a real PAN re-scopes the component that emitted it. Keep the vault narrow, keep the proxy the only exit, and let the tokens flow everywhere else.
+
+## Key takeaways
+
+- Two different things are called "token": a vault token your own service mints as an internal surrogate with no network value, and a network token issued by the scheme's TSP as a real routable credential with a per-transaction cryptogram; a mature setup vaults the PAN locally and requests a network token keyed to the same entry.
+- Scope reduction comes not from the token but from *where detokenization lives*: exactly two components may reach a real PAN — the vault on the way in and a narrow detokenization proxy on the way out — and everything between is provably incapable of producing one.
+- The capture path is the most common way teams stay in scope; the hosted field must be served from the provider's origin inside an iframe so same-origin policy blocks your JavaScript, and never proxy the submission "just to add a header."
+- Request the network-token cryptogram per authorization rather than caching it — caching a one-time value defeats its purpose — and enforce the boundary in code so callers get an `AuthResult`, never a bare PAN.
+- Network tokens lift approval rates and survive card reissuance, but add operational load: consume asynchronous lifecycle notifications, give the vault/proxy the availability budget of the rail, and police logs/exports so no stray PAN re-scopes a component.
+
+## Further reading
+
+- [Card authorization, capture, and clearing](/blog/posts/fintech-card-auth-capture-clearing.html)
+- [Integrating 3-D Secure 2](/blog/posts/fintech-3ds2-authentication-flow.html)
+- [Account updater and card-on-file](/blog/posts/fintech-account-updater-cof.html)
+- [HSM key management ceremony](/blog/posts/fintech-hsm-key-management-ceremony.html)

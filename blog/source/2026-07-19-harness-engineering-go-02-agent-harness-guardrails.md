@@ -189,3 +189,17 @@ That's the harness: a model call with a guard on the door, a health check, and a
 ## Next
 
 The stub agent is fine until the agent needs to *do* something that takes multiple steps and might crash halfway. The [next post](/blog/posts/harness-engineering-go-03-durable-execution.html) builds **Lesson 2 — durable execution**: a workflow that checkpoints after each step and resumes from the last one after a crash, proven by a test that kills a real subprocess mid-run. It's also the spine the human-in-the-loop lesson is built on, so it's worth getting right.
+
+## Key takeaways
+
+- The guardrail is a *hard block*, not flag-and-pass: a forwarded injection payload still runs, so blocking is the only thing that actually prevents the attack. The cost is occasional false positives, kept rare by a narrow blocklist.
+- The blocklist is a short list of high-signal phrases, lowercased for case-insensitive matching — precision over recall, because a local stand-in cannot afford recall it does not have.
+- It counts runes, not bytes (`len([]rune(text))`), so multibyte non-ASCII input is not rejected at a fraction of the intended character ceiling.
+- A blocked request returns HTTP 200 with the reason in the `guardrail` field; malformed JSON is the 400. A refused message is a successful moderation outcome, not a client error.
+- `NewMux` returns a plain `http.Handler`, not a running server, so every route is exercised with `httptest` and no bound port — the guardrail itself is a pure function tested one branch per rule.
+
+## Further reading
+
+- [The seam (series overview)](/blog/posts/harness-engineering-go-01-the-seam.html) — why every Azure dependency sits behind an interface.
+- [Durable Execution: checkpoint every step](/blog/posts/harness-engineering-go-03-durable-execution.html) — Lesson 2, the spine of the series.
+- [microsoft/agent-framework-go](https://github.com/microsoft/agent-framework-go) — the framework whose middleware model this pattern mirrors.

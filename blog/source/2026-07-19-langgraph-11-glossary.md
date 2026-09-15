@@ -114,3 +114,17 @@ These belong to the surrounding LangChain/LangGraph product world rather than th
 The reason this glossary reads cleanly in eight groups is that LangGraph *is* cleanly layered. The graph model and state/channels/reducers are the irreducible core — everything else attaches to it. Persistence is "save the state at each barrier." Human-in-the-loop is "pause at a barrier and wait." Agents are "a specific cyclic graph." Streaming is "yield at each barrier instead of only at the end." Once the superstep-and-barrier engine is clear, the rest of the vocabulary stops being a pile of features and becomes a short list of things you can do *to* that engine. The ecosystem group sits outside because it wraps the engine rather than extending it.
 
 That is the whole point of the series: LangGraph is not a hundred disconnected APIs but one small model with a handful of layers. Keep this page open the next time you read the [official docs](https://langchain-ai.github.io/langgraph/) — every term there should now land somewhere on this map.
+
+## Key takeaways
+
+- LangGraph is at heart a **Pregel/BSP engine**: a graph of nodes over shared state, advancing in discrete supersteps separated by barriers — the synchronization point that makes reducers and parallelism deterministic.
+- The irreducible core is two groups — the graph model (nodes, edges, conditional edges, cycles) and state/channels/reducers. Everything else attaches to it.
+- Persistence is "save the state at each barrier" (checkpointer, checkpoint, `thread_id`, time-travel); human-in-the-loop is "pause at a barrier and wait" (`interrupt()`, resume, approval gate).
+- Agents are a *specific cyclic graph* (`create_react_agent` + `ToolNode` + tool loop); streaming just yields at each barrier instead of only at the end.
+- The ecosystem group (LangSmith, LangGraph Platform, subgraphs, LangChain messages) sits outside the map because it *wraps* the engine rather than extends it.
+
+## Further reading
+
+- [Message-passing vs. shared state](/blog/posts/langgraph-01-message-passing-vs-shared-state.html) — where the series starts, and the model this glossary maps.
+- [Human-in-the-loop, tools, and the Send API](/blog/posts/langgraph-10-human-in-the-loop-and-tools.html) — the ergonomic layer built on the engine.
+- [LangGraph docs](https://langchain-ai.github.io/langgraph/) — the canonical reference every term here points to.

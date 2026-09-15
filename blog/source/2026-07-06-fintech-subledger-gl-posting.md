@@ -77,3 +77,18 @@ This control is strictly read-only. It never writes to either ledger; it observe
 Period close is where the pipeline hands control to the accounting team. The sequence is deliberate: stop or quiesce posting for the period, run the final aggregation so no subledger line is stranded, execute the tie-out until the variance is zero, then freeze the GL period so no further entries land in it. Only after the freeze do the financial statements get produced.
 
 The engineering payoff of keeping the ledgers separate now shows: the operational subledger never stopped accepting new events for the *next* period while the *current* period was closing. The two-ledger split is not accounting pedantry — it is what lets a high-throughput system keep writing money movements continuously while the books close cleanly behind it.
+
+## Key takeaways
+
+- The GL and the subledger are deliberately different: the GL is coarse, immutable, and closed monthly; the subledger is transaction-grain and can absorb tens of millions of lines a day. Posting subledger detail directly into the GL destroys reconcilability.
+- Posting rules are versioned configuration, not code — they translate product events into balanced debit/credit entries, and any entry whose debits and credits don't equal is rejected before it reaches storage.
+- Idempotency comes from a deterministic key (event ID plus rule version) enforced by a unique constraint, so at-least-once delivery becomes a safe no-op; events no rule maps to land in a suspense account instead of silently disappearing.
+- Aggregation is a lossy-but-reversible bridge: it groups subledger lines by account, currency, and entity into a few GL entries, each carrying a reference back to the exact window and grouping key for drill-down.
+- The tie-out is a strictly read-only control that gates period close — subledger detail must equal the posted GL balance per account and period, and late-arriving events post into the next open period rather than reopening a frozen one.
+
+## Further reading
+
+- [Period close and the trial balance](/blog/posts/fintech-period-close-trial-balance.html)
+- [Modeling a chart of accounts](/blog/posts/fintech-chart-of-accounts-modeling.html)
+- [The ledger (fintech handbook)](/blog/posts/fintech-handbook-02-the-ledger.html)
+- [Outbox, CDC, and reconciliation (fintech handbook)](/blog/posts/fintech-handbook-07-outbox-cdc-reconciliation.html)

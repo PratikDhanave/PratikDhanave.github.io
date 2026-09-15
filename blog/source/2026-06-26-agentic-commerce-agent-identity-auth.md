@@ -82,7 +82,22 @@ The same skeleton shows up under three vocabularies. **AP2** captures the delega
 
 Agentic payments are not "the same checkout with a robot typing." They are a delegation problem wearing a payment costume. Answer the two questions — which agent, and what may it do — with agent-bound identity and a scoped, short-lived, tokenized grant. Enforce the scope and the limits at validation, not just at issuance. Keep the raw instrument out of the agent entirely, and pull the human back for the rare high-risk action. Do that, and an agent can spend on someone's behalf without becoming a way to spend everything.
 
+## Key takeaways
+
+- Every agentic charge reduces to two questions the merchant must answer first: *which agent is this* (identity) and *what did the human actually authorize* (scope) — identity without scope is a blank cheque; scope without identity is a boundary nobody is bound to.
+- The agent carries its own verifiable identity, distinct from the user's; network tokens (Visa Intelligent Commerce, Mastercard Agent Pay) are bound to a *specific* agent so a leaked token is inert in another's hands.
+- Delegated authorization is OAuth-shaped: the human consents once where they can be authenticated, and the agent receives a scoped credential — never the password or the raw PAN.
+- Three constraints travel with every grant — scope (what), limits (how much), expiry (how long) — and they are enforced *at validation time*, not merely stated at issuance.
+- Step-up consent re-authenticates the human for high-risk actions, which is what lets the everyday token stay narrow; keeping the raw instrument out of the agent turns a catastrophic leak into a bounded one.
+
 ## Sources
 
 - https://stripe.com/blog/developing-an-open-standard-for-agentic-commerce
 - https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol
+
+## Further reading
+
+- [The Agentic Checkout Flow, End to End](/blog/posts/agentic-commerce-checkout-flow.html)
+- [AP2 Mandates](/blog/posts/agentic-commerce-ap2-mandates.html)
+- [Fraud, Disputes, and Liability in Agentic Commerce](/blog/posts/agentic-commerce-fraud-disputes.html)
+- [The Agentic Commerce Protocol Stack](/blog/posts/agentic-commerce-protocol-stack.html)

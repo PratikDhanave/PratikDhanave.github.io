@@ -76,3 +76,18 @@ Above all, regulators expect an **audit trail**: an append-only record that ties
 ## The point
 
 SR 11-7-style governance is often read as bureaucratic overhead. Built well, it is the opposite: a lifecycle with clear gates, an inventory that reflects reality, independent challenge with real authority, and an audit trail that is a byproduct of the system rather than a manual scramble. The engineering payoff is that when someone asks how a decision was made, you answer in minutes with certainty — and that same certainty is what keeps a model from quietly going wrong at scale.
+
+## Key takeaways
+
+- Model risk has two roots — fundamental error (bad assumptions, leaky pipeline, stale target) and misuse (right model, wrong population) — so governance spans builders, challengers, and serving systems, never data science alone.
+- The lifecycle is a gated sequence — development → validation → approval → monitoring → revalidation — with a rejection gate and a drift-to-retirement exit; approval is a snapshot, and revalidation keeps it from becoming permanent.
+- *Effective challenge* requires validators who are competent, independent (separate reporting line), and have the standing to say no; the common exam failure is a validation function that lacks the authority to stop a model.
+- You can't govern what you can't list: a model inventory with materiality-based tiering concentrates expensive scrutiny where the risk is, and nothing reaches production without a registry entry.
+- Validation rests on three legs — conceptual soundness, outcomes analysis (back-testing predictions vs. realized outcomes), and benchmarking against a simpler challenger — backed by an end-to-end versioned registry and an append-only audit trail that ties every decision to an approved model version.
+
+## Further reading
+
+- [Rules vs. ML Fraud Scoring](/blog/posts/fintech-rules-vs-ml-fraud-scoring.html)
+- [Credit Decisioning Engine](/blog/posts/fintech-credit-decisioning-engine.html)
+- [Transaction Monitoring Rules](/blog/posts/fintech-transaction-monitoring-rules.html)
+- [Model risk (Wikipedia)](https://en.wikipedia.org/wiki/Model_risk)

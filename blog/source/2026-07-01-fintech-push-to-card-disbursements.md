@@ -90,3 +90,18 @@ Idempotency is the engineering lesson here. Network timeouts are common, and a n
 ## What to build around it
 
 Treat push-to-card as a state machine, not a single API call: `checked → funded → pushed → confirmed`, with `reversed` and `returned` as branches off the later states. Persist the network transaction ID and your idempotency key on every row, expose limit checks before you take the recipient's card, and never mark a payout immutable — a return can arrive after the money looked settled. Do those four things and instant disbursement stops being a demo and becomes a rail you can trust with payroll.
+
+## Key takeaways
+
+- An Original Credit Transaction (OCT) runs the card rails in reverse — a credit *to* a card rather than a debit from it — carried by Visa Direct and Mastercard Send, needing only the recipient's PAN.
+- In a pull the issuer's cardholder funds the transaction; in a push the *originator* funds it and there is no cardholder balance to check on the way in, so the money must exist before the credit is guaranteed.
+- Run the eligibility lookup first: not every PAN supports OCTs, and the fast-funds flag is what lets you quote an honest arrival time (seconds vs. standard funding).
+- Reversal and return are distinct: a reversal cancels an OCT the network still owns (timeout, duplicate, error before confirm); a return arrives asynchronously *after* the credit posted (closed account, dispute) — so "confirmed" is never permanently final.
+- Model the payout as a state machine (`checked → funded → pushed → confirmed`, with `reversed`/`returned` branches), persist the network transaction ID and a client idempotency key on every row to stop double-pushes on retry.
+
+## Further reading
+
+- [Card authorization, capture and clearing](/blog/posts/fintech-card-auth-capture-clearing.html)
+- [Merchant settlement and payout](/blog/posts/fintech-merchant-settlement-payout.html)
+- [RTP and FedNow instant payments](/blog/posts/fintech-rtp-fednow-instant-payments.html)
+- [Idempotency and resumability](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html)

@@ -47,6 +47,19 @@ go run ./tutorial/02-agents/providers/foundry/step02_1_multiturn
 
 Tests build offline (including creating a session with a fake credential); the live two-turn conversation is gated behind `AF_LIVE=1` with `az login` and `FOUNDRY_PROJECT_ENDPOINT` set.
 
+## Key takeaways
+
+- **A session makes a conversation multi-turn.** `CreateSession` returns a `*Session`; threading it through every run with `agent.WithSession` accumulates history, so turn 2 can point back to turn 1 without resending the transcript.
+- **This session is client-side.** The framework holds the accumulated messages in memory and replays them into each run — cheap for a couple of turns, but the second `RunText` effectively resends the growing history.
+- **`CreateSession` on a Foundry project agent needs no network** — the provider hands you a fresh session offline — so the structural test can build the agent *and* create a session with a fake credential; only `RunText` talks to the model.
+- `Session` is a cross-provider abstraction: the same `WithSession` option works whether you're backed by Foundry, OpenAI, or Anthropic.
+
+## Further reading
+
+- [02 · Multi-turn with Server Conversations](/blog/posts/maf-go-41-2-multiturn-with-server-conversations.html) — move the transcript onto the Foundry service so the client stops resending it.
+- [step06 · Persisted Conversations](/blog/posts/maf-go-45-persisted-conversations.html) — serialize this client-side session to disk and resume it.
+- [step01 · Basic Foundry Provider](/blog/posts/maf-go-39-basic.html) — the single-turn baseline this extends.
+
 ---
 
 Next: [02 · Multi-turn with Server Conversations](/blog/posts/maf-go-41-2-multiturn-with-server-conversations.html)

@@ -197,6 +197,19 @@ result = await supervisor.run("Based on everything above, make the decision", th
 
 Control flow is explicit. State lives in the thread. Each agent sees the full conversation.
 
+## Key takeaways
+
+- **Sessions become threads.** ADK's `SessionService` stores implicit state in a dictionary; Microsoft Agent Framework's `AgentThread` makes history explicit — state lives in messages, not `session.state[key]`.
+- **Explicit history buys clarity, auditability, and token tracking.** You can serialize a thread and replay it, log or redact each turn independently, and sum `token_count` across a thread to enforce a budget with a `MAX_TOKENS` check.
+- **Multi-agent hand-off gets cleaner.** Instead of one agent writing `session.state["analysis"]` for another to read, both agents share a thread — the reviewer reads "the analysis in the conversation above" without knowing the key.
+- **Separate short-term from long-term memory**: the thread is the conversation; a `MemoryStore` or vector DB holds durable facts about the user. The conversion checklist maps each `session.state[key]` to thread, memory store, or a local loop variable.
+
+## Further reading
+
+- [The Executor Pattern](/blog/posts/adk-to-maf-executor-pattern.html) — owning the orchestration loop that threads these turns.
+- [Tool Wrapping and Governed Tools](/blog/posts/adk-to-maf-tool-wrapping.html) — the next porting concern after state.
+- [ADK documentation](https://google.github.io/adk-docs/) — the `SessionService` model being migrated from.
+
 ---
 
 Next: [Tool Wrapping and Governed Tools](/blog/posts/adk-to-maf-tool-wrapping.html)

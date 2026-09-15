@@ -80,3 +80,17 @@ Two data problems will quietly wreck a fraud model no matter how good your algor
 ## Putting it together
 
 A dependable supervised fraud model is less about the fanciest architecture and more about respecting the shape of the problem. Handle imbalance with class weights before reaching for synthesis. Measure with PR-AUC and recall-at-precision, never raw accuracy. Choose your operating threshold by minimizing expected monetary cost, and calibrate the score if you plan to act on the probability itself. Guard against label latency and target leakage, because those two will fool you long before your loss function does. Get those fundamentals right and the model earns its keep.
+
+## Key takeaways
+
+- On extreme imbalance a standard loss is dominated by the majority, so the boundary drifts toward "everything is fine." Fix it with class weighting (cheap, first to try), resampling, or cost-sensitive learning — not by chasing accuracy.
+- Be wary of SMOTE: resample strictly *inside* the training fold after the split (or synthetic points leak into validation), and remember interpolated "fraud" often lands in legitimate territory — a well-tuned class weight frequently beats it with none of the baggage.
+- Accuracy is meaningless when one answer is right 99.9% of the time by default; use PR-AUC and recall-at-fixed-precision, and prefer PR-AUC over ROC-AUC because the huge true-negative count flatters ROC on rare events.
+- Choose the threshold by money, not 0.5: sweep `cost(t) = FN_count·cost_FN + FP_count·cost_FP`, weight errors by transaction value, and often use two cutoffs (auto-approve / review / block). Calibrate the score (isotonic or Platt) if you multiply the probability by an amount.
+- Two fraud-specific traps: label latency (recent "legitimate" transactions may just be undisputed — leave a maturation window) and target leakage (features that exist only because fraud was already suspected).
+
+## Further reading
+
+- [Anomaly detection for fraud: isolation forests and autoencoders](/blog/posts/finai-anomaly-detection-fraud.html) — the unsupervised complement for scarce labels and novel attacks.
+- [Rules vs. ML for fraud scoring](/blog/posts/fintech-rules-vs-ml-fraud-scoring.html) — where a fraud score becomes an approve/review/block decision.
+- [Why machine learning in finance is different](/blog/posts/finai-why-ml-in-finance-is-different.html) — the currency-denominated, adversarial framing behind cost-based thresholds.

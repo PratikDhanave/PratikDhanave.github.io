@@ -52,6 +52,19 @@ A2A_AGENT_HOST=http://127.0.0.1:5000 go run ./tutorial/02-agents/a2a/stream_reco
 
 Expected: streaming starts, prints `Captured continuation token …`, "interrupts," then prints `Reconnecting to task …` and resumes to completion. The program needs a live A2A server; the offline tests build a real client from an in-memory JSON-RPC card without dialing, and the end-to-end flow is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **The continuation token appears mid-stream.** While a remote task is `submitted`/`working`, the provider sets `update.ContinuationToken` to the task ID; capturing it lets you reconnect after a proxy timeout, sleep, or network drop.
+- **Reconnect passes NO messages.** Phase 2 sends `Run(ctx, nil, WithContinuationToken(token), Stream(true))`; the provider re-subscribes (`SubscribeToTask`, falling back to `GetTask`) so the original heavy query is never re-sent — you don't pay for the compute twice.
+- **A task can finish before you ever see a token.** The program guards for `continuationToken == ""` — assuming a token exists would leave you re-subscribing to nothing.
+- A2A carries no `TokenCredential`; auth, if any, rides on the underlying `*http.Client` the `a2aclient` was built with.
+
+## Further reading
+
+- [A2A · Polling for Task Completion](/blog/posts/maf-go-08-polling-for-task-completion.html) — the non-streaming sibling of this reconnection pattern.
+- [A2A · Protocol Selection](/blog/posts/maf-go-09-protocol-selection.html) — choose which transport carries the resumable stream.
+- [step01 · Running an Agent (with middleware)](/blog/posts/maf-go-11-running.html) — the middleware seam these A2A lessons reuse for logging.
+
 ---
 
 Next: [step01 · Running an Agent (with middleware)](/blog/posts/maf-go-11-running.html)

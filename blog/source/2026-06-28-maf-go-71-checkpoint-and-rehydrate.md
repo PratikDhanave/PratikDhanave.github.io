@@ -48,3 +48,18 @@ There is no live path — `AF_LIVE=1` changes nothing here, since this lesson is
 ---
 
 Next: [checkpoint · Checkpoint and Resume](/blog/posts/maf-go-72-checkpoint-and-resume.html)
+
+## Key takeaways
+
+- A checkpoint is proven *real* by discarding the running instance and rehydrating a brand-new workflow from a mid-run snapshot, which then finishes the search from exactly where the snapshot left off.
+- State lives in the executor; checkpointing lives in the runtime — executors opt in with `OnCheckpoint` (`ctx.QueueStateUpdate`) and `OnCheckpointRestored` (`ctx.ReadState`), attached via `Extend(&workflow.Executor{...})`.
+- Rehydration differs from resuming the same run: `buildWorkflow()` is called *again* for a clean slate, `Reset` seeds it, and `OnCheckpointRestored` overwrites it — a missing key falls back to the reset state.
+- The graph is cyclic (`Guess↔Judge`) and terminates by *yielding* rather than sending once the guess is correct; `WithOutputFrom(Judge)` marks the output node.
+- This lesson has no model, credential, or network, so it runs identically everywhere — `AF_LIVE=1` changes nothing.
+
+## Further reading
+
+- [checkpoint · Checkpoint and Resume](/blog/posts/maf-go-72-checkpoint-and-resume.html) — rewinding the *same* live run instead
+- [checkpoint · Human-in-the-Loop with Checkpoint & Restore](/blog/posts/maf-go-73-checkpoint-with-human-in-the-loop.html)
+- [workflow_as_an_agent · A Workflow, Wrapped as One Agent](/blog/posts/maf-go-70-workflow-as-an-agent.html)
+- [Microsoft Agent Framework for Go](https://github.com/microsoft/agent-framework-go)

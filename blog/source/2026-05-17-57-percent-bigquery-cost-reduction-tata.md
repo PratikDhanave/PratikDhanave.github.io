@@ -66,3 +66,18 @@ If I reran this, I'd deploy cost instrumentation in Week 1, alongside the first 
 ## The Takeaway
 
 At scale, cloud cost is an architectural outcome — not a reporting problem. Monitoring explains spend. Architecture determines it.
+
+## Key takeaways
+
+- **In BigQuery, cost scales with data scanned**, so table design and query patterns — not dashboards or one-off tuning — determine spend. The strategy deliberately redesigned the architecture that *generates* queries rather than tuning individual queries.
+- **The MERGE anti-pattern was the single largest driver.** Full-table read + write on every execution was replaced with idempotent, partition-scoped operations against staging tables with predicate filters, dropping write amplification ~90%.
+- **Every decision traded optimality for migration safety.** Ingestion-date partitioning over business-key partitioning, high-cardinality single-column clustering over composite — accepting small edge-case scan costs to avoid breaking hundreds of downstream pipelines under a zero-downtime constraint.
+- **A 70/30 committed/on-demand slot capacity model cut total cost ~40%** and made spend forecastable; real-time cost attribution replaced the monthly bill review. Net result: 57% lower warehouse spend, 3–5x faster top queries, and top pipelines cut from ~10 TB to under 500 GB per run (95%).
+- **The lesson learned:** deploy cost instrumentation in Week 1 (and add CI/CD "Cost-as-Code" gates) so governance is data-driven from the start, not a trust exercise until monitoring ships.
+
+## Further reading
+
+- [BigQuery Slot Reservation Transition](/blog/posts/bigquery-slot-reservation-transition.html) — a deeper look at the committed-vs-on-demand capacity model behind the 40% saving.
+- [BigQuery Storage Tiering: Physical vs Logical Bytes](/blog/posts/bigquery-storage-tiering-physical-logical-bytes.html) — the storage-side lever complementing these compute changes.
+- [Optimus: A BigQuery Anti-Pattern Detector](/blog/posts/optimus-bigquery-anti-pattern-detector.html) — automating detection of patterns like the MERGE anti-pattern.
+- [BigQuery documentation](https://cloud.google.com/bigquery/docs) — partitioning, clustering, and slot reservations.

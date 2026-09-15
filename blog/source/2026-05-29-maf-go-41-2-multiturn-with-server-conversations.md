@@ -46,6 +46,19 @@ go run ./tutorial/02-agents/providers/foundry/step02_2_multiturn_with_server_con
 
 Needs `az login` and `FOUNDRY_PROJECT_ENDPOINT`; the live path is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **Server-side history means the client never resends the transcript.** Create a Foundry project *conversation* once, bind its ID into a session with `agent.WithServiceID(conversationID)`, and later turns remember earlier ones because the service holds them.
+- **The conversation is created directly against the OpenAI-compatible endpoint.** `createProjectConversation` builds an `openai.NewClient` pointed at `{endpoint}/openai/v1/` and calls `client.Conversations.New`, returning the ID you hand to `WithServiceID`.
+- **Watch the OAuth scope.** The conversations client explicitly requests `https://ai.azure.com/.default`; get it wrong and conversation creation fails with an auth error even though model calls would succeed.
+- **This whole flow is live** — creating the conversation is itself a network call — so there's no offline path for it; the structural test only asserts the middleware wiring.
+
+## Further reading
+
+- [02 · Multi-turn (sessions)](/blog/posts/maf-go-40-1-multiturn.html) — the client-side counterpart where history lives in your process.
+- [step06 · Persisted Conversations](/blog/posts/maf-go-45-persisted-conversations.html) — persisting a client-side session vs. relying on the server's conversation ID.
+- [02 · Providers · Azure · OpenAI Responses](/blog/posts/maf-go-38-openai-responses.html) — the `DisableStoreOutput` knob behind server-vs-local state.
+
 ---
 
 Next: [step03 · Function Tools (Foundry)](/blog/posts/maf-go-42-function-tools.html)

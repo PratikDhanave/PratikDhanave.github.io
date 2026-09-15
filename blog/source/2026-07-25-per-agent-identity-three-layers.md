@@ -80,3 +80,17 @@ Per-agent identity breaks that coupling three ways at once. The `agent_id` makes
 Outside Azure, the same containment idea shows up as [SPIFFE/SPIRE workload identity](/blog/posts/spiffe-spire-workload-identity-basics.html); and per-agent identity is only one layer of a broader [defence-in-depth for agentic systems](/blog/posts/defence-in-depth-for-agentic-ai.html).
 
 **Why it matters:** identity is the cheapest lever you have on blast radius, and almost everyone leaves it at its worst setting. One workload identity means the worst-behaved agent defines your worst day. Give every agent its own credential — attributed at the app, contained by the cloud, proven by crypto — and the worst-behaved agent can only ever cost you a single role, on a trail you can prove. That's the difference between an incident and a breach.
+
+## Key takeaways
+
+- A single shared (process) identity couples every agent's authority together, so a prompt-injected or buggy agent inherits the union of all permissions — the compromise of the weakest agent is the compromise of the strongest.
+- The three layers answer three different questions and are not redundant: Layer 1 (`agent_id`) is *who claims to act*, Layer 2 (per-agent managed identity) is *what they can actually do*, Layer 3 (signed token) is *who provably did it*.
+- Layer 1 buys policy resolution (an agent can tighten a workload default to read-only, or be granted a tool the workload is silent on) and audit attribution — but it is attribution, not containment, only as honest as the process holding it.
+- Layer 2 is the real boundary: each agent gets its own Azure user-assigned managed identity with explicit deploy-time RBAC, enforced by Azure AD *outside* your process, so it survives application compromise and collapses blast radius to one role.
+- Layer 3 signs a per-agent token (PyJWT/HS256) and records the verified issuer and `jti` for non-repudiation — a provable actor, not an asserted one — but an in-process signing key gives non-repudiation, not containment, so it complements Layer 2 rather than replacing it.
+
+## Further reading
+
+- [Policy is code, not a prompt](/blog/posts/policy-is-code-not-a-prompt.html) — the out-of-band gateway that Layer 1's `agent_id` resolves policy against.
+- [Governing the tools you didn't write](/blog/posts/governing-the-tools-you-didnt-write.html) — the tool-level control that sits above per-agent identity.
+- [Give the agent its capabilities brief](/blog/posts/tell-the-agent-what-its-allowed-to-do.html) — aligning an agent's self-understanding with its agent-scoped policy.

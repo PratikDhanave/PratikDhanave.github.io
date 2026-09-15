@@ -44,6 +44,19 @@ A2A_AGENT_HOST=http://127.0.0.1:5000 go run ./tutorial/02-agents/a2a/protocol_se
 
 Expected: a pirate joke from the remote agent, preceded by a run banner. The program needs a reachable A2A server; the offline structural test builds a synthetic card advertising both transports and asserts the wiring, with the live path gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **Preferred transport is a client Config, not an agent concern.** `a2aclient.WithConfig(Config{PreferredTransports: [...]})` reorders the card's advertised interfaces so the client tries your chosen binding (JSON-RPC, HTTP+JSON, or gRPC) first.
+- **Construction is not connection.** `NewFromCard` selects an interface and builds the matching transport in memory — it does not dial. The first network I/O is at `Resolve` (fetching the card) and again at `RunText`, which is why the offline test builds the whole client from a synthetic card.
+- **Your preferred transport must be one the card genuinely advertises.** Because dialing is deferred, an unreachable server or an unsupported transport surfaces at the first `Resolve`/`RunText`, not when you set the preference.
+- Once wrapped by `a2aprovider`, transport selection lives *below* the agent abstraction, so your app code is insulated from the wire format.
+
+## Further reading
+
+- [a2a · Stream Reconnection](/blog/posts/maf-go-10-stream-reconnection.html) — resume a dropped remote stream over the chosen transport.
+- [providers · A2A (Agent2Agent)](/blog/posts/maf-go-33-a2a.html) — force insecure gRPC explicitly and see the card-first, client-second flow.
+- [gRPC documentation](https://grpc.io/) — the transport this lesson pins when a card advertises several.
+
 ---
 
 Next: [a2a · Stream Reconnection](/blog/posts/maf-go-10-stream-reconnection.html)

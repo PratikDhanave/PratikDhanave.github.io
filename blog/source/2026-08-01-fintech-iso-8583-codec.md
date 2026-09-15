@@ -69,3 +69,18 @@ Those correlation fields matter operationally. The **STAN** (System Trace Audit 
 ## What makes it production-safe
 
 Three practices separate a demo codec from one you trust in the authorization path. First, make the field table the single source of truth and generate a round-trip test that encodes then decodes every message type, asserting byte-for-byte equality — this catches encoding and length-discipline mistakes instantly. Second, fuzz the decoder with truncated and oversized frames; a codec that indexes past the end of a slice on a malformed bitmap is a denial-of-service waiting to happen. Third, redact by construction: because PAN and track data flow through the typed layer, you attach masking to those value objects so no code path can accidentally emit a full PAN to logs. Build the codec as a pure function from bytes to a typed message and back, keep the framing separate, and let a declarative field dictionary do the rest.
+
+## Key takeaways
+
+- Frame before you parse: TCP is a byte stream, so read the two-byte length prefix, consume exactly that many bytes, and only then parse — conflating the two is the classic "works in tests, corrupts under load" bug.
+- The MTI (`0100` auth request, `0110` response, `0800` network management) selects the handler and field dictionary; different message types legitimately carry different fields.
+- Decode the bitmap into an explicit ordered set of present field numbers before touching field data; bit 1 signals a secondary bitmap (fields 65–128), and framing config must declare whether bitmaps arrive raw-binary or hex-ASCII since you can't tell by inspection.
+- The field dictionary is the whole codec: each element's length discipline (FIXED, LLVAR, LLLVAR) and encoding (BCD, ASCII, binary) is defined once and drives both decode and encode so the two never drift; the cursor must land exactly on the end of the slice or the message is rejected.
+- Lift bytes into typed objects at the boundary — Luhn-checked PAN with masking attached, minor-units amount, DE39 as an enum — and key the in-flight request map by STAN (DE11) scoped per link, since STANs wrap at 999999 and reversals reference the original.
+
+## Further reading
+
+- [Card authorization, capture, and clearing](/blog/posts/fintech-card-auth-capture-clearing.html)
+- [EMV cryptograms and the ARQC](/blog/posts/fintech-emv-cryptogram-arqc.html)
+- [Network tokenization and PCI scope](/blog/posts/fintech-network-tokenization-pci-scope.html)
+- [ISO 8583](https://en.wikipedia.org/wiki/ISO_8583) — Wikipedia overview of the message format

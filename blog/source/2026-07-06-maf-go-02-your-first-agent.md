@@ -86,6 +86,21 @@ So the mental model matches the Python side: **collected = one `*Response`; stre
 
 That's the minimal loop. A lazy credential, a provider that turns it into a live model, an instruction string that is the agent, and a `RunText` you either collect or range over. Next I hand this agent a Go function it can call.
 
+## Key takeaways
+
+- The minimal loop is three parts: a **provider** (reaches a deployed model), an **Agent** (instructions plus that provider), and a **run** (`RunText`). `foundryprovider.NewAgent` collapses provider-plus-agent into one constructor.
+- Auth is credential-based, not API keys, and the credential is **lazy** — `NewDefaultAzureCredential` succeeding means "configured," not "authenticated"; the real auth failure surfaces on the first `RunText`.
+- The instruction string *is* the agent's personality; `agent.Config{Name: ...}` only labels it for logs and traces.
+- `RunText` returns a `ResponseStream` immediately and never blocks by itself. Consume it two ways from the same call: `.Collect()` for one `*Response`, or `range` with `agent.Stream(true)` for `*ResponseUpdate`s that sum to the same text — a Go 1.23 range-over-function iterator, so no channels.
+- Factoring construction into a helper lets an offline test build the identical agent with a fake credential and assert wiring (`a.Name()`) with no network.
+
+## Further reading
+
+- [Learning the Microsoft Agent Framework in Go — the series intro](/blog/posts/maf-go-01-learning-by-building.html)
+- [Conversation and Memory — Microsoft Agent Framework in Go](/blog/posts/maf-go-04-conversation-and-memory.html)
+- [microsoft/agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)
+- [The Go `iter` package (range-over-function iterators)](https://pkg.go.dev/iter)
+
 ---
 
 Next: [Giving an Agent Tools — Microsoft Agent Framework in Go](/blog/posts/maf-go-03-giving-agents-tools.html)

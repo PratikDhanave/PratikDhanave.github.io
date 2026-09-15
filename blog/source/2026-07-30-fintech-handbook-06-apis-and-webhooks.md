@@ -78,3 +78,17 @@ And process the event the same way you handle an ambiguous outbound call: the we
 ## Why it matters
 
 Every rule here — timeouts, idempotency keys, jittered backoff, breakers, reconciliation, signature checks, replay rejection, fast acks, idempotent async handlers — exists because a real system moved real money into a state nobody could explain. The integration layer is where your clean internal model meets an unreliable, adversarial outside world, and it is the layer that determines whether a bad network day is a shrug or a support queue full of double charges. Assume the call can lie about whether it worked. Assume the webhook is forged, replayed, out of order, and doubled. Build so that none of that corrupts your books. Get this boundary right and everything upstream of it gets to stay simple.
+
+## Key takeaways
+
+- Every outbound call gets an explicit, short connect *and* read timeout — the default is effectively infinity, and infinity is how one slow dependency exhausts a thread/connection pool and takes down endpoints that never touched it.
+- Retries carry a stable idempotency key and use exponential backoff *with jitter* (without jitter you manufacture a synchronized thundering herd), and a circuit breaker caps them so you fail fast instead of hammering a dependency already on the floor.
+- A timeout is ambiguous, not failed: reconcile, don't blindly retry — persist intent as `PENDING` before the call, then ask the rail's status endpoint what actually happened and act only on authoritative state. An operation is done when the source of truth confirms it, not when your code returned.
+- Inbound webhooks invert the trust model: verify the HMAC signature over the *raw* body with a constant-time compare *before* parsing, reject stale timestamps and track a nonce to defeat replays, and assume events are unordered and not exactly-once — so handlers must be idempotent, keyed on event id.
+- Ack fast, process later: verify, dedupe, enqueue, return 200 immediately, then do the real work asynchronously — a slow handler makes the rail time out and retry, manufacturing the duplicates you were trying to avoid.
+
+## Further reading
+
+- [Idempotency and full resumability](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html) — the previous chapter, on the keys and dedup this relies on.
+- [Executing money flows](/blog/posts/fintech-handbook-04-executing-money-flows.html) — the state machine a reconciliation sweep updates.
+- [Payment orchestration and routing](/blog/posts/fintech-payment-orchestration-routing.html) — where verified events get acted on across multiple rails.

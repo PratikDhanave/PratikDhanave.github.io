@@ -44,6 +44,18 @@ The Agent Framework Go SDK treats a *provider* as the swappable back end that tu
 
 `GEMINI_API_KEY=... go run ./tutorial/02-agents/providers/gemini` (get a key from Google AI Studio). Most lessons build and test offline; the live model call is gated behind `AF_LIVE=1`, so `go run ./...` and the structural tests stay green with no key.
 
+## Key takeaways
+
+- Swapping to Gemini changes exactly two things: the constructor becomes `geminiprovider.NewAgent`, and the credential becomes a `*genai.Client` holding a Gemini API key instead of an Azure `TokenCredential`.
+- Auth is an API key, not a token — no `az login`. The `genai.Client` uses `BackendGeminiAPI` with an explicit key, so construction does no credential detection and no network call.
+- Everything downstream — `RunText`, `Collect`, `agent.Stream(true)`, middleware — is the identical `agent.Agent` API, which is the portability the provider abstraction buys.
+- Factoring construction into `newJoker(client, model, mw)` lets the offline test build the identical agent with a dummy key and assert its wiring with no network.
+
+## Further reading
+
+- [github-copilot · A Local-CLI Provider](/blog/posts/maf-go-56-github-copilot.html) — a provider whose "credential" is a local process
+- [Provider Abstraction: From Gemini-Only to Swappable LLMs](/blog/posts/adk-to-maf-provider-config.html) — the same swap-the-backend idea in the Python migration series
+
 ---
 
 Next: [github-copilot · A Local-CLI Provider](/blog/posts/maf-go-56-github-copilot.html)

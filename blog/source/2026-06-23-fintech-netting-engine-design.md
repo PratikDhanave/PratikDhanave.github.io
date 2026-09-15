@@ -81,3 +81,17 @@ A breach cannot be waved through; that is exactly the uncollateralized exposure 
 ## Emitting settlement instructions
 
 The final stage turns the validated net vector into concrete transfers against the settlement account. Debtors pay in; the engine waits until **all** required pay-ins land, then releases credits to the long parties — never credit before the matching debits have settled, or you have extended intraday credit you never agreed to. Stamp every instruction with the `cycle_hash` so the settlement leg is traceable back to the exact snapshot that produced it, and make instruction generation idempotent on `(cycle_id, party_id)` so a retried settlement run cannot double-pay. Net small, snapshot hard, cap always, and the arithmetic that started as a hundred thousand lines settles as a handful of transfers you can fully reconstruct on demand.
+
+## Key takeaways
+
+- Netting collapses gross obligations into a handful of net positions — bilateral netting removes 50–70% of gross value, multilateral routinely 90%+ — but it *creates* a settlement obligation that did not exist gross, so every design choice exists to make that result survivable.
+- The cycle snapshot is the whole game: an obligation belongs to exactly one cycle decided at snapshot time and never moves. Implement it as an immutable, content-addressed set with a `cycle_hash` for byte-identical reproducibility, sourced from an append-only ledger by monotonic sequence — never a `WHERE status = 'pending'` query against live-mutating rows.
+- One currency per cycle and integer minor units are non-negotiable; a floating-point cent eventually yields a matrix whose column sums don't zero, and a matrix that doesn't zero cannot be settled.
+- Assert `Σ net_i = 0` before emitting any instructions and refuse if it fails — a non-zero sum means an obligation was double-counted, dropped, or leaked rounding.
+- Bound every net debit with a collateral-backed net-debit cap; a breach means post more collateral or unwind (remove the party and recompute the whole matrix) — architect for unwind but treat it as a loud last resort.
+
+## Further reading
+
+- [RTGS vs Deferred Net Settlement](/blog/posts/fintech-rtgs-vs-dns-architecture.html) — where netting sits in the settlement-finality-versus-liquidity tradeoff
+- [Payment-versus-Payment: Settling FX Without Principal Risk](/blog/posts/fintech-cls-pvp-fx-settlement.html) — netting applied to two-currency FX settlement
+- [CCP Clearing and Margin](/blog/posts/fintech-ccp-clearing-margin.html) — multilateral netting after novation into a central counterparty

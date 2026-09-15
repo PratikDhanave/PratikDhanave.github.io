@@ -48,6 +48,18 @@ The gotcha: a group chat is bounded by `MaximumIterationCount`. Without that cap
 
 **Run it:** `go run ./tutorial/03-workflows/01-start-here/03_agent_workflow_patterns` (or `WORKFLOW_PATTERN=concurrent` / `groupchat`). The offline test builds every pattern with a fake credential and asserts each graph's wiring; the live model run is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- Orchestration is a property of the workflow, not the agents: the same three translation agents drop into whichever built-in graph a `WORKFLOW_PATTERN` env var selects.
+- Three builders cover the common topologies — `NewSequentialWorkflowBuilder` (a chain), `NewConcurrentWorkflowBuilder` (fan-out/fan-in), and `NewGroupChatWorkflowBuilder` + `NewRoundRobinGroupChatManager` (turn-taking under a manager).
+- The run loop is identical across all three — `RunStreaming`, push a `TurnToken`, range over `WatchStream` — so only the *shape* of the interleaving differs.
+- A group chat must be bounded by `MaximumIterationCount`, or a round-robin of always-responding agents never stops.
+
+## Further reading
+
+- [02 · Agents in Workflows](/blog/posts/maf-go-62-02-agents-in-workflows.html) — the hand-wired sequential pipeline these builders replace
+- [04 · Multi-Model Service](/blog/posts/maf-go-64-04-multi-model-service.html) — the sequential pattern committed to a researcher → fact-checker → reporter team
+
 ---
 
 Next: [04 · Multi-Model Service (a sequential agent workflow)](/blog/posts/maf-go-64-04-multi-model-service.html)

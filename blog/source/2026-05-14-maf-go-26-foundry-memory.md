@@ -48,6 +48,19 @@ go run ./tutorial/02-agents/agents/step22_foundry_memory
 
 The offline structural test builds the provider and agent with a fake credential (constructing the client sends no request) and runs anywhere; the live path is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **Memory lives in the store, not the session.** `foundryprovider.NewMemoryProvider` runs around every turn — search the Foundry store before a run, submit the conversation after — so a fresh session with no shared history still recalls facts from an earlier one.
+- **The `scope` callback is the partition key.** Invoked once per run, it returns the bucket to read and write; a constant scope makes every session share one bucket (great for the demo), while real apps return a stable per-user or per-tenant key.
+- **`UpdateDelay: 0` submits extraction immediately** after each run, so later turns in the same demo can already see what earlier turns taught the agent.
+- **The gotcha:** the store must already exist. The lesson expects `AZURE_AI_MEMORY_STORE_ID` to name a store (with a chat model for extraction and an embedding model for search) — provision it via the portal or a throwaway program.
+
+## Further reading
+
+- [04 · Memory](/blog/posts/maf-go-05-04-memory.html) — the hand-rolled context provider this productionizes.
+- [step07 · Third-Party Session Storage](/blog/posts/maf-go-17-3rdparty-session-storage.html) — owning conversation *messages* in your own store, the sibling of owning *facts*.
+- [Azure AI Foundry documentation](https://learn.microsoft.com/azure/ai-foundry/) — provisioning the memory store this provider reads and writes.
+
 ---
 
 Next: [Getting Started](/blog/posts/maf-go-27-getting-started.html)

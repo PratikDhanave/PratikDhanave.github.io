@@ -89,3 +89,17 @@ Durability, human gates, and composition are all just the workflow graph with on
 ---
 
 Next: [Hosting and the Capstone App — Microsoft Agent Framework in Python](/blog/posts/maf-python-12-hosting-and-capstone.html)
+
+## Key takeaways
+
+- Hand the builder a `CheckpointStorage` and the framework snapshots the whole workflow after every *superstep* (one synchronous wave of message delivery) with no per-executor bookkeeping; resume with `run(checkpoint_id=<id>)` instead of starting over.
+- `ctx.request_info(...)` is the human-in-the-loop pivot: the first run produces no output and returns a pending event, and you resume with `run(responses={request_id: answer})` — execution continues *from* `request_info`, which now returns the human's answer, so the decision genuinely steers the branch.
+- On resume you pass only the answer keyed by `request_id`, never the original input — the suspended state already holds everything else.
+- `workflow.as_agent(name=...)` wraps a whole workflow behind an agent's `.run()` surface, so a workflow drops in anywhere an agent is expected and workflows nest inside workflows.
+- Keyed workflow state (`ctx.set_state` / `ctx.get_state`) keeps big payloads off the edges — edges carry tiny handoff tokens while the real data lives under keys; the writer sees its own write immediately, other executors see it the next superstep.
+
+## Further reading
+
+- [Orchestration Patterns — Microsoft Agent Framework in Python](/blog/posts/maf-python-10-orchestrations.html)
+- [Hosting and the Capstone App — Microsoft Agent Framework in Python](/blog/posts/maf-python-12-hosting-and-capstone.html)
+- [Checkpoint and rehydrate — Microsoft Agent Framework Go](/blog/posts/maf-go-71-checkpoint-and-rehydrate.html) — the same durability in the Go SDK

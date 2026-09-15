@@ -53,6 +53,19 @@ go run ./tutorial/02-agents/agents/step18_compaction_pipeline
 
 The offline test runs anywhere (the pipeline is pure); the seven-turn live demo needs `az login` + `FOUNDRY_PROJECT_ENDPOINT` and is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **Compaction is a context provider that rewrites history** before each run so it stays inside the context window — the same `ContextProviders` slot as memory/todo providers, but rewriting rather than appending.
+- **A pipeline is an ordered list of strategies, gentle to aggressive**: `ToolResultStrategy` (collapse tool groups), `SummarizationStrategy` (fold spans via a cheaper agent), `SlidingWindowStrategy` (keep recent turns), then `TruncationStrategy` (emergency drop). Each runs against the same index, so later stages see earlier effects.
+- **Triggers decide *whether*, floors decide *how much*.** A strategy fires only when its `Trigger` (`MessagesExceed`, `TokensExceed`, `TurnsExceed`) hits, and its `MinimumPreserved…` field guarantees recent context survives.
+- **The pipeline is a pure function** — no credentials, no network — so the offline test runs it over a synthetic conversation with a stub summarizer and asserts history shrinks while the system message survives.
+
+## Further reading
+
+- [04 · Memory](/blog/posts/maf-go-05-04-memory.html) — the additive context-provider pattern compaction inverts.
+- [step07 · Third-Party Session Storage](/blog/posts/maf-go-17-3rdparty-session-storage.html) — another way to keep long conversations manageable, by offloading bodies to a store.
+- [02 · Multi-Turn Conversation](/blog/posts/maf-go-12-multiturn-conversation.html) — the growing-history problem compaction exists to bound.
+
 ---
 
 Next: [21 · Shell with Environment](/blog/posts/maf-go-25-shell-with-environment.html)

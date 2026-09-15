@@ -54,6 +54,19 @@ go run ./tutorial/02-agents/agents/step06_persisted_conversation
 
 The program needs Foundry (`az login` + endpoint); the session round-trip is tested offline, and the live model round-trip is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **A `Session` is the unit of conversation state** and implements `MarshalJSON`/`UnmarshalJSON`, so persistence is plain `encoding/json` — no special serializer.
+- **Resume from a fresh value.** `loadSession` deserializes into a brand-new `agent.Session` — exactly what a restarted server or separate HTTP request starts with — then hands it to `RunText`, and the conversation continues.
+- **`CreateSession` vs. the zero value.** The zero session is usable, but `CreateSession(ctx)` lets the provider seed provider-specific state and the service ID first; the resumed session must preserve that **service ID** or the provider can't continue the same conversation.
+- Because the session captures the Foundry service ID alongside history, reloading it in another process lets the service pick up where it left off — the building block for stateless web services.
+
+## Further reading
+
+- [step07 · Third-Party Session Storage](/blog/posts/maf-go-17-3rdparty-session-storage.html) — keep only message IDs in the session and store bodies in your own backend.
+- [02 · Multi-turn with Server Conversations](/blog/posts/maf-go-41-2-multiturn-with-server-conversations.html) — persist just the conversation ID and let Foundry hold the transcript.
+- [encoding/json package documentation](https://pkg.go.dev/encoding/json) — the standard-library marshaling this persistence relies on.
+
 ---
 
 Next: [step07 · Third-Party Session Storage](/blog/posts/maf-go-17-3rdparty-session-storage.html)

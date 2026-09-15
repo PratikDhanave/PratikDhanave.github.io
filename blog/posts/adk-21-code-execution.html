@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-17">July 17, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/google-adk/" class="tag-link"><span class="tag">#Google ADK</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/software-engineering/" class="tag-link"><span class="tag">#Software Engineering</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -231,6 +231,20 @@ func FirstRunnableCode(text string) (CodeBlock, bool) {
 <p><code>UnsafeLocalCodeExecutor</code> is not a typo. It runs whatever the model wrote in an <strong>unsandboxed subprocess on your machine</strong> — a child process with your full OS privileges, your filesystem, your environment variables, your network. That is perfect for learning and for code <em>you</em> authored. It is exactly wrong for untrusted model output. A model that&rsquo;s been prompt-injected can write <code>import os; os.system(...)</code>, read your secrets out of the process environment, or reach out over the network — and the local executor will run all of it.</p>
 <p><strong>Mental model:</strong> treat model-written code like any other untrusted input the moment it isn&rsquo;t fully under your control. The safe progression is: <code>UnsafeLocalCodeExecutor</code> for trusted local demos → <code>ContainerCodeExecutor</code> for local isolation → <code>VertexAiCodeExecutor</code> / <code>GkeCodeExecutor</code> (or <code>BuiltInCodeExecutor</code>) for anything facing real users. And apply the same discipline you&rsquo;d apply to any sandbox: least privilege, no secrets in the executing process, no ambient network unless the task needs it, and <strong>validate what comes back out</strong> — stdout is attacker-influenced too. The sandbox contains the blast radius; it doesn&rsquo;t make the output trustworthy.</p>
 <p><strong>Next in the series:</strong> Planners and thinking — letting an agent plan its steps and reason before it acts.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>A code executor closes the write-code → extract → run-in-sandbox → feed-output-back loop, so the model reasons from real stdout instead of hallucinating arithmetic or data results.</li>
+<li>Every executor shares the same four-step shape; the only thing that varies is <em>where the code runs</em>, and that dimension is the entire security story.</li>
+<li>The split that matters is client-side (<code>UnsafeLocal</code>, <code>Container</code>, <code>VertexAi</code>, <code>Gke</code> — you pick the sandbox) vs. model-side (<code>BuiltInCodeExecutor</code> — Gemini runs it server-side); swapping executors is a one-argument change that never touches agent logic.</li>
+<li>The pure, language-independent step is extracting the fenced code block (<code>first_runnable_code</code>), which is why it makes a clean offline test — and it&rsquo;s exactly where the Go story ends today, since <code>adk/v2 v2.0.0</code> ships no code-executor package.</li>
+<li>&ldquo;Unsafe&rdquo; is not a typo: <code>UnsafeLocalCodeExecutor</code> runs model-written code in an unsandboxed subprocess with your full privileges — treat model output as untrusted input, progress to a container or cloud sandbox for real users, and validate what comes back out because stdout is attacker-influenced too.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/adk-22-planners-and-thinking.html">Planners &amp; Thinking: Making an ADK Agent Reason Before It Acts</a></li>
+<li><a href="/blog/posts/adk-20-skills.html">Skills: Packaging Agent Capabilities</a></li>
+<li><a href="https://google.github.io/adk-docs/">Google ADK documentation</a></li>
+</ul>
 
 
   <aside class="related-posts">

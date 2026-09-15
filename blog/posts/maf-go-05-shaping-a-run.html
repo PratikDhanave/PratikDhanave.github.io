@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-09">July 09, 2026</time>
       <span>·</span>
-      <span>3 min read</span>
+      <span>4 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/microsoft-agent-framework/" class="tag-link"><span class="tag">#Microsoft Agent Framework</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/structured-output/" class="tag-link"><span class="tag">#Structured Output</span></a><a href="/blog/tags/multimodal/" class="tag-link"><span class="tag">#Multimodal</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -185,6 +185,20 @@ resp, err := a.RunMessage(ctx, msg).Collect()
 <p><code>DataContent</code> carries in-memory bytes: base64-encode the JPEG into <code>Data</code> and set <code>MediaType</code> so the model knows how to decode them. For an image already hosted somewhere, use <code>message.URIContent</code> instead — no bytes, just a link, and the model fetches it. In my lesson the image is baked in with <code>//go:embed assets/walkway.jpg</code> so the binary is self-contained. As with Python, the deployment must be vision-capable (e.g. <code>gpt-4o</code>).</p>
 <h2 id="the-through-line">The through-line</h2>
 <p>Input and output are the two things you shape. Input gets richer through a multi-part <code>message.Message</code>; output gets richer through <code>WithStructuredOutput</code> / <code>WithResponseFormat</code> — delivered either all at once via <code>.Collect()</code> or chunk by chunk by ranging with <code>Stream(true)</code>. Once that clicks, a run stops being &ldquo;text in, text out&rdquo; and becomes a typed call that can also see. Next I wrap every run with middleware for logging and guardrails.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>The Go struct <em>is</em> the schema: <code>json</code> tags become the JSON-schema field names. <code>agent.WithStructuredOutput(&amp;v)</code> is a per-run option that decodes the model&rsquo;s JSON straight into your value once the run drains.</li>
+<li>There are two altitudes: the per-run <code>WithStructuredOutput</code>, or wiring <code>WithResponseFormat(jsonformat.MustFor[T]())</code> into <code>Config.RunOptions</code> so every run returns JSON — but then you own the <code>json.Unmarshal</code>.</li>
+<li>A run is an <code>iter.Seq2[*agent.ResponseUpdate, error]</code>: <code>agent.Stream(true)</code> yields incremental updates, <code>Stream(false)</code> / <code>.Collect()</code> gives one <code>*Response</code> — same <code>RunText</code> call either way, and <code>update.String()</code> gives a chunk&rsquo;s text.</li>
+<li><code>RunText</code> only takes a string, so images go through <code>RunMessage</code> with a multi-part <code>message.Message</code>: <code>DataContent</code> carries base64 in-memory bytes plus a <code>MediaType</code>, or <code>URIContent</code> links a hosted image. The deployment must be vision-capable.</li>
+<li>The mental model: you shape <em>input</em> through a multi-part message and <em>output</em> through the structured-output options, delivered all at once or chunk by chunk.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/maf-go-15-structured-output.html">Structured output — Microsoft Agent Framework in Go</a></li>
+<li><a href="/blog/posts/maf-go-21-using-images.html">Using images — Microsoft Agent Framework in Go</a></li>
+<li><a href="https://github.com/microsoft/agent-framework-go">microsoft/agent-framework-go on GitHub</a></li>
+</ul>
 <hr>
 <p>Next: <a href="/blog/posts/maf-go-06-middleware.html">Middleware — Microsoft Agent Framework in Go</a></p>
 

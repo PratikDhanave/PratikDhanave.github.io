@@ -111,3 +111,18 @@ Both are network protocols with external dependencies, which makes their *data m
 A third, still-emerging axis rounds out the picture: protocols that stream an agent's events to an interactive **front-end UI** — **AG-UI** (CopilotKit's agent-to-UI event protocol) and the nascent **A2UI** proposal. These are ecosystem efforts, not part of the core ADK surface — there is no `google.adk` AG-UI API to import today — but they complete the three directions: agent ↔ tools (MCP), agent ↔ agent (A2A), agent → UI (AG-UI / A2UI).
 
 **Next in the series:** grounding an agent's answers in Google Search and your own documents with RAG.
+
+## Key takeaways
+
+- MCP connects your agent to external *tool servers* (agent → tools); A2A connects it to other *agents* (agent ↔ agent). "USB for tools" vs. "HTTP for agents."
+- An MCP server exposes three primitives, not just tools: **tools** (model-controlled, side effects), **resources** (app-controlled, readable context at a `uri`), and **prompts** (user-controlled named templates). Reading a resource must have no side effects.
+- A2A discovery is "fetch the Agent Card" (`{name, url, skills}` at a well-known URL); invocation is "call a skill." A `RemoteA2aAgent` drops into a multi-agent tree like any local sub-agent.
+- More than text crosses the A2A boundary: thought signatures survive (base64-encoded in part metadata), long-running tools surface as `input_required`/`auth_required` task states, and artifacts transfer via `TaskArtifactUpdateEvent` — all of it untrusted input to validate.
+- Getting the two data shapes right — an Agent Card `{name, url, skills}` and an MCP descriptor `{name, version}` plus its three primitive lists — makes the rest of the SDK wiring mechanical.
+
+## Further reading
+
+- [Grounding & RAG in ADK](/blog/posts/adk-17-grounding-and-rag.html) — the next post in the series
+- [Protocols in the Microsoft Agent Framework Go SDK — A2A Client](/blog/posts/maf-go-84-a2a-client.html)
+- [Model Context Protocol documentation](https://modelcontextprotocol.io)
+- [Google ADK documentation](https://google.github.io/adk-docs/)

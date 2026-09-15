@@ -75,3 +75,17 @@ They are the operational surface of a real deployment: observability tells you *
 ---
 
 Next: [Workflow Mechanics — Microsoft Agent Framework in Python](/blog/posts/maf-python-08-workflow-mechanics.html)
+
+## Key takeaways
+
+- `configure_otel_providers(...)` turns every run into OpenTelemetry spans, but it must be called *once, before* you construct the client or agent, or the spans never wire up.
+- `enable_sensitive_data=True` records the actual prompt/completion text on the span — flip it off in production and point `OTEL_EXPORTER_OTLP_ENDPOINT` at a collector.
+- Safety is `SecureAgentConfig`, wired through `context_providers=` (not `middleware=`); it injects its own security tools and enforcement for you.
+- Listing a tool in `allow_untrusted_tools` labels its output untrusted, and `block_on_violation=True` makes information-flow control *enforce* rather than warn — stopping an injected "SYSTEM OVERRIDE" from steering the agent.
+- The provider is just the thing that turns instructions + a message into a model call, so swapping `FoundryChatClient` for Anthropic/OpenAI/Gemini leaves the `Agent`, `run()`, and streaming unchanged — only construction and credentials differ.
+
+## Further reading
+
+- [Middleware — Microsoft Agent Framework in Python](/blog/posts/maf-python-06-middleware.html)
+- [Shaping a Run — Microsoft Agent Framework in Python](/blog/posts/maf-python-05-shaping-a-run.html)
+- [Workflow Mechanics — Microsoft Agent Framework in Python](/blog/posts/maf-python-08-workflow-mechanics.html)

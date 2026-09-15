@@ -93,3 +93,18 @@ Because approval and loss are separated by weeks, dashboards that only show appr
 - **Recovery rate** on the dunning loop, so you know how much of a missed payment you actually get back.
 
 Watch these as *vintages* — cohorts grouped by origination week — because a change you ship to the underwriting model today only shows up in the loss numbers a month later. The system's job is to make that lag visible instead of hiding it behind a healthy-looking approval chart.
+
+## Key takeaways
+
+- The defining asymmetry of pay-in-4 is that approval and loss sit at opposite ends of the timeline: the merchant is paid in full upfront, so everything after `payout` is the provider's balance sheet at risk.
+- The checkout decision must be fast *and* a **soft** credit check — soft is a hard architectural requirement, forcing the model to lean on signals you already hold (prior-plan history, device/account age, cart value, velocity) rather than a hard bureau pull.
+- Model approval and payout as separate states so a stuck banking-rail payout never leaves you unsure whether the loan exists; the loan exists at approval, the payout is a separate promise you retry.
+- Separate the **technical** retry (same card, transient failure, retry in hours) from the **treatment** retry (shopper outreach over days). One counter for both either hammers a dead card or gives up on a recoverable one.
+- Instrument the whole timeline as vintages — approval mix, settlement lag, first-payment default, roll rates, recovery rate — because a change shipped today only shows in losses weeks later.
+
+## Further reading
+
+- [Engineering a loan origination pipeline](/blog/posts/fintech-loan-origination-system.html)
+- [The collections and recovery workflow](/blog/posts/fintech-collections-recovery-workflow.html)
+- [The dunning and retry engine](/blog/posts/fintech-dunning-retry-engine.html)
+- [The credit decisioning engine](/blog/posts/fintech-credit-decisioning-engine.html)

@@ -66,3 +66,17 @@ The payoff is real. Analysts stop spending hours hunting through documents and s
 The cost is discipline. Grounding, validation, PII controls, human review, and audit logging are not features you bolt on after a successful pilot — they are the reason the pilot is allowed to become production. Teams that skip them get a demo. Teams that build them get a system they can defend. In regulated finance, the second is the only kind worth building.
 
 The most useful mental model is an unglamorous one: treat the LLM as a very fast, very well-read junior colleague who is occasionally, confidently wrong. You would never let such a person approve a loan alone. You would absolutely let them draft the analysis, pull the relevant files, and summarize the policy — and then you would check their work. That is exactly the relationship the guardrails above enforce, at scale, with a paper trail. Get that relationship right and generative AI stops being a risk you tolerate and becomes leverage you can stand behind.
+
+## Key takeaways
+
+- Three patterns carry most of the durable value: document analysis and extraction (verifiable line by line, lowest risk), retrieval-grounded QA over vetted internal material, and — most carefully — agentic decision *support*.
+- One principle organizes everything: the LLM is an assistant, never an autonomous authority over money or regulatory outcomes. The model drafts, extracts, and proposes; an accountable human or a deterministic rules engine disposes.
+- Five guardrails do the real work — retrieval grounding (answer only from retrieved context), output validation and schema enforcement, a genuinely blocking human-in-the-loop step for high-stakes cases, PII redaction/tokenization, and an immutable audit trail.
+- The architecture encodes the principle: the model has no direct write path to a system of record, tool access is read-only, and the human sits *on* the consequential path — so even a jailbroken model can only produce a proposal that fails validation or a human rejects.
+- Guardrails are not features bolted on after a successful pilot; they are the reason the pilot is allowed to become production. Teams that skip them get a demo, not a system.
+
+## Further reading
+
+- [Generative AI news sentiment as alpha](/blog/posts/finai-news-sentiment-llm-alpha.html) — an LLM extraction pattern applied to market signals.
+- [LLM-guided portfolio allocation](/blog/posts/finai-llm-guided-portfolio-allocation.html) — the assistant-not-authority principle in an investment setting.
+- [Retrieval-augmented generation (Wikipedia)](https://en.wikipedia.org/wiki/Retrieval-augmented_generation) — background on the grounding technique.

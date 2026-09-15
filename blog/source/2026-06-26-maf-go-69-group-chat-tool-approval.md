@@ -48,3 +48,18 @@ The offline tests pin the wiring and the manager's turn/termination logic; the l
 ---
 
 Next: [workflow_as_an_agent · A Workflow, Wrapped as One Agent](/blog/posts/maf-go-70-workflow-as-an-agent.html)
+
+## Key takeaways
+
+- Approval is a property of the *tool*, not the agent: only `DeployToProduction` is wrapped with `tool.ApprovalRequiredFunc`, so `RunTests`, `CheckStagingStatus`, and `CreateRollbackPlan` run uninterrupted.
+- The `GroupChatManager` is the brain of the chat — its `SelectNextAgent` scripts QA-then-DevOps and `ShouldTerminate` stops once a deployment summary appears, with a hard four-turn cap.
+- The pause surfaces as a `workflow.RequestInfoEvent` carrying `*message.ToolApprovalRequestContent`, resolved out-of-band with `approvalRequest.CreateResponse(true, …)` and `run.SendResponse` — swap the auto-approve for a real prompt to get a genuine human gate.
+- The group chat is kicked off by sending a `workflow.TurnToken` after `RunStreaming`, which starts the per-agent update stream.
+- `RequestInfoEvent` / `SendResponse` is the same external-request machinery used across the Foundry human-in-the-loop lessons — here pointed at a tool call rather than a raw prompt.
+
+## Further reading
+
+- [workflow_as_an_agent · A Workflow, Wrapped as One Agent](/blog/posts/maf-go-70-workflow-as-an-agent.html)
+- [Custom Agent Executors](/blog/posts/maf-go-68-custom-agent-executors.html)
+- [Function Tools with Approvals](/blog/posts/maf-go-43-function-tools-with-approvals.html)
+- [Microsoft Agent Framework for Go](https://github.com/microsoft/agent-framework-go)

@@ -99,3 +99,17 @@ Keep those four straight and multi-turn state stops being mysterious. Next I'll 
 ---
 
 Next: [Shaping a Run — Microsoft Agent Framework in Python](/blog/posts/maf-python-05-shaping-a-run.html)
+
+## Key takeaways
+
+- An `Agent` is stateless by contract — `run("A")` then `run("B")` are unrelated calls — which is exactly what lets one agent serve thousands of independent chats.
+- An `AgentSession` is one conversation's buffer: thread the same session through each `run(..., session=session)` and turn 2 replays turn 1.
+- A `ContextProvider` carries knowledge *across* sessions; `before_run` injects via `context.extend_instructions(source_id, text)` and `after_run` is where you'd learn new facts.
+- Because the provider instance outlives any session, facts it injects survive into a brand-new session — that is what "memory" actually means here.
+- Sessions are in-memory by default; stack a `FileHistoryProvider` to persist the transcript across restarts, and providers stack because each owns a distinct `source_id`.
+
+## Further reading
+
+- [Giving an Agent Tools — Microsoft Agent Framework in Python](/blog/posts/maf-python-03-giving-agents-tools.html)
+- [Shaping a Run — Microsoft Agent Framework in Python](/blog/posts/maf-python-05-shaping-a-run.html)
+- [Observability, Safety, and Providers — Microsoft Agent Framework in Python](/blog/posts/maf-python-07-observability-safety-providers.html)

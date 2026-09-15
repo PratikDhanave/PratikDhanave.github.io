@@ -122,3 +122,18 @@ The happy path above is easy. The reasons rev-rec engines are hard are all in th
 - **Early termination and refunds.** Reverse the remaining deferred balance and stop the schedule; do not claw back already-earned revenue.
 
 The common thread: **treat recognized periods as immutable and express every change as a new forward-looking schedule plus an adjusting journal.** That single discipline — append, never mutate — is what keeps the engine auditable, replayable, and trustworthy when a controller comes asking why last quarter's number moved.
+
+## Key takeaways
+
+- The most common accounting bug is treating an invoice as revenue: a contract drives two independent clocks — billing (right to invoice, moves cash) and recognition (satisfied a performance obligation, moves revenue).
+- The gap between the clocks lives on the balance sheet: unearned billings sit in deferred revenue (a liability), earned-but-unbilled work in a contract asset.
+- ASC 606's five steps map to a pure, replayable pipeline; steps 1–4 produce a stored recognition schedule of `(obligation_id, period, amount)` rows, and step 5 is a recurring job that reads it and posts journals.
+- Work in integer minor units and push the rounding remainder deterministically (usually the final period) so `sum(entries) == total` holds exactly and re-running is idempotent.
+- The recognition run is idempotent per entry, as-of aware, and replayable; the controller's invariant is that deferred revenue always equals the sum of unrecognized schedule entries.
+
+## Further reading
+
+- [Subledger and GL Posting](/blog/posts/fintech-subledger-gl-posting.html)
+- [Chart of Accounts Modeling](/blog/posts/fintech-chart-of-accounts-modeling.html)
+- [Pricing, Rating, and Billing Engine](/blog/posts/fintech-pricing-rating-billing-engine.html)
+- [Revenue recognition (Wikipedia)](https://en.wikipedia.org/wiki/Revenue_recognition)

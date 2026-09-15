@@ -141,3 +141,17 @@ Timeouts protect the harness from a runaway *action*. The next thing a real agen
 ---
 
 Next: [Advanced Memory: Threads, Retrieval, and Summarization](/blog/posts/harness-engineering-go-05-advanced-memory.html)
+
+## Key takeaways
+
+- Bound the runtime with a `context.WithTimeout` passed to `exec.CommandContext` — when the deadline fires, `os/exec` kills the process for you, with no goroutine race and no manual `Kill`, and `defer cancel()` leaks nothing either way.
+- The `Result` carries two booleans that are not redundant: `OK` and `TimedOut` distinguish three distinct outcomes — success, the code ran and failed (a real result to show the agent), and the code never terminated (an operational event).
+- To tell a timeout from an ordinary non-zero exit, check `ctx.Err() == context.DeadlineExceeded`, *not* the error text — a killed process returns "signal: killed" which is indistinguishable from any other SIGKILL. That check must come first.
+- The timeout test asserts *promptness* (`sleep 5` on a 200ms budget must return in well under two seconds), proving the process was actually reaped rather than merely waited on.
+- State the leak plainly: a local subprocess is not a security boundary — it shares your filesystem, environment, and network. The timeout stops code running *forever*, not from reading, writing, or exfiltrating *quickly*. The real boundary is Foundry Code Interpreter or ACA Dynamic Sessions.
+
+## Further reading
+
+- [Durable Execution: checkpoint every step](/blog/posts/harness-engineering-go-03-durable-execution.html) — the previous lesson, protecting the harness from a crash rather than a runaway.
+- [Advanced Memory: threads, retrieval, summarization](/blog/posts/harness-engineering-go-05-advanced-memory.html) — the next seam.
+- [Azure Container Apps Dynamic Sessions](https://learn.microsoft.com/en-us/azure/container-apps/sessions) — the Hyper-V-isolated per-request sandbox this stand-in targets.

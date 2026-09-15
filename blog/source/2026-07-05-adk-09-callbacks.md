@@ -135,3 +135,18 @@ The common patterns all fall out of the same six hooks:
 - **Response shaping** — `after_model` redacts PII or enforces a format.
 
 **Next in the series:** the Runner and event loop that actually *fire* these callbacks — the runtime that turns your agent definition into a running conversation.
+
+## Key takeaways
+
+- There are six hooks — three before/after pairs around the agent, the model, and each tool — firing in the order you'd guess: `before_agent → before_model → (model) → after_model → before_tool → (tool) → after_tool → after_agent`.
+- One rule governs all six: return nothing (`None`/`nil`) to proceed, return a value of the right type to short-circuit — a `before_*` hook vetoes its step, an `after_*` hook edits what came out.
+- That single mechanism is why a guardrail and a cache are the same shape of code: a `before_model` callback returning an `LlmResponse` means "skip the model, use this," whether "this" is a canned refusal or a stored answer.
+- A `before_model` guardrail is a pure function of the request (no model, no I/O), so treat it as the safety-critical code it is and unit-test every rule in milliseconds without credentials.
+- Attachment is the only real Python/Go difference: Python takes a single callable or a list, Go always takes a slice — and with several, ADK runs them in order until one returns a value (first hit wins); Go additionally exposes `OnModelErrorCallbacks` / `OnToolErrorCallbacks` for the failure path.
+
+## Further reading
+
+- [Context in ADK](/blog/posts/adk-08-context.html) — the `CallbackContext` these hooks receive
+- [The Runtime and Events in ADK](/blog/posts/adk-10-runtime-and-events.html) — what fires the callbacks
+- [Safety and security in ADK](/blog/posts/adk-15-safety-and-security.html)
+- [Google ADK documentation](https://google.github.io/adk-docs/)

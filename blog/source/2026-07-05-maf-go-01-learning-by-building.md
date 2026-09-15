@@ -82,3 +82,17 @@ Next post: the smallest thing that compiles and runs — a provider, instruction
 ---
 
 Next: [Your First Agent — Microsoft Agent Framework in Go](/blog/posts/maf-go-02-your-first-agent.html)
+
+## Key takeaways
+
+- Reading the docs left a map of names but no feel for how they compose; building one small, runnable, dependency-ordered lesson per concept — each green before moving on — is what surfaced both the composition and the SDK's rough edges worth fixing upstream.
+- The framework is two primitives plus plumbing: an agent (a model with instructions and tools, run in a reason-maybe-call-tool loop) and a workflow (a graph of executors where *you* define the path, not the model) — everything else bolts onto one of those two shapes.
+- Reach for an agent when the task is open-ended and the model should decide the steps; reach for a workflow when the process has defined steps and multiple agents must coordinate along a path you control.
+- The foundation is pinned to one provider — Azure AI Foundry with credential-based auth (`DefaultAzureCredential`, no stored keys) — deliberately, because the model backend is a config knob and the learning lives in the agent/workflow APIs; Track 2 branches to Anthropic/OpenAI/Gemini only because providers *are* the lesson there.
+- The Go SDK is iterator-first (`RunText` returns a `ResponseStream` you `.Collect()` or `range`), and each lesson factors agent construction out of `main` so an offline structural test asserts the wiring with a dummy credential while the live call stays opt-in behind `AF_LIVE=1`.
+
+## Further reading
+
+- [Your First Agent — Microsoft Agent Framework in Go](/blog/posts/maf-go-02-your-first-agent.html)
+- [Learning by Building — Microsoft Agent Framework in Python](/blog/posts/maf-python-01-learning-by-building.html) — the Python companion series
+- [Microsoft Agent Framework Go source](https://github.com/microsoft/agent-framework-go)

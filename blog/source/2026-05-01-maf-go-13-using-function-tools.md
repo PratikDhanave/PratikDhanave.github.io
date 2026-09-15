@@ -41,6 +41,19 @@ go run ./tutorial/02-agents/agents/step03_using_function_tools
 
 For both the one-shot and streaming questions the model calls `weather` for "Amsterdam". The program needs Foundry; the four offline tests (wiring, tool metadata, a direct tool call, and a live test gated behind `AF_LIVE=1`) cover everything without a network by default.
 
+## Key takeaways
+
+- **A tool is just a typed Go function** wrapped with `functool.MustNew`, which infers the JSON schema from the handler's signature — no reflection you manage, no separate schema file.
+- **Single non-struct params are wrapped as `Arg0`.** A bare `string` parameter arrives as `{"Arg0":"Amsterdam"}`; give the handler a struct with named fields to get named JSON keys instead. This is the exact shape the offline test pins with a direct `weatherTool.Call`.
+- **The SDK's automatic function-calling middleware handles the loop** — it unmarshals the model's arguments, runs your func, appends the result, and continues the run — so your Go type system is your contract with the model.
+- Keeping the handler pure (no network) is what lets the offline test exercise it with no model and no Foundry call.
+
+## Further reading
+
+- [02 · step04 — Function Tools With Approvals](/blog/posts/maf-go-14-using-function-tools-with-approvals.html) — gate a tool behind human consent.
+- [Structured Output: Typed Agent Results](/blog/posts/maf-go-15-structured-output.html) — constrain the *model's* output shape, not just the tool's input.
+- [12 · Agent as a Function Tool](/blog/posts/maf-go-22-as-function-tool.html) — swap the function for a whole specialist agent.
+
 ---
 
 Next: [02 · step04 — Function Tools With Approvals](/blog/posts/maf-go-14-using-function-tools-with-approvals.html)

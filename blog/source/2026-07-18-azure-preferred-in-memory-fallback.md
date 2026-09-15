@@ -99,3 +99,17 @@ So the repo ships a documented "PoC → production" path: the audit and checkpoi
 This is not a novel pattern. It is ports-and-adapters, it is dependency inversion, it is the oldest advice in the book: define the interface, ship a trivial adapter, select by config. What is novel is only how consistently teams abandon it the moment there is schedule pressure — they inline the Cosmos client into a handler "just for now," and six months later nobody can run the app without a subscription and the test suite takes four minutes because every case round-trips to a real database.
 
 The seam is cheap to build and it pays rent forever: developer experience that starts in seconds, a test suite that runs anywhere in milliseconds, and a production boundary that is documented for free because it is expressed as code. Do not let the cloud be a hard dependency for `make test`. Make it preferred. Never make it required.
+
+## Key takeaways
+
+- The rule is "cloud preferred, never required": every persistence concern hides behind a `Protocol` with two implementations — an Azure-backed one and a trivial in-memory one — and the service boots with zero external dependencies when no config is present.
+- The three stores (audit → Cosmos, checkpoint → Cosmos, knowledge → Azure AI Search) each have an in-memory twin that is a *real, correct, non-durable* implementation of the same contract — not a mock: tests read back what they wrote and retrieval logic runs for real.
+- Selection lives in exactly one place, the composition root (wiring only, no business logic); everything else depends on the `Protocol`, never on `Cosmos` or `Search` directly, so `build_audit_store` is the only function mentioning both classes.
+- The payoff is concrete: local dev needs no cloud account, tests are hermetic and fast (same result on a laptop, in CI, on a plane with wifi off), and the interface *is* the spec for any future adapter.
+- Stated honestly: in-memory is by design, not a bug — it doesn't survive restart, scale past one process, or offer retention — so the repo ships a documented PoC→production path that swaps concretes at the composition root without touching agent or workflow code.
+
+## Further reading
+
+- [An Eval Regression Gate in CI](/blog/posts/eval-regression-gate-in-ci.html)
+- [The Cheapest Reliable Executor Wins](/blog/posts/cheapest-reliable-executor-wins.html)
+- [Most-Restrictive-Wins: Composing Two Layers of Policy](/blog/posts/most-restrictive-wins-policy-composition.html)

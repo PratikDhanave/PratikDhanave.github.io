@@ -82,3 +82,17 @@ Observability tells you *what happened*, safety controls *what an action is allo
 ---
 
 Next: [Workflow Mechanics — Microsoft Agent Framework in Go](/blog/posts/maf-go-08-workflow-mechanics.html)
+
+## Key takeaways
+
+- Observability, safety, and providers all reduce to the same primitives — `agent.Config`, middleware, and the provider constructor — so none of them touch the agent's core logic.
+- OpenTelemetry tracing is just `otelprovider.NewMiddleware(...)` in `Middlewares`: it opens one span per run, tags it with `gen_ai.*` attributes, records errors, and emits to whatever global `TracerProvider` you register — a streaming run still produces exactly one `invoke_agent` span.
+- The Copilot provider's safety story is a permission handler (`OnPermissionRequest`) that returns `PermissionDecisionApproveOnce{}` or `PermissionDecisionReject{}`; keep the choice in a pure `decide()` function so it's unit-testable without stdin.
+- Swapping providers (Anthropic, OpenAI, Gemini, Copilot, Foundry) changes only the constructor and credentials — `RunText`, `.Collect()`, and streaming stay identical; `a.ProviderName()` is how you confirm which backend answered.
+- Reading provider source closely surfaced two real upstream bugs — an OpenAI empty-choices panic (PR #473) and an Anthropic streamed-tool-call accumulation fix (PR #470).
+
+## Further reading
+
+- [Workflow Mechanics — Microsoft Agent Framework in Go](/blog/posts/maf-go-08-workflow-mechanics.html)
+- [Middleware — Microsoft Agent Framework in Go](/blog/posts/maf-go-06-middleware.html)
+- [agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)

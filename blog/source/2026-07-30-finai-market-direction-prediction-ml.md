@@ -72,3 +72,17 @@ A model that is right 53% of the time can still lose money, because being right 
 A backtest showing 90% accuracy and a smooth equity curve is not a triumph; it is a bug report. Real directional edges are small, unstable, and expensive to harvest. The value of walk-forward validation, purging, embargoes, point-in-time data, and cost-aware metrics is not that they make your numbers bigger — they make them *true*. A model with 52% out-of-sample accuracy that holds up across many rolls, survives transaction costs, and beats a simple baseline is worth more than a leaky masterpiece, because only one of them will still be there when you trade it with real money.
 
 Build the pipeline so leakage is hard and honesty is the default. Fit everything inside the fold. Roll forward, never shuffle. Purge the overlap. Pay the costs. Then, and only then, believe your results — a little.
+
+## Key takeaways
+
+- Frame direction as classification (sign of the forward return), not regression on the raw return, which is dominated by noise and a few extreme days — a model right 54% of the time can be tradeable while a high-R² regression is almost always leaking.
+- Random K-fold is a trap for time series: it lets the model train on the future to predict the past. Always train on the past and test on the strictly later future.
+- Walk-forward validation is the honest alternative, with two refinements — *purge* training rows whose h-period label windows overlap the test block, and add an *embargo* gap so boundary autocorrelation can't smuggle information across.
+- Leakage wears many faces: look-ahead bias (a scaler fit over the whole dataset, a fundamental stamped with the report date), survivorship bias (training only on companies that still exist), and data-snooping (a hundred tries against one test set). Fit every scaler and statistic *inside* each fold.
+- Evaluate like the market will: subtract transaction costs and slippage from every trade, judge risk-adjusted return not raw accuracy, look at the *distribution* of walk-forward results and worst drawdowns, and beat a cheap baseline (buy-and-hold) after costs.
+
+## Further reading
+
+- [Why machine learning in finance is different](/blog/posts/finai-why-ml-in-finance-is-different.html) — non-stationarity and the case for time-aware validation.
+- [News sentiment as LLM alpha](/blog/posts/finai-news-sentiment-llm-alpha.html) — a different signal source under the same leakage discipline.
+- [LLM-guided portfolio allocation](/blog/posts/finai-llm-guided-portfolio-allocation.html) — turning a directional signal into positions.

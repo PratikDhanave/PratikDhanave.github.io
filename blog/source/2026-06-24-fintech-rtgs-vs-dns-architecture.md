@@ -95,3 +95,17 @@ The rule of thumb: RTGS for high-value, time-critical, must-be-final-now flows; 
 Modern designs increasingly refuse to choose. Hybrid systems accept payments continuously like RTGS but run frequent offsetting cycles — every few minutes rather than once a day — so a payment is either settled gross immediately or settled net moments later, shrinking the exposure window toward zero while keeping liquidity demand low. From an implementation view a hybrid is an RTGS core whose gridlock resolver runs aggressively and continuously, blurring into a DNS engine.
 
 If you take one thing from this: settlement finality and liquidity are a conserved tradeoff, not a feature you can maximize on both axes. Every mechanism in this post — queues, offsetting solvers, net debit caps, collateral pools — is an attempt to buy back a little of whichever side your chosen architecture gave away.
+
+## Key takeaways
+
+- Every interbank system answers one question — when does a payment become final, and what does that finality cost in liquidity — with two honest answers: settle gross and now (RTGS) or accumulate and settle the net at a window (DNS).
+- RTGS delivers near-zero settlement risk but demands full pre-funding, whose central failure mode is gridlock; a periodic offsetting solver settles a fundable cycle or subset of queued payments atomically even though no single one could settle alone.
+- DNS delivers large liquidity efficiency — fund the small net, not the gross — at the cost of settlement risk in the exposure window, where one participant's failure can force an unwind that cascades across everyone's net positions.
+- DNS contains that risk with net debit caps (a real-time check on every incoming instruction despite deferred settlement), collateral and loss-sharing pools, and deterministic unwind rules.
+- Rule of thumb: RTGS for high-value, time-critical flows; DNS for high-volume, low-value retail; modern hybrids run frequent offsetting cycles to drive the exposure window toward zero while keeping liquidity demand low.
+
+## Further reading
+
+- [Designing a Netting Engine](/blog/posts/fintech-netting-engine-design.html) — the multilateral netting arithmetic at the heart of DNS
+- [Payment-versus-Payment: Settling FX Without Principal Risk](/blog/posts/fintech-cls-pvp-fx-settlement.html) — the same gridlock-resolution idea applied to two-currency settlement
+- [RTP and FedNow Instant Payments](/blog/posts/fintech-rtp-fednow-instant-payments.html) — instant-payment rails built on the gross-settlement model

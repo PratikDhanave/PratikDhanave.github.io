@@ -108,4 +108,18 @@ That `isIdentifier` check on `name` is not incidental — it's the same rule ADK
 
 Think of Agent Config as **the serialized form of an agent's pure-configuration part**. `from_config` is the deserializer, and a `Runner` can't tell whether the agent it got came from a constructor call or a YAML file. Reach for it when the agent is mostly prompt + model + wiring and you want that editable by people who don't touch the source; reach for code the moment you need genuine logic. Today that door is fully open in Python and still behind an `internal/` wall in Go.
 
+## Key takeaways
+
+- Agent Config describes an agent in YAML (`agent_class`, `name`, `model`, `instruction`, `description`, `tools`, `sub_agents`), with fields that map one-to-one onto the constructor arguments — the agent stops being a program and becomes data.
+- `from_config` reads the YAML, resolves `agent_class` to a concrete class, validates, and constructs — but it *never contacts the model*, so you can build, inspect, and test a YAML agent offline with no API key.
+- The ceiling: prompt, model, and wiring live comfortably in data, but real logic (custom tools, callbacks, dynamic instructions) stays in code and the YAML merely references it by name.
+- Data has different affordances than code: non-engineers can edit it, changes are reviewable diffs, it is toolable (the `adk web` Visual Builder emits this same YAML), and it is portable across languages.
+- The two-language symmetry breaks here — adk-go's config engine exists but lives in `internal/`, so there is no public Go `from_config`. The honest workaround is to mirror the struct with `yaml.v3` and validate it yourself, including the `name.isidentifier()` rule.
+
+## Further reading
+
+- [Context caching in ADK](/blog/posts/adk-23-context-caching.html) — another App-level, Python-first ADK feature with an honest Go note.
+- [Google ADK glossary](/blog/posts/adk-25-glossary.html) — every core concept in one reference.
+- [ADK docs](https://google.github.io/adk-docs/) — the canonical Agent Config and `from_config` reference.
+
 *This is the final concept in the series — the declarative capstone over everything from your first agent through tools, state, memory, multi-agent systems, evaluation, deployment, and observability.*

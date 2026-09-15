@@ -93,3 +93,18 @@ A few things separate a design that passes an audit from one that survives produ
 - **No logging of sensitive fields.** The fastest way to undo all of this is a debug log that captures the PIN block alongside the KSN and a decryptable key reference. Scrub aggressively.
 
 None of these techniques is new, and that is the point. PIN protection is a solved problem when the boundaries are drawn correctly: a fresh key per transaction so a single leak is contained, capture-to-HSM encryption so cleartext lives only inside hardware, and translation confined to the module so the network never carries a decryptable secret. The engineering work is almost entirely about respecting those boundaries — and refusing every convenience that would blur them.
+
+## Key takeaways
+
+- DUKPT loads only an initial key (derived from a BDK held inside the HSM), then derives a fresh working key per transaction and destroys it — so compromising transaction N's key reveals neither N−1 nor N+1, and a stolen key yields exactly one PIN block, not a fleet-wide oracle.
+- The Key Serial Number (device ID + transaction counter) travels in the clear beside the ciphertext and drives key derivation; the PIN block mixes digits with the PAN so an intercepted block can't be replayed onto a different card.
+- P2PE protects *scope*, not keys: data is encrypted at capture and stays encrypted until it reaches a decryption environment the merchant doesn't operate, so merchant systems hold only undecryptable ciphertext and largely fall out of PCI audit scope.
+- PIN translation is the one place cleartext briefly exists, and it happens atomically inside the HSM (re-derive working key → decrypt → re-encrypt under the outbound zone key); the calling app never sees plaintext, the working key, or the BDK.
+- The whole model rests on operational discipline: counter monotonicity (a backward counter is fraud), tracking DUKPT key exhaustion, verifying zeroization-on-tamper in the field, and never logging sensitive fields.
+
+## Further reading
+
+- [EMV Cryptograms and the ARQC](/blog/posts/fintech-emv-cryptogram-arqc.html)
+- [The HSM Key Management Ceremony](/blog/posts/fintech-hsm-key-management-ceremony.html)
+- [Card Auth, Capture, and Clearing](/blog/posts/fintech-card-auth-capture-clearing.html)
+- [Derived unique key per transaction (Wikipedia)](https://en.wikipedia.org/wiki/Derived_unique_key_per_transaction)

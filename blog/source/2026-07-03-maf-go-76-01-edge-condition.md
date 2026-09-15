@@ -49,3 +49,18 @@ Fully offline — every executor is a pure function, no credential needed. The b
 ---
 
 Next: [02 · Switch Case — multi-way conditional routing](/blog/posts/maf-go-77-02-switch-case.html)
+
+## Key takeaways
+
+- A workflow is a graph of executor functions joined by edges; `AddDirectEdge` takes a condition — a `func(any) bool` over the message — and two complementary conditions leaving the same executor make the graph fork so exactly one branch runs.
+- Conditions live on the edge, not the node, keeping routing logic separate from the work each executor does (`AddEdge` is the unconditional shorthand).
+- The predicate receives `any`, so you type-assert inside it (`msg.(DetectionResult).IsSpam`) — and the two conditions must be exact negations, or a message is dropped (no edge accepts it) or double-delivered.
+- `WithOutputFrom(send, spam)` marks multiple terminals as outputs, surfaced as `workflow.OutputEvent`s you drain from `run.NewEvents()`.
+- Conditional edges are the primitive every higher-level construct — switch cases, multi-selection fan-out, group-chat routing — is built on, and the whole lesson runs offline with no model call.
+
+## Further reading
+
+- [02 · Switch Case — multi-way conditional routing](/blog/posts/maf-go-77-02-switch-case.html)
+- [concurrent · Fan-out / Fan-in Workflow](/blog/posts/maf-go-74-concurrent.html)
+- [Workflow Mechanics — Microsoft Agent Framework Go](/blog/posts/maf-go-08-workflow-mechanics.html)
+- [Microsoft Agent Framework Go source](https://github.com/microsoft/agent-framework-go)

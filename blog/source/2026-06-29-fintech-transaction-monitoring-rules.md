@@ -94,3 +94,18 @@ Escalation produces a suspicious-activity report — an STR or SAR depending on 
 The recurring theme is reproducibility. Because features, hits, and alerts are all stored artifacts, you can answer three questions that regulators and your own risk team will ask: why did this fire, what would a proposed threshold change do to historical volume, and did we miss anything a new typology would have caught. All three are replay operations over stored state, not forensic reconstructions.
 
 That is the payoff for treating AML monitoring as a disciplined streaming pipeline rather than a bag of alerts. The compliance requirements — explainability, auditability, defensibility — turn out to be the same properties good stream engineering gives you anyway: deterministic windows, pure rules, versioned config, immutable lineage, and idempotent side effects. Build those in from the first stage and the compliance story writes itself.
+
+## Key takeaways
+
+- AML monitoring is an ordinary stream-processing system with strict auditability: it operates on an aggregated view of an entity over time, not on individual transactions in isolation.
+- Five separable stages — windowed aggregation, typology rules, alert scoring + dedup, case queue, STR/SAR — each emit an immutable, timestamped artifact that forms the evidence trail you replay to answer "why did this fire?"
+- Sliding-window aggregation is the hard part: windows must be *deterministic* (event-time, defined watermark and late-arrival policy) and *queryable at decision time*, so rules read rolled-up features, never raw postings.
+- Encode typologies as *pure* functions of features and versioned config, and always attach the exact evidence values — an alert without the numbers that caused it is useless to an analyst and indefensible to a regulator.
+- Raw hits aren't alerts: score and deduplicate against open alerts with a stable key + suppression window, and auto-clear below a threshold as a recorded, reversible disposition to avoid drowning analysts.
+
+## Further reading
+
+- [Sanctions Screening Engine](/blog/posts/fintech-sanctions-screening-engine.html)
+- [SAR/STR Case Management](/blog/posts/fintech-sar-str-case-management.html)
+- [Real-Time Velocity Checks and the Fraud Feature Store](/blog/posts/fintech-velocity-fraud-feature-store.html)
+- [Money laundering (Wikipedia)](https://en.wikipedia.org/wiki/Money_laundering)

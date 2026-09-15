@@ -89,6 +89,13 @@ This reshapes liability. If the charge fell within a signed mandate, the authori
 - The engineering hard parts are ordinary crypto-system problems made critical: key custody, short expiry, revocation, replay protection, and verifying signatures at the edge.
 - Store the chain. Its real value shows up in a dispute, when cryptographic proof replaces "trust me, the user said so."
 
+## Further reading
+
+- [Agentic commerce, explained](/blog/posts/agentic-commerce-explained.html)
+- [AP2 and the three mandates](/blog/posts/agentic-commerce-ap2-mandates.html)
+- [Agent identity and authentication](/blog/posts/agentic-commerce-agent-identity-auth.html)
+- [Verifiable credentials](https://en.wikipedia.org/wiki/Verifiable_credentials) — Wikipedia background on the VC data model
+
 ## Sources
 
 - https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol

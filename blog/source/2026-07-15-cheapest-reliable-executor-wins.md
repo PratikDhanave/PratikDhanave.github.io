@@ -90,3 +90,18 @@ Note this is a different axis from latency- or budget-based dispatch — routing
 ## Why it matters
 
 Do not make an LLM your first executor. It is the expensive, fallible rung — save it for when the cheap rungs genuinely can't cope, and keep a deterministic rung underneath that keeps the system alive when the model isn't. Build the ladder: rules, cheap model, capable model, human. Let each rung handle only what the rung below couldn't. You'll spend a fraction of the tokens, you'll survive your provider's bad days, and the one time a model wants to do something irreversible, a person will be standing at the top of the ladder saying "not yet."
+
+## Key takeaways
+
+- The design principle is "the cheapest reliable executor always wins" — deterministic rules get first refusal at $0 and ~100% reliability, and only unmatched events escalate one rung at a time.
+- Rules are an ordered list where list order *is* priority order (first match wins), so priority is readable top-to-bottom, diffable in a PR, and reasonable without simulating model judgment.
+- The deterministic rung is the reliability *floor*: it still fires when the model is throttled or down, so your busiest path (the power-law fat head) is also your most available — you don't want incident-system availability correlated with the thing that's on fire.
+- Escalation is a model cascade (none → cheap → capable): the cheap model handles the shoulder, the capable model touches only the genuinely novel long tail where its cost is justified.
+- Every rung produces a *proposal*, not an action — the moment a proposal would mutate anything, the workflow pauses for explicit human approval, because a confidently-wrong model executing an irreversible action is the worst outcome an ops system can produce.
+
+## Further reading
+
+- [Cost-Aware Agent Dispatch](/blog/posts/cost-aware-agent-dispatch.html)
+- [Latency-Aware Agent Dispatch and SLOs](/blog/posts/latency-aware-agent-dispatch-slo.html)
+- [Most-Restrictive-Wins: Composing Two Layers of Policy](/blog/posts/most-restrictive-wins-policy-composition.html)
+- [An Eval Regression Gate in CI](/blog/posts/eval-regression-gate-in-ci.html)

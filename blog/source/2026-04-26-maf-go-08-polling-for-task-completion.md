@@ -56,6 +56,19 @@ A2A_AGENT_HOST=http://127.0.0.1:5000 AF_LIVE=1 \
 
 The program exits early unless `AF_LIVE=1` is set, because it needs a reachable A2A server. The offline structural test builds the same `a2aprovider.AgentConfig` from a fake card and asserts its wiring — no network, no server.
 
+## Key takeaways
+
+- **A remote A2A agent looks like a local one.** After `a2aprovider.NewAgent` wraps the A2A client, you call `RunText`/`Run`/`CreateSession` exactly as with a Foundry agent — the provider is the only thing that changed.
+- **Background responses turn a long call into a poll loop.** Ask with `agent.AllowBackgroundResponses(true)` and the server may return immediately with a continuation token; you poll with `agent.WithContinuationToken(token)` until a response comes back with an empty token.
+- **A poll must pass `nil` messages.** `Run(ctx, nil, ...)` — the runtime rejects a run that supplies both a continuation token and messages ("messages are not allowed when continuing a background response"); the continuation *is* the request.
+- The agent card drives the wiring: `agentConfigFromCard` reads `Name` (with a `cmp.Or` fallback) and `Description`, and that pure function is what the offline test pins.
+
+## Further reading
+
+- [a2a · Stream Reconnection](/blog/posts/maf-go-10-stream-reconnection.html) — resume a dropped stream with the same continuation-token mechanism.
+- [A2A · Protocol Selection](/blog/posts/maf-go-09-protocol-selection.html) — pin which transport the client negotiates.
+- [a2a · Remote Skills as Function Tools](/blog/posts/maf-go-07-as-function-tools.html) — hand a remote agent's skills to a host agent as tools.
+
 ---
 
 Next: [A2A · Protocol Selection](/blog/posts/maf-go-09-protocol-selection.html)

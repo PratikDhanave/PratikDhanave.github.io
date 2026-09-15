@@ -139,3 +139,17 @@ Think of `goto` as the node writing a single word onto a hidden slip of paper, a
 ---
 
 **Next in the series:** streaming — how `stream(mode="values" | "updates")` turns each node step into an observable event without changing a line of node code.
+
+## Key takeaways
+
+- `Command(update={...}, goto="next")` folds a state update and a routing decision into one return value, letting the node that made the decision act on it directly instead of stashing it in state for a separate router to re-read.
+- Reach for `Command` when the routing decision and the state update are the same computation, for multi-agent handoffs (a supervisor's `goto`), or to route across a hierarchy with `Command(graph=Command.PARENT, goto=...)`; stick with conditional edges when routing is a pure function of state shared by several nodes.
+- You must declare a node's possible targets (`Command[Literal[...]]` or `ends=[...]`) so the compiler can keep the topology complete; a `goto` to an undeclared target is a construction error, not a runtime dead end.
+- `goto` is not a new primitive — the runner stamps a private `__goto__` channel and the compiler emits one guarded edge per declared target, so `Command` is a convenience layer over conditional edges, stripped from the final state before the caller sees it.
+- The canonical shape is a supervisor dispatching to workers that each `goto="supervisor"` back, looping until the supervisor decides `goto=END` — the whole control graph living inside node functions as data.
+
+## Further reading
+
+- [Streaming: values, updates, and debug Modes](/blog/posts/langgraph-08-streaming.html)
+- [Cycles and the Agent Loop](/blog/posts/langgraph-06-cycles-agent-loop.html)
+- [LangGraph multi-agent concepts](https://langchain-ai.github.io/langgraph/concepts/multi_agent/)

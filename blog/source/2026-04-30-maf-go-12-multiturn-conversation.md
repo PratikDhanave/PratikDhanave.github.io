@@ -42,6 +42,18 @@ go run ./tutorial/02-agents/agents/step02_multiturn_conversation
 
 The program needs Foundry (`az login` + a project endpoint); the offline tests build the agent with a fake credential and drive the middleware with no network. The live turn is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **The session is the memory.** `CreateSession` returns a `*agent.Session`; passing it via `agent.WithSession(...)` on each `RunText` is what appends the turn and replays the whole history to the model — nothing about the agent changes between turns.
+- **A new session means fresh context.** The streamed turns run on `session2`, which never sees the first conversation; forgetting to pass the same session silently drops memory and the model just won't remember.
+- **`WithSession` is portable.** The same option works across providers, and later lessons persist the session to disk or a third-party store — sessions are how the framework keeps multi-turn context without you hand-managing message arrays.
+
+## Further reading
+
+- [02 · step03 — Using Function Tools](/blog/posts/maf-go-13-using-function-tools.html) — give the multi-turn agent a tool it can call mid-run.
+- [step06 · Persisted Conversation](/blog/posts/maf-go-16-persisted-conversation.html) — serialize the session to disk and resume it in a new process.
+- [02 · Multi-turn with Server Conversations](/blog/posts/maf-go-41-2-multiturn-with-server-conversations.html) — keep the transcript on the Foundry service instead of in local memory.
+
 ---
 
 Next: [02 · step03 — Using Function Tools](/blog/posts/maf-go-13-using-function-tools.html)

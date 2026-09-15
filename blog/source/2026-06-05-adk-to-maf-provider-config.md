@@ -210,6 +210,19 @@ Same code. Toggle `.env`:
 
 No code changes. Not one line.
 
+## Key takeaways
+
+- ADK bakes the model into `Agent(model="gemini-...")`; Microsoft Agent Framework replaces that with `client=build_chat_client()`, a factory that reads a `PROVIDER` env var and returns a `ChatClient`.
+- All clients (Ollama, OpenAI, Azure Foundry) implement the same `ChatClient` interface, so agents never know which backend they're talking to — the swap is a `.env` edit, not a code change.
+- Ollama is the zero-cost local default (`localhost:11434`); OpenAI trades money for quality; Foundry uses `AzureCliCredential` for regulated, audit-logged production.
+- You can mix providers in one orchestration — a cheap Ollama analyzer feeding an expensive OpenAI reviewer over a shared `AgentThread` — to spend the expensive model only on the final call.
+
+## Further reading
+
+- [Tool Wrapping: From ADK Functions to Governed Tools](/blog/posts/adk-to-maf-tool-wrapping.html) — the tools that ride on top of the swappable client
+- [Callbacks and Middleware](/blog/posts/adk-to-maf-callbacks.html) — instrumenting the runs these providers back
+- [Lessons from Converting 18 Agents in 90 Days](/blog/posts/adk-to-maf-lessons.html) — why provider abstraction was the migration's biggest win
+
 ---
 
 Next: [Callbacks and Middleware](/blog/posts/adk-to-maf-callbacks.html)

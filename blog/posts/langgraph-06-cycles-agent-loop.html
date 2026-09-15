@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-14">July 14, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/langgraph/" class="tag-link"><span class="tag">#LangGraph</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/agentic-ai/" class="tag-link"><span class="tag">#Agentic AI</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a><a href="/blog/tags/software-engineering/" class="tag-link"><span class="tag">#Software Engineering</span></a><a href="/blog/tags/guardrails/" class="tag-link"><span class="tag">#Guardrails</span></a></div>
   </header>
@@ -233,6 +233,20 @@ except GraphRecursionError:
 </ul>
 <p>So the same cycle that makes agents possible is exactly the cycle that could hang your process — and <code>recursion_limit</code> is the one line that turns &ldquo;hang&rdquo; into &ldquo;clear, catchable error.&rdquo; That is why this loop, with its cap, is the single most important pattern in the whole framework: master <code>START -&gt; agent -&gt; branch -&gt; tools -&gt; back to agent</code>, and bound it with <code>recursion_limit</code>, and you understand the mechanism behind every LangGraph agent.</p>
 <p><strong>Next in the series:</strong> the <code>Command</code> object — how a node can return a state update <em>and</em> a <code>goto</code> in one move, collapsing the branch into the node itself.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>The ReAct agent <em>is</em> a three-line graph: <code>START → agent</code>, a conditional branch (<code>should_continue</code>), and a back-edge <code>tools → agent</code> — every LangGraph agent is this loop with a bigger tool set and a smarter router.</li>
+<li>The cycle is not call-stack recursion: each hop is a superstep that reads the whole <code>messages</code> channel and appends to it (via the <code>add_messages</code> reducer), so the model gets a fresh look at the board after tools have moved, never a nested call waiting on a return.</li>
+<li>One turn is think → act → observe → think → answer: the model emits <code>tool_calls</code>, the router sends state to <code>tools</code>, results append, the back-edge returns richer state, and the model answers with no tool calls so the router routes to <code>END</code>.</li>
+<li><code>recursion_limit</code> is <em>your</em> deliberate per-run bound; hitting it before <code>END</code> raises a catchable <code>GraphRecursionError</code> (didn&rsquo;t converge in budget) — catch it to fall back or fail loudly rather than hang.</li>
+<li>The hard safety ceiling (a large fixed number) is a separate last-resort backstop that fires only when you set no limit — the smoke detector, not the thermostat.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/langgraph-07-command.html">Command: Update State and Pick the Next Node in One Return</a></li>
+<li><a href="/blog/posts/langgraph-05-conditional-edges.html">Conditional Edges</a></li>
+<li><a href="https://langchain-ai.github.io/langgraph/concepts/low_level/">LangGraph low-level concepts</a></li>
+</ul>
 
 
   <aside class="related-posts">

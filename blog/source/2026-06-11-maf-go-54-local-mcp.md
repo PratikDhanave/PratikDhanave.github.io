@@ -43,6 +43,19 @@ go run ./tutorial/02-agents/providers/foundry/step23_local_mcp
 
 The live run needs `az login`, `FOUNDRY_PROJECT_ENDPOINT`, and outbound network to learn.microsoft.com. Offline tests wrap a fake tool and assert the decorator forwards args, returns the inner result, propagates errors, and wraps only `FuncTool`s — no session, no model; the end-to-end run is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- "Local MCP" describes where the tool *objects* live, not the server: you connect to a remote MCP server, list its tools, and get them back as ordinary `tool.Tool` values in your process.
+- A decorator is embedding plus one override — `loggingFuncTool` embeds `tool.FuncTool`, inherits `Name`/`Description`/`Schema`, and overrides only `Call` to log, then delegates to `t.FuncTool.Call(...)`.
+- Ending `Call` in the inner call keeps the decoration transparent — the agent gets the same result — so you can swap the print for metrics, caching, or argument validation without moving anything else.
+- Type-assert to `tool.FuncTool` before wrapping: `ListTools` returns `[]tool.Tool` and only the assertable ones are callable; `wrapTools` skips the rest and returns a fresh slice, leaving its input untouched.
+
+## Further reading
+
+- [09 · MCP Client as Tools (Foundry)](/blog/posts/maf-go-47-mcp-client-as-tools.html) — the earlier lesson that handed remote tools straight to the agent
+- [providers/gemini · The Same Agent, Backed by Google Gemini](/blog/posts/maf-go-55-gemini.html) — the next lesson in this track
+- [Model Context Protocol](https://modelcontextprotocol.io) — the protocol these remote tools are published under
+
 ---
 
 Next: [providers/gemini · The Same Agent, Backed by Google Gemini](/blog/posts/maf-go-55-gemini.html)

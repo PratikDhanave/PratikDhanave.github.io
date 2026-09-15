@@ -75,3 +75,18 @@ Hang service-level clocks off the same log. The gap between `Triggered` and `Re-
 ## What Changes for the Team
 
 pKYC is less a new product than a shift in ownership. The compliance team stops managing a refresh calendar and starts tuning a trigger taxonomy and score thresholds. Engineering owns an always-on pipeline whose correctness is measured in ordering guarantees and idempotency, not batch completion. The two meet at the state machine — a small, boring, rigorously audited artifact that turns a stream of messy real-world events into a defensible answer to the only question that matters: do we still know who this customer is?
+
+## Key takeaways
+
+- Perpetual KYC replaces the calendar-driven refresh cycle with an event-driven question — "has anything happened that changes what we know?" — because risk is bursty, not slow and predictable.
+- Triggers fall into four families with different source systems and latency profiles: transaction anomalies (streaming), watchlist/screening hits (batch, high-fanout pull events), static-data changes, and ownership/control changes; normalize them into one `RiskEvent` envelope but keep source-specific enrichment.
+- Two pipeline properties matter more than throughput: idempotency (key by a stable hash of `customer_id, source, event_signature` so a replay doesn't create a second case) and ordering *per customer* (partition by `customer_id`; you don't need global order).
+- Model each customer as one state machine (Monitored → Triggered → Re-Review → Cleared, with EDD/Outreach escalations and SAR-Filed/Offboarded terminal exits); Re-Review is deliberately narrow — refresh only what the trigger invalidated — and the loop back to Monitored is what makes it *perpetual*.
+- Regulators ask retrospective questions, so persist every transition as an append-only record (from/to state, event_id, score before/after, model version, authorizing actor, timestamp); current state is a projection, buying reconstruction, explainability, and non-repudiation — and SLA clocks fall out of the same log.
+
+## Further reading
+
+- [Customer Risk Rating: Scoring AML Risk](/blog/posts/fintech-customer-risk-rating.html)
+- [Sanctions Screening Engine](/blog/posts/fintech-sanctions-screening-engine.html)
+- [SAR/STR Case Management](/blog/posts/fintech-sar-str-case-management.html)
+- [Know your customer (Wikipedia)](https://en.wikipedia.org/wiki/Know_your_customer)

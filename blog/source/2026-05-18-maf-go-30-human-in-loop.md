@@ -56,6 +56,19 @@ go run ./tutorial/02-agents/agui/step04_human_in_loop/client   # terminal 2
 
 The tool wiring and approval helpers test offline; the end-to-end round-trip is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **`tool.ApprovalRequiredFunc(...)` gates a tool behind human consent.** The model may propose calling `approve_expense_report`, but the framework emits an approval *request* instead of executing — the server enforces the pause.
+- **Approval is a message round-trip, not a callback.** The run returns with pending approvals; you re-run feeding the decisions back as new contents (`v.CreateResponse(approved, "")`), and loop until a run comes back with nothing pending.
+- **The client handles two shapes** — the framework's `ToolApprovalRequestContent` and a manual `request_approval` `FunctionCallContent` — and keeps decision logic (`parseApproval`, `collectApprovalResponses`) free of stdin/network so a scripted approver can drive it offline.
+- Over AG-UI the model runs on the server against Foundry, but the *authority* stays with the human at the client — the guarantee you want for irreversible operations.
+
+## Further reading
+
+- [step04 · Function Tools with Approvals](/blog/posts/maf-go-43-function-tools-with-approvals.html) — the same approval primitive in a single-process Foundry lesson.
+- [Frontend Tools](/blog/posts/maf-go-29-frontend-tools.html) — the preceding AG-UI lesson, where tool execution moves to the client.
+- [State Management](/blog/posts/maf-go-31-state-management.html) — the final AG-UI lesson, sharing structured state both directions.
+
 ---
 
 Next: [State Management](/blog/posts/maf-go-31-state-management.html)

@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-07">July 07, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/accounting/" class="tag-link"><span class="tag">#Accounting</span></a><a href="/blog/tags/crypto/" class="tag-link"><span class="tag">#Crypto</span></a><a href="/blog/tags/tax/" class="tag-link"><span class="tag">#Tax</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/cryptocurrency/" class="tag-link"><span class="tag">#Cryptocurrency</span></a></div>
   </header>
@@ -179,6 +179,20 @@
 <p>Lots do not only change through trades. A <strong>stock split</strong> multiplies <code>qty_open</code> and divides <code>basis_per_unit</code> by the same ratio, preserving total basis and the original acquisition date. A <strong>spinoff</strong> allocates a fraction of the parent lot&rsquo;s basis to newly issued lots. A <strong>transfer in</strong> from another custodian should arrive with basis and acquisition date intact; when it does not (a &ldquo;non-covered&rdquo; transfer), the lot is flagged and its gain may have to be reported as basis-unknown. Model each of these as an event that produces new lots or restates existing ones — never as a silent field edit — so the audit trail survives.</p>
 <h2 id="producing-the-report">Producing the report</h2>
 <p>The realized-gains report (Form 8949 in the U.S.) is a projection over disposal events: one row per consumed lot slice, with acquired date, sold date, proceeds, basis, wash-sale adjustment, and gain, grouped into short- and long-term buckets. Because everything upstream is deterministic and replayable, the report is reproducible — the same ledger and the same method always yield the same rows. That reproducibility, not the arithmetic, is the hard part worth engineering for.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>The <strong>tax lot</strong>, not the net position, is the ledger&rsquo;s atom — a position throws away the two facts the tax code needs: when each share was acquired and at what cost. Every buy creates one immutable lot with fees folded into <code>basis_per_unit</code>.</li>
+<li>Disposal method (FIFO / LIFO / HIFO / Spec-ID) is just the policy that orders candidate lots, but selection must be <strong>deterministic</strong>: append <code>lot_id</code> as a tiebreaker so a re-run can&rsquo;t silently reassign basis when timestamps collide.</li>
+<li>Realized gain is booked per consumed slice at disposal (<code>proceeds − matched_basis</code>, stamped with holding period); unrealized gain is a <em>read</em> over open lots at a mark and is never written to the log — deriving it on demand avoids staleness bugs.</li>
+<li>The wash-sale rule rewrites history: a loss with a substantially-identical repurchase within ±30 days is disallowed and deferred into the replacement lot&rsquo;s basis, carrying the original acquisition date forward. Because the window extends 30 days <em>forward</em>, reports stay provisional until it closes.</li>
+<li>Corporate actions (splits, spinoffs, transfers) and wash-sale corrections are handled by append-and-replay — new events restate lots — never by silent field edits, which is what keeps the report reproducible.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-corporate-actions-processing.html">Corporate actions processing</a></li>
+<li><a href="/blog/posts/fintech-fund-accounting-nav.html">Fund accounting and NAV</a></li>
+<li><a href="/blog/posts/fintech-pretrade-risk-position-pnl.html">Pre-trade risk, positions, and real-time P&amp;L</a></li>
+</ul>
 
 
   <aside class="related-posts">

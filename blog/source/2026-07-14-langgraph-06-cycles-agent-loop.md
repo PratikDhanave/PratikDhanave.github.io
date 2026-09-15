@@ -127,3 +127,17 @@ Two distinct guards live here, and the difference matters:
 So the same cycle that makes agents possible is exactly the cycle that could hang your process — and `recursion_limit` is the one line that turns "hang" into "clear, catchable error." That is why this loop, with its cap, is the single most important pattern in the whole framework: master `START -> agent -> branch -> tools -> back to agent`, and bound it with `recursion_limit`, and you understand the mechanism behind every LangGraph agent.
 
 **Next in the series:** the `Command` object — how a node can return a state update *and* a `goto` in one move, collapsing the branch into the node itself.
+
+## Key takeaways
+
+- The ReAct agent *is* a three-line graph: `START → agent`, a conditional branch (`should_continue`), and a back-edge `tools → agent` — every LangGraph agent is this loop with a bigger tool set and a smarter router.
+- The cycle is not call-stack recursion: each hop is a superstep that reads the whole `messages` channel and appends to it (via the `add_messages` reducer), so the model gets a fresh look at the board after tools have moved, never a nested call waiting on a return.
+- One turn is think → act → observe → think → answer: the model emits `tool_calls`, the router sends state to `tools`, results append, the back-edge returns richer state, and the model answers with no tool calls so the router routes to `END`.
+- `recursion_limit` is *your* deliberate per-run bound; hitting it before `END` raises a catchable `GraphRecursionError` (didn't converge in budget) — catch it to fall back or fail loudly rather than hang.
+- The hard safety ceiling (a large fixed number) is a separate last-resort backstop that fires only when you set no limit — the smoke detector, not the thermostat.
+
+## Further reading
+
+- [Command: Update State and Pick the Next Node in One Return](/blog/posts/langgraph-07-command.html)
+- [Conditional Edges](/blog/posts/langgraph-05-conditional-edges.html)
+- [LangGraph low-level concepts](https://langchain-ai.github.io/langgraph/concepts/low_level/)

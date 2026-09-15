@@ -77,3 +77,17 @@ Rare categories need grouping. A categorical level that appears in a handful of 
 The payoff is threefold. First, interpretability. Every input is a small table mapping bins to WOE, and every coefficient reads as a weight on a log-odds contribution. You can trace any score back to the exact bins the applicant landed in. Second, stability. Coarse, well-populated, monotonic bins do not lurch when the portfolio shifts slightly, and you can monitor them over time by watching whether the population distribution across bins drifts (the same binning underpins the population stability index). Third, defensibility. Monotonic relationships and documented, reproducible cut points are precisely what model validators and examiners ask to see. The relationship between each variable and risk is stated as a rule, not discovered as an accident.
 
 WOE and IV will not win a leaderboard against a gradient-boosted ensemble on raw accuracy alone. But in a domain where a model must be explained, monitored, and defended for years, the modest cost of careful binning buys something a black box cannot. A scorecard whose every decision you can stand behind.
+
+## Key takeaways
+
+- WOE reframes each predictor onto one log-odds scale — `ln((goods_in_bin/total_goods)/(bads_in_bin/total_bads))` — so a linear model learns a single scaling coefficient per variable instead of the whole curve; positive means safer than the book, negative riskier.
+- Enforce monotonic WOE across ordered bins so you can state a defensible rule ("more recent delinquencies never lowers predicted risk") that the scorecard honors for every applicant.
+- Information Value ranks a variable's overall strength; the conventional bands are <0.02 useless, 0.02–0.1 weak, 0.1–0.3 medium, 0.3–0.5 strong, and >0.5 *suspicious* — an implausibly high IV usually signals leakage, not a trophy.
+- Two edge cases separate a toy from a production pipeline: give missing values their own bin (missingness is often informative in credit data), and group rare categories so no bin's WOE is driven by a handful of noisy records.
+- The payoff is threefold — interpretability (each input is a bin→WOE table), stability (coarse monotonic bins don't lurch on a data refresh, and the same binning underpins the population stability index), and defensibility (reproducible cut points are exactly what validators ask to see).
+
+## Further reading
+
+- [Building a credit scorecard: from raw data to a score](/blog/posts/finai-credit-scorecard-from-data-to-score.html) — where WOE features feed the logistic fit and points scaling.
+- [Explaining credit decisions: SHAP and reason codes](/blog/posts/finai-credit-explainability-shap-reason-codes.html) — the explainability obligation this binning discipline serves.
+- [Reject inference: modeling the applicants you declined](/blog/posts/finai-reject-inference-credit-scoring.html) — the sample-bias problem downstream of the same accepts-only data.

@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-07-02">July 02, 2026</time>
       <span>·</span>
-      <span>2 min read</span>
+      <span>3 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/microsoft-agent-framework/" class="tag-link"><span class="tag">#Microsoft Agent Framework</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/concurrency/" class="tag-link"><span class="tag">#Concurrency</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -156,6 +156,20 @@ go test ./tutorial/03-workflows/concurrent/map_reduce
 <p>The offline tests assert both the graph wiring and an end-to-end word count (<code>a:2, b:1, c:3</code> on <code>"a a b c c c"</code>). <code>TestMapReduce_Live</code> is a skipped placeholder gated on <code>AF_LIVE=1</code>, kept only for consistency with the model-backed lessons — this workflow has no model call.</p>
 <hr>
 <p>Next: <a href="/blog/posts/maf-go-76-01-edge-condition.html">01 · Edge Condition (conditional edges)</a></p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>MapReduce is built entirely on the workflow engine — no agent, no LLM — and runs fully offline and deterministically, proving the same engine scales from a two-node join to a multi-stage pipeline.</li>
+<li>The graph stacks <code>AddFanOutEdge</code> / <code>AddFanInBarrierEdge</code> twice (splitter → mappers → shuffler → reducers → completion), so the shuffler fires once after all maps and completion fires once after all reduces.</li>
+<li>Keep edge messages tiny (&ldquo;done, here&rsquo;s a path&rdquo;) and move bulk data out of band: the word list and chunk ranges go through <code>ctx.QueueStateUpdate</code> / <code>ctx.ReadState</code>, and per-stage results go to files under a temp dir.</li>
+<li>A broadcast edge feeding addressed work uses the selective fan-out pattern — every reducer receives every <code>ShuffleComplete</code>, and a <code>if msg.ReducerID != id { return nil }</code> guard makes each process only its shard.</li>
+<li>Stateless stages are <code>NewExecutor</code> closures; stages that accumulate across a barrier use <code>BindNewExecutorFunc</code> (a fresh value per run) and compare their count against the <code>expected</code> source count to decide when &ldquo;all arrived.&rdquo;</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/maf-go-74-concurrent.html">concurrent · Fan-out / Fan-in Workflow</a> — the single-barrier lesson this builds on</li>
+<li><a href="/blog/posts/maf-go-76-01-edge-condition.html">01 · Edge Condition (conditional edges)</a></li>
+<li><a href="/blog/posts/maf-go-08-workflow-mechanics.html">Workflow Mechanics — Microsoft Agent Framework Go</a></li>
+</ul>
 
 
   <aside class="related-posts">

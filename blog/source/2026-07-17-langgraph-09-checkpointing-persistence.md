@@ -125,3 +125,17 @@ A from-scratch engine gets this almost for free: run one superstep at a time, ke
 Checkpointing is not only about surviving crashes — it is the substrate that makes **human-in-the-loop** possible. Pausing a graph to wait for a person is exactly "save a checkpoint, return control, resume later when input arrives" — and that wait could last minutes or days, well past the lifetime of any single process. Durable, serializable snapshots keyed by `thread_id` are precisely what let a run sit paused and then continue as if nothing stopped.
 
 Next in the series: **human-in-the-loop with `interrupt()`** — pausing a graph mid-run to get a human's input, then resuming from the checkpoint with their answer folded into the state.
+
+## Key takeaways
+
+- A checkpointer saves a snapshot at every superstep boundary — the one moment the engine is quiescent — capturing three things: channel values, pending work, and any between-step node state. There's no hidden call stack to preserve.
+- `MemorySaver` is the simplest checkpointer, attached with a single `checkpointer=` argument at compile time; production swaps in SQLite/Postgres/Redis for durability across crashes.
+- `thread_id` keys which run a snapshot belongs to: reusing it resumes and appends (short-term memory, one evolving state per thread); switching it gives a clean, independent conversation.
+- Resume is just a normal `invoke` on an existing `thread_id` — no special API — and works across a crash or a different process because the snapshot is serializable (`to_json`/`from_json` *is* the durability).
+- Because every boundary is saved, the newest snapshot isn't special: time-travel means replaying from an earlier checkpoint (reproduce a non-deterministic run) or forking from it (edit state, resume a different branch) — a tree of runs, like branching git history. This is also the substrate that makes human-in-the-loop possible.
+
+## Further reading
+
+- [Human-in-the-Loop and Tools](/blog/posts/langgraph-10-human-in-the-loop-and-tools.html)
+- [Streaming: values, updates, and debug Modes](/blog/posts/langgraph-08-streaming.html)
+- [LangGraph low-level concepts](https://langchain-ai.github.io/langgraph/concepts/low_level/)

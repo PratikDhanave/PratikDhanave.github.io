@@ -47,6 +47,19 @@ go run ./tutorial/02-agents/agents/step21_shell_with_environment
 
 The offline test runs anywhere; the live path needs `az login` + `FOUNDRY_PROJECT_ENDPOINT`, runs real commands, and is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **`shelltool.NewLocal` gives the model a real `run_shell` tool** that executes commands on your machine, paired with an `EnvironmentProvider` that probes the shell once (family, OS, cwd, installed CLIs) and injects a summary so the model uses `export` on POSIX but `$env:` on PowerShell.
+- **Modes are the observable difference.** *Stateless* spawns a fresh shell per call (a `cd` doesn't carry over); *persistent* reuses one long-lived shell so `cd` and a `DEMO_TOKEN` variable survive across calls — same constructor, only the `mode` argument changes.
+- **Approval is the real safety boundary.** `run_shell` reports `ApprovalRequired() == true` by default; the demo opts out with `AcknowledgeUnsafe: true` to run unattended — don't do that without an independent sandbox or container.
+- The pure snapshot formatters are testable offline for both POSIX and PowerShell, so you validate the instruction text without probing a shell.
+
+## Further reading
+
+- [step22 · Foundry Memory](/blog/posts/maf-go-26-foundry-memory.html) — another context provider, this one backed by a Foundry memory store.
+- [step04 · Function Tools with Approvals](/blog/posts/maf-go-43-function-tools-with-approvals.html) — the human-in-the-loop consent mechanism the shell tool's approval gate builds on.
+- [step18 · Compaction Pipeline](/blog/posts/maf-go-24-compaction-pipeline.html) — a context provider that rewrites history rather than describing the environment.
+
 ---
 
 Next: [step22 · Foundry Memory](/blog/posts/maf-go-26-foundry-memory.html)

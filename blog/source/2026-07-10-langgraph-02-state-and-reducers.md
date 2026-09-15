@@ -118,3 +118,17 @@ Shared-state-plus-reducers is what makes **fan-in** and **cycles** sane. When tw
 Real LangGraph docs describe channels and reducers under the [low-level concepts](https://langchain-ai.github.io/langgraph/concepts/low_level/) and [graph API](https://langchain-ai.github.io/langgraph/) pages; `add_messages` and the `Annotated` syntax are covered there as well.
 
 Next in the series: **Nodes and edges** — how those partial updates actually flow from one node to the next.
+
+## Key takeaways
+
+- A LangGraph app is a shared state of named **channels**, each with its own update behavior; nodes return a *partial update* (only the channels they changed), and the framework folds it in.
+- A **reducer** is just a two-argument function `(old_value, new_value) → merged_value`. `Annotated[T, reducer]` attaches it to a channel; no annotation means overwrite (last write wins), `add_messages` appends, `operator.add` sums.
+- The whole merge is a ~15-line loop that *copies* the state rather than mutating it — that copy is the guarantee a node's input never changes underneath it, which matters once nodes run concurrently in a superstep.
+- Nodes return only what they touched: returning a whole accumulated list into an append reducer duplicates it, and the partial return also documents the node's exact side effects.
+- `add_messages` is the canonical reducer — it appends but also coerces dicts to message objects and **deduplicates by message ID**, replacing an existing message instead of appending a duplicate, which is what lets a streamed message be updated in place.
+
+## Further reading
+
+- [Nodes: functions that read state and return partial updates](/blog/posts/langgraph-03-nodes.html)
+- [LangGraph is a Pregel program: shared state vs message passing](/blog/posts/langgraph-01-message-passing-vs-shared-state.html)
+- [LangGraph documentation](https://langchain-ai.github.io/langgraph/)

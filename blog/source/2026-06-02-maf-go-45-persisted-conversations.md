@@ -56,6 +56,19 @@ go run ./tutorial/02-agents/providers/foundry/step06_persisted_conversations
 
 The disk round-trip test runs offline; the two live turns are gated behind `AF_LIVE=1` with `az login` and `FOUNDRY_PROJECT_ENDPOINT`.
 
+## Key takeaways
+
+- **Persisting a session is just `json.Marshal(session)`** — no custom serializer, no provider-specific export. "Save to a database between requests" is the same code as "write to a file," with only the destination swapped.
+- **This Foundry session is client-side**, so persisting it persists the *transcript itself*; on resume the history is replayed into the model, which is why a "same joke" follow-up resolves. A server-conversation session would instead persist just the conversation ID.
+- **Serializable sessions are how the Go SDK supports stateless services**: a handler loads the session for a user, runs a turn, saves it, and returns — nothing lives in process memory between requests.
+- Because it's pure JSON, the offline test round-trips a `Session` through disk with no model at all.
+
+## Further reading
+
+- [02 · Multi-turn with Server Conversations](/blog/posts/maf-go-41-2-multiturn-with-server-conversations.html) — the alternative where the service holds the transcript and you persist only the ID.
+- [step07 · Third-Party Session Storage](/blog/posts/maf-go-17-3rdparty-session-storage.html) — keep only message IDs in the session and store bodies elsewhere.
+- [encoding/json package documentation](https://pkg.go.dev/encoding/json) — the marshaling that makes `agent.Session` persistable.
+
 ---
 
 Next: [step07 · Observability](/blog/posts/maf-go-46-observability.html)

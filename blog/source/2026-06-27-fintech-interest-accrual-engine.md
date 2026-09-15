@@ -111,3 +111,18 @@ Modeling rate history as an append-only timeline (rather than overwriting a fiel
 Every hard part of an accrual engine dissolves into the same rule: **make each day's interest an immutable, dated, deterministically-derived fact, and express every change as a new fact rather than a mutation of an old one.**
 
 Daily granularity handles mid-cycle balance and rate moves for free. Integer minor units and fixed rounding keep the engine and ledger bit-for-bit reconcilable. A per-account-per-day idempotency key makes the nightly job safe to crash and retry. An as-of-queryable balance and rate timeline make the whole history replayable. Get those four disciplines right and interest — the thing that quietly compounds every wrong assumption — becomes the most boringly auditable number in the system. That is exactly what you want it to be.
+
+## Key takeaways
+
+- Accrue once per day against that day's balance, not once per billing cycle — a single monthly multiplication is wrong the moment a payment, drawdown, or rate change moves the balance mid-cycle.
+- Day-count convention is a business input, not a detail: A/360 yields about 1.4% more interest per year than A/365 on the same nominal rate, so store it per product and never hardcode it.
+- Simple vs. compound is decided by whether accrued interest is capitalized back into the base; keep accrued-but-unbilled interest in its own receivable sub-ledger, separate from the billed balance.
+- Make the nightly job idempotent per account per day, as-of aware (reads `as_of`, not the wall clock), and replayable — which requires both the balance snapshot and the rate as queryable *as of a date*.
+- Model the rate as an append-only `(effective_from, rate)` timeline, not a mutable field, so a mis-entered rate is corrected by replaying the affected range and posting a true-up — never by editing a posted accrual.
+
+## Further reading
+
+- [Building a Deterministic Amortization Schedule Engine](/blog/posts/fintech-amortization-schedule-engine.html)
+- [Multi-Currency Revaluation](/blog/posts/fintech-multi-currency-revaluation.html)
+- [Subledger and GL Posting](/blog/posts/fintech-subledger-gl-posting.html)
+- [Accrual (Wikipedia)](https://en.wikipedia.org/wiki/Accrual)

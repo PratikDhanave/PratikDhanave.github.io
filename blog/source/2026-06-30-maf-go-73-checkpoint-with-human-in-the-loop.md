@@ -53,3 +53,18 @@ There's no live model here; `AF_LIVE=1` skips. The offline test plays the whole 
 ---
 
 Next: [concurrent · Fan-out / Fan-in Workflow](/blog/posts/maf-go-74-concurrent.html)
+
+## Key takeaways
+
+- This lesson fuses two earlier patterns: a human-in-the-loop pause and checkpoint/restore, over a cyclic guess-the-number graph.
+- A `workflow.RequestPort` with typed `SignalWithNumber → int` is the human-in-the-loop primitive — each pause becomes a `RequestInfoEvent`, answered with `request.CreateResponse(guess)` and `run.SendResponse(...)`.
+- The port is factored behind a `responder` function so the offline test scripts guesses while the console path stays in `consoleResponder`.
+- State survives a rewind through three executor hooks — `ResetFunc`, `OnCheckpointFunc` (save `tries`), `OnCheckpointRestoredFunc` (reload `tries`); without them a restored replay loses the try count.
+- Layering `WithCheckpointing` over a paused, waiting-on-a-human workflow makes it fully durable and rewindable — exactly what long-running approval and review workflows need.
+
+## Further reading
+
+- [checkpoint · Checkpoint and Resume](/blog/posts/maf-go-72-checkpoint-and-resume.html)
+- [group_chat_tool_approval · Human-in-the-loop inside a group chat](/blog/posts/maf-go-69-group-chat-tool-approval.html)
+- [Human in the Loop](/blog/posts/maf-go-30-human-in-loop.html)
+- [Microsoft Agent Framework for Go](https://github.com/microsoft/agent-framework-go)

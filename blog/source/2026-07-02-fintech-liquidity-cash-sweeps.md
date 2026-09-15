@@ -109,3 +109,18 @@ Everything feeds an intraday liquidity dashboard: projected end-of-day balance p
 **Partial failure.** If a batch of instructions is half-submitted when the process dies, the idempotency keys make replay safe: already-accepted transfers are deduplicated by the rail, and the clearing account reconciles in-transit entries against rail confirmations. No money is created or destroyed — the invariant a treasury system must never violate.
 
 The whole design earns its keep by being boring and deterministic. Snapshots in, instructions out, every transfer keyed and reversible, every exception queued rather than lost. That is what keeps a settlement account solvent at 4:59 PM without a human doing arithmetic under pressure.
+
+## Key takeaways
+
+- Treat sweeping as a deterministic, replayable workflow (snapshot in, instructions out) rather than a nightly cron that hopes for the best — each stage is a pure function of the previous stage plus a snapshot timestamp.
+- Separate ledger, available, and projected balance and drive every decision from `projected` (available plus known same-day flows); sweeping on ledger balance alone drains an account that has a large debit landing in twenty minutes.
+- Three rule families cover almost everything — zero-balance, target-balance, and concentration/pooling — and the engine computes a signed `gap = projected − target`, netting child-to-child transfers to halve fees.
+- The planner is cutoff-aware: it funds deficits first, assigns each instruction to the cheapest rail whose window is still open, and defers anything past cutoff to an exception queue rather than dropping it.
+- Idempotency keys bind each instruction to the snapshot it came from so re-planning produces byte-identical keys; execution books a double-entry pair against a transfer-clearing account and re-checks availability at post time so a stale snapshot never overdraws the source.
+
+## Further reading
+
+- [Nostro/vostro reconciliation](/blog/posts/fintech-nostro-vostro-reconciliation.html)
+- [RTGS vs. DNS settlement architecture](/blog/posts/fintech-rtgs-vs-dns-architecture.html)
+- [Cashflow forecasting](/blog/posts/fintech-cashflow-forecasting.html)
+- [Idempotency and resumability](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html)

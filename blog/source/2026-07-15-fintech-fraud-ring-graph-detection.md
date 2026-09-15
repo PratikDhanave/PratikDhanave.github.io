@@ -75,3 +75,18 @@ Those decisions are the most valuable data you produce. Confirmed labels feed ba
 ## Where the effort actually goes
 
 The graph algorithms are the easy, well-understood part. In practice the engineering budget goes to entity resolution quality, to a graph store that supports both continuous batch analytics and low-latency point lookups, and to the plumbing that pushes graph-derived features into a real-time decision path fast enough to matter. Get those three right and per-transaction scoring stops being your only defense — you start seeing the ring, not just the transaction.
+
+## Key takeaways
+
+- Per-transaction scoring misses organized fraud because a ring is a *network*, not a sequence of independent events — fifty mules each just under threshold look like fifty unremarkable customers one row at a time.
+- Two edge families matter: attribute edges (shared device/card/address) expose collusion; money edges (weighted by amount/frequency) show how value moves. Attribute edges tell you *who* is connected, money edges *how*.
+- Entity resolution is the real problem, not the graph algorithms: deterministic rules for safe cases, probabilistic matching for the rest, kept reversible (store raw→canonical mapping as data) with identical normalization at write and query time.
+- Structure is found in two passes — connected components (cheap, near-linear union-find) after pruning super-connector hub nodes, then community detection (Louvain/label-propagation) inside large components — and scored with ring/velocity features (density, shared-attribute concentration, velocity, money-flow shape, bridge edges to known fraud).
+- You can't run Louvain in a tens-of-milliseconds auth path, so precompute per-entity graph features into a low-latency store, join them with live transaction features at auth time, and tune freshness per feature; the analyst loop feeds confirmed labels back to keep the system adaptive.
+
+## Further reading
+
+- [Rules vs. ML Fraud Scoring](/blog/posts/fintech-rules-vs-ml-fraud-scoring.html)
+- [Velocity Fraud Feature Store](/blog/posts/fintech-velocity-fraud-feature-store.html)
+- [UBO Graph Resolution](/blog/posts/fintech-ubo-graph-resolution.html)
+- [On-Chain AML: Clustering and Risk-Scoring Addresses](/blog/posts/fintech-onchain-aml-address-screening.html)

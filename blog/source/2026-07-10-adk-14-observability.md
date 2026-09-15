@@ -128,3 +128,17 @@ Think of it this way: **the event stream is the ground truth; logs, traces, and 
 Self-hosting on Cloud Run or GKE is where you wire the OTEL exporter yourself. On **Vertex Agent Engine**, tracing, logging, and metrics are wired automatically: you get the trace tree, request logs, and token metrics without configuring a single exporter. Either way the discipline is the same — emit structured records at the callback hooks, watch the fat spans, and treat the event stream as the source of truth.
 
 **Next in the series:** Safety and security — guardrails, identity, and keeping tools from doing something they shouldn't.
+
+## Key takeaways
+
+- Logs, traces, and metrics are all *functions of the agent's event stream* — you don't invent the data, you project it. Internalizing that replaces ad-hoc `print` statements with queryable records emitted at defined hook points.
+- Tracing is baked in: both SDKs ship OpenTelemetry instrumentation, so each invocation opens a root span and agents/tools/model calls nest underneath automatically. Attach an exporter and traces flow with zero code changes; the fat span is your bottleneck.
+- Span content is opt-in: set `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true` to capture prompt/response text, and leave it off when spans might hold sensitive data.
+- Log structured **records** (`{tool, args, status, latency_ms}`), not prose, so "which tool fails most?" becomes a query — the natural emit points are the `after_model` / `after_tool` callback hooks.
+- The metrics that pay for themselves: token usage (cost), latency (span durations), and counts/outcomes (errors, guardrail blocks, HITL approvals). On Vertex Agent Engine these are wired automatically; self-hosting is where you attach the exporter.
+
+## Further reading
+
+- [Deploying an ADK agent to Cloud Run and Agent Engine](/blog/posts/adk-13-deploy.html)
+- [Callbacks in ADK](/blog/posts/adk-09-callbacks.html)
+- [Google Agent Development Kit documentation](https://google.github.io/adk-docs/)

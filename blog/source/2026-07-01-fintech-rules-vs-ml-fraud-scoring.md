@@ -101,3 +101,18 @@ Champion/challenger is how those labels become progress without risk. The challe
 ## What the architecture buys you
 
 The value is not in the rules or the model individually; both are commodities. It is in the contract between them: hard rules that only ever tighten, a model that owns the fuzzy middle through bands, a step-up path that recovers false positives, shadow mode as the gate to production, and an immutable outcome log that feeds champion/challenger. Each piece is independently auditable, independently changeable, and — most importantly — has one unambiguous answer to the question every fraud system eventually gets asked: why was this transaction declined?
+
+## Key takeaways
+
+- Order matters: rules run first, split into hard rules that short-circuit the path (a fired hard rule means the model never runs) and soft signals that become model features and tie-breakers rather than deciding anything alone.
+- Make precedence a strict contract — hard rules can only make a decision *more* conservative, never upgrade a model decline into an approve — so an emergency block added mid-attack cannot be silently overridden by a model trained before it.
+- Overrides run the other direction and need guardrails: logged, owned, expiring, and stored in a distinct field so an audit can always answer "would the model alone have declined this?"
+- Use score bands, not a single threshold: the review band routes to a step-up (OTP, 3-D Secure, hold) chosen by the soft signals, turning a hard binary into a recoverable friction event — and band boundaries live in config with their own change control.
+- Gate every new model or rule through side-effect-free shadow mode before it decides, and write an immutable feature snapshot at decision time so champion/challenger training avoids training-serving skew and respects each label's latency (a chargeback can take weeks).
+
+## Further reading
+
+- [Step-up authentication orchestration](/blog/posts/fintech-step-up-auth-orchestration.html)
+- [The velocity fraud feature store](/blog/posts/fintech-velocity-fraud-feature-store.html)
+- [Transaction monitoring rules](/blog/posts/fintech-transaction-monitoring-rules.html)
+- [Fraud ring graph detection](/blog/posts/fintech-fraud-ring-graph-detection.html)

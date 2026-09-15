@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-11">July 11, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/crypto/" class="tag-link"><span class="tag">#Crypto</span></a><a href="/blog/tags/custody/" class="tag-link"><span class="tag">#Custody</span></a><a href="/blog/tags/security/" class="tag-link"><span class="tag">#Security</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/cryptocurrency/" class="tag-link"><span class="tag">#Cryptocurrency</span></a></div>
   </header>
@@ -164,6 +164,20 @@ m /    44'   /     60'    /    0'    /   0    /  1024
 <p>Account-based chains add a wrinkle that surprises people the first time: <strong>you cannot move a token without paying gas in the chain&rsquo;s native coin, and the deposit address holds only the token.</strong> A user&rsquo;s address might hold a stablecoin balance but zero native coin, so there is nothing to pay the sweep&rsquo;s gas with. The fix is a gas-funding step: a treasury-controlled &ldquo;fee&rdquo; wallet first sends a small amount of native coin to the deposit address, and only then can the sweep transaction from that address broadcast. This is a branch off the main path, not the main path itself, and it costs real money, so you fund the exact estimated gas, sweep, and avoid stranding dust.</p>
 <h2 id="putting-it-together">Putting it together</h2>
 <p>The whole pipeline is a small set of invariants worth stating plainly. Addresses are a deterministic function of a cold seed, so the hot path never touches spendable keys. Indices are allocated atomically, so no two users ever collide. A deposit is only money after <code>N</code> confirmations, and it is credited exactly once. Sweeps are batched for fee efficiency, signed inside the secure boundary, and, on account chains, gas-funded before they can move. None of these pieces is individually hard. The discipline is in never letting a shortcut, an off-by-one index, a zero-confirmation credit, or an un-funded sweep, turn a routine deposit into a loss.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>HD wallets (BIP-39/32/44) make the whole address space a pure function of <code>(seed, path)</code>, so you assign an address by incrementing an index and deriving — never by generating or storing a new private key at deposit time.</li>
+<li>The security payoff is the <strong>xpub</strong>: the hot deposit service holds only the account-level extended <em>public</em> key, so it can mint addresses all day but cannot spend a satoshi — a read-only breach leaks addresses, not money.</li>
+<li>Two scaling rules: allocate the <code>index</code> atomically (a DB sequence or <code>UPDATE ... RETURNING</code>) so concurrent signups can&rsquo;t collide on an address, and persist address-plus-path at allocation so detection and signing map a transaction back deterministically.</li>
+<li>A deposit is only money after <code>N</code> <strong>confirmations</strong> (tuned per chain to reorg risk) and credited <strong>exactly once</strong> (keyed on the tx id / output index with a uniqueness constraint) as a double-entry ledger move.</li>
+<li>Sweeps must be <strong>batched</strong> (many inputs into one treasury output) for fee efficiency and signed inside the secure boundary; account-based chains add a gas-funding step, since a token-only address has nothing to pay its own sweep gas with.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-hot-cold-wallet-hsm.html">Hot/cold wallet architecture and the HSM</a></li>
+<li><a href="/blog/posts/fintech-mpc-threshold-wallets.html">MPC and threshold wallets</a></li>
+<li><a href="/blog/posts/fintech-onchain-event-indexing.html">On-chain event indexing and chain-data pipelines</a></li>
+</ul>
 
 
   <aside class="related-posts">

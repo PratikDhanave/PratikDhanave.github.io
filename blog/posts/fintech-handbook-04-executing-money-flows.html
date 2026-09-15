@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-28">July 28, 2026</time>
       <span>·</span>
-      <span>7 min read</span>
+      <span>8 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">#Reliability</span></a><a href="/blog/tags/state-machine/" class="tag-link"><span class="tag">#State Machine</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a></div>
   </header>
@@ -183,6 +183,20 @@
 <p>Money movement is unforgiving because the failures are visible, expensive, and sometimes illegal. A boolean success flag hides the exact states where money is most at risk — held-but-not-posted, posted-but-not-settled — and those are precisely the states an auditor, a customer, or a regulator will ask you to explain.</p>
 <p>An explicit state machine makes &ldquo;where is my money&rdquo; a single column read. Invariants enforced inside the transaction mean the system fails closed — it refuses to invent money — instead of committing a corruption you find in a reconciliation report weeks later. Reserve-then-capture makes concurrency and partial failure survivable instead of catastrophic. And a deliberate overdraft policy turns &ldquo;how did this account go negative&rdquo; into a configured, defensible number.</p>
 <p>None of this is exotic. It is the boring, load-bearing machinery that lets you move real money and still sleep. Model the states, guard the edges, reserve before you commit — and decide, on purpose, what an overdraft means before your system decides it for you.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>A transfer is a state machine, not an <code>is_complete</code> boolean — persist the current state and make illegal transitions inexpressible through one transition table, so &ldquo;where is this payment?&rdquo; becomes a single column read instead of 3am forensics.</li>
+<li>Enforce invariants inside the same database transaction as the state change: balances never go negative unless overdraft is permitted, a transfer&rsquo;s postings sum to zero, and reserved funds are never double-spent — ideally backed by a <code>CHECK</code> constraint as a seatbelt.</li>
+<li>Reserve first, capture second: reserving records a claim (<code>available = current_balance - active_holds + overdraft_limit</code>) without moving money, which is what makes double-spending impossible and partial failures reversible via release.</li>
+<li>Make hold expiry a first-class transition with an <code>expires_at</code>, and resolve the capture-vs-expiry race deterministically — a capture only succeeds against a hold still in <code>FUNDS_RESERVED</code>, never let both win.</li>
+<li>An overdraft is a per-account policy decision, not an accident: a hard stop floors availability at zero; an allowed overdraft shifts the invariant to &ldquo;balance never drops below <code>overdraft_limit</code>,&rdquo; enforced by the same <code>CHECK</code> and one number that varies.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-handbook-02-the-ledger.html">The ledger: double-entry bookkeeping</a> — the balanced postings capture writes.</li>
+<li><a href="/blog/posts/fintech-handbook-05-idempotency-and-resumability.html">Idempotency and full resumability</a> — the next chapter, surviving retries and crashes across these steps.</li>
+<li><a href="/blog/posts/fintech-saga-compensation-payments.html">Saga compensation for payments</a> — rolling back a half-succeeded flow, where each reservation is a compensable step.</li>
+</ul>
 
 
   <aside class="related-posts">

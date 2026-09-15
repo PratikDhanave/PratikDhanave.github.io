@@ -76,3 +76,18 @@ Two properties matter most. First, **replay must be idempotent**: the same offli
 If I were building this, the things I would watch in production are unglamorous: the offline-to-online sync lag distribution, the rate of reconciliation conflicts per device cohort, and whether the holding-limit waterfall ever double-sweeps. The cryptography is the part everyone reviews; the state machine around reconnection and settlement is the part that actually decides whether the money is right.
 
 None of this is speculative architecture for its own sake. Draw the two tiers, put the ledger where liabilities belong, push the customer-facing complexity down to accountable intermediaries, and treat the offline path as a bounded-risk hardware problem rather than a distributed-consensus fantasy — and the retail CBDC stops looking like a research topic and starts looking like a system you could actually operate.
+
+## Key takeaways
+
+- The two-tier model keeps Tier 1 (the central bank) as a minimal wholesale ledger of issuance/redemption and per-intermediary positions, while Tier 2 (banks/PSPs) does onboarding, wallets, and support — retail-level balances live one tier down.
+- Every unit of retail CBDC is a *direct liability of the central bank*, which is the whole point: it removes the intermediary's balance sheet from the risk equation, and it means the Tier 1 ledger can't be a black box.
+- Holding limits plus a "waterfall" sweep to a linked bank account are a monetary-policy control implemented in ordinary Tier 2 code — it must be idempotent, observable, and fail closed to prevent a fibre-speed bank run.
+- Offline payments re-create the double-spend problem; the realistic answer is a tamper-resistant secure element that signs transfers the host OS can't forge, bounded by small caps, a max number of consecutive offline transactions, and a max offline duration — trading absolute prevention for detectable, bounded fraud.
+- Reconciliation is where correctness is proven: replay of signed proofs must be idempotent (key on a per-element monotonic counter) and conflicts must be loud (freeze and investigate, never silently drop).
+
+## Further reading
+
+- [Stablecoin Mint, Burn, and Reserves](/blog/posts/fintech-stablecoin-mint-burn-reserves.html)
+- [RTGS vs. DNS Architecture](/blog/posts/fintech-rtgs-vs-dns-architecture.html)
+- [Stored-Value / E-Money Ledger](/blog/posts/fintech-stored-value-emoney-ledger.html)
+- [Central bank digital currency (Wikipedia)](https://en.wikipedia.org/wiki/Central_bank_digital_currency)

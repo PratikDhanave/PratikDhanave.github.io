@@ -49,6 +49,19 @@ go run ./tutorial/02-agents/providers/azure/ai_project
 
 Live runs need `az login` plus `FOUNDRY_PROJECT_ENDPOINT` (and `FOUNDRY_MODEL`). The structural test runs offline with a fake credential; live calls are gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **`ModelDeployment(model)` is the mode switch.** Pass it and `foundryprovider.NewAgent` treats the endpoint as a Foundry *project* endpoint, deriving the OpenAI-compatible base URL (`…/openai/v1/`) itself and using project Responses API mode.
+- **Get the target right or requests fail confusingly.** Pointing a project-mode agent at a non-project URL (or vice versa) is the classic mistake; endpoint, model, and credential all come from `internal/demo` using the standard `FOUNDRY_PROJECT_ENDPOINT` / `FOUNDRY_MODEL` convention.
+- **The credential is lazy**, so the structural test builds the whole agent with a fake credential and a dummy endpoint and asserts its wiring with no network.
+- A *project* is the Foundry unit that groups deployed models, connections, and settings; addressing the project endpoint is what lets Foundry apply project-level configuration.
+
+## Further reading
+
+- [Azure · OpenAI Chat Completions](/blog/posts/maf-go-37-openai-chat-completion.html) — the Azure OpenAI resource path, contrasted with the project path here.
+- [step01 · Basic Foundry Provider](/blog/posts/maf-go-39-basic.html) — the same three-input wiring with `ServerAgent` mode also explained.
+- [providers · Anthropic (Claude)](/blog/posts/maf-go-34-anthrophic.html) — the non-Azure end of the provider-swap spectrum.
+
 ---
 
 Next: [Azure · Foundry Model](/blog/posts/maf-go-36-foundry-model.html)

@@ -144,3 +144,9 @@ def run(self, messages=None, *, stream=False, session=None, **kwargs):
 - **Custom providers are drop-ins.** Subclass `BaseAgent`, implement `run()`, wrap streaming in `ResponseStream(..., finalizer=AgentResponse.from_updates)`, and the rest of your code never notices there's no model behind it.
 
 Everything here shares one shape: an `Agent` over a chat client, driven by `run()`/`run_stream()`, authenticated with `AzureCliCredential()`. Decide *who owns the behavior* and *what protocol the model speaks*, and the right provider picks itself.
+
+## Further reading
+
+- [Getting started with Microsoft Agent Framework (Python)](/blog/posts/maf-py-getting-started.html)
+- [Tools: functions, hosted tools, MCP, Skills & CodeAct](/blog/posts/maf-py-tools-functions-mcp.html)
+- [Custom chat providers](/blog/posts/maf-py-36-custom-provider.html)

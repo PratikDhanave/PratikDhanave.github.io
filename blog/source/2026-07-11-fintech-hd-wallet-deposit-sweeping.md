@@ -67,3 +67,17 @@ Account-based chains add a wrinkle that surprises people the first time: **you c
 ## Putting it together
 
 The whole pipeline is a small set of invariants worth stating plainly. Addresses are a deterministic function of a cold seed, so the hot path never touches spendable keys. Indices are allocated atomically, so no two users ever collide. A deposit is only money after `N` confirmations, and it is credited exactly once. Sweeps are batched for fee efficiency, signed inside the secure boundary, and, on account chains, gas-funded before they can move. None of these pieces is individually hard. The discipline is in never letting a shortcut, an off-by-one index, a zero-confirmation credit, or an un-funded sweep, turn a routine deposit into a loss.
+
+## Key takeaways
+
+- HD wallets (BIP-39/32/44) make the whole address space a pure function of `(seed, path)`, so you assign an address by incrementing an index and deriving — never by generating or storing a new private key at deposit time.
+- The security payoff is the **xpub**: the hot deposit service holds only the account-level extended *public* key, so it can mint addresses all day but cannot spend a satoshi — a read-only breach leaks addresses, not money.
+- Two scaling rules: allocate the `index` atomically (a DB sequence or `UPDATE ... RETURNING`) so concurrent signups can't collide on an address, and persist address-plus-path at allocation so detection and signing map a transaction back deterministically.
+- A deposit is only money after `N` **confirmations** (tuned per chain to reorg risk) and credited **exactly once** (keyed on the tx id / output index with a uniqueness constraint) as a double-entry ledger move.
+- Sweeps must be **batched** (many inputs into one treasury output) for fee efficiency and signed inside the secure boundary; account-based chains add a gas-funding step, since a token-only address has nothing to pay its own sweep gas with.
+
+## Further reading
+
+- [Hot/cold wallet architecture and the HSM](/blog/posts/fintech-hot-cold-wallet-hsm.html)
+- [MPC and threshold wallets](/blog/posts/fintech-mpc-threshold-wallets.html)
+- [On-chain event indexing and chain-data pipelines](/blog/posts/fintech-onchain-event-indexing.html)

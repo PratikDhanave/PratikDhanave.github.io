@@ -109,7 +109,7 @@
       <span>·</span>
       <time datetime="2026-06-30">June 30, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/fraud/" class="tag-link"><span class="tag">#Fraud</span></a><a href="/blog/tags/risk/" class="tag-link"><span class="tag">#Risk</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a></div>
   </header>
@@ -172,6 +172,21 @@ def velocity(store, entity_key: str, now_ms: int,
 <h2 id="failure-modes-and-safe-defaults">Failure modes and safe defaults</h2>
 <p>Decide up front what a velocity check returns when the store is unreachable or slow. The two options — fail-open (approve, assume zero velocity) and fail-closed (decline or step up) — are a fraud-loss-versus-false-decline tradeoff, and the right answer is segment-specific: fail-closed on a high-risk corridor, fail-open on a trusted low-value flow. Bound every lookup with a hard timeout well inside the auth budget, and treat a timeout as a first-class outcome the rules can branch on, not an exception that bubbles up.</p>
 <p>Finally, remember counts are a <strong>feature, not a verdict</strong>. Velocity feeds the rules and the model; it does not decide alone. Emit the raw counts and let the decisioning layer combine them with everything else — which is exactly where the next boundary in the fraud stack begins.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Velocity checks live on the auth critical path with only a few milliseconds of budget, so counts are pre-aggregated and pushed to a store optimized for keyed point reads — never a <code>COUNT(*)</code> scan inline.</li>
+<li>The core primitive is a bucketed sliding window: one counter per fixed sub-interval, summed across overlapping buckets, giving O(1) increments and fixed-cost reads; buckets self-expire via TTL so there&rsquo;s no delete job. Edge counts are approximate, which is fine for a threshold rule.</li>
+<li>One event fans out into many entity-keyed counters (PAN, device, IP, email, merchant, composites); drive the fan-out from a declarative feature table that both the stream and batch jobs read, and guard the key space against high-cardinality garbage.</li>
+<li>Train/serve skew silently poisons models: defend it with one definition across two runtimes, batch as the source of truth reconciling the stream&rsquo;s live edge, and by logging the exact feature vector each decision saw.</li>
+<li>Decide fail-open vs fail-closed per segment, bound every lookup with a hard timeout inside the auth budget, and treat the count as a feature the decisioning layer combines — not a verdict on its own.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-rules-vs-ml-fraud-scoring.html">Rules vs. ML Fraud Scoring</a></li>
+<li><a href="/blog/posts/fintech-transaction-monitoring-rules.html">AML Transaction Monitoring Rules Engine</a></li>
+<li><a href="/blog/posts/fintech-device-fingerprinting-biometrics.html">Device Fingerprinting and Biometrics</a></li>
+<li><a href="https://en.wikipedia.org/wiki/HyperLogLog">HyperLogLog (Wikipedia)</a></li>
+</ul>
 
 
   <aside class="related-posts">

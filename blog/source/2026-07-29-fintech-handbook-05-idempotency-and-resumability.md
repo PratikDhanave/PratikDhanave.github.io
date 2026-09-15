@@ -92,3 +92,17 @@ Checkpoint plus per-step idempotency turns a fragile multi-step flow into one th
 ## Why it matters
 
 Money is the one domain where "eventually roughly right" is a breach of trust. A duplicated charge is not a minor glitch a user shrugs off — it is a support ticket, a chargeback, a regulator's raised eyebrow, and a customer who never comes back. Idempotency keys and resumable, checkpointed workflows are how you keep the one promise that actually matters: no matter how badly the network behaves, no matter how many times a nervous client retries, the money moves exactly once. Build it into the transaction boundary from day one. Bolting it on after the first double-charge incident is always more expensive than the incident itself.
+
+## Key takeaways
+
+- A timeout means *unknown*, not failure — after any network call the effect ran zero, one, or many times. The goal is not exactly-once *delivery* (impossible over an unreliable network) but exactly-once *effect*: the money moves precisely once no matter how often the client retries.
+- The mechanism is a client-generated idempotency key reused across every retry of one logical operation, and the guarantee lives in *where* you record it: write `(key → result)` in the *same database transaction* as the effect, or a crash between the two reopens the double-charge window.
+- The replay path returns the stored result and performs *no new effect*; guard against a concurrent second request with the same key using a lock or unique constraint so it blocks or gets a 409 rather than racing the uncommitted record.
+- Scope keys per endpoint *and* per account (`(endpoint, account_id, key)`) and set a TTL sized to your maximum client retry horizon — a retry arriving after the TTL is treated as fresh and may re-run.
+- Idempotency makes retries safe, not free (use exponential backoff *with jitter* to avoid a thundering herd), and full resumability extends it across steps: checkpoint after each committed step and make each step individually idempotent so a crash resumes without re-applying completed work.
+
+## Further reading
+
+- [Executing money flows](/blog/posts/fintech-handbook-04-executing-money-flows.html) — the transfer state machine these idempotent steps move through.
+- [Audit trails and event sourcing](/blog/posts/fintech-handbook-03-audit-trails-event-sourcing.html) — the checkpoint-and-replay foundation resumability builds on.
+- [Consuming APIs and handling webhooks](/blog/posts/fintech-handbook-06-apis-and-webhooks.html) — the next chapter, where idempotency keys meet an unreliable outside world.

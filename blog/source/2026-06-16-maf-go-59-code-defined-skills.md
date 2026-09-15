@@ -45,6 +45,18 @@ Code-defined and file-based skills are two front-ends onto the same `skills.Skil
 
 `go run ./tutorial/02-agents/skills/step02_code_defined_skills` (needs `az login` + `FOUNDRY_PROJECT_ENDPOINT`). The offline tests exercise the skill shape, the pure `convert` math, and the wiring; the live end-to-end run is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- A code-defined skill is a struct of closures: `GetContent`, each `Resource.Read`, and the `Script.Run` are Go functions — no `SKILL.md`, no subprocess, arithmetic done in-process.
+- Resources can be static or dynamic: `conversion-table` returns fixed Markdown while `conversion-policy` is built with `time.Now()` at read time, so the model sees a fresh "generated at" stamp on every call — a resource is a function, not a file.
+- Script args arrive as positional `[]string` exactly as the model formats them, mirroring how a file-based script receives CLI arguments.
+- Because the script bodies are plain arithmetic, they're unit-testable with no model, and a separate wiring test checks the agent name with a fake credential.
+
+## Further reading
+
+- [step01 · File-Based Skills](/blog/posts/maf-go-58-file-based-skills.html) — the file-driven front-end onto the same `skills.Skill` shape
+- [step03 · Mixed Skills](/blog/posts/maf-go-60-mixed-skills.html) — blending both origins in one provider
+
 ---
 
 Next: [step03 · Mixed Skills](/blog/posts/maf-go-60-mixed-skills.html)

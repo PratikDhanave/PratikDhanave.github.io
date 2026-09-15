@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-07-08">July 08, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/ledger/" class="tag-link"><span class="tag">#Ledger</span></a><a href="/blog/tags/monetization/" class="tag-link"><span class="tag">#Monetization</span></a><a href="/blog/tags/architecture/" class="tag-link"><span class="tag">#Architecture</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a></div>
   </header>
@@ -184,6 +184,21 @@
 <p>Finally, the invoice&rsquo;s fees post to the <strong>ledger</strong> as double-entry postings. The ledger is the financial source of truth, and it is append-only too: a posting is never mutated in place. A dispute becomes a reversing pair of entries, not a rewrite. When rating, aggregation, invoicing, and posting are all append-only and replayable, the whole pipeline has one property that finance cares about more than any feature — you can always explain how a number came to be.</p>
 <h2 id="what-to-separate-and-why">What to separate, and why</h2>
 <p>If you take one thing from this: <strong>keep pricing config out of the rating runtime</strong>. The rater is a stable, deterministic function you rarely change. Pricing plans, promos, and discounts are data that changes daily. When they live apart, sales can ship a custom rate and marketing can launch a promo without touching the code that turns events into money — and the code that turns events into money stays boring, replayable, and correct.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Separate three concerns that share a data path but change at different rates: <strong>pricing</strong> (the rules), <strong>rating</strong> (applying rules to events), and <strong>billing</strong> (assembling and posting). Each has a different failure mode.</li>
+<li>Pricing plans are versioned, immutable data — flat, per-unit, basis-points, tiered, and volume — expressed as configuration, not branches in code. Confusing tiered (each band at its own rate) with volume (the whole quantity at one band&rsquo;s rate) is a classic billing bug.</li>
+<li>Rating is a pure function <code>rate(event, plan_version) → rate_event</code>: no wall-clock reads, no &ldquo;current&rdquo; plan lookup, no randomness. Determinism is what makes it replayable, and a deterministic idempotency key per rate event absorbs at-least-once retries without inflating revenue.</li>
+<li>Rate events are an append-only log; corrections, discounts, promos, and disputes are new <strong>adjustment</strong> entries that reference the originals, never edits — so gross, adjustment, and net all stay visible.</li>
+<li>Idempotency also lives at the run level: a billing run keyed on <code>(account, period)</code> produces exactly one invoice no matter how many times cron or an operator fires it, and proration is just rating over two shorter intervals.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-vrp-subscription-billing.html">Variable recurring payments and metered billing</a></li>
+<li><a href="/blog/posts/fintech-revenue-recognition-engine.html">The revenue recognition engine</a></li>
+<li><a href="/blog/posts/fintech-interchange-fee-engine.html">The interchange fee engine</a></li>
+<li><a href="/blog/posts/fintech-subledger-gl-posting.html">Subledger to general ledger: posting and aggregation</a></li>
+</ul>
 
 
   <aside class="related-posts">

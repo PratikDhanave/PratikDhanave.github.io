@@ -84,3 +84,17 @@ Each capability is the same graph with one runtime affordance added. Next I'll h
 ---
 
 Next: [Hosting and the Capstone App — Microsoft Agent Framework in Go](/blog/posts/maf-go-12-hosting-and-capstone.html)
+
+## Key takeaways
+
+- The organizing insight: state lives in the executor, but durability lives in the runtime — you opt an executor into checkpointing with two hooks (`OnCheckpoint`/`OnCheckpointRestored`) and let `WithCheckpointing(manager)` do the persisting after each super-step.
+- `RestoreCheckpoint` rewinds a live run; `ResumeStreaming` rehydrates a *fresh* graph from a saved checkpoint (`Reset` gives a clean slate, then restore overwrites it, with missing keys falling back to the reset value).
+- A `RequestPort` is a typed door to the outside world: the run pauses and emits a `RequestInfoEvent`, and you resume by feeding the answer back into the same run with `SendResponse` — no separate resume call.
+- A compiled `*workflow.Workflow` *is* an executor: `BindSubworkflowAsExecutor` nests it in a parent that sees only its input/output types; build leaf-first, and deeply-raised events still bubble up to the top-level `WatchStream`.
+- Scoped shared state (`QueueStateUpdate`/`ReadState` with a scope) decouples producer from consumer and keeps edges thin — only a small ID rides the graph while the bulk payload stays in state.
+
+## Further reading
+
+- [Hosting and the Capstone App — Microsoft Agent Framework in Go](/blog/posts/maf-go-12-hosting-and-capstone.html)
+- [Orchestration Patterns — Microsoft Agent Framework in Go](/blog/posts/maf-go-10-orchestrations.html)
+- [agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)

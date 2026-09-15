@@ -65,6 +65,18 @@ The two agent nodes call Azure AI Foundry (needs `az login` + `FOUNDRY_PROJECT_E
 
 **Run it:** `go run ./tutorial/03-workflows/01-start-here/06_mixed_workflow_agents_and_executors`. The offline test builds the full graph with a fake credential and walks it edge by edge; the classification-parsing helpers are unit-tested directly. The live run is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- Deterministic function executors (`NewExecutor(...).Bind()`) and agent-backed executors (`agentworkflow.New(agent, cfg)`) join with the same plain `AddEdge` — the graph doesn't care which kind a node is.
+- A hosted agent executor waits for a `workflow.TurnToken` before taking its turn, so intermediary executors send *two* things: their payload message and a turn token. Forget the token and the downstream agent never fires.
+- Struct executors carry `workflow.AttrSendsMessage[...]` marker fields that declare which message types they emit, letting the builder type-check the graph at build time.
+- A practical shape for real pipelines: keep validation, parsing, and formatting in cheap Go executors and reserve model calls for the two nodes that need judgment.
+
+## Further reading
+
+- [05 · Subworkflows (composing workflows)](/blog/posts/maf-go-65-05-subworkflow.html) — the all-deterministic composition lesson
+- [07 · Writer ⇄ Critic Workflow](/blog/posts/maf-go-67-07-writer-critic-workflow.html) — adding a feedback loop to a graph of agents
+
 ---
 
 Next: [07 · Writer ⇄ Critic Workflow (iterative refinement)](/blog/posts/maf-go-67-07-writer-critic-workflow.html)

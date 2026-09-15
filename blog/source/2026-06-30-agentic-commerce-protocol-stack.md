@@ -87,7 +87,22 @@ Because of this overlap, the boundaries blur in practice. AP2 and ACP can both c
 
 MCP is tools and context. A2A is agent-to-agent. AP2, ACP, and x402, plus network agentic tokens, are the rails those agents call when money must move. Design each part on its own layer, lean on the published extensions where they interoperate, and resist the urge to make any one protocol do a neighbor's job. The stack is the architecture.
 
+## Key takeaways
+
+- No single protocol does the whole buying job; the useful model is a layered stack where each spec solves a different concern with a different trust model.
+- MCP is the capability layer closest to the model — one agent reaching for tools, data, and context — and it knows nothing about payments or other agents, by design.
+- A2A is agent-to-agent discovery and messaging across organizational boundaries; it carries intent and negotiation but does not itself move money.
+- The payment layer holds three distinct shapes: AP2 (signed Intent→Cart→Payment mandate chain, method-agnostic), ACP (agent-to-merchant checkout with a product feed and delegated tokens), and x402 (onchain HTTP 402 settlement in stablecoins).
+- These overlap far more than they compete — AP2 rides as an extension of A2A/MCP, an A2A x402 extension folds in onchain settlement — so treat them as composable primitives and put each job on its own layer.
+
 ## Sources
 
 - https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol
 - https://ap2-protocol.org/
+
+## Further reading
+
+- [The Agentic Checkout Flow, End to End](/blog/posts/agentic-commerce-checkout-flow.html)
+- [AP2 Mandates](/blog/posts/agentic-commerce-ap2-mandates.html)
+- [x402 and HTTP 402 Payment Required](/blog/posts/agentic-commerce-x402-http-402.html)
+- [Model Context Protocol](https://modelcontextprotocol.io/)

@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-03">July 03, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/crypto/" class="tag-link"><span class="tag">#Crypto</span></a><a href="/blog/tags/custody/" class="tag-link"><span class="tag">#Custody</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/cryptocurrency/" class="tag-link"><span class="tag">#Cryptocurrency</span></a><a href="/blog/tags/security/" class="tag-link"><span class="tag">#Security</span></a></div>
   </header>
@@ -198,6 +198,21 @@
 <p>Anchoring the snapshot to a specific block height is what makes the two numbers comparable — an auditor or a smart contract can independently read <code>totalSupply</code> at that block and check it against the attested reserve. The stronger the anchoring, the less anyone has to take your word for it. Some designs push this on chain entirely, publishing a signed reserve figure that the contract itself can compare against its own supply before permitting further mints.</p>
 <h2 id="what-holds-it-together">What holds it together</h2>
 <p>Strip away the blockchain novelty and this is disciplined double-entry accounting with a public counterparty. The reserve ledger is the source of truth; the chain is a second ledger you must keep in lockstep. Order writes so that failures leave you over-reserved rather than under-reserved. Make idempotency keys immutable and shared across the ledger and chain writes. Reconcile continuously and classify breaks by cause. Do those four things and the 1:1 invariant holds not because you asserted it, but because every path through the system is built to preserve it.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Two ledgers must agree at all times — the off-chain reserve ledger and the on-chain token supply — and the invariant <code>backed_reserve &gt;= circulating_supply</code> should be a first-class check that alarms the instant circulating supply exceeds backing.</li>
+<li><code>backed_reserve</code> is the portion of custody explicitly earmarked against issued tokens, net of pending mints and burns — not the raw bank balance, which diverges legitimately the moment you earn yield or collect a fee.</li>
+<li>Order writes so failure leaves you over-reserved: mint credits the reserve ledger <em>before</em> the on-chain mint (and <code>is_settled</code> must mean the fiat cleared, not that a transfer was requested), while burn flips it — burn on chain first, then release fiat.</li>
+<li>Share one immutable idempotency key across both the ledger and chain writes (keyed on the deposit/redeem reference) so retried webhooks and replayed submissions are no-ops, and keep unfinalized mints in <code>pending_onchain</code>, excluded from the backing total until confirmation depth is reached.</li>
+<li>Reconcile every block, not daily, against <code>totalSupply == backed_reserve + pending_burns − pending_mints (± dust)</code>, and classify each break by cause (self-healing, stuck job to replay, or page-a-human) — then anchor attestation snapshots to a fixed block height so the reserve figure is provable, not asserted.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-proof-of-reserves.html">Proof of reserves</a></li>
+<li><a href="/blog/posts/fintech-onchain-settlement-reorg.html">Crediting on-chain deposits and surviving reorgs</a></li>
+<li><a href="/blog/posts/fintech-stored-value-emoney-ledger.html">Stored-value and e-money wallet ledgers</a></li>
+<li><a href="/blog/posts/fintech-cbdc-two-tier-architecture.html">CBDC two-tier architecture</a></li>
+</ul>
 
 
   <aside class="related-posts">

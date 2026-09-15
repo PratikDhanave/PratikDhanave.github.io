@@ -76,3 +76,9 @@ Prices, corporate actions, and reference data feed all three, and they are the u
 ## What to remember
 
 Securities lending and repo are the same idea wearing different clothes: a **collateralized loan** priced as a fee or a repo rate. The trade is the easy part. The system's real job is the daily loop — mark to market, size the haircut, call the margin, honor recalls and substitutions, and chase fails — while tracking collateral re-use carefully enough that you always know your true, un-netted exposure. Build the collateral ledger and the margin engine to be boringly correct, and everything else is servicing on top.
+
+## Further reading
+
+- [CCP Clearing and Margin](/blog/posts/fintech-ccp-clearing-margin.html) — the same haircut, mark-to-market, and default-waterfall mechanics in a cleared setting
+- [Securities Settlement and DvP](/blog/posts/fintech-securities-settlement-dvp.html) — the delivery-versus-delivery settlement that opens and closes these trades
+- [Collateral and LTV Management](/blog/posts/fintech-collateral-ltv-management.html) — sizing and monitoring the collateral buffer over a loan's life

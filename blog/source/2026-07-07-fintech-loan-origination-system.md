@@ -81,3 +81,18 @@ Once funds move, the loan is *booked*: written to the ledger as a real asset wit
 Two operational habits keep the tail clean. Reconcile disbursements against the money-movement rail daily; a payment that shows `funded` in your system but never cleared the rail is a break you want to catch in hours, not at month-end. And treat the handoff to servicing as an explicit contract: the servicing platform receives an immutable booking record, and any later change (a payoff, a modification, a charge-off) is servicing's story to tell, not the LOS's.
 
 The pipeline looks linear because it is designed to. The engineering value is in making each transition idempotent, each decision reproducible, and the one irreversible step — moving money — impossible to trigger twice. Get those three properties right and the LOS becomes boring in the best way: a machine that turns applications into loans exactly once, and can always explain why.
+
+## Key takeaways
+
+- Treat the application as a long-lived, resumable state machine (`draft → submitted → … → funded`), assign its ID on the first interaction as the pipeline-wide idempotency/correlation key, and separate *captured* data from *derived* data.
+- Wrap the KYC and credit-pull stage in an idempotent, cached layer keyed by application ID and request hash — a retry must never fire a second hard inquiry (a cost bug and a compliance problem) — and freeze the result into a decision snapshot the underwriter reasons over.
+- Underwriting output must be explainable and replayable: keep the policy layer declarative and versioned, separate from the scoring model, stamp each decision with its policy version, and make `refer` a first-class state, not a dumping ground.
+- The `accepted → funded` edge is the one irreversible step: guard disbursement with a hard idempotency key and a reserve-confirm-execute pattern, because a double-disbursal is far worse than a delayed one — fail closed, never retry blindly.
+- Book off the confirmed disbursement event (not acceptance), reconcile against the money-movement rail daily, and hand servicing an immutable booking record.
+
+## Further reading
+
+- [The credit decisioning engine](/blog/posts/fintech-credit-decisioning-engine.html)
+- [Designing an identity verification pipeline](/blog/posts/fintech-identity-verification-idv.html)
+- [The amortization schedule engine](/blog/posts/fintech-amortization-schedule-engine.html)
+- [The collections and recovery workflow](/blog/posts/fintech-collections-recovery-workflow.html)

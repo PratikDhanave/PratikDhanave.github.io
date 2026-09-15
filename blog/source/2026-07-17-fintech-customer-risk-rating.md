@@ -78,3 +78,18 @@ Event-driven recalculation is where the versioning discipline pays off. Every re
 ## The engineering takeaway
 
 A customer risk rating is a small amount of arithmetic wrapped in a large amount of discipline. The arithmetic — score each factor, weight, aggregate, band — is the easy part. The value is in the properties around it: documented and versioned weights, explicit override records with reasons, ceiling rules that can't be averaged away, and an append-only history that makes every past decision reconstructable. Build those in from the start and the model is defensible. Bolt them on later and you have a number nobody can explain — which, in AML, is worse than no number at all.
+
+## Key takeaways
+
+- A CRR is a *policy expressed as arithmetic*, not first a machine-learning problem — "the gradient-boosted model decided" is not an answer an examiner accepts.
+- Score each risk factor (geography, product, channel, customer type, expected-vs-actual activity, PEP/adverse media) *on its own first*, because per-factor sub-scores are what you show an auditor and what a relationship manager reasons about.
+- Aggregate with a weighted sum where weights are versioned configuration (version, effective date, approver, changelog) — never constants in code — and treat sanctions/PEP as *ceiling overrides* that pin the top band, not addends you can average away.
+- Band the composite into discrete SDD/CDD/EDD tiers; the tier is the actionable output that drives document requests, monitoring rules, and review cadence.
+- Manual overrides are legitimate but must carry a documented reason and approver and never silently replace the model score (store both), and every recompute — periodic *and* event-driven — appends a new immutable score record for full lineage.
+
+## Further reading
+
+- [Perpetual KYC: Continuous Due Diligence](/blog/posts/fintech-perpetual-kyc-monitoring.html)
+- [Sanctions Screening Engine](/blog/posts/fintech-sanctions-screening-engine.html)
+- [Transaction Monitoring Rules](/blog/posts/fintech-transaction-monitoring-rules.html)
+- [Model Risk Governance: SR 11-7 and the Model Lifecycle](/blog/posts/fintech-model-risk-governance.html)

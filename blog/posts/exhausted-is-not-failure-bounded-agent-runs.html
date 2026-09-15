@@ -109,7 +109,7 @@
       <span>·</span>
       <time datetime="2026-07-22">July 22, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/agentic-ai/" class="tag-link"><span class="tag">#Agentic AI</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">#Reliability</span></a><a href="/blog/tags/guardrails/" class="tag-link"><span class="tag">#Guardrails</span></a><a href="/blog/tags/observability/" class="tag-link"><span class="tag">#Observability</span></a></div>
   </header>
@@ -186,6 +186,20 @@
 <p>One objection I take seriously: does capping runs create an ungoverned back door? If bounding lets an agent &ldquo;just stop,&rdquo; does it also let it skip policy? No — and the reason is that governance sits below the runner, not above it. Any runner that can call tools does so through a gateway-wrapped agent, so <strong>every</strong> tool call still passes policy checks regardless of how many turns are left in the budget. Bounding controls <em>how long</em> an agent may run; the gateway controls <em>what</em> it may do. Cutting a run short at <code>max_turns</code> never lets a single tool call slip past the policy layer. Governance is preserved by construction.</p>
 <h2 id="why-it-matters">Why it matters</h2>
 <p>Two-outcome thinking is why runaway agents feel scary: a cost-and-latency problem with no name gets to hide inside &ldquo;still working&rdquo; or &ldquo;generic error,&rdquo; and by the time you notice, it has already spent the money and paged the human. Name the third outcome. Cap every run at <code>max_turns</code>, make <code>EXHAUSTED</code> a distinct value your callers can branch on, and emit a typed terminal event so it shows up on a dashboard the instant it happens. Do that and the most frightening thing an autonomous agent can do — loop forever, burning tokens, never finishing — stops being an incident. It becomes a routine, observable, recoverable event that routes itself to a human, a fallback, or a partial, on its own, before anyone&rsquo;s phone rings.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Model three outcomes, not two: <code>COMPLETED</code>, <code>FAILED</code>, and <code>EXHAUSTED</code> (hit <code>max_turns</code> with no final answer). The runaway loop fits neither success nor error, so it hides inside &ldquo;still working&rdquo; until it has already spent the money.</li>
+<li>Because <code>EXHAUSTED</code> is a distinct value, the caller can route on it — escalate to a human with the partial work attached, fall back to a cheaper deterministic path, or surface an honest &ldquo;incomplete&rdquo; flag.</li>
+<li>The bound is structural: <code>run_bounded</code> has three <code>return</code> points and one hard loop cap, so there is no way to stay in the loop forever — not a hopeful external timeout.</li>
+<li>Report progress as a <em>typed event stream</em> (<code>Started</code>, <code>Turn</code>, then exactly one terminal event), not log strings, so callers can <code>match</code> on outcomes live and the terminal event <em>is</em> the metric dimension — &ldquo;how many runs exhausted this hour&rdquo; becomes a counter, not a grep.</li>
+<li>Bounding is not an escape hatch: governance sits <em>below</em> the runner, so every tool call still passes the policy gateway regardless of how many turns remain — bounding controls how long, the gateway controls what.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/testing-agents-without-a-model.html">Testing agents without a model</a> — the same swap-a-deterministic-runner-for-a-live-one contract that makes bounded runs testable.</li>
+<li><a href="/blog/posts/tell-the-agent-what-its-allowed-to-do.html">Tell the agent what it&rsquo;s allowed to do</a> — cutting wasted turns from the other direction.</li>
+<li><a href="/blog/posts/policy-is-code-not-a-prompt.html">Policy is code, not a prompt</a> — the governance layer that sits beneath the runner.</li>
+</ul>
 
 
   <aside class="related-posts">

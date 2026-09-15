@@ -42,6 +42,18 @@ Skills are a first-class integration point in the Agent Framework Go SDK, wired 
 
 `cd tutorial/02-agents/skills/step01_file_based_skills && go run .` (needs `az login`, `FOUNDRY_PROJECT_ENDPOINT`, and `python` on PATH). The offline tests cover wiring, skill discovery, and the script runner; the `python` end-to-end test skips when `python` is absent, and the live model call is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- A skill is a directory, not Go code: a `SKILL.md` manifest plus resources and scripts under `skills/<name>/`, discovered by scanning the tree for `SKILL.md` files.
+- Skills load by progressive disclosure — the model first sees only each skill's name + description, then `load_skill`, then `read_skill_resource`, then `run_skill_script` — pulling in heavy content only when a task calls for it.
+- One `ContextProvider` wire gives the agent all three tools plus the advertise-only instructions, through the same `Config.ContextProviders` slot other providers use.
+- `os.OpenRoot` sandboxes the tree as an `*os.Root` so reads and materialization can never escape the skills subtree; the `ScriptRunner` is where scripts actually execute (copy to temp dir, run subprocess, return stdout).
+
+## Further reading
+
+- [02 · Code-Defined Skills](/blog/posts/maf-go-59-code-defined-skills.html) — the same skill shape defined entirely in Go, no files on disk
+- [03 · Mixed Skills](/blog/posts/maf-go-60-mixed-skills.html) — composing file-based and code-defined skills in one agent
+
 ---
 
 Next: [02 · Code-Defined Skills](/blog/posts/maf-go-59-code-defined-skills.html)

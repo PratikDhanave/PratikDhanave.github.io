@@ -98,3 +98,18 @@ Put the pieces together and the defences compose:
 - **Cloning** fails under DDA/CDA because the card's private key and its ability to compute a fresh cryptogram cannot be copied from a static data read.
 
 The static magstripe secret became a moving target: a fresh, key-bound, counter-protected proof computed on-card for every tap and dip. That single shift — from presenting a secret to computing a proof — is why chip payments hold up.
+
+## Key takeaways
+
+- An ARQC is a symmetric MAC (Triple-DES/AES CBC-MAC), not a signature — 8 bytes, verifiable only by the issuer that shares the key, computed fresh by the chip for each transaction.
+- Keys derive in two layers: a per-card master key `MK_card = KDF(IMK, PAN||PSN)` (the issuer only guards the IMK in an HSM) and a per-transaction session key `SK = KDF(MK_card, ATC)`.
+- The ATC (monotonic Application Transaction Counter) is the linchpin of freshness: it never repeats or goes backward, so a captured ARQC cannot be replayed.
+- The CDOL1 dictates what the MAC covers — amount and currency are cryptographically bound, and the terminal's Unpredictable Number injects randomness a fraudster can't predict.
+- Offline authentication climbs in strength — SDA authenticates *data*, DDA/CDA authenticate the *card* — and only the cryptogram authenticates the *transaction*; the ARPC then proves issuer-to-card for mutual authentication.
+
+## Further reading
+
+- [Card Authorization, Capture, and Clearing](/blog/posts/fintech-card-auth-capture-clearing.html)
+- [ISO 8583 Codec](/blog/posts/fintech-iso-8583-codec.html)
+- [DUKPT, P2PE, and PIN Security](/blog/posts/fintech-dukpt-p2pe-pin-security.html)
+- [EMV (Wikipedia)](https://en.wikipedia.org/wiki/EMV)

@@ -88,3 +88,18 @@ The golden copy is only trustworthy if it is **reconciled**. Reconciliation comp
 ## What to remember
 
 Custody is a data-integrity business wearing a finance costume. The golden copy of positions is the product; reconciliation against every external ledger is what makes it true; DvP is what makes settlement safe; and asset servicing is the promise that owning a security keeps paying off. Build the ownership model — legal versus beneficial, segregated versus omnibus — correctly first, because every dividend, vote, and reclaim downstream inherits its correctness.
+
+## Key takeaways
+
+- Custody is a data-integrity business: two records exist for every position — the custodian's internal books-and-records (golden copy) and the authoritative depository record — and the whole job is keeping them in lock-step.
+- Account structure is a legal-and-engineering choice: segregated accounts identify a client's assets down to the depository, while omnibus accounts pool them and push the per-client breakdown entirely onto the custodian's ledger.
+- Always model legal ownership (the nominee of record) versus beneficial ownership (who enjoys the economic rights) explicitly, or client assets get commingled with the firm's — the failure mode regulators care about most.
+- DvP makes delivery of the security conditional on simultaneous payment, removing principal risk — model it as an atomic state transition, never two independent updates.
+- Asset servicing (income, corporate actions, proxy voting, tax reclaim) fans an event at the omnibus level back down to beneficial owners, and is only as correct as your ownership records on the record date; reconciliation breaks that age are potential losses, not nuisance tickets.
+
+## Further reading
+
+- [Securities Settlement and DvP](/blog/posts/fintech-securities-settlement-dvp.html)
+- [Corporate Actions Processing](/blog/posts/fintech-corporate-actions-processing.html)
+- [Reconciliation Break Detection](/blog/posts/fintech-reconciliation-break-detection.html)
+- [Delivery versus payment (Wikipedia)](https://en.wikipedia.org/wiki/Delivery_versus_payment)

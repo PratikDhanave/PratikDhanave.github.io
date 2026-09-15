@@ -81,8 +81,23 @@ Most real systems will combine these rather than pick one, because the questions
 
 AP2, ACP, x402, and network tokens answer different questions. AP2 is about **provable authorization** you can carry across rails; ACP is about **selling inside AI surfaces** on card rails; x402 is about **onchain machine micropayments** with final settlement; network tokens are about **card-network reach and consumer protection** via scoped credentials. They interoperate by design — mandates reference credentials, checkouts ride rails, and settlement can happen on cards or onchain. Design your agent commerce stack around the *need* of each purchase, not around a bet on a single winner, and you can adopt more than one without contradiction.
 
+## Key takeaways
+
+- The four families sit at different points of the payment stack: AP2 is provable *authorization*, ACP is a *checkout* experience inside AI surfaces, x402 is a *settlement* method for machine micropayments, and network tokens are a *credential* — so they compose rather than compete.
+- What counts as proof of authorization differs sharply: AP2 uses a signed Intent→Cart→Payment mandate chain (verifiable credentials), ACP uses an OAuth-delegated token, x402 uses a wallet-signed onchain transaction, and network tokens use the issuer approval already behind card payments.
+- Settlement and dispute rights track the rails: ACP and network tokens ride card rails and inherit chargebacks; x402 is final onchain with no chargebacks and near-zero protocol fees; AP2 inherits whatever rail its mandate points at.
+- A coherent stack can use three at once — e.g. an AP2 mandate authorizing an ACP checkout that charges a network token, or an AP2 mandate settling onchain through x402.
+- Choose by the *need* of each purchase (card reach? onchain micropayment? portable proof? selling in an AI surface?), not by betting on a single winner.
+
 ## Sources
 
 - https://ap2-protocol.org/
 - https://docs.stripe.com/agentic-commerce/acp
 - https://www.coinbase.com/developer-platform/discover/launches/x402
+
+## Further reading
+
+- [AP2 and the mandate chain](/blog/posts/agentic-commerce-ap2-mandates.html)
+- [ACP: Stripe and OpenAI's Agentic Commerce Protocol](/blog/posts/agentic-commerce-acp-stripe-openai.html)
+- [x402 and HTTP 402 Payment Required](/blog/posts/agentic-commerce-x402-http-402.html)
+- [Card networks and agentic tokens](/blog/posts/agentic-commerce-card-networks.html)

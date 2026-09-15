@@ -220,3 +220,9 @@ And where you attach middleware decides how often it fires:
 - **Observability and security are not middleware you write.** Call `configure_otel_providers(...)` once at startup (mind `enable_sensitive_data`), and wire `SecureAgentConfig` via `context_providers=`, never `middleware=`.
 
 Every concern here lives *outside* the agent's own logic and *outside* the model provider. Swap the `FoundryChatClient` for another chat client and every wrapper still holds — because middleware wraps the run, not the model.
+
+## Further reading
+
+- [Human-in-the-loop and observability](/blog/posts/maf-py-human-in-loop-observability.html)
+- [Tools: functions, hosted tools, MCP, Skills & CodeAct](/blog/posts/maf-py-tools-functions-mcp.html)
+- [Memory, context, and state](/blog/posts/maf-py-memory-context-state.html)

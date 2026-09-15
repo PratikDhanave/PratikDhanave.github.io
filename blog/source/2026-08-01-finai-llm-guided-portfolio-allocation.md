@@ -50,3 +50,18 @@ Notice what the shape refuses to allow. The model has no path to place an order.
 ## The trade you are making
 
 None of this is free. You are accepting extra latency, extra engineering, and the humility of never letting the smartest-sounding component be in charge. In return you get something you can actually run against real capital: an allocator that reads the qualitative world a pure optimizer ignores, while remaining explainable, bounded, and reversible. The model earns its place not by being trusted, but by being useful inside a structure that assumes it will occasionally be wrong. That is the difference between a demo that impresses a room and a system you can put in front of a risk committee — and in this domain, only the second one is worth building.
+
+## Key takeaways
+
+- A deterministic quant optimizer (mean-variance, risk parity, or views-based) owns the baseline weights; the language model never fills a portfolio from a blank page, only proposes bounded deltas away from a portfolio that already stands on its own.
+- The model's edge is reading the qualitative context an optimizer is blind to — news, filings, transcripts, guidance changes — and every proposed tilt must carry a written rationale pointing back to specific source material, or it is treated as noise.
+- Hard constraints are code, not prompts: position limits, turnover and liquidity caps, leverage and concentration bounds are clamped, projected, or rejected programmatically — never left to the model's good behaviour.
+- A human sits *on* the consequential path, judging the reasoning and cited context, not just the numbers; only after sign-off does anything reach execution.
+- The failure mode of the whole system is "trade the anchor" — a breach or a rejection falls back to the defensible baseline, never a half-approved portfolio nobody signed off.
+
+## Further reading
+
+- [News-driven alpha: LLM sentiment analysis for markets](/blog/posts/finai-news-sentiment-llm-alpha.html)
+- [Generative AI and LLMs in finance: guardrails that hold](/blog/posts/finai-genai-llms-in-finance-guardrails.html)
+- [A personalization engine for finance](/blog/posts/finai-personalization-engine-finance.html)
+- [Modern portfolio theory](https://en.wikipedia.org/wiki/Modern_portfolio_theory) — Wikipedia background on mean-variance optimization

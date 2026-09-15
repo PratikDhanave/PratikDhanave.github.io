@@ -86,3 +86,17 @@ Lots do not only change through trades. A **stock split** multiplies `qty_open` 
 ## Producing the report
 
 The realized-gains report (Form 8949 in the U.S.) is a projection over disposal events: one row per consumed lot slice, with acquired date, sold date, proceeds, basis, wash-sale adjustment, and gain, grouped into short- and long-term buckets. Because everything upstream is deterministic and replayable, the report is reproducible — the same ledger and the same method always yield the same rows. That reproducibility, not the arithmetic, is the hard part worth engineering for.
+
+## Key takeaways
+
+- The **tax lot**, not the net position, is the ledger's atom — a position throws away the two facts the tax code needs: when each share was acquired and at what cost. Every buy creates one immutable lot with fees folded into `basis_per_unit`.
+- Disposal method (FIFO / LIFO / HIFO / Spec-ID) is just the policy that orders candidate lots, but selection must be **deterministic**: append `lot_id` as a tiebreaker so a re-run can't silently reassign basis when timestamps collide.
+- Realized gain is booked per consumed slice at disposal (`proceeds − matched_basis`, stamped with holding period); unrealized gain is a *read* over open lots at a mark and is never written to the log — deriving it on demand avoids staleness bugs.
+- The wash-sale rule rewrites history: a loss with a substantially-identical repurchase within ±30 days is disallowed and deferred into the replacement lot's basis, carrying the original acquisition date forward. Because the window extends 30 days *forward*, reports stay provisional until it closes.
+- Corporate actions (splits, spinoffs, transfers) and wash-sale corrections are handled by append-and-replay — new events restate lots — never by silent field edits, which is what keeps the report reproducible.
+
+## Further reading
+
+- [Corporate actions processing](/blog/posts/fintech-corporate-actions-processing.html)
+- [Fund accounting and NAV](/blog/posts/fintech-fund-accounting-nav.html)
+- [Pre-trade risk, positions, and real-time P&L](/blog/posts/fintech-pretrade-risk-position-pnl.html)

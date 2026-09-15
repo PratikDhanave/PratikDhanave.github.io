@@ -97,3 +97,17 @@ Once you see agents as executors, orchestration stops being a separate framework
 ---
 
 Next: [Orchestration Patterns — Microsoft Agent Framework in Python](/blog/posts/maf-python-10-orchestrations.html)
+
+## Key takeaways
+
+- An agent and a plain function are both just executors, so they sit on the same edges in one graph — an agent needs no `Executor` subclass, it *is* the node.
+- Switch-case edge groups evaluate `Case` predicates in order and route to the first match (else `Default`), running exactly one branch — the classifier-then-dispatch pattern, with the predicate being ordinary Python over the emitted message.
+- `add_fan_out_edges` broadcasts the *same* message to every target so wall-clock is the slowest worker, not the sum; `add_fan_in_edges` is a synchronised barrier that fires the join *once* with a `list` of all results — sort inside the join if you need determinism.
+- The payoff of the uniform model is economic: push deterministic glue (validation, routing keys, aggregation) into cheap offline function nodes and spend model calls only on nodes that actually reason.
+- A handler ends with `ctx.send_message(x)` (pass downstream) or `ctx.yield_output(x)` (produce the workflow result); the `WorkflowContext[Send, Yield]` type parameters make that contract explicit and `WorkflowContext[Never, str]` marks a terminal node.
+
+## Further reading
+
+- [Workflow Mechanics — Microsoft Agent Framework in Python](/blog/posts/maf-python-08-workflow-mechanics.html)
+- [Orchestration Patterns — Microsoft Agent Framework in Python](/blog/posts/maf-python-10-orchestrations.html)
+- [Workflows with Agents — Microsoft Agent Framework Go](/blog/posts/maf-go-09-workflows-with-agents.html) — the same lesson in the Go SDK

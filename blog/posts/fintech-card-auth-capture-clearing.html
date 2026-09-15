@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-08-03">August 03, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/cards/" class="tag-link"><span class="tag">#Cards</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/card-payments/" class="tag-link"><span class="tag">#Card Payments</span></a></div>
   </header>
@@ -185,6 +185,21 @@
 <p>The ledger discipline that keeps this honest: an authorization posts to a <strong>memo/hold account</strong>, never to revenue. Only capture creates a receivable, and only settlement realizes cash. If your books recognize revenue at auth time, every reversal and every partial capture becomes a painful correcting entry. Separate the accounts and the state machine maps cleanly onto double-entry postings.</p>
 <h2 id="what-to-hold-onto">What to hold onto</h2>
 <p>Model the card transaction as an explicit, event-sourced state machine, not a <code>paid</code> flag. Keep a stable authorization identifier that increments and captures reference. Enforce the <em>captured ≤ authorized</em> invariant as a hard control. Treat expiry as a timed transition with a sweeper, and always release residual holds on partial capture and reversal. Finally, reconcile authorized against settled per transaction, allow a tolerance band, and only recognize cash at settlement. Get those five things right and the messy real-world cases — hotels, fuel, tips, split shipments, cancellations — stop being special cases and become ordinary transitions on a state machine you already trust.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>A card purchase is not atomic: it moves through three money states — authorization (a hold, no money moves), capture (what you intend to collect), and clearing/settlement (when funds physically arrive) — so a single <code>paid</code> boolean lies the moment shipping delays, tips, or partial fulfilment appear.</li>
+<li>Model it as an event-sourced state machine where <code>authorized</code>, <code>incremental_auth</code>, <code>captured</code>, <code>reversed</code>, <code>expired</code>, <code>cleared</code>, <code>settled</code> are append-only facts folded into current state, each carrying its own amount and currency.</li>
+<li>Keep a stable authorization identifier that all increments and captures reference; enforce <code>captured &lt;= authorized</code> as a hard control, and encode residual-hold release per acquirer since some auto-release on first capture and others need an explicit reversal.</li>
+<li>Treat expiry as a first-class timed transition with a sweeper — issuer holds age out (often ~7 days) whether or not your records agree, and capturing against an expired auth gets rejected or forces an unexpected re-authorization.</li>
+<li>Post authorizations to a memo/hold account, never revenue; only capture creates a receivable and only settlement realizes cash, then reconcile authorized vs settled per transaction with a tolerance band for rounding, FX, and permitted tips.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-3ds2-authentication-flow.html">Integrating 3-D Secure 2</a></li>
+<li><a href="/blog/posts/fintech-incremental-partial-auth.html">Incremental and partial authorization</a></li>
+<li><a href="/blog/posts/fintech-emv-cryptogram-arqc.html">EMV cryptograms and the ARQC</a></li>
+<li><a href="/blog/posts/fintech-interchange-fee-engine.html">The interchange fee engine</a></li>
+</ul>
 
 
   <aside class="related-posts">

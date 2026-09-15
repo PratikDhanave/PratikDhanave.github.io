@@ -75,3 +75,18 @@ Finally, treat the whole chain as a governed system. The model, the attribution 
 ## Wrapping up
 
 Turning a model score into a compliant credit decision is a small pipeline with big obligations: attribute locally, rank the adverse contributions, map them to approved language, and run the population through a fairness check in parallel. SHAP supplies the honest per-applicant decomposition; disciplined engineering around baselines, grouping, and governed text turns that decomposition into reason codes a person can actually understand — and an audit trail an institution can actually defend.
+
+## Key takeaways
+
+- Adverse-action notices are inherently a *local* problem: two applicants declined by the same model can owe entirely different reasons, so a global feature-importance summary cannot answer "why was *this* person declined."
+- SHAP's appeal is additivity — `baseline + sum of signed feature contributions = this applicant's score` — so nothing is hand-waved and you can point at the exact ranking the arithmetic backs up.
+- Two subtleties decide trustworthiness: the *baseline* (explain against approved/near-approved applicants, not a meaningless global average, and document it) and *feature grouping* (sum correlated features into one concept before ranking, or a notice lists three near-duplicate reasons that are really one).
+- Turning contributions into reason codes is a deterministic transform ending in a *governed* mapping table — `util_ratio_l3m` is not a reason; the reason is the compliance-approved human sentence, and that table is reviewed, versioned, and stable.
+- Fairness lives *next to* explanations, not folded into them: the same run feeds a parallel adverse-impact ratio (the four-fifths / 0.8 check) that judges group-level treatment, a different question from an individual's reasons.
+
+## Further reading
+
+- [Building a credit scorecard](/blog/posts/finai-credit-scorecard-from-data-to-score.html) — the interpretable alternative that produces adverse-action reasons for free.
+- [Weight of Evidence and Information Value](/blog/posts/finai-weight-of-evidence-iv-binning.html) — the binning that makes a scorecard's contributions readable.
+- [Model risk governance](/blog/posts/fintech-model-risk-governance.html) — governing the model, baseline, mapping table, and fairness thresholds as one system.
+- [Shapley value (Wikipedia)](https://en.wikipedia.org/wiki/Shapley_value) — the cooperative-game-theory foundation SHAP borrows.

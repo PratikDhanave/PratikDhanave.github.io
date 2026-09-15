@@ -89,3 +89,18 @@ Good TCA is stored per child order with the routing rationale attached — venue
 ## What to remember
 
 A smart order router is a control loop, not a lookup table: slice, score, send, listen, re-route, repeat — under real latency and adversarial counterparties. Best execution is the discipline wrapped around that loop. Keep scheduling and routing as separate concerns, treat every residual as a live object, and record the rationale behind each child order. Then let TCA close the feedback loop against arrival price, VWAP, and implementation shortfall — so best execution is something you can *prove*, not just assert.
+
+## Key takeaways
+
+- Best execution is a process obligation, not "best price" — it weighs cost, speed, likelihood of execution and settlement, size, and order type, so every routing decision must be explainable after the fact.
+- Keep slicing and routing as separate concerns: the schedule (TWAP, VWAP, POV) answers *how fast* and the venue scorer answers *where*; the scorer runs continuously because a rank-one venue can be rank four milliseconds later.
+- Treat every residual as a first-class object — an unfilled quantity from a partial fill or reject flows back, gets re-scored against the *current* book (not the stale one), and re-routed; nothing silently vanishes.
+- Score venues on a weighted blend of price, liquidity, fee/rebate, latency, and a fill-probability model, tilting the weights by the order's urgency.
+- Prove it with TCA stored per child order alongside the routing rationale — arrival price, VWAP, and implementation shortfall (which charges you for shares traded badly and shares never filled) turn a decision into evidence; watch for information leakage, adverse selection, and venue toxicity via markout.
+
+## Further reading
+
+- [The FIX protocol: engineering a session and order gateway](/blog/posts/fintech-fix-protocol-engine.html)
+- [Order types and time-in-force](/blog/posts/fintech-order-types-time-in-force.html)
+- [Designing a matching engine](/blog/posts/fintech-matching-engine-design.html)
+- [Pre-trade risk, position, and P&L](/blog/posts/fintech-pretrade-risk-position-pnl.html)

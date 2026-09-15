@@ -89,6 +89,20 @@ resp, err := a.RunMessage(ctx, msg).Collect()
 
 Input and output are the two things you shape. Input gets richer through a multi-part `message.Message`; output gets richer through `WithStructuredOutput` / `WithResponseFormat` — delivered either all at once via `.Collect()` or chunk by chunk by ranging with `Stream(true)`. Once that clicks, a run stops being "text in, text out" and becomes a typed call that can also see. Next I wrap every run with middleware for logging and guardrails.
 
+## Key takeaways
+
+- The Go struct *is* the schema: `json` tags become the JSON-schema field names. `agent.WithStructuredOutput(&v)` is a per-run option that decodes the model's JSON straight into your value once the run drains.
+- There are two altitudes: the per-run `WithStructuredOutput`, or wiring `WithResponseFormat(jsonformat.MustFor[T]())` into `Config.RunOptions` so every run returns JSON — but then you own the `json.Unmarshal`.
+- A run is an `iter.Seq2[*agent.ResponseUpdate, error]`: `agent.Stream(true)` yields incremental updates, `Stream(false)` / `.Collect()` gives one `*Response` — same `RunText` call either way, and `update.String()` gives a chunk's text.
+- `RunText` only takes a string, so images go through `RunMessage` with a multi-part `message.Message`: `DataContent` carries base64 in-memory bytes plus a `MediaType`, or `URIContent` links a hosted image. The deployment must be vision-capable.
+- The mental model: you shape *input* through a multi-part message and *output* through the structured-output options, delivered all at once or chunk by chunk.
+
+## Further reading
+
+- [Structured output — Microsoft Agent Framework in Go](/blog/posts/maf-go-15-structured-output.html)
+- [Using images — Microsoft Agent Framework in Go](/blog/posts/maf-go-21-using-images.html)
+- [microsoft/agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)
+
 ---
 
 Next: [Middleware — Microsoft Agent Framework in Go](/blog/posts/maf-go-06-middleware.html)

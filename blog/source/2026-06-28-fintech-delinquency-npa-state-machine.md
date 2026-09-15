@@ -94,3 +94,18 @@ Because the journal is derived from the delta between the old and new provision 
 The classification job runs daily and must be safe to re-run. Key each run by `(loan_id, as_of_date)` and make the job recompute state from the schedule and payment history rather than mutating a prior state in place. Reprocessing the same `as_of_date` twice must produce the same state and must not post the provision journal twice — guard the ledger posting with the same `(loan_id, as_of_date, transition)` idempotency key.
 
 This design gives you three properties that a nightly-counter approach cannot: you can **backfill** a corrected payment and have every downstream state and provision recompute deterministically; you can **replay** an entire portfolio as-of any historical date for reporting or dispute resolution; and you can **prove** any single account's classification is a pure function of inputs a reviewer can inspect. Delinquency stops being an opaque number on a dashboard and becomes a transparent, reproducible state — which is exactly what a regulator, an auditor, and your own on-call engineer each need it to be.
+
+## Key takeaways
+
+- DPD counts from the *oldest unpaid* installment's due date, not the days since the last payment — paying this month while last month is still owed does not reset the clock. This is the single most common source of misclassification.
+- Derive DPD from the amortization schedule and a payment snapshot so the engine is a pure function of `(schedule, payments, as_of_date)`; an incrementing nightly counter can't be replayed and drifts permanently on a skipped or double-run batch.
+- Encode bucket boundaries and provision rates as data — an ordered `(lower, upper, state, classification, provision_rate)` table — so a policy change edits a row, not a function; the 90-day boundary flips performing to non-performing and changes interest recognition.
+- A payment reduces DPD only by how much of the *oldest* arrears it clears; full cure requires clearing all overdue amounts, and NPAs need a probation `Cured` state to prevent evergreening through a token payment.
+- Provisioning is a side effect of each transition: post a journal for the delta between old and new provision, so a cure naturally produces a write-back and the ledger always matches the current classification.
+
+## Further reading
+
+- [Collections and Recovery Workflow](/blog/posts/fintech-collections-recovery-workflow.html)
+- [Loan Forbearance and Restructuring](/blog/posts/fintech-loan-forbearance-restructuring.html)
+- [Repayment Waterfall Allocation](/blog/posts/fintech-repayment-waterfall-allocation.html)
+- [Non-performing loan (Wikipedia)](https://en.wikipedia.org/wiki/Non-performing_loan)

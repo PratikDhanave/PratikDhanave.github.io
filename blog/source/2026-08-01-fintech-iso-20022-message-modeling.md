@@ -72,3 +72,18 @@ The return path is where the typed model pays off. A `pacs.002` carries a group 
 ## What actually makes this maintainable
 
 The teams that stay sane share three habits. They generate bindings from pinned schema versions and check the generated code in, so a scheme's version bump is a visible, reviewable diff. They keep the canonical model free of any single message's quirks, so adding a new rail is a new adapter, not a refactor. And they make every identifier and validation rule explicit and typed, so the knowledge lives in code instead of in the one engineer who read the rulebook. ISO 20022 is verbose, but it is not vague — lean into its type system and it will hold your payments together instead of fighting you.
+
+## Key takeaways
+
+- Generate typed bindings from the pinned XSD rather than hand-rolling XML; the schema enforces element order (an out-of-sequence `PmtInf` is an instant reject), cardinality, and constrained primitives like amounts (decimal + currency, never float) and length-bounded `Max35Text`.
+- Keep one canonical payment model and treat `pain.001`, `pacs.008`, and `camt.054` as projections of it; the `pain → pacs` step is not a rename — the bank injects settlement method, agent member IDs, settlement date, and charge-bearer, so model it as `Canonical + BankContext → pacs.008`.
+- Design identifiers deliberately: End-to-End ID is preserved unchanged and echoed back, so make it a deterministic function of your internal payment ID; UETR anchors cross-border tracking; `MsgId` must be deterministic per logical send so a retry deduplicates instead of double-paying.
+- Validate in three tiers before sending — XSD structural, scheme rulebook (cross-field predicates with rule IDs), and business — so failures surface precisely in your system, not as an opaque `pacs.002` hours later.
+- Drive the return path as a state machine: match `pacs.002` status by End-to-End ID, confirm movement with `camt.054`, and reconcile the ledger against the authoritative `camt.053` end-of-day statement.
+
+## Further reading
+
+- [SWIFT MT, MX, and gpi](/blog/posts/fintech-swift-mt-mx-gpi.html)
+- [SEPA credit transfers and direct debit mandates](/blog/posts/fintech-sepa-sct-sdd-mandates.html)
+- [NACHA ACH file processing](/blog/posts/fintech-nacha-ach-file-processing.html)
+- [ISO 20022](https://en.wikipedia.org/wiki/ISO_20022) — Wikipedia overview of the standard

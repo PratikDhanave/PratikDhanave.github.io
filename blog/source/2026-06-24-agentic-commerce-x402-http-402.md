@@ -76,3 +76,9 @@ x402 takes the status code the web reserved and never used, and finally answers 
 
 - https://www.coinbase.com/developer-platform/discover/launches/x402
 - https://docs.cdp.coinbase.com/x402/welcome
+
+## Further reading
+
+- [ACP: The Agentic Commerce Protocol Behind ChatGPT Instant Checkout](/blog/posts/agentic-commerce-acp-stripe-openai.html) — the checkout-and-token flow x402 can settle underneath
+- [AP2 and Verifiable Mandates](/blog/posts/agentic-commerce-ap2-mandates.html) — the mandate layer that can use x402 as a crypto settlement path
+- [Card Networks Enter Agentic Commerce](/blog/posts/agentic-commerce-card-networks.html) — the card-rail alternative x402 is contrasted against

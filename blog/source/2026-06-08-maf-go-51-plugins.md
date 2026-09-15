@@ -50,6 +50,18 @@ go run ./tutorial/02-agents/providers/foundry/step13_plugins
 
 The live run needs `az login` + `FOUNDRY_PROJECT_ENDPOINT`. Offline tests assert the plugin surfaces exactly `GetWeather` and `GetCurrentTime` and invoke each handler with JSON args directly — no network; the live call is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- A "plugin" is a convention, not a framework type: put related tools on one Go type, expose them as `[]tool.Tool`, and hand the whole group to `agent.Config{Tools: ...}`.
+- `functool.MustNew` builds each tool; the handler's input type drives the JSON schema the model sees — `string` for a tool with one argument, an empty `struct{}` for one with none.
+- The pattern's real payoff is a plugin type that holds dependencies (a DB handle, an HTTP client) which its handler closures capture, so tools travel with their collaborators.
+- The model can read multiple tool schemas and call several in one turn, weaving the results into a single answer.
+
+## Further reading
+
+- [09 · Code-Defined Skills](/blog/posts/maf-go-59-code-defined-skills.html) — the next step up from grouped tools: on-demand skills defined in Go
+- [step14 · Code Interpreter (hosted tool)](/blog/posts/maf-go-52-code-interpreter.html) — the next lesson in this Foundry provider track
+
 ---
 
 Next: [step14 · Code Interpreter (hosted tool)](/blog/posts/maf-go-52-code-interpreter.html)

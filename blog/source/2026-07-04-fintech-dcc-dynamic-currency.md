@@ -84,3 +84,18 @@ Clearing must then present the same currency, the same amount, and the same rate
 ## What the engineering comes down to
 
 DCC looks like a currency feature, but the hard parts are data integrity and consent. Source a rate you can defend against a benchmark, lock it for the authorization, present a fair and un-defaulted choice, record that choice, stamp the DCC indicator so nobody converts twice, and carry an identical currency, amount, and rate from authorization all the way through clearing. Do those six things and the margin split takes care of itself in reconciliation. Miss the consent gate or let the clearing currency drift, and you have turned a legitimate service into a compliance incident.
+
+## Key takeaways
+
+- Eligibility comes from a BIN lookup — a card is a DCC candidate only when its billing currency differs from the terminal's settlement currency — and the check must be conservative, falling back to local currency on any unknown BIN, scheme exclusion, or merchant configuration.
+- The cardholder-facing rate is a reference rate (wholesale interbank or scheme daily) plus a markup, and the rate service returns *both* numbers because disclosure requires showing the margin against a recognizable benchmark; the quote is time-boxed and locked for the life of the authorization.
+- The consent screen is legally load-bearing, not cosmetic: it must show both currency amounts, the rate, and the margin, with the home-currency option never pre-selected and local currency given equal prominence — getting it wrong triggers fines and forced refunds.
+- The markup is split by contract three ways — DCC provider, acquirer, and a merchant rebate (the incentive to enable it) — while the cardholder pays the full markup regardless, which is exactly why disclosure is mandatory.
+- The DCC indicator carried in the authorization tells the issuer conversion already happened so it must not convert again, and clearing must present an identical transaction currency, amount, rate, and indicator or the transaction fails scheme validation into an exceptions queue.
+
+## Further reading
+
+- [Building an FX rate, spread and markup engine](/blog/posts/fintech-fx-rate-markup-engine.html)
+- [The interchange fee engine](/blog/posts/fintech-interchange-fee-engine.html)
+- [Card authorization, capture and clearing](/blog/posts/fintech-card-auth-capture-clearing.html)
+- [Multi-currency revaluation](/blog/posts/fintech-multi-currency-revaluation.html)

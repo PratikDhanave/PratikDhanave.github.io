@@ -113,3 +113,10 @@ The delegated-token layer is the genuinely new piece, and even that slots in as 
 
 - https://docs.stripe.com/agentic-commerce/acp
 - https://stripe.com/blog/developing-an-open-standard-for-agentic-commerce
+
+## Further reading
+
+- [The Agentic Checkout Flow, End to End](/blog/posts/agentic-commerce-checkout-flow.html)
+- [Agent Identity, Delegation, and Scoped Authorization](/blog/posts/agentic-commerce-agent-identity-auth.html)
+- [APIs and Webhooks (fintech handbook)](/blog/posts/fintech-handbook-06-apis-and-webhooks.html)
+- [Outbox, CDC, and Reconciliation (fintech handbook)](/blog/posts/fintech-handbook-07-outbox-cdc-reconciliation.html)

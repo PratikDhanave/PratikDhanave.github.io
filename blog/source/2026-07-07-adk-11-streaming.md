@@ -125,3 +125,17 @@ This is genuinely dual-language. adk-go has a real live API too: `runner.RunLive
 Reach for **SSE** whenever a human is reading generated text and latency-to-first-token matters — chat UIs, code assistants, anything with a cursor. Reach for **BIDI** only when you actually need duplex media: voice assistants, live transcription, interrupt-driven interaction. And stay on the default **NONE** for batch jobs, tool-only agents, or any pipeline where nothing renders a stream — it's simpler and there's no live-typing payoff to collect. Note that live mode needs a `-live-` Gemini model plus real credentials; it can't run offline, whereas the token-reassembly pattern above runs against a plain in-memory Runner with no network at all.
 
 **Next in the series:** Evaluation — measuring agent quality with eval sets and metrics.
+
+## Key takeaways
+
+- Streaming is one boolean on the event stream: `partial=True` events build toward a single terminating non-partial event. `is_final_response()` is your unambiguous "message complete" signal.
+- Three `RunConfig` modes: `NONE` buffers into one final event, `SSE` emits many partials then a final, `BIDI` is full-duplex live mode. Turning on token streaming changes one field, not your loop.
+- The consumer pattern is accumulate-then-reconcile: append every partial's text for live rendering, but treat the final event as the authoritative record — partials are for the eyes, the final is for storage and downstream logic.
+- Bidirectional (live) streaming runs two streams on one persistent socket via `LiveRequestQueue` (upstream) and `run_live` (downstream); the never-stopping mic upload plus server-side Voice Activity Detection is what actually enables barge-in.
+- Reach for SSE when a human reads generated text and latency-to-first-token matters; reach for BIDI only for duplex media (voice); stay on NONE for batch or tool-only pipelines. Live mode needs a `-live-` Gemini model and credentials, while token reassembly runs fully offline.
+
+## Further reading
+
+- [Runtime and events in ADK](/blog/posts/adk-10-runtime-and-events.html)
+- [ADK evaluation: scoring the trajectory, not just the answer](/blog/posts/adk-12-evaluation.html)
+- [Google Agent Development Kit documentation](https://google.github.io/adk-docs/)

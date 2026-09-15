@@ -107,3 +107,19 @@ Two properties make this trustworthy. The statement total must equal the sum of 
 Interchange is one of the rare domains where authoritative test vectors exist: networks publish worked examples. Encode those as golden tests so a rate-table edit that breaks a known case fails immediately. Beyond that, run a daily reconciliation that re-prices a sample of settled transactions and compares against what the network actually billed the acquirer; a systematic gap points to a stale rate version or a qualification rule that drifted from the current mandate.
 
 Build it this way and the fee engine stops being a black box. It becomes a deterministic function over versioned data, every output traceable to the inputs and the rule that produced it — which is exactly what you need the first time a merchant, an auditor, or a network dispute asks you to prove a number.
+
+## Key takeaways
+
+- An interchange rate is selected by a tuple — MCC, card product, region pair, and authorization characteristics — not a single percentage; explicit qualification rules decide whether a transaction earns the preferred rate or downgrades to a costlier tier.
+- Rates are effective-dated versioned data: every lookup takes the *transaction* date, never "today"; never delete a rate row (supersede it with a new validity window), and treat a missing rate as a hard error rather than a silent zero.
+- Keep interchange, scheme, and markup as separate components end to end, using fixed-point decimals in minor units and one consistent rounding convention, and stamp the `rate_version` on every output.
+- Structure the core as a pure function (attributes + rate snapshot → breakdown, no I/O or clock) wrapped in a thin service that handles idempotency, append-only late adjustments, and retroactive backfills.
+- Encode the networks' published worked examples as golden tests, and run a daily reconciliation that re-prices a sample against what the network actually billed the acquirer.
+
+## Further reading
+
+- [Card Authorization, Capture, and Clearing](/blog/posts/fintech-card-auth-capture-clearing.html) — the transaction attributes that drive fee classification
+- [Merchant Settlement and Payout](/blog/posts/fintech-merchant-settlement-payout.html) — where these per-transaction fees are netted out of merchant funds
+- [The FX Rate Markup Engine](/blog/posts/fintech-fx-rate-markup-engine.html) — the same deterministic, versioned-rate discipline for currency conversion
+
+

@@ -93,3 +93,9 @@ ACP is not the only agent-payments effort, and it is worth being precise about s
 
 - https://stripe.com/blog/developing-an-open-standard-for-agentic-commerce
 - https://docs.stripe.com/agentic-commerce/acp
+
+## Further reading
+
+- [x402: Paying Over HTTP 402 with Stablecoins](/blog/posts/agentic-commerce-x402-http-402.html) — the crypto settlement rail for per-request agent payments
+- [Card Networks Enter Agentic Commerce](/blog/posts/agentic-commerce-card-networks.html) — the scoped-token credential layer beneath the checkout
+- [AP2 and Verifiable Mandates](/blog/posts/agentic-commerce-ap2-mandates.html) — the mandate-chain effort ACP is complementary to

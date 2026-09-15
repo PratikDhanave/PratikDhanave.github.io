@@ -84,3 +84,17 @@ The run gave me a place to stand *around* the agent. Next I open the box further
 ---
 
 Next: [Observability, Safety, and Providers — Microsoft Agent Framework in Python](/blog/posts/maf-python-07-observability-safety-providers.html)
+
+## Key takeaways
+
+- Middleware is one shape — `async def mw(context, call_next)` — in three flavours: `@agent_middleware` (whole run), `@chat_middleware` (each model call), `@function_middleware` (each tool call).
+- `call_next` takes no arguments and returns `None`; all state rides on `context`, and to stop early you set `context.result` and `raise MiddlewareTermination(result=...)` (there is no `context.terminate`).
+- A guardrail's power is *not* calling `call_next` — a `@function_middleware` can refuse a tool invocation before its body runs, which is cheaper than running the tool and safer than trusting the model.
+- All middleware attach to one `middleware=[...]` list; the framework sorts them by type, so you don't order agent-vs-function seams yourself.
+- Construction is lazy, so an offline test can assert the stack is wired (both `timing` and the guardrail present) without spending a token.
+
+## Further reading
+
+- [Giving an Agent Tools — Microsoft Agent Framework in Python](/blog/posts/maf-python-03-giving-agents-tools.html)
+- [Shaping a Run — Microsoft Agent Framework in Python](/blog/posts/maf-python-05-shaping-a-run.html)
+- [Observability, Safety, and Providers — Microsoft Agent Framework in Python](/blog/posts/maf-python-07-observability-safety-providers.html)

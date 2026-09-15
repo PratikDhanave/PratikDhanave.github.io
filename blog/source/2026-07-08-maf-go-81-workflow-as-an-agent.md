@@ -51,6 +51,20 @@ go run ./tutorial/03-workflows/observability/workflow_as_an_agent
 
 Runs live (both agents call Foundry); the offline test builds the same graph with a fake credential and asserts the French→English wiring with no network.
 
+## Key takeaways
+
+- `WithTelemetry` is a build-time step alongside edges and outputs: it opens an OpenTelemetry span per executor invocation and edge traversal, so a trace backend can show the French turn, the English turn, and the edge between them.
+- `SourceName` is the instrumentation scope (the tracer name a backend groups spans under), and `EnableSensitiveData: true` is a deliberate choice that lets prompt/response content ride along in spans — useful in a demo, weighed against not logging user data in production.
+- `agentworkflow.New` binds a single agent *as a workflow executor* (a node); `agentworkflow.NewAgent` wraps a *whole workflow* as one `*agent.Agent` — this lesson uses both, and callers then run the pipeline with a plain `RunText`.
+- `IncludeOutputsInResponse` is what surfaces the terminal output in the wrapped agent's response stream; without it the pipeline runs but the final output never appears.
+- Wrapping a workflow as an agent is the composition trick that lets a whole multi-stage pipeline plug into anything expecting an `agent.Agent`.
+
+## Further reading
+
+- [Observability — Microsoft Agent Framework in Go](/blog/posts/maf-go-18-observability.html)
+- [Workflow as an agent — Microsoft Agent Framework in Go](/blog/posts/maf-go-70-workflow-as-an-agent.html)
+- [microsoft/agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)
+
 ---
 
 Next: [shared-states · Coordinating executors through shared state](/blog/posts/maf-go-82-shared-states.html)

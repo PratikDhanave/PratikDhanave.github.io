@@ -84,3 +84,17 @@ Every one of these postings must be part of the same atomic unit as the state tr
 The single invariant worth asserting continuously: the balance of every dispute-hold account equals the sum of disputed amounts across all non-terminal cases. If a case is `representment` for 120 units, the hold account must carry exactly that reservation. Run this check on a schedule; any drift means a transition posted a ledger entry it should not have, or skipped one it should have.
 
 This invariant is what turns a pile of edge cases — duplicate notifications, deadline races, partial-amount disputes — into something you can trust. The state machine makes transitions explicit, the reservation model makes money movements reversible, and the reconciliation check makes both auditable. Build the dispute engine in that order and the "chargeback support ticket" becomes a system you can reason about instead of a source of quiet losses.
+
+## Key takeaways
+
+- Model a dispute as a state machine, not a workflow, because the scheme owns the clock: a representment window (commonly 30–45 days) forfeits by default the instant it's missed, no matter how strong the evidence.
+- Every non-terminal state carries exactly one governing `deadline_at`, driven by a single idempotent timer sweep that only auto-transitions if the case's revision counter hasn't moved underneath it.
+- Money moves only on transitions, via a reservation model — a provisional debit to a dispute-hold account on entry to `first_chargeback`, reversed to the merchant on `won` or finalized to the issuer on `lost`/`accepted`.
+- Each ledger posting must be part of the same atomic unit as the state change, keyed by an idempotency token derived from `(case_id, revision, transition)`, so a replayed scheme notification is a no-op instead of a double debit.
+- Assert one invariant continuously: each dispute-hold account balance equals the sum of disputed amounts across all non-terminal cases; any drift means a transition posted or skipped a ledger entry.
+
+## Further reading
+
+- [Card Authorization, Capture, and Clearing](/blog/posts/fintech-card-auth-capture-clearing.html) — the transaction lifecycle a dispute reverses
+- [Reconciliation and Break Detection](/blog/posts/fintech-reconciliation-break-detection.html) — the discipline the dispute-hold invariant relies on
+- [Sagas and Compensation in Payments](/blog/posts/fintech-saga-compensation-payments.html) — the reversal patterns behind provisional-credit entries

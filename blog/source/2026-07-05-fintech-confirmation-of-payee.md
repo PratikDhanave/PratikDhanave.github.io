@@ -91,3 +91,18 @@ The first is a hard timeout with a defined fallback. If the payee's bank does no
 The second is caching, done carefully. You can cache the routing and reachability of a payee institution freely, but you must not cache the *verdict* for a given name-plus-account pair long enough to become a lookup service — account holders change, and a stale `match` is a liability. Cache the infrastructure, not the answer.
 
 Finally, instrument the outcomes as first-class metrics: the ratio of `no_match` warnings that customers override and pay anyway is your leading indicator of active APP fraud campaigns, and the `unavailable` rate tells you which counterparties are degrading. CoP's real payoff is not the individual warning — it is that this stream of verdicts turns a silent, authorized transfer into an observable event you can reason about before the money is gone.
+
+## Key takeaways
+
+- CoP closes the authorized-push-payment gap that every account-compromise control misses: a genuine, correctly-authenticated payer tricked into paying a fraudster, on rails that route purely on account number and sort code with the payee name historically decorative.
+- It is a synchronous, advisory pre-flight check strictly ordered *before* the payment instruction — it does not move money or hard-block by itself; the same check after settlement would be a reconciliation report, not a fraud control.
+- Return four graded verdicts (`match`, `close_match`, `no_match`, `unavailable`) with machine-readable reason codes, not a boolean — `close_match` gets most of the design effort because over-eager returns leak names and false `no_match`es train users to click through.
+- Run the match inside the payee's bank so the raw on-record name never crosses the wire: normalize away honorifics and legal suffixes, treat token order as insignificant, tune the fuzzy threshold against a labeled corpus, and reveal the on-record name only on `close_match` (never `no_match`) so CoP can't become an account-name enumeration oracle.
+- Fail *open* on timeout (an advisory signal shouldn't stop people paying bills), cache the infrastructure but never the verdict, and instrument the `no_match`-override ratio as a leading indicator of active APP-fraud campaigns.
+
+## Further reading
+
+- [RTP and FedNow instant payments](/blog/posts/fintech-rtp-fednow-instant-payments.html)
+- [Request to Pay and mandate engines](/blog/posts/fintech-request-to-pay-mandates.html)
+- [The sanctions screening engine](/blog/posts/fintech-sanctions-screening-engine.html)
+- [Identity verification (IDV)](/blog/posts/fintech-identity-verification-idv.html)

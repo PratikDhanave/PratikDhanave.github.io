@@ -142,3 +142,17 @@ State is the whiteboard the agent writes small notes on every turn; artifacts ar
 The full public API surface, plus the `GcsArtifactService` backend for production, is documented at [google.github.io/adk-docs](https://google.github.io/adk-docs/).
 
 **Next in the series:** Module 08 — Context, the objects (`ToolContext`, `CallbackContext`) through which tools reach state, artifacts, and memory.
+
+## Key takeaways
+
+- An artifact is a named, automatically-versioned binary blob — raw bytes plus a MIME type carried as a `Part` — stored in a purpose-built blob store (GCS in production) rather than in the session record.
+- Three properties set artifacts apart from state: binary-native (the MIME type is load-bearing), versioned (every save of a filename creates a new version, old ones survive), and externally backed (big blobs stay out of the fast-to-diff session record).
+- The surface is four operations — save, load, list keys, delete — where save returns the new version number and load without a version returns the latest.
+- Watch the cross-SDK gotcha: Python's in-memory service numbers versions from 0, Go's `adk/v2` from 1, so "the first version is 0" only passes on one side of a bilingual test.
+- Prefix a filename with `user:` to share an artifact across all of that user's sessions, and give the agent the model-invokable `load_artifacts` tool when you want the model — not your code — to decide when to pull a saved file back.
+
+## Further reading
+
+- [Sessions & State in ADK](/blog/posts/adk-05-sessions-and-state.html) — where small textual values belong instead
+- [Memory in ADK](/blog/posts/adk-06-memory.html) — the `load_memory` twin of `load_artifacts`
+- [Context in ADK](/blog/posts/adk-08-context.html) — how tools reach the artifact store

@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-07-18">July 18, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/cloud-architecture/" class="tag-link"><span class="tag">#Cloud Architecture</span></a><a href="/blog/tags/testing/" class="tag-link"><span class="tag">#Testing</span></a><a href="/blog/tags/azure/" class="tag-link"><span class="tag">#Azure</span></a><a href="/blog/tags/design-pattern/" class="tag-link"><span class="tag">#Design Pattern</span></a><a href="/blog/tags/engineering/" class="tag-link"><span class="tag">#Engineering</span></a></div>
   </header>
@@ -193,6 +193,20 @@ def build_audit_store(cfg) -&gt; AuditStore:
 <h2 id="why-it-matters">Why it matters</h2>
 <p>This is not a novel pattern. It is ports-and-adapters, it is dependency inversion, it is the oldest advice in the book: define the interface, ship a trivial adapter, select by config. What is novel is only how consistently teams abandon it the moment there is schedule pressure — they inline the Cosmos client into a handler &ldquo;just for now,&rdquo; and six months later nobody can run the app without a subscription and the test suite takes four minutes because every case round-trips to a real database.</p>
 <p>The seam is cheap to build and it pays rent forever: developer experience that starts in seconds, a test suite that runs anywhere in milliseconds, and a production boundary that is documented for free because it is expressed as code. Do not let the cloud be a hard dependency for <code>make test</code>. Make it preferred. Never make it required.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>The rule is &ldquo;cloud preferred, never required&rdquo;: every persistence concern hides behind a <code>Protocol</code> with two implementations — an Azure-backed one and a trivial in-memory one — and the service boots with zero external dependencies when no config is present.</li>
+<li>The three stores (audit → Cosmos, checkpoint → Cosmos, knowledge → Azure AI Search) each have an in-memory twin that is a <em>real, correct, non-durable</em> implementation of the same contract — not a mock: tests read back what they wrote and retrieval logic runs for real.</li>
+<li>Selection lives in exactly one place, the composition root (wiring only, no business logic); everything else depends on the <code>Protocol</code>, never on <code>Cosmos</code> or <code>Search</code> directly, so <code>build_audit_store</code> is the only function mentioning both classes.</li>
+<li>The payoff is concrete: local dev needs no cloud account, tests are hermetic and fast (same result on a laptop, in CI, on a plane with wifi off), and the interface <em>is</em> the spec for any future adapter.</li>
+<li>Stated honestly: in-memory is by design, not a bug — it doesn&rsquo;t survive restart, scale past one process, or offer retention — so the repo ships a documented PoC→production path that swaps concretes at the composition root without touching agent or workflow code.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/eval-regression-gate-in-ci.html">An Eval Regression Gate in CI</a></li>
+<li><a href="/blog/posts/cheapest-reliable-executor-wins.html">The Cheapest Reliable Executor Wins</a></li>
+<li><a href="/blog/posts/most-restrictive-wins-policy-composition.html">Most-Restrictive-Wins: Composing Two Layers of Policy</a></li>
+</ul>
 
 
   <aside class="related-posts">

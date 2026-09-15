@@ -83,3 +83,17 @@ Producing statements is a two-stage rollup. First, summarize sub-ledger journal 
 Because balances are derived from immutable, dimensioned journals, statements are reproducible: rerun the rollup for any past period and you get the same numbers. That reproducibility is the real prize. When finance asks why net revenue moved, you drill from the statement line down the hierarchy to the natural account, filter by dimension, and land on the exact journal entries and the events that produced them — no archaeology required.
 
 Design the chart of accounts and the dimension model first, encode posting rules as versioned pure functions, keep the GL thin and derived, and the ledger stops being the thing that surprises you at close and becomes the thing you trust.
+
+## Key takeaways
+
+- Use two tiers: fully-dimensioned journal entries live in per-domain sub-ledgers, while the GL holds only summarized balances per account per period — making the GL a derived, reproducible rollup rather than the system of record for individual transactions.
+- Model the account code as segments — a natural account plus orthogonal dimensions (entity, currency, product, cost center, counterparty) — not an opaque string; a few hundred natural accounts and a handful of dimensions express millions of reportable balances without a Cartesian explosion of hand-named accounts.
+- Natural accounts are a finance-owned controlled list engineers never invent at runtime, and dimensions are validated against reference data at posting time so `entity = TYPO` is rejected before it becomes an unreconciled balance.
+- A posting rule is a *versioned pure function* from a product event to balanced lines: the balance assertion is enforced in code, `event_id` makes posting idempotent, and `effective_date` is kept separate from wall-clock time.
+- Contra accounts record reductions (refunds against revenue) without losing the gross figure, and statements are a two-stage rollup — summarize by `(natural_account, dimensions, period)`, then walk the hierarchy applying contra signs — reproducible for any past period.
+
+## Further reading
+
+- [Sub-Ledger to GL Posting](/blog/posts/fintech-subledger-gl-posting.html) — the posting pipeline that feeds the thin general ledger
+- [Automating the Financial Close](/blog/posts/fintech-period-close-trial-balance.html) — how these balances are frozen and signed off each period
+- [The Revenue Recognition Engine](/blog/posts/fintech-revenue-recognition-engine.html) — one domain's posting rules in depth

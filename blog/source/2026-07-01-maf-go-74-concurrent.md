@@ -47,3 +47,18 @@ Both lines of output may appear in either order — the experts run concurrently
 ---
 
 Next: [concurrent · Map-Reduce Workflow](/blog/posts/maf-go-75-map-reduce.html)
+
+## Key takeaways
+
+- The lesson teaches the graph primitives with no agent at all — every executor is a plain `string → string` Go function, so the workflow and its test run in-process with no model, credential, or network.
+- The start executor broadcasts with `ctx.SendMessage("", question)`: the empty target ID means "send onto all my outgoing edges," which the fan-out edge picks up.
+- `AddFanInBarrierEdge` is what makes the merge a join rather than a race — it holds delivery until every source has produced a message, so the aggregator always sees both answers instead of whichever finished first.
+- A stateful aggregator is created per run with `BindNewExecutorFunc` (a fresh instance each time) and joins its collected messages in `OnMessageDeliveryFinishedFunc`, calling `ctx.YieldOutput` once delivery is done.
+- Executors declare their protocol via `Extend` + `ConfigureProtocol` (`SendsMessageType`, `YieldsOutputType`) so the builder type-checks the graph before it runs; these fan-out/fan-in edges are the same primitives that back `NewConcurrentWorkflowBuilder`.
+
+## Further reading
+
+- [concurrent · Map-Reduce Workflow](/blog/posts/maf-go-75-map-reduce.html) — the next lesson, built on these edges
+- [Workflow Mechanics — Microsoft Agent Framework Go](/blog/posts/maf-go-08-workflow-mechanics.html)
+- [Agents in Workflows — Microsoft Agent Framework Go](/blog/posts/maf-go-62-02-agents-in-workflows.html)
+- [Microsoft Agent Framework Go source](https://github.com/microsoft/agent-framework-go)

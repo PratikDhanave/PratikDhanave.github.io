@@ -89,3 +89,18 @@ def build_auth_request(cart, authn):
 Three failure modes deserve explicit handling. First, **ACS unavailability**: if the issuer's ACS times out or returns `U`, you decide per risk appetite — proceed without a shift, or decline. Encode that as policy, not an exception handler. Second, **version negotiation**: not every BIN supports 2.2; your DS lookup tells you the supported range, and you must degrade to 2.1 fields or a non-3DS authorization cleanly. Third, **data-only and decoupled flows**: some regions let the issuer authenticate out of band and confirm later, so your state machine needs a "pending, resolve asynchronously" branch rather than assuming every authentication resolves within the checkout session.
 
 Treat the whole thing as a small distributed transaction with one durable piece of state — the pending authentication keyed by `threeDSServerTransID` — and both the frictionless and challenge paths become the same resumable flow with different latencies. That framing, more than any field-level detail, is what keeps a 3DS2 integration from quietly leaking conversion or liability.
+
+## Key takeaways
+
+- 3DS2 replaces v1's full-page redirect with a data-rich, mostly invisible exchange: the merchant collects device and transaction context up front, the issuer scores it, and only genuinely risky payments get an interactive challenge.
+- Four actors carry it — your 3DS Server, the scheme's Directory Server (routes by BIN), the issuer's ACS (decides), and the browser — with `AReq`/`ARes` for authentication, `CReq`/`CRes` for the challenge, and the out-of-band `RReq`/`RRes` you must trust over the browser-delivered result.
+- Fire the 3DS Method fingerprint invisibly when the customer reaches the payment page (not on Pay), with a bounded ~10s timeout falling back to `threeDSCompInd=N`; a richer `AReq` payload is a conversion lever toward frictionless approval.
+- The `transStatus` field is your control flow (`Y` authenticate-and-go, `C` challenge, `A` attempted, `N`/`R`/`U` fallback); persist cart, amount, and `threeDSServerTransID` so a challenge is a resumable detour, not a lost transaction.
+- Authentication is worthless unless ECI, CAVV/AAV (the issuer cryptogram), and dsTransID reach the authorization message intact — a dropped CAVV is invisible on the happy path and surfaces months later as lost chargebacks, so assert them against the scheme sandbox before launch.
+
+## Further reading
+
+- [Card authorization, capture, and clearing](/blog/posts/fintech-card-auth-capture-clearing.html)
+- [SCA exemptions under PSD2](/blog/posts/fintech-sca-exemptions-psd2.html)
+- [Step-up authentication orchestration](/blog/posts/fintech-step-up-auth-orchestration.html)
+- [Network tokenization and PCI scope](/blog/posts/fintech-network-tokenization-pci-scope.html)

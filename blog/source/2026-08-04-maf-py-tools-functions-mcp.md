@@ -247,3 +247,10 @@ Everything here is provider-agnostic in shape: swap the `FoundryChatClient` for 
 Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):
 
 - [Code Act](/blog/diagrams/maf-py-24-code-act.html)
+
+## Further reading
+
+- [Getting started with Microsoft Agent Framework (Python)](/blog/posts/maf-py-getting-started.html)
+- [Models and providers](/blog/posts/maf-py-models-providers.html)
+- [Multi-agent orchestration](/blog/posts/maf-py-multi-agent-orchestration.html)
+- [Model Context Protocol](https://modelcontextprotocol.io) — the open standard behind MCP tools

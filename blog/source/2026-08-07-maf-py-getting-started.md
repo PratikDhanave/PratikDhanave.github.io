@@ -197,3 +197,9 @@ The reply streams as SSE events — `RUN_STARTED`, `TEXT_MESSAGE_CONTENT`, `TEXT
 - **The same agent becomes a service unchanged.** DevUI wraps it in a local chat with one `serve()` call; AG-UI exposes it over SSE with one FastAPI helper — no rewrite required.
 
 Everything here is provider-agnostic in shape: swap the `FoundryChatClient` for another chat client and the loop, the sessions, the tool wiring, and the hosting helpers all hold. Your job is to shape the instructions, decide what the agent is allowed to do, and choose where it runs.
+
+## Further reading
+
+- [Models and providers](/blog/posts/maf-py-models-providers.html)
+- [Tools: functions, hosted tools, MCP, Skills & CodeAct](/blog/posts/maf-py-tools-functions-mcp.html)
+- [Memory, context, and state](/blog/posts/maf-py-memory-context-state.html)

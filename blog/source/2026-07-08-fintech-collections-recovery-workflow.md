@@ -85,3 +85,18 @@ Because the workflow is modeled as transitions, the metrics write themselves —
 - **Recovery dollars per charged-off account, by placement vintage.** This is how you judge whether agency selection and settlement authority are set correctly.
 
 Treat these as SLOs on the recovery pipeline the same way you would treat auth rate on the payments pipeline. The workflow diagram above is the map; the roll rate is the score. When you can point at a single transition and say how much it is worth, collections stops being a batch job and becomes an engineered system — one where a policy change is a guarded edge you can test, ship, and measure.
+
+## Key takeaways
+
+- Days-past-due **buckets** are the coordinate system: every treatment decision keys off the bucket, and the load-bearing metric on it is the *roll rate* — the fraction of balance moving from one bucket to the next each cycle.
+- Escalate treatment by cost — automated dunning, then human outreach aimed at a dated promise-to-pay, then a cure lever — and never collapse the ordering by, say, calling a customer three days late.
+- The two cure levers differ at the accounting layer, not just the UX: a **restructure** keeps the receivable whole on new terms, while a **settlement** forgives part of the balance and must be booked as a realized loss.
+- Model the workflow as an explicit state machine of guarded transitions so a broken promise re-escalates, a kept one suppresses dunning, every `emit_event` is the audit record, and each guard is a unit-testable pure predicate.
+- Charge-off is an accounting/regulatory event (typically forced at 180 DPD), not "give up" — keep `cured` and `charged-off → agency` as distinct terminal regions so agency recoveries aren't miscounted as reversing the original loss.
+
+## Further reading
+
+- [The dunning and retry engine](/blog/posts/fintech-dunning-retry-engine.html)
+- [The delinquency and NPA state machine](/blog/posts/fintech-delinquency-npa-state-machine.html)
+- [Loan forbearance and restructuring](/blog/posts/fintech-loan-forbearance-restructuring.html)
+- [The repayment waterfall allocation](/blog/posts/fintech-repayment-waterfall-allocation.html)

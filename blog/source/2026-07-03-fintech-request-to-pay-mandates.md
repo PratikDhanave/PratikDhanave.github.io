@@ -66,3 +66,18 @@ Three subsystems carry the weight.
 R2P is not just a nicer UX layer over the old rails. It moves the locus of control from the collector to the account holder, and it forces the payment into an auditable, event-driven shape. Every movement of money traces back to an explicit request and an explicit consent — whether that consent was given in the moment or granted earlier as a bounded VRP policy.
 
 For engineers, the discipline is the same discipline that makes any distributed system trustworthy: model consent as versioned state, make every message idempotent and correlated, keep the limit counters honest under concurrency, and never assume the three legs — request, approval, settlement — will agree without a reconciliation loop that checks. Build those four things well and the pull-to-request inversion stops being a compliance headache and becomes what it should be: a payment system the payer can actually see.
+
+## Key takeaways
+
+- R2P inverts direct debit's standing pull authority into a request-and-approve flow: money moves only on the payer's explicit yes, and settlement rides instant rails so the payee sees cleared funds in seconds.
+- Model a mandate as a versioned state machine (`proposed`, `active`, `suspended`, `amended`, `cancelled`), never as boolean flags — amendments create a new version rather than mutating in place, so any past request's state stays reconstructable, and the event log *is* the mandate.
+- Variable recurring payments (VRP) are the middle ground: a one-time consent that is a *policy* (per-payment cap, rolling-window total, frequency, dates, specific payee) under which the hub auto-approves within limits and falls back to explicit approval outside them.
+- Limit checks must be transactional against a running tally — treat the consumed-amount counter like an inventory decrement (read-check-reserve under a lock or atomic conditional), or two near-simultaneous requests both pass a check only one fits.
+- Three subsystems carry it: an idempotent, correlated async messaging layer; a low-latency, strongly-consistent mandate store as the source of truth for consent; and a continuous reconciliation loop that matches request, approval, and settlement and drives every request to a terminal state.
+
+## Further reading
+
+- [VRP and subscription billing](/blog/posts/fintech-vrp-subscription-billing.html)
+- [SEPA SCT, SDD and mandates](/blog/posts/fintech-sepa-sct-sdd-mandates.html)
+- [RTP and FedNow instant payments](/blog/posts/fintech-rtp-fednow-instant-payments.html)
+- [PSD2 open-banking consent](/blog/posts/fintech-psd2-open-banking-consent.html)

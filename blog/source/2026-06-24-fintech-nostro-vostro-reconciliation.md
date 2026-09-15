@@ -105,3 +105,19 @@ Every true break — a missing item that is not merely a timing difference — g
 Aging drives two things. First, **provisioning**: an unmatched debit that is 30 days old is a probable loss and should be reserved against, so finance needs the aged inventory, not just a count. Second, the **investigation queue**: each break carries a machine-readable reason (`no_statement_line`, `unexpected_credit`, `amount_mismatch`) and, where possible, a suggested action — issue a camt.056 recall, send an MT n99 free-format query to the correspondent, or auto-book an unexpected credit into a suspense account pending identification.
 
 The engineering goal is not zero breaks; correspondent banking guarantees breaks. The goal is that every break is **explained, aged, and either self-resolving or actively worked** — and that the aged, unexplained tail stays small and gets smaller. A reconciliation system that produces a clean "everything matched" report every day is almost always a system that is silently dropping the items it could not classify.
+
+## Key takeaways
+
+- A nostro ("our account with you") and a vostro ("your account with us") describe one pool of money from two ledgers that never agree in real time; reconciliation is the daily proof every difference is explainable and shrinking.
+- Keep an internal mirror account that shadows the expected correspondent balance — reconciliation quality is decided at payment *initiation*, by stamping a stable `our_reference`/`EndToEndId` the correspondent will echo, turning matching into a key lookup instead of a fuzzy guess.
+- Reconcile the mirror against the correspondent's ISO 20022 camt.053 end-of-day statement, normalizing both sides into one shape; run the cheap balance check (opening + entries == closing) before matching anything.
+- Match in passes from strictest to loosest — exact reference, reference + fee tolerance, then attribute match requiring uniqueness — sorting everything into matched, value-date break, or missing item.
+- Make value date a first-class matching dimension so timing breaks are suppressed until their expected resolution date; age genuine breaks from the *value date*, not detection time, into bands that drive provisioning and the investigation queue.
+
+## Further reading
+
+- [Reconciliation and Break Detection](/blog/posts/fintech-reconciliation-break-detection.html) — the general matching-and-break discipline this specializes
+- [ISO 20022 Message Modeling](/blog/posts/fintech-iso-20022-message-modeling.html) — the camt/pacs message family behind the statements
+- [SWIFT MT, MX, and gpi](/blog/posts/fintech-swift-mt-mx-gpi.html) — the correspondent-banking messaging rails these payments ride
+
+

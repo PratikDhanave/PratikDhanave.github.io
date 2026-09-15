@@ -56,6 +56,19 @@ go run ./tutorial/02-agents/agui/step03_frontend_tools/client   # terminal 2
 
 The tool and agent wiring build/test offline against a dummy endpoint; the live run is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **The tool runs on the client, not the server.** The client advertises `get_user_location` on every run; when the model calls it, the server streams the tool call *down* to the client, which executes the Go function locally and returns the result — how a UI lends the agent GPS, the DOM, or the logged-in session.
+- **`DisableFuncAutoCall: true` is the load-bearing server flag.** It turns off the middleware that auto-runs function tools server-side, so the handler forwards the request to the client instead. The server registers no tool — it only hosts the model.
+- **Both halves must agree**: forget the server flag and it tries to run a tool it doesn't own; forget to register the client tool and the model never sees it.
+- The model can reason about "where the user is" without the server ever learning the coordinates — the client answers and returns only what it chooses.
+
+## Further reading
+
+- [Backend Tools](/blog/posts/maf-go-28-backend-tools.html) — the server-owned mirror of this pattern.
+- [Human In Loop](/blog/posts/maf-go-30-human-in-loop.html) — pause a run for a human decision over the same AG-UI transport.
+- [AG-UI State Management](/blog/posts/maf-go-31-state-management.html) — carry structured state between client and server.
+
 ---
 
 Next: [Human In Loop](/blog/posts/maf-go-30-human-in-loop.html)

@@ -88,3 +88,18 @@ Analyst dispositions close the loop. When a reviewer clears an alert as a false 
 A screening engine lives or dies on its false-positive rate, and you cannot tune what you cannot measure. Keep a labeled set of adjudicated alerts and replay it whenever you touch a matcher, a threshold, or a normalization rule, tracking recall (did true matches survive) and precision (how much noise reached analysts) as a pair. Moving a threshold to cut alert volume is only safe if recall on the labeled set holds.
 
 Build it this way — versioned lists, shared normalization, complementary matchers, explicit thresholds, and narrowly scoped whitelists — and screening stops being a black box. It becomes a deterministic, replayable decision over auditable data, where every clear, alert, and block traces back to a specific list version, a specific score, and the rule that routed it. That traceability is exactly what a regulator or your own risk team will ask you to demonstrate on the day it matters.
+
+## Key takeaways
+
+- Screening is a fuzzy-matching pipeline wrapped in controls that make every decision explainable; names never match cleanly across scripts, spellings, and dropped tokens.
+- Treat each watchlist as versioned, delta-aware, immutable data — deltas drive rescreening (a new name today re-evaluates everyone you already cleared), and never mutate a committed version so past decisions replay against the exact list state.
+- Both listed entities and incoming parties must pass through the *same* normalization (transliteration, folding, token/stopword stripping); the normalizer version is part of every decision record.
+- Run complementary matchers — phonetic for "Mohammed"/"Muhammad", edit-distance for typos — and take the stronger signal to bias toward recall; adjust with secondary identifiers but never let them silently veto a name hit.
+- Route on explicit, versioned thresholds into auto-clear / alert / block, and scope every false-positive whitelist to the specific party-and-listed-entity pair — blanket name suppression is how sanctioned parties slip through.
+
+## Further reading
+
+- [AML Transaction Monitoring Rules Engine](/blog/posts/fintech-transaction-monitoring-rules.html)
+- [SAR/STR Case Management](/blog/posts/fintech-sar-str-case-management.html)
+- [Customer Risk Rating](/blog/posts/fintech-customer-risk-rating.html)
+- [Office of Foreign Assets Control (Wikipedia)](https://en.wikipedia.org/wiki/Office_of_Foreign_Assets_Control)

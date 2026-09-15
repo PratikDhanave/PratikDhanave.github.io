@@ -43,6 +43,18 @@ This lesson stretches the provider abstraction in an instructive direction: a pr
 
 `go run ./tutorial/02-agents/providers/github-copilot` (needs the Copilot CLI installed and authenticated). The offline tests — wiring, the pure `decide` table, and middleware pass-through — run with no CLI; the live call is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- A provider need not be a remote HTTP endpoint: `copilotprovider` drives the local `copilot` binary, which is already signed in to your GitHub account — no Azure credential and no URL.
+- The "credential" is a local process. `copilot.NewClient(nil)` only constructs the client; `client.Start(ctx)` launches the CLI and fails fast with a clear error if it isn't installed or authenticated.
+- Because Copilot can *act* (run shell, read files, fetch URLs), every action routes through a `SessionConfig.OnPermissionRequest` handler — a single, testable choke point for human approval.
+- Factoring the y/n logic into a pure `decide(answer)` helper (returning `ApproveOnce` or `Reject`) lets it be unit-tested without stdin.
+
+## Further reading
+
+- [providers/gemini · The Same Agent, Backed by Google Gemini](/blog/posts/maf-go-55-gemini.html) — a more conventional API-key provider swap
+- [02 · Providers · OpenAI](/blog/posts/maf-go-57-openai.html) — the next lesson in this track
+
 ---
 
 Next: [02 · Providers · OpenAI](/blog/posts/maf-go-57-openai.html)

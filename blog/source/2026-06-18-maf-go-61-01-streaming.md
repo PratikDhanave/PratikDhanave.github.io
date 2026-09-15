@@ -56,6 +56,18 @@ This is the `github.com/microsoft/agent-framework-go/workflow` package in miniat
 
 **Run it:** `go run ./tutorial/03-workflows/01-start-here/01_streaming`. This lesson is fully offline — the conventional `AF_LIVE=1` slot is a skip because there is no live model to call.
 
+## Key takeaways
+
+- A workflow is a directed graph of executors joined by edges; `NewExecutor(id, fn).Bind()` turns a plain `string -> string` function into a node with no interface to implement.
+- The builder chain fixes the shape: `NewBuilder(start)` sets the entry, `AddEdge(src, dst)` draws a directed edge, `WithOutputFrom(node)` marks whose result is the output, and `Build()` validates the graph.
+- Running via `inproc.Default.RunStreaming` yields typed events over `WatchStream` — `ExecutorCompletedEvent`, `OutputEvent`, and the failure events — that you `switch` on.
+- The gotcha: an executor *completing* is not the same as being the *output* — every node emits a completion event, but only the `WithOutputFrom` node emits an `OutputEvent`.
+
+## Further reading
+
+- [02 · Agents in Workflows (a translation pipeline)](/blog/posts/maf-go-62-02-agents-in-workflows.html) — hosting real agents as executors in the same graph shape
+- [05 · Subworkflows (composing workflows)](/blog/posts/maf-go-65-05-subworkflow.html) — embedding a whole workflow as one node
+
 ---
 
 Next: [02 · Agents in Workflows (a translation pipeline)](/blog/posts/maf-go-62-02-agents-in-workflows.html)

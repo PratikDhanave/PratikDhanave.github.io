@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-19">July 19, 2026</time>
       <span>·</span>
-      <span>5 min read</span>
+      <span>6 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/agentic-ai/" class="tag-link"><span class="tag">#Agentic AI</span></a><a href="/blog/tags/testing/" class="tag-link"><span class="tag">#Testing</span></a><a href="/blog/tags/engineering/" class="tag-link"><span class="tag">#Engineering</span></a><a href="/blog/tags/ci/cd/" class="tag-link"><span class="tag">#CI/CD</span></a><a href="/blog/tags/multi-agent-systems/" class="tag-link"><span class="tag">#Multi-Agent Systems</span></a><a href="/blog/tags/apis/" class="tag-link"><span class="tag">#APIs</span></a></div>
   </header>
@@ -167,6 +167,20 @@
 <p>Keeping those gates separate is what keeps CI fast and trustworthy. Your unit and integration suite never flakes because a model had an off day, and your eval suite never gets diluted with plumbing assertions that a keyword table already covers.</p>
 <h2 id="why-it-matters">Why it matters</h2>
 <p>The label &ldquo;untestable&rdquo; is a self-inflicted wound. Couple your orchestration to a live model and every test inherits the model&rsquo;s cost, latency, and nondeterminism. Put the seam at the classifier — one interface, a deterministic implementation for tests, the live agent for production and evals — and the orchestration becomes ordinary software: fast to test, cheap to run, reproducible byte-for-byte. The model stops being a prerequisite for your test suite and becomes what it always should have been: a dependency you can swap out. Build the seam first, before the pipeline grows, and you will never have to argue that your agents are untestable again.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Put the seam at the classifier: every phase calls a <code>Router</code> interface, with a <code>LiveModelRouter</code> (tokens, network) and a deterministic <code>KeywordRouter</code> ($0, offline) behind it. The pipeline downstream cannot tell them apart.</li>
+<li>Router selection is config-driven, not code-driven — a startup normalization of <code>model_provider</code> — so CI with no provider configured gets the deterministic path automatically, and a developer with a real endpoint gets the live path with zero code changes.</li>
+<li>A deterministic runner serves canned plans per route, so an end-to-end pipeline test costs $0 and runs in milliseconds, including honest suspend/resume of the human-in-the-loop gate via a serialized checkpoint.</li>
+<li>API integration tests mount the FastAPI app and call it through <code>httpx</code> with an <code>ASGITransport</code>, so requests travel in-process with no sockets opened — a hermetic suite that behaves identically on a laptop, in CI, and offline.</li>
+<li>Reserve the real model for a <em>separate</em> eval gate: &ldquo;does the orchestration route/gate/suspend/serialize correctly?&rdquo; is a deterministic CI question; &ldquo;does the model classify well enough?&rdquo; is a statistical question answered on a schedule.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/exhausted-is-not-failure-bounded-agent-runs.html">EXHAUSTED is not failure: bounding agent runs</a> — the same swap-a-deterministic-runner-for-a-live-one contract, applied to run outcomes.</li>
+<li><a href="/blog/posts/harness-engineering-go-01-the-seam.html">The seam (Harness Engineering in Go)</a> — the interface-plus-local-stand-in pattern in a different language.</li>
+<li><a href="/blog/posts/policy-is-code-not-a-prompt.html">Policy is code, not a prompt</a> — the governance layer the same pipeline runs its tool calls through.</li>
+</ul>
 
 
   <aside class="related-posts">

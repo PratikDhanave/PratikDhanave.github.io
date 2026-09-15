@@ -45,6 +45,19 @@ go run ./tutorial/02-agents/providers/foundry/step09_mcp_client_as_tools
 
 The live run needs `az login`, `FOUNDRY_PROJECT_ENDPOINT`, and outbound network to the Learn server. The structural test builds and passes offline; the networked path is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- `mcptool.Connect` opens a session to a remote MCP server (here Microsoft Learn's public endpoint over streamable HTTP) and `mcptool.ListTools` returns its catalogue as ordinary `tool.Tool` values.
+- Remote tools satisfy the same `tool.Tool` interface as local function tools, so `agent.Config.Tools` doesn't care where a tool came from.
+- The session must outlive every tool call — each call proxies through it — so `main` returns the `*mcp.ClientSession` and `defer`s `session.Close()`; closing it early breaks the agent's tool calls.
+- Splitting `connectMCPTools` (networked) from `newDocsAgent` (build) makes the wiring testable offline with a fake credential and a `tool.FuncTool` stand-in.
+
+## Further reading
+
+- [step23 · Local MCP (wrapping remote tools)](/blog/posts/maf-go-54-local-mcp.html) — decorate the same remote tools with local behavior before the agent uses them
+- [step10 · Images (multimodal input)](/blog/posts/maf-go-48-images.html) — the next lesson in this Foundry provider track
+- [Model Context Protocol](https://modelcontextprotocol.io) — the open protocol these remote tools are published under
+
 ---
 
 Next: [step10 · Images (multimodal input)](/blog/posts/maf-go-48-images.html)

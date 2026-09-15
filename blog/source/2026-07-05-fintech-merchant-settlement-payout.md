@@ -61,3 +61,18 @@ The funding file is the moment of truth, so it is generated transactionally: the
 The final engineering obligation is **reconciliation** — proving that every unit of money is accounted for. Two ties matter. The **downward** tie: each payout must decompose exactly into the captured transactions, fees, reserve movements, and adjustments that produced it — `sum(captures) − fees − reserve + releases − adjustments = payout`, to the cent. The **outward** tie: the acquirer's own settlement received from the card networks must match what it collected from cardholders and paid to merchants, so the acquirer is never silently short or long.
 
 Reconciliation reads the immutable ledger rather than live state, which is exactly why immutability and per-line fee entries were worth the effort upstream. When a tie fails, the break is **quarantined** — the affected merchant or transaction is held out of the funding file rather than shipping a wrong payout — and flagged for investigation. A settlement system is judged less by how fast it pays and more by whether every cent it pays can be explained. Get the ledger right, and the payout, the reserve release, and the reconciliation all fall out of the same source of truth.
+
+## Key takeaways
+
+- Authorization only reserves funds, capture flags them for collection, and settlement is the multi-day pipeline that actually moves the money — the gap between receipt and bank deposit is where the acquirer's engineering lives.
+- Batching on a fixed cutoff must be deterministic and idempotent (monotonic batch id + a `captured → batched → settled → funded` state machine); a closed batch is immutable, so corrections post as new adjustment entries, never edits.
+- Gross becomes net via three deductions — interchange (a matrix by card type/channel/MCC/region), scheme fees, and acquirer markup — computed per transaction in integer minor units, each stored as its own ledger line with the rule and rate that produced it.
+- The rolling reserve is a branch off the compute stage into its own ledgered account, and its release is time-driven, not batch-driven, so a scheduled process injects matured tranches back into the funding computation; chargebacks and adjustments are additive debits, never mutations, and a negative net payout is handled explicitly.
+- The funding file is generated transactionally — feeding entries are marked `funded` in the same commit that emits the payout instruction so a retry can't double-pay — and reconciliation reads the immutable ledger to prove both the downward tie (payout decomposes to its captures/fees/reserve/adjustments) and the outward tie (network settlement matches), quarantining any break.
+
+## Further reading
+
+- [Card authorization, capture and clearing](/blog/posts/fintech-card-auth-capture-clearing.html)
+- [The interchange fee engine](/blog/posts/fintech-interchange-fee-engine.html)
+- [The chargeback dispute state machine](/blog/posts/fintech-chargeback-dispute-state-machine.html)
+- [Push-to-card and instant disbursements](/blog/posts/fintech-push-to-card-disbursements.html)

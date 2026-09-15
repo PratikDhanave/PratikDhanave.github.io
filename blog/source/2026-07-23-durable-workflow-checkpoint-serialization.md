@@ -98,3 +98,17 @@ The framework ships a codec for exactly this: `encode_checkpoint_value` and `dec
 ## Lessons
 
 The single idea that would have saved me three debugging sessions: **the checkpoint boundary is a serialization boundary, and you should treat it exactly like a network wire.** Everything crossing a `@workflow`/`@step` boundary is going over that wire as JSON — values and keys alike — so live SDK clients, credentials, tuple keys, and objects holding cyclic references simply cannot cross it. The move is not to serialize harder; it's to keep non-serializable things off the wire entirely. Inject live clients out-of-band at the composition root through a module-level setter, keep the dependency-heavy stage undecorated so its args never get captured, flatten composite keys to strings, and always encode and decode through the framework's own codec. Once you internalize that the message and every `@step` signature are data-only channels, the whole class of "maximum recursion depth exceeded" checkpoint failures disappears — and you get durable, human-in-the-loop workflows that suspend and resume without surprises.
+
+## Key takeaways
+
+- The `@workflow`/`@step` checkpoint boundary is a serialization boundary — treat it exactly like a network wire, because the framework walks the entire object graph reachable from the message and every step's args and results.
+- Never put a live SDK client (an `AIProjectClient`, a `DefaultAzureCredential`) in serialized state — they hold transport pools and back-references, and the serializer recurses into the cycle until Python's stack gives out ("maximum recursion depth exceeded").
+- Inject non-serializable dependencies out-of-band at the composition root via a module-level setter, and leave the dependency-heavy stage *undecorated* so its args and return value are never captured into a checkpoint.
+- "JSON-serializable" must hold all the way down — including dict *keys*: a `(workload, tool)` tuple key has no JSON representation, so flatten it to a string like `"batch:scanner"`.
+- Persist through the framework's own codec (`encode_checkpoint_value` / `decode_checkpoint_value`), not a raw `to_dict()`, which still holds live `WorkflowEvent` objects that don't round-trip.
+
+## Further reading
+
+- [Durable execution: checkpoint every step (Go)](/blog/posts/harness-engineering-go-03-durable-execution.html) — the same checkpoint-and-resume shape built by hand behind an interface.
+- [Human-in-the-loop: an approval gate on durable state](/blog/posts/harness-engineering-go-08-human-in-the-loop.html) — why suspend/resume needs the state to be serializable in the first place.
+- [Testing agents without a model](/blog/posts/testing-agents-without-a-model.html) — testing the suspend/resume machinery deterministically, offline.

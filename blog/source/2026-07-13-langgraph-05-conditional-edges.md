@@ -108,3 +108,17 @@ The difference from a real `switch` is that the branches are *nodes*, not code b
 That's forward branching. The moment one of those chosen targets loops back to an earlier node, the same guarded-edge mechanism produces a **cycle** — and a cycle plus a router that says "keep going or stop" is exactly the ReAct agent loop.
 
 **Next in the series:** cycles and the agent loop — adding the back-edge that turns branching into iteration, and the recursion limit that keeps it from running forever.
+
+## Key takeaways
+
+- A conditional edge is `add_conditional_edges(source, router, path_map)`: the router `(state) -> str` runs after `source` and returns a key; the `path_map` dict maps keys (labels, decoupled from node names) to targets.
+- `END` is a valid `path_map` target, so a branch can finish the run without a dedicated terminal node.
+- There is no special "conditional edge" primitive at the execution layer — at compile time it's *lowered* to one ordinary guarded edge per `path_map` entry, and because the router is pure over state exactly one guard passes.
+- The `k=key` default-argument binding is load-bearing: it captures each key by value so the per-branch lambdas don't share the last loop variable.
+- Conditional edges are for *choosing* one target, not *splitting* — genuine fan-out is a different construct (the `Send` API / map-reduce) — and the router must be total over its `path_map` or the branch stalls.
+
+## Further reading
+
+- [Cycles and the Agent Loop](/blog/posts/langgraph-06-cycles-agent-loop.html)
+- [Edges, START, END, and compile()](/blog/posts/langgraph-04-edges-start-end-compile.html)
+- [LangGraph low-level concepts](https://langchain-ai.github.io/langgraph/concepts/low_level/)

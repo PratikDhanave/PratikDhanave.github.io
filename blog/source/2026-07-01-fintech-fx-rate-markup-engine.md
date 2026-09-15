@@ -100,3 +100,18 @@ Two properties make this safe. The quote is **immutable and single-use**: once c
 ## Wrapping up
 
 An FX pricing service earns its keep by separating three concerns that are tempting to merge: deriving a trustworthy mid from disagreeing feeds, refusing to quote off stale data, and applying transparent, decomposable margin. Keep the mid and the markup independently auditable, make the circuit breaker a first-class state rather than an afterthought, and treat every quote as an immutable, expiring promise. Get those right and the single number the customer sees becomes something you can always explain — and always defend.
+
+## Key takeaways
+
+- Keep mid derivation (a market-data problem — freshest, most-agreed number) separate from pricing (a commercial problem — spread and margin), so you can change margin policy without touching the market-data path and audit a bad quote with two independent questions.
+- Normalize every feed to one canonical pair direction with source and a monotonic sequence number; derive the inverse on demand rather than persisting both, and reject the obviously broken (bid > ask, zero, 20% single-tick jumps) before mid calculation.
+- Take the median of per-feed mids, not a single feed's `(bid+ask)/2` — the median discards a glitched outlier feed for free.
+- Make the staleness circuit breaker a first-class state: trip on too-few sources, too-old ticks, or deviation from last-good; respond by serving flagged last-known-good (widened) or refusing to quote — never silently serve stale as live — and close automatically on a half-open recovery.
+- Express spread and markup in basis points keyed by `(segment, pair, size_band)`, return the decomposition, and treat every quote as immutable, single-use, and TTL-bound with its `source_seq` captured for dispute reconstruction.
+
+## Further reading
+
+- [FX forwards, swaps and hedging](/blog/posts/fintech-fx-forwards-swaps-hedging.html)
+- [Multi-currency revaluation](/blog/posts/fintech-multi-currency-revaluation.html)
+- [Dynamic currency conversion (DCC)](/blog/posts/fintech-dcc-dynamic-currency.html)
+- [Representing money](/blog/posts/fintech-handbook-01-representing-money.html)

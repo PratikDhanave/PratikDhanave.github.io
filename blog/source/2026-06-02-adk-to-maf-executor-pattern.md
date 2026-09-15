@@ -146,6 +146,19 @@ ADK hides orchestration. Microsoft Agent Framework exposes it. The executor patt
 
 That's what 18 agents taught us.
 
+## Key takeaways
+
+- **ADK hides orchestration; Microsoft Agent Framework exposes it.** A `SequentialAgent` owns its loop and you observe it via callbacks; a `SequentialBuilder` compiles to a workflow you can `run()` — or iterate the participants yourself, which is the executor pattern.
+- **In the executor pattern you become the loop.** Agents stay pure, an `AgentThread` carries state, and you control escalation, retry, and `max_iterations` at every handoff — logging, metering, and validation become plain code, not hooks.
+- **Router-shaped ADK agents port to Agent + tools.** A supervisor becomes an `Agent` whose tools each wrap a specialist agent (`ask_analyzer`, `ask_forecaster`, …) — cleaner and more testable, since each agent is a black box and tools are the interface.
+- **Conversion checklist:** identify the pattern (sequential / router / loop), extract callbacks into executor-pattern logic, and test each agent independently from the orchestration.
+
+## Further reading
+
+- [Token Exchange Patterns](/blog/posts/adk-to-maf-token-exchange.html) — how threads replace session state and how to track token usage across a chain.
+- [Tool Wrapping and Governed Tools](/blog/posts/adk-to-maf-tool-wrapping.html) — the tool interface the router pattern leans on.
+- [ADK documentation](https://google.github.io/adk-docs/) — the `SequentialAgent` / callback model being ported from.
+
 ---
 
 Next: [Token Exchange Patterns](/blog/posts/adk-to-maf-token-exchange.html)

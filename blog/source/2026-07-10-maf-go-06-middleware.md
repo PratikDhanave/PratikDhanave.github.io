@@ -88,6 +88,20 @@ The test builds the agent with a **fake credential**, asserts both middlewares a
 
 Middleware is the composable seam around every run. Next I open the box wider: telemetry, safety, and swapping the provider underneath.
 
+## Key takeaways
+
+- With no decorators in Go, a middleware is any value implementing `agent.Middleware` — a `Run` method that receives `next`, the context, messages, and options, and returns the `iter.Seq2[*agent.ResponseUpdate, error]` stream.
+- Block vs. pass through is one branch: `return next(...)` passes the chain along untouched, while returning your own iterator short-circuits it so the model is never called — that's how the guardrail refuses offline with no network.
+- Two ways to be a middleware: a struct implementing `Run` directly, or `agent.MiddlewareFunc` adapting a method value when the middleware needs state (like a run counter).
+- Middlewares in `Config.Middlewares` apply **outermost-first**, so wiring the guardrail before the logger means a blocked request stops at the guardrail and never reaches the logger's downstream or the model.
+- Reading the chain closely surfaced a real SDK edge: the tool-approval middleware panicked on a `nil` update at a stream boundary; the fix (guard the nil) went upstream as PR #472, and the "drive it with a hostile fake `next`" discipline is what made it reproducible offline.
+
+## Further reading
+
+- [Using function tools with approvals — Microsoft Agent Framework in Go](/blog/posts/maf-go-14-using-function-tools-with-approvals.html)
+- [Observability, Safety, and Providers — Microsoft Agent Framework in Go](/blog/posts/maf-go-07-observability-safety-providers.html)
+- [microsoft/agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)
+
 ---
 
 Next: [Observability, Safety, and Providers — Microsoft Agent Framework in Go](/blog/posts/maf-go-07-observability-safety-providers.html)

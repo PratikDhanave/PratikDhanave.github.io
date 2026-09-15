@@ -84,3 +84,9 @@ Card networks are not letting agents hold your card number. They are issuing a s
 ## Sources
 - https://www.digitalcommerce360.com/2025/05/06/visa-mastercard-ai-agentic-commerce/
 - https://techinformed.com/visa-opens-one-integration-for-ai-agent-payments/
+
+## Further reading
+
+- [ACP: The Agentic Commerce Protocol Behind ChatGPT Instant Checkout](/blog/posts/agentic-commerce-acp-stripe-openai.html) — the checkout protocol these scoped tokens are charged through
+- [AP2 and Verifiable Mandates](/blog/posts/agentic-commerce-ap2-mandates.html) — the mandate layer the tokenized credential sits beneath
+- [x402: Paying Over HTTP 402 with Stablecoins](/blog/posts/agentic-commerce-x402-http-402.html) — the stablecoin rail contrasted with card-network tokenization

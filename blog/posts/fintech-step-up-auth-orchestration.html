@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-07-01">July 01, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/fraud/" class="tag-link"><span class="tag">#Fraud</span></a><a href="/blog/tags/risk/" class="tag-link"><span class="tag">#Risk</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/multi-agent-systems/" class="tag-link"><span class="tag">#Multi-Agent Systems</span></a></div>
   </header>
@@ -183,6 +183,21 @@ class ChallengeSession:
 <h2 id="operating-it">Operating it</h2>
 <p>Instrument the funnel, not just the endpoints. The numbers that matter are <strong>step-up rate</strong> (what fraction of transactions get challenged — too high and you are taxing good customers), <strong>challenge completion rate by tier</strong> (a low OTP completion often means a deliverability problem, not fraud), and <strong>pending-session leak count</strong> (sessions that should have terminated but did not). Alert on the leak metric specifically; it is the leading indicator that your sweeper or release path is broken.</p>
 <p>A step-up orchestrator earns its keep by being invisible on the 98% of traffic that should never see a prompt, and rock-solid on the 2% that must. Keep the risk decision separate from the challenge, make the pending state durable and time-bounded, and treat resumption and abandonment as first-class terminal paths — and the rest is adding adapters.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Separate the risk engine (emits a small typed <code>RiskDecision</code> with action, tier, reasons, TTL) from the orchestrator (turns a <code>challenge</code> verdict into a ceremony); a <code>deny</code> cannot be rescued by a step-up, and only <code>challenge</code> enters the orchestrator with its tier already chosen.</li>
+<li>Challenge tiers are a ladder of rising friction and assurance — silent/device signals, OTP, biometric (WebAuthn), 3-D Secure — and the orchestrator raises the <em>lowest</em> tier that satisfies the flagged risk, with each provider behind one <code>issue</code>/<code>verify</code> interface so a new method is an adapter, not a new state-machine branch.</li>
+<li>The durable pending state is the whole design: persist a <code>ChallengeSession</code> (challenge_id, txn_ref, tier, status, attempts, expires_at, resume_token), and issue the challenge only <em>after</em> the session row commits so a crash never leaves a code with no session to verify it.</li>
+<li>Resolve into exactly one terminal outcome — verified resumes idempotently keyed on <code>txn_ref</code>; a failure retries within the <em>same</em> expiry window (a retry must not reset the deadline); abandonment must <em>actively</em> release the held authorization, reservation, and rate-limit slot, never leave them to rot.</li>
+<li>Operate by the funnel: watch step-up rate, completion rate by tier, and pending-session leak count — alert on the leak metric as the leading indicator that the sweeper or release path is broken.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-rules-vs-ml-fraud-scoring.html">Rules and ML in one fraud decision path</a> — the risk engine that feeds this orchestrator</li>
+<li><a href="/blog/posts/fintech-3ds2-authentication-flow.html">The 3-D Secure 2 authentication flow</a></li>
+<li><a href="/blog/posts/fintech-sca-exemptions-psd2.html">SCA exemptions under PSD2</a></li>
+<li><a href="/blog/posts/fintech-device-fingerprinting-biometrics.html">Device fingerprinting and biometrics</a></li>
+</ul>
 
 
   <aside class="related-posts">

@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-11">July 11, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/langgraph/" class="tag-link"><span class="tag">#LangGraph</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/agentic-ai/" class="tag-link"><span class="tag">#Agentic AI</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a><a href="/blog/tags/software-engineering/" class="tag-link"><span class="tag">#Software Engineering</span></a><a href="/blog/tags/concurrency/" class="tag-link"><span class="tag">#Concurrency</span></a></div>
   </header>
@@ -211,6 +211,20 @@ def agent(state: State) -&gt; dict:
 <h2 id="why-it-works-this-way">Why it works this way</h2>
 <p>The partial-update-plus-reducer design is what makes LangGraph composable. Because a node only declares deltas and never mutates shared state, the framework — not you — owns <em>when</em> updates apply and <em>how</em> they merge. That&rsquo;s what buys you deterministic parallelism, clean checkpointing, and the ability to swap a node&rsquo;s routing (linear vs. cyclic) without rewriting the node. See the official <a href="https://langchain-ai.github.io/langgraph/concepts/low_level/">LangGraph concepts overview</a> for the reference definitions of nodes, state, and reducers.</p>
 <p>Next in the series: <strong>Edges</strong> — how a node&rsquo;s output actually reaches the next node, and how <code>START</code>/<code>END</code> bookend the flow.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>A node is a plain function (sync or <code>async</code>) with one signature: it takes the current state and returns a <strong>partial update</strong> — a dict of only the channels it changed. <code>add_node("name", fn)</code> registers it, and the name is how edges refer to it.</li>
+<li>Return only what you changed, never the whole state: returning an accumulated list into an append reducer duplicates it, and the partial return documents the node&rsquo;s exact side effects. Returning <code>{}</code> or <code>None</code> is a valid no-op node.</li>
+<li>The immutable-snapshot guarantee: a node is handed a snapshot and <em>returns</em> an update; the framework builds a new state by running each channel through its reducer. That&rsquo;s BSP discipline — no shared mutable state to race on within a step.</li>
+<li>Nodes do work; edges decide flow. An <code>agent</code> node leaves tool calls in the state and a conditional edge routes to <code>tools</code> or <code>END</code> — which is why the same two functions form a linear pipeline <em>or</em> a cyclic agent loop with no change to their bodies.</li>
+<li>The bridge from &ldquo;a function you wrote&rdquo; to &ldquo;a node the graph runs&rdquo; is a ~10-line executor: call your function, normalize the return, reduce it into a fresh state, forward it — everything else (supersteps, barrier, routing) is the same engine underneath.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/langgraph-04-edges-start-end-compile.html">Edges, START, END, and compile</a></li>
+<li><a href="/blog/posts/langgraph-02-state-and-reducers.html">State, channels, and reducers: how LangGraph merges updates</a></li>
+<li><a href="https://langchain-ai.github.io/langgraph/">LangGraph documentation</a></li>
+</ul>
 
 
   <aside class="related-posts">

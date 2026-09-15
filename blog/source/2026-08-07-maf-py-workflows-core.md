@@ -270,3 +270,9 @@ Everything here is provider-agnostic in shape: the `FoundryChatClient` + `AzureC
 Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):
 
 - [Agent Pipeline](/blog/diagrams/maf-py-15-agent-pipeline.html)
+
+## Further reading
+
+- [Advanced workflows](/blog/posts/maf-py-workflows-advanced.html)
+- [Multi-agent orchestration](/blog/posts/maf-py-multi-agent-orchestration.html)
+- [Getting started with Microsoft Agent Framework (Python)](/blog/posts/maf-py-getting-started.html)

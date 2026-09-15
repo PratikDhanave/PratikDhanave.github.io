@@ -50,6 +50,19 @@ go run ./tutorial/02-agents/providers/foundry/step05_structured_output
 
 Tests run offline with a fake credential; the live extraction call is gated behind `AF_LIVE=1` with `az login` and `FOUNDRY_PROJECT_ENDPOINT`.
 
+## Key takeaways
+
+- **`agent.WithStructuredOutput(&v)` returns typed data, not prose.** The framework asks the model to emit JSON matching your struct's shape, then unmarshals the reply straight into it — no `json.Unmarshal` in your code.
+- **The struct's `json` tags do double duty**: they're the schema handed to the model and they drive unmarshaling the reply.
+- **Two options travel together.** `WithStructuredOutput` needs a **pointer** (the framework writes back into it), and `agent.Stream(false)` is deliberate — structured output is non-streaming because the whole JSON reply is needed before parsing. Passing a value or leaving streaming on is the classic mistake.
+- The option is provider-portable — the same call works against Foundry, OpenAI, or Anthropic, each mapping it onto its own JSON-schema / response-format feature.
+
+## Further reading
+
+- [Structured Output: Typed Agent Results](/blog/posts/maf-go-15-structured-output.html) — the earlier take, contrasting `WithStructuredOutput` with the baked-in `WithResponseFormat`.
+- [step03 · Function Tools (Foundry)](/blog/posts/maf-go-42-function-tools.html) — tool *input* schemas, the mirror of output schemas.
+- [step06 · Persisted Conversations](/blog/posts/maf-go-45-persisted-conversations.html) — serialize the session these runs use.
+
 ---
 
 Next: [step06 · Persisted Conversations](/blog/posts/maf-go-45-persisted-conversations.html)

@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-07-01">July 01, 2026</time>
       <span>·</span>
-      <span>7 min read</span>
+      <span>8 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/fx/" class="tag-link"><span class="tag">#FX</span></a><a href="/blog/tags/treasury/" class="tag-link"><span class="tag">#Treasury</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/foreign-exchange/" class="tag-link"><span class="tag">#Foreign Exchange</span></a></div>
   </header>
@@ -184,6 +184,21 @@ POST /convert { quote_id }
 <p>Two properties make this safe. The quote is <strong>immutable and single-use</strong>: once consumed it cannot be replayed to book a second conversion, which closes an idempotency and abuse hole. And it captures the <code>source_seq</code> of the ticks it was priced from, so a disputed conversion can be reconstructed against the exact market state behind the promise. A booked conversion hands off to the ledger and the actual FX position, but everything the ledger records traces back to a quote whose every input was captured. The engine&rsquo;s job is done the moment that lock is honored or allowed to expire; it should never book against an expired quote to &ldquo;be helpful.&rdquo;</p>
 <h2 id="wrapping-up">Wrapping up</h2>
 <p>An FX pricing service earns its keep by separating three concerns that are tempting to merge: deriving a trustworthy mid from disagreeing feeds, refusing to quote off stale data, and applying transparent, decomposable margin. Keep the mid and the markup independently auditable, make the circuit breaker a first-class state rather than an afterthought, and treat every quote as an immutable, expiring promise. Get those right and the single number the customer sees becomes something you can always explain — and always defend.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Keep mid derivation (a market-data problem — freshest, most-agreed number) separate from pricing (a commercial problem — spread and margin), so you can change margin policy without touching the market-data path and audit a bad quote with two independent questions.</li>
+<li>Normalize every feed to one canonical pair direction with source and a monotonic sequence number; derive the inverse on demand rather than persisting both, and reject the obviously broken (bid &gt; ask, zero, 20% single-tick jumps) before mid calculation.</li>
+<li>Take the median of per-feed mids, not a single feed&rsquo;s <code>(bid+ask)/2</code> — the median discards a glitched outlier feed for free.</li>
+<li>Make the staleness circuit breaker a first-class state: trip on too-few sources, too-old ticks, or deviation from last-good; respond by serving flagged last-known-good (widened) or refusing to quote — never silently serve stale as live — and close automatically on a half-open recovery.</li>
+<li>Express spread and markup in basis points keyed by <code>(segment, pair, size_band)</code>, return the decomposition, and treat every quote as immutable, single-use, and TTL-bound with its <code>source_seq</code> captured for dispute reconstruction.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-fx-forwards-swaps-hedging.html">FX forwards, swaps and hedging</a></li>
+<li><a href="/blog/posts/fintech-multi-currency-revaluation.html">Multi-currency revaluation</a></li>
+<li><a href="/blog/posts/fintech-dcc-dynamic-currency.html">Dynamic currency conversion (DCC)</a></li>
+<li><a href="/blog/posts/fintech-handbook-01-representing-money.html">Representing money</a></li>
+</ul>
 
 
   <aside class="related-posts">

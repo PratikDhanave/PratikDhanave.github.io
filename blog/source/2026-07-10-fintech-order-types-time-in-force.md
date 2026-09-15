@@ -82,3 +82,17 @@ A correct order lifecycle comes down to a few invariants that are easy to state 
 - **Expired and Canceled are distinguishable.** Reconciliation, client notifications, and regulatory records all care *why* an order ended, so the terminal state must carry the cause.
 
 Model the order as this lifecycle first, then layer order type as entry guards and TIF as exit timers on top of it. The matching logic gets simpler because it only ever asks "is this transition legal?" — and the state, not a scatter of flags, is the source of truth.
+
+## Key takeaways
+
+- Most order-management bugs are state bugs, not matching bugs — the fix is one explicit state machine (`New → Accepted → Working → Partially Filled → Filled`, with `Canceled`/`Expired` branches) instead of a bag of mutable flags.
+- `Partially Filled` is still an *active* state (cancellable, expirable), and terminal states never re-enter the rail — that single invariant kills the class of races where a late cancel or fill mutates a closed order.
+- Order type is a modifier on how the order traverses the one lifecycle, not a separate one: market enters and matches immediately, limit rests as `Working`, and a stop is a guard on the `Accepted → Working` edge — you don't need a status enum per type.
+- Time-in-force is the clock/kill-switch on resting states: GTC has a real age cap (encode it), DAY expires via a deterministic session-close sweep, and IOC/FOK cancel the remainder in the same cycle. `Expired` (clock ran out) and `Canceled` (someone/some rule pulled it) must stay distinguishable for reconciliation.
+- Route every mutation through one transition guard so illegal transitions are unrepresentable, a cancel on a terminal order is an idempotent no-op, and quantity conservation (`filled + resting + terminated == original`) holds at every state.
+
+## Further reading
+
+- [Matching engine design](/blog/posts/fintech-matching-engine-design.html)
+- [Pre-trade risk, positions, and real-time P&L](/blog/posts/fintech-pretrade-risk-position-pnl.html)
+- [Smart order routing and best execution](/blog/posts/fintech-smart-order-routing-best-ex.html)

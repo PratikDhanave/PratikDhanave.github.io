@@ -111,3 +111,18 @@ A few things separate a demo from a system compliance will sign off on.
 **Privacy-tool handling.** Mixers and privacy protocols are not automatically illicit, but they break the traceability the whole pipeline depends on. Treat funds emerging from them as an exposure category in their own right rather than pretending the trail simply ended.
 
 Get these four right and the pipeline stops being a scoring toy and becomes something an investigator can stand behind — which, in the end, is the only property that matters.
+
+## Key takeaways
+
+- On-chain AML has no identity to work from — only a pseudonymous address and a permanent ledger — so the pipeline resolves address → cluster → exposure → score → allow/block/review, with confidence *decreasing* at each heuristic stage.
+- Clustering uses the common-input-ownership heuristic (shared inputs imply shared control) plus change-address detection; the trap is over-merging on coinjoin/privacy transactions, so carry a confidence weight per merge and refuse to propagate risk across low-confidence edges.
+- Exposure is a bounded graph traversal in two directions (inflow source-of-funds, outflow destination) with decay by hop — direct one-hop receipt from a sanctioned address is a hard block; faint five-hop exposure is often noise.
+- Scoring is a weighted sum with hard overrides, and the triggered *reasons* (the exact exposure path) matter as much as the number — "direct one-hop inflow from an OFAC-listed cluster" is defensible; "score was 82" is not.
+- Defensibility demands determinism: pin the label-set version and clustering snapshot per decision, re-screen retained clusters against label deltas, and split a fast inline check from a deeper async re-screen to meet latency budgets.
+
+## Further reading
+
+- [Sanctions Screening Engine](/blog/posts/fintech-sanctions-screening-engine.html)
+- [Travel Rule and VASP Compliance](/blog/posts/fintech-travel-rule-vasp.html)
+- [UBO Graph Resolution](/blog/posts/fintech-ubo-graph-resolution.html)
+- [Graph-Based Fraud Ring Detection](/blog/posts/fintech-fraud-ring-graph-detection.html)

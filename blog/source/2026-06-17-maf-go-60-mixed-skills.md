@@ -47,6 +47,19 @@ This is the capstone of the skills trio: it shows that `skills.ContextProviderOp
 
 `go run ./tutorial/02-agents/skills/step03_mixed_skills` (needs `az login` + `FOUNDRY_PROJECT_ENDPOINT`, and `python` for the file-based skill). The offline tests cover wiring, file-based discovery, and both Go script bodies; the live model call is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- `skills.ContextProviderOptions` accepts both pre-built `Skills` and discovery `Sources` in the *same* provider, so one agent can blend in-code capabilities with a library of file-based skills.
+- The three origins here — code-defined (`*skills.Skill` literal), struct-based (a value `skills.Skill` passed by address), and file-based (a `./skills` dir via `fsskills`) — are transparent to the prompt; the model only ever sees the merged `<available_skills>` list.
+- Code-defined vs. struct-based is only a spelling difference: pointer literal versus value handed to the provider by address; both carry inline instructions, resources, and a Go closure script.
+- Only the file-based skill shells out (its `convert.py` via `runSubprocessScript`), so the two Go skills need nothing while the live run needs `python` on PATH.
+
+## Further reading
+
+- [step01 · File-Based Skills](/blog/posts/maf-go-58-file-based-skills.html) — the file origin in isolation
+- [02 · Code-Defined Skills](/blog/posts/maf-go-59-code-defined-skills.html) — the code origin in isolation
+- [01 · Streaming — your first workflow](/blog/posts/maf-go-61-01-streaming.html) — the start of the workflows track
+
 ---
 
 Next: [01 · Streaming — your first workflow](/blog/posts/maf-go-61-01-streaming.html)

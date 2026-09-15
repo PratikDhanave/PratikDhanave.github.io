@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-06-26">June 26, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">#Reliability</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a></div>
   </header>
@@ -172,6 +172,21 @@
 <p>The regulatory shape of all this depends on one architectural choice. As a <strong>payment facilitator</strong>, you are a conduit — the seller is the merchant of record, funds are legally theirs, and you&rsquo;re moving money on their behalf. As <strong>merchant of record (MoR)</strong>, the platform <em>is</em> the seller to the buyer: you own the transaction, remit tax, and handle disputes, then pay the underlying seller as a supplier.</p>
 <p>This is not cosmetic. MoR means tax liability, chargeback exposure, and refund obligation sit on the platform, so your ledger needs a full tax-liability account and dispute reserves. Facilitator means lighter tax handling but stricter KYC/onboarding duties on each connected account, because you&rsquo;re enabling <em>them</em> to accept money. Pick the model before you design the accounts — retrofitting tax remittance and dispute ownership onto a ledger that assumed pass-through is a painful migration. Encode the choice explicitly so every split, every payout, and every dispute entry knows which party owns the obligation.</p>
 <p>Build the money layer around one non-negotiable rule: every charge, split, payout, refund, and reserve is a balanced double-entry event, and at any instant the connected balances plus retained revenue plus in-transit payouts reconcile exactly to the real bank position. If that identity holds, the marketplace can scale sellers, rails, and regions without the arithmetic ever drifting.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Keep two balance planes: the platform balance (where the acquirer settles one net amount to <em>you</em>) and per-seller connected-account balances that are liabilities on your books, not separate bank accounts.</li>
+<li>Model each seller balance in at least three states — pending, available, reserved — because collapsing them into one integer loses the ability to reason about <em>why</em> a balance can&rsquo;t be paid out yet.</li>
+<li>Freeze the fee-schedule version onto the order and let the seller&rsquo;s net be the <em>residual</em> (<code>total − fee − tax</code>) so the split always closes to the cent and a mid-flight rate edit can&rsquo;t unbalance in-flight orders.</li>
+<li>Make payouts idempotent per (seller, period) with the balance decrement and payout-record insert in one transaction; only move money out of the connected account when the payout reaches <code>paid</code>.</li>
+<li>Negative balances (refunds outrunning payouts) are receivables, not holes — engineer for recovery with rolling reserves, debit-first ordering, payout gating, and a collection workflow.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-merchant-settlement-payout.html">Merchant Settlement and Payout</a></li>
+<li><a href="/blog/posts/fintech-escrow-hold-release.html">Engineering Escrow: Conditional Hold and Release</a></li>
+<li><a href="/blog/posts/fintech-handbook-02-the-ledger.html">The Ledger (fintech handbook)</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Double-entry_bookkeeping">Double-entry bookkeeping (Wikipedia)</a></li>
+</ul>
 
 
   <aside class="related-posts">

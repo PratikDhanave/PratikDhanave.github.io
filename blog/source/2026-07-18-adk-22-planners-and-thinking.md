@@ -134,3 +134,17 @@ Same rule, no SDK: a part is split at the last final-answer marker, the reasonin
 Skip it for simple one-shot Q&A — the extra tokens and latency aren't worth it. A planner is for the tasks where "just ask the model" quietly stops being enough.
 
 **Next in the series:** Context Caching — reusing a large, stable prompt prefix across calls to cut latency and cost.
+
+## Key takeaways
+
+- A planner makes the model think first — plan → act → reason → answer — giving both better multi-step behavior and an inspectable reasoning trace; skip it for simple one-shot Q&A where the extra tokens and latency aren't worth it.
+- ADK ships two: `PlanReActPlanner` (prompt-plus-parser, works with any model, no native thinking required) and `BuiltInPlanner` (delegates to a thinking model's native `types.ThinkingConfig` budget). Attaching either is a one-line `planner=` field.
+- `PlanReActPlanner` is no black box: `build_planning_instruction` prepends five section tags and `process_planning_response` splits on the *last* `/*FINAL_ANSWER*/` — everything before becomes hidden `thought=True` parts, the tail is the shown answer. Both are testable offline because neither needs a live model.
+- `BuiltInPlanner` does no rewriting; `include_thoughts=True` exposes reasoning and `thinking_budget=N` caps it, with the model deciding how to think within the budget.
+- Planners are Python-only today (no `planner` field on the Go `LlmAgent`), but the core Plan-Re-Act parser ports to ~40 lines of standard-library string work — making clear it's prompt engineering plus a parser.
+
+## Further reading
+
+- [Context Caching in Google ADK](/blog/posts/adk-23-context-caching.html)
+- [Google ADK Code Execution](/blog/posts/adk-21-code-execution.html)
+- [Google ADK documentation](https://google.github.io/adk-docs/)

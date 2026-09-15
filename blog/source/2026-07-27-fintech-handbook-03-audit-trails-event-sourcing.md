@@ -85,3 +85,17 @@ What survives is exactly what should: the amounts, the account identifiers, the 
 ## Why it matters
 
 An audit trail that can be edited is not an audit trail; it is a rumor. Event sourcing gives you the real thing — a history that can be replayed, reconciled, and defended, where every correction is itself part of the record. The privacy tension is real, but it is not a reason to abandon immutability. It is a reason to be precise about what your immutable log is *for*. Money-facts are append-only forever; people-facts are separated out and crypto-shredded on request. Get that boundary right and you can look a regulator, an auditor, and an angry customer in the eye and answer the only question that ever mattered: who did what, when, and what did it change.
+
+## Key takeaways
+
+- The audit trail is a product requirement, not a logging concern — `logger.info` calls are lossy, unstructured, and disconnected from the transaction that changed the money. The trail has to *be* the data, not a shadow of it.
+- Event sourcing stores immutable events and derives current state as a fold over the log; projections (balances, statements, feature stores) are disposable caches you can `DELETE` and replay to rebuild exactly.
+- You correct with new events, never edits: a mistaken transfer stays in history and a reversing entry references and cancels it, so an auditor sees both the error and the remediation. Many teams hash-chain events so tampering is detectable.
+- Immutability collides with the GDPR right to erasure, and the resolution is to stop treating financial facts and personal data as the same data — keep money-facts in the append-only log keyed by an opaque subject id, and human-facts in a separate, deletable profile store.
+- When PII must ride inside the stream, use crypto-shredding: encrypt personal fields with a per-subject key stored separately, and on an erasure request destroy that key — the ciphertext stays (log and hash chain unchanged) but becomes permanently unrecoverable noise.
+
+## Further reading
+
+- [The ledger: double-entry bookkeeping](/blog/posts/fintech-handbook-02-the-ledger.html) — the append-only, correct-with-reversals discipline this generalizes.
+- [Idempotency and full resumability](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html) — replaying and checkpointing over the same event boundary.
+- [Regulatory transaction reporting](/blog/posts/fintech-regulatory-transaction-reporting.html) — where a reconstructable lineage becomes an inspection requirement.

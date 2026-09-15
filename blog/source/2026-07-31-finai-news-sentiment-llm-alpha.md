@@ -65,3 +65,18 @@ Latency shapes how you can use it. If your edge is reacting faster than the mark
 ## Pitfalls worth naming
 
 Three failure modes deserve permanent vigilance. **Stale news** re-enters as fresh and double-counts an event; guard against it with strict event timestamps and dedup that spans a wide enough window. **Source bias** means some outlets are systematically breathless or systematically late; weight sources by demonstrated reliability rather than treating every byline as equal. And most insidiously, **hallucinated tickers**: a model confidently attributes an event to an instrument that the text never mentioned, or invents a symbol outright. This is why extraction must be validated against a real asset universe and why an unresolved entity should drop the item rather than guess. A single hallucinated ticker that reaches the strategy engine can put on a position based on news that does not exist. In a pipeline that turns words into trades, that is the difference between a signal and a liability.
+
+## Key takeaways
+
+- Deduplicate in two layers — hash exact repeats, then embed-and-cluster near-duplicates within a time window — and keep the outlet count as metadata, never as sentiment. Syndication is a popularity signal, not an information signal.
+- Ask the model for structured extraction first (entity, event type, direction) and resolve every proposed entity against a maintained asset universe before anything downstream trusts it; drop unresolved items rather than let them guess.
+- Score three fields, not one: directional sentiment, estimated impact, and the model's confidence in its own reading. Anchor them to a fixed rubric with graded examples so numbers stay comparable across thousands of items.
+- Aggregate into a per-asset time series that nets bullish against bearish, weights by impact and confidence, and applies a time-decay half-life you actually tune.
+- Store the signal point-in-time so a backtest replays exactly what a live system would have seen — look-ahead leaks through revised timestamps, backfills, and models trained on the test period.
+
+## Further reading
+
+- [Generative AI and LLMs in finance: guardrails that hold](/blog/posts/finai-genai-llms-in-finance-guardrails.html)
+- [LLM-guided portfolio allocation](/blog/posts/finai-llm-guided-portfolio-allocation.html)
+- [Predicting market direction with machine learning](/blog/posts/finai-market-direction-prediction-ml.html)
+- [Sentiment analysis](https://en.wikipedia.org/wiki/Sentiment_analysis) — Wikipedia overview of the task and its history

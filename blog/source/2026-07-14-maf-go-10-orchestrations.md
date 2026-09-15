@@ -103,3 +103,17 @@ The rule I settled on: reach for an orchestration builder when your problem *is*
 ---
 
 Next: [Advanced Workflows — Microsoft Agent Framework in Go](/blog/posts/maf-go-11-advanced-workflows.html)
+
+## Key takeaways
+
+- Orchestration builders in `workflow/agentworkflow` wire the graph for you from a list of agents — Sequential (argument order is execution order), Concurrent (fan-out/fan-in, latency is the slowest agent), and Group Chat (a manager picks turns).
+- The Group Chat manager is three callbacks over history — `SelectNextAgent`, `ShouldTerminate` (always keep a hard iteration cap), and `Reset` — and it's where human-in-the-loop lives via an approval-gated tool that pauses on a `RequestInfoEvent`.
+- "Workflow as an agent" (`agentworkflow.NewAgent`) hosts a whole workflow as one `*agent.Agent`, so an orchestration becomes a reusable, nestable building block — but you must set `IncludeOutputsInResponse: true` or the terminal merged `OutputEvent` is dropped.
+- Reach for a builder when your problem *is* one of these shapes (you get fan-in, termination, and history-broadcasting for free); drop to a raw `WorkflowBuilder` graph only for genuinely bespoke control flow.
+- The Go SDK is deliberately smaller than Python's — no dedicated `Handoff` or `Magentic` builders yet — so peer-routing and dynamic manager-planning are still hand-wired.
+
+## Further reading
+
+- [Advanced Workflows — Microsoft Agent Framework in Go](/blog/posts/maf-go-11-advanced-workflows.html)
+- [Workflows with Agents — Microsoft Agent Framework in Go](/blog/posts/maf-go-09-workflows-with-agents.html)
+- [agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)

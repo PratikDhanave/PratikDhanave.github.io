@@ -47,3 +47,18 @@ There's no live model path; the offline test asserts a full run produces the exp
 ---
 
 Next: [checkpoint · Human-in-the-Loop with Checkpoint & Restore](/blog/posts/maf-go-73-checkpoint-with-human-in-the-loop.html)
+
+## Key takeaways
+
+- Unlike the rehydrate lesson, resuming rewinds the *same* run: you call `run.RestoreCheckpoint(ctx, saved)` on the existing run object and drain `WatchStream` again, rather than building a fresh workflow.
+- Checkpointing is a runner decoration, not a graph change — the same `buildWorkflow()` runs with or without `inproc.Default.WithCheckpointing(mgr)`.
+- Each executor owns its state: the guesser persists `{LowerBound, UpperBound}`, the judge persists `tries`, and a `nil` read from `ctx.ReadState` means "no snapshot for this key" — fall back to `Reset()`.
+- Checkpoints ride on `SuperStepCompletedEvent`; its `CompletionInfo.CheckpointInfo` is the handle you later pass to `RestoreCheckpoint`.
+- In-flight rewind is the basis for retries, branch exploration, and time-travel debugging of agent graphs — swap `NewInMemoryManager()` for a durable store to make it survive crashes.
+
+## Further reading
+
+- [checkpoint_and_rehydrate](/blog/posts/maf-go-71-checkpoint-and-rehydrate.html) — building a brand-new instance instead of rewinding
+- [checkpoint · Human-in-the-Loop with Checkpoint & Restore](/blog/posts/maf-go-73-checkpoint-with-human-in-the-loop.html)
+- [State Management](/blog/posts/maf-go-31-state-management.html)
+- [Microsoft Agent Framework for Go](https://github.com/microsoft/agent-framework-go)

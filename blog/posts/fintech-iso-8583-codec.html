@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-08-01">August 01, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/rails/" class="tag-link"><span class="tag">#Rails</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/payment-rails/" class="tag-link"><span class="tag">#Payment Rails</span></a></div>
   </header>
@@ -165,6 +165,21 @@
 <p>Those correlation fields matter operationally. The <strong>STAN</strong> (System Trace Audit Number, DE11) and <strong>RRN</strong> (Retrieval Reference Number, DE37) are how a <code>0110</code> response is matched back to its <code>0100</code> request across an asynchronous link where responses may arrive out of order. Your dispatcher keeps an in-flight map keyed by STAN (scoped per terminal or per link, since STANs wrap around at 999999) and completes the pending future when the matching response lands. Reversals and repeats reference the original STAN too, so treating it as a first-class identifier, not just a logged string, is what makes the whole conversation coherent.</p>
 <h2 id="what-makes-it-production-safe">What makes it production-safe</h2>
 <p>Three practices separate a demo codec from one you trust in the authorization path. First, make the field table the single source of truth and generate a round-trip test that encodes then decodes every message type, asserting byte-for-byte equality — this catches encoding and length-discipline mistakes instantly. Second, fuzz the decoder with truncated and oversized frames; a codec that indexes past the end of a slice on a malformed bitmap is a denial-of-service waiting to happen. Third, redact by construction: because PAN and track data flow through the typed layer, you attach masking to those value objects so no code path can accidentally emit a full PAN to logs. Build the codec as a pure function from bytes to a typed message and back, keep the framing separate, and let a declarative field dictionary do the rest.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Frame before you parse: TCP is a byte stream, so read the two-byte length prefix, consume exactly that many bytes, and only then parse — conflating the two is the classic &ldquo;works in tests, corrupts under load&rdquo; bug.</li>
+<li>The MTI (<code>0100</code> auth request, <code>0110</code> response, <code>0800</code> network management) selects the handler and field dictionary; different message types legitimately carry different fields.</li>
+<li>Decode the bitmap into an explicit ordered set of present field numbers before touching field data; bit 1 signals a secondary bitmap (fields 65–128), and framing config must declare whether bitmaps arrive raw-binary or hex-ASCII since you can&rsquo;t tell by inspection.</li>
+<li>The field dictionary is the whole codec: each element&rsquo;s length discipline (FIXED, LLVAR, LLLVAR) and encoding (BCD, ASCII, binary) is defined once and drives both decode and encode so the two never drift; the cursor must land exactly on the end of the slice or the message is rejected.</li>
+<li>Lift bytes into typed objects at the boundary — Luhn-checked PAN with masking attached, minor-units amount, DE39 as an enum — and key the in-flight request map by STAN (DE11) scoped per link, since STANs wrap at 999999 and reversals reference the original.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-card-auth-capture-clearing.html">Card authorization, capture, and clearing</a></li>
+<li><a href="/blog/posts/fintech-emv-cryptogram-arqc.html">EMV cryptograms and the ARQC</a></li>
+<li><a href="/blog/posts/fintech-network-tokenization-pci-scope.html">Network tokenization and PCI scope</a></li>
+<li><a href="https://en.wikipedia.org/wiki/ISO_8583">ISO 8583</a> — Wikipedia overview of the message format</li>
+</ul>
 
 
   <aside class="related-posts">

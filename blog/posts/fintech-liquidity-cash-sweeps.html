@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-07-02">July 02, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/fx/" class="tag-link"><span class="tag">#FX</span></a><a href="/blog/tags/treasury/" class="tag-link"><span class="tag">#Treasury</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/foreign-exchange/" class="tag-link"><span class="tag">#Foreign Exchange</span></a></div>
   </header>
@@ -196,6 +196,21 @@ class Position:
 <p><strong>Stale snapshots.</strong> Because gaps are computed from <code>projected</code> balances that may be seconds to minutes old, execution must re-check availability at the moment of booking. A sweep that would overdraw the source at post time is rejected and re-queued, never forced through.</p>
 <p><strong>Partial failure.</strong> If a batch of instructions is half-submitted when the process dies, the idempotency keys make replay safe: already-accepted transfers are deduplicated by the rail, and the clearing account reconciles in-transit entries against rail confirmations. No money is created or destroyed — the invariant a treasury system must never violate.</p>
 <p>The whole design earns its keep by being boring and deterministic. Snapshots in, instructions out, every transfer keyed and reversible, every exception queued rather than lost. That is what keeps a settlement account solvent at 4:59 PM without a human doing arithmetic under pressure.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Treat sweeping as a deterministic, replayable workflow (snapshot in, instructions out) rather than a nightly cron that hopes for the best — each stage is a pure function of the previous stage plus a snapshot timestamp.</li>
+<li>Separate ledger, available, and projected balance and drive every decision from <code>projected</code> (available plus known same-day flows); sweeping on ledger balance alone drains an account that has a large debit landing in twenty minutes.</li>
+<li>Three rule families cover almost everything — zero-balance, target-balance, and concentration/pooling — and the engine computes a signed <code>gap = projected − target</code>, netting child-to-child transfers to halve fees.</li>
+<li>The planner is cutoff-aware: it funds deficits first, assigns each instruction to the cheapest rail whose window is still open, and defers anything past cutoff to an exception queue rather than dropping it.</li>
+<li>Idempotency keys bind each instruction to the snapshot it came from so re-planning produces byte-identical keys; execution books a double-entry pair against a transfer-clearing account and re-checks availability at post time so a stale snapshot never overdraws the source.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-nostro-vostro-reconciliation.html">Nostro/vostro reconciliation</a></li>
+<li><a href="/blog/posts/fintech-rtgs-vs-dns-architecture.html">RTGS vs. DNS settlement architecture</a></li>
+<li><a href="/blog/posts/fintech-cashflow-forecasting.html">Cashflow forecasting</a></li>
+<li><a href="/blog/posts/fintech-handbook-05-idempotency-and-resumability.html">Idempotency and resumability</a></li>
+</ul>
 
 
   <aside class="related-posts">

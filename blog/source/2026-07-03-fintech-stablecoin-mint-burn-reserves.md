@@ -113,3 +113,18 @@ Anchoring the snapshot to a specific block height is what makes the two numbers 
 ## What holds it together
 
 Strip away the blockchain novelty and this is disciplined double-entry accounting with a public counterparty. The reserve ledger is the source of truth; the chain is a second ledger you must keep in lockstep. Order writes so that failures leave you over-reserved rather than under-reserved. Make idempotency keys immutable and shared across the ledger and chain writes. Reconcile continuously and classify breaks by cause. Do those four things and the 1:1 invariant holds not because you asserted it, but because every path through the system is built to preserve it.
+
+## Key takeaways
+
+- Two ledgers must agree at all times — the off-chain reserve ledger and the on-chain token supply — and the invariant `backed_reserve >= circulating_supply` should be a first-class check that alarms the instant circulating supply exceeds backing.
+- `backed_reserve` is the portion of custody explicitly earmarked against issued tokens, net of pending mints and burns — not the raw bank balance, which diverges legitimately the moment you earn yield or collect a fee.
+- Order writes so failure leaves you over-reserved: mint credits the reserve ledger *before* the on-chain mint (and `is_settled` must mean the fiat cleared, not that a transfer was requested), while burn flips it — burn on chain first, then release fiat.
+- Share one immutable idempotency key across both the ledger and chain writes (keyed on the deposit/redeem reference) so retried webhooks and replayed submissions are no-ops, and keep unfinalized mints in `pending_onchain`, excluded from the backing total until confirmation depth is reached.
+- Reconcile every block, not daily, against `totalSupply == backed_reserve + pending_burns − pending_mints (± dust)`, and classify each break by cause (self-healing, stuck job to replay, or page-a-human) — then anchor attestation snapshots to a fixed block height so the reserve figure is provable, not asserted.
+
+## Further reading
+
+- [Proof of reserves](/blog/posts/fintech-proof-of-reserves.html)
+- [Crediting on-chain deposits and surviving reorgs](/blog/posts/fintech-onchain-settlement-reorg.html)
+- [Stored-value and e-money wallet ledgers](/blog/posts/fintech-stored-value-emoney-ledger.html)
+- [CBDC two-tier architecture](/blog/posts/fintech-cbdc-two-tier-architecture.html)

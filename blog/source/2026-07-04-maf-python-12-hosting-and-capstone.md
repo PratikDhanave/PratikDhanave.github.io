@@ -87,3 +87,17 @@ What kept the whole series honest was building one runnable lesson per concept a
 ---
 
 Next: [Learning the Microsoft Agent Framework in Go](/blog/posts/maf-go-01-learning-by-building.html)
+
+## Key takeaways
+
+- Hosting extras ship as separate packages (`uv sync --extra hosting`) so the core lessons stay light; DevUI's `serve(entities=[...])` owns its own event loop, which is why `main()` is a plain `def` and not `async def`.
+- A2A has two directions and exports exactly three names: `A2AAgent(url=...)` lets you `await remote.run(...)` a remote agent as if local, and `A2AExecutor(agent)` mounted on uvicorn publishes your own — there is no `A2ACardResolver` or built-in `serve` in this build.
+- MCP lets the model borrow tools discovered over HTTP from a Model Context Protocol server, and AG-UI exposes an agent as a streaming SSE endpoint (`RUN_STARTED … TEXT_MESSAGE_CONTENT … RUN_FINISHED`).
+- The DocQA capstone answers *only* from what its `search_docs` tool retrieves, cited and refusing to guess, and every file maps to a series track — tool, grounding, memory provider, audit middleware, and a `--review` `SequentialBuilder` where a Reviewer agent checks each claim carries a citation.
+- The through-line of the whole series: "agentic" was never magic — an agent's output becomes control flow, and each track (tools, memory, workflows, hosting) just made that one loop more capable, with every concept verified offline before touching a model.
+
+## Further reading
+
+- [Advanced Workflows — Microsoft Agent Framework in Python](/blog/posts/maf-python-11-advanced-workflows.html)
+- [Learning by Building — Microsoft Agent Framework in Python](/blog/posts/maf-python-01-learning-by-building.html) — where the series starts
+- [Learning the Microsoft Agent Framework in Go](/blog/posts/maf-go-01-learning-by-building.html) — the Go companion series

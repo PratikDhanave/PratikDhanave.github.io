@@ -112,7 +112,7 @@
       <span>·</span>
       <time datetime="2026-07-24">July 24, 2026</time>
       <span>·</span>
-      <span>7 min read</span>
+      <span>9 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/harness-engineering/" class="tag-link"><span class="tag">#Harness Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/concurrency/" class="tag-link"><span class="tag">#Concurrency</span></a><a href="/blog/tags/azure/" class="tag-link"><span class="tag">#Azure</span></a><a href="/blog/tags/engineering-practices/" class="tag-link"><span class="tag">#Engineering Practices</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -268,6 +268,20 @@ func (s *Supervisor) callWorker(subtask string) (output string, err error) {
 <p>A supervisor can run a hundred sub-agents unattended. Some decisions shouldn&rsquo;t be unattended — a refund over a threshold, a destructive action, anything a human has to sign off on. The finale builds an approval gate that pauses a durable workflow, persists the pending state, and resumes only after a human says yes — combining Lesson 2&rsquo;s durability with a real human in the loop.</p>
 <hr>
 <p>Next: <a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-Loop: An Approval Gate on Durable State</a></p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Bounded fan-out is a semaphore in eight bytes: a buffered channel of <code>maxWorkers</code> slots, sent to <em>before</em> launching each goroutine, so the loop itself blocks once the cap is in flight — no worker pool, no library.</li>
+<li>Ordered fan-in comes from pre-sizing <code>results</code> to <code>len(subtasks)</code> and having each goroutine write only its own index, so results return in decomposition order regardless of completion order, race-free without a lock.</li>
+<li>A panic in a goroutine nobody recovers crashes the <em>entire</em> program, and a parent <code>recover</code> can&rsquo;t catch it — so each worker runs behind a <code>defer/recover</code> that converts the panic into an ordinary error via a named return, containing it exactly like a returned error.</li>
+<li>Fault isolation means one failing (or panicking) worker writes one <code>Error</code> into its slot and returns; the siblings succeed. The two tests pin exactly this — order survives a completion race, and one panic doesn&rsquo;t sink the batch.</li>
+<li>State the leak: this is static one-shot fan-out (a dumb string split, no re-planning) and isolation covers faults, not liveness — a worker that <em>hangs forever</em> blocks its slot with no per-worker timeout, because cancellation is a real orchestrator&rsquo;s job.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/harness-engineering-go-06-orchestration-handoff.html">Orchestration and handoff: routing intent to a specialist</a> — the previous lesson, single handoff one level down.</li>
+<li><a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-loop: an approval gate on durable state</a> — the finale, combining durability with a real human in the loop.</li>
+<li><a href="https://github.com/microsoft/agent-framework-go">microsoft/agent-framework-go</a> — the Magentic/concurrent orchestration this supervisor models the concurrency contract of.</li>
+</ul>
 
 
   <aside class="related-posts">

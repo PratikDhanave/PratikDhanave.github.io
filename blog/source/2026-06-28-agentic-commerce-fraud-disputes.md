@@ -84,6 +84,21 @@ The workflow below shows the whole path: a purchase runs the risk gauntlet (iden
 
 Agentic commerce doesn't invent brand-new fraud so much as it dissolves the assumptions fraud tooling relied on: that the buyer is human, that consent happens at one observable moment, and that "the cardholder authorized it" is a fact you can check. Prompt injection makes untrusted content dangerous; delegated credentials make agents worth attacking; and "my agent did it" collapses honest error, bugs, and real fraud into one indistinguishable dispute. You can't out-score this with human-behavior heuristics. You engineer around it: give agents real identities, delegate narrow and time-bounded authority, step up to a human for high-risk actions, treat every retrieved byte as hostile, and — above all — make every step sign its work. When liability is contested and regulation is still forming, the signed mandate chain is the difference between arguing over a story and pointing at proof.
 
+## Key takeaways
+
+- Agentic commerce dissolves the assumptions fraud tooling relied on: mouse movement, typing cadence, and dwell time all encode *human* buying, so a legitimate agent purchase reads to a legacy engine like the bot attack it was tuned to block.
+- "The cardholder authorized this" stops being a yes/no fact — consent was granted once, in the abstract, and *delegated*, so whether a specific purchase is in scope is a delegation question the four-party model can't represent.
+- Two attack classes dominate: indirect prompt injection (malicious instructions riding in product reviews or retrieved content) and credential/identity hijacking (delegated tokens are pre-authorized to spend, at machine speed).
+- "My agent did it" collapses three very different situations — ambiguous intent, a bug/hallucination, and genuine injection/hijack — into one indistinguishable dispute, on top of friendly fraud already ~75% of disputes.
+- You engineer around it rather than out-scoring it: agent identity, narrow time- and amount-bounded delegation, step-up for high-risk actions, treating retrieved content as untrusted, and a signed mandate chain so disputes resolve against proof, not a story.
+
 ## Sources
 - https://unit42.paloaltonetworks.com/retail-fraud-agentic-ai/
 - https://workos.com/blog/how-to-secure-agentic-commerce
+
+## Further reading
+
+- [Agent Identity, Delegation, and Scoped Authorization](/blog/posts/agentic-commerce-agent-identity-auth.html)
+- [Verifiable Mandates](/blog/posts/agentic-commerce-verifiable-mandates.html)
+- [The Agentic Checkout Flow, End to End](/blog/posts/agentic-commerce-checkout-flow.html)
+- [Chargeback and Dispute State Machine](/blog/posts/fintech-chargeback-dispute-state-machine.html)

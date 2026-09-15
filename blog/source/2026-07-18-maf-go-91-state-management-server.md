@@ -45,6 +45,21 @@ if json.Unmarshal([]byte(trimmed), &snapshot) == nil {
 
 That closes out all 91 lessons of the series.
 
+The reason the snapshot is emitted *before* the original text, rather than after, is ordering: the client receives structured state it can render first, then the human-readable prose that accompanies it. Because the middleware only acts when a `*message.TextContent` starts with `{` and parses as JSON, a reply that is plain prose flows through untouched — the feature never corrupts a non-JSON turn. And because the whole thing is an `agent.Middleware` rather than handler code, it composes: you can stack it with other middlewares (logging, guardrails) on the same agent without any of them knowing about the others.
+
+## Key takeaways
+
+- State management means handing the client something *structured* to track, not just a stream of text — here, a recipe object the agent is instructed to emit as JSON.
+- A state-snapshot middleware watches every update from the model and, whenever a reply parses as a JSON object, emits a base64-encoded `DataContent` snapshot *before* yielding the original text unchanged.
+- The entire feature is one `agent.Middleware`; the AG-UI handler is identical to the getting-started server, which is why the middleware is pure and can be driven by a fake run in an offline test.
+- The model instructions are the contract: `recipeInstructions` fixes the JSON shape, and the middleware keys entirely off that parse — no shape means no snapshot.
+
+## Further reading
+
+- [Human-in-the-loop server](/blog/posts/maf-go-90-human-in-loop-server.html) — the preceding AG-UI lesson.
+- [Frontend tools server](/blog/posts/maf-go-89-frontend-tools-server.html) — another AG-UI capability in the same series.
+- [microsoft/agent-framework-go](https://github.com/microsoft/agent-framework-go) — the `agent.Middleware`, `message.DataContent`, and `aguiprovider` APIs used here.
+
 ---
 
 Next: [My upstream Microsoft Agent Framework Go contributions](/agent-framework/)

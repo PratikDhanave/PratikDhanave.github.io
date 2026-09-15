@@ -106,3 +106,18 @@ Structurally, you split the schedule at the event's effective date: rows before 
 The determinism promise is only real if you enforce it. Three test families cover most of the risk. First, **golden fixtures**: a handful of loans (annuity and reducing-balance, each day-count convention) with schedules computed by hand or a trusted reference, diffed row-for-row. Second, **invariant property tests**: for randomly generated terms, assert the principal sums back to the original, the final balance is zero, and no row negatively amortizes. Third, **event replay**: apply a prepayment or rate change, then confirm the frozen prefix is unchanged and the recomputed tail still closes to zero.
 
 An amortization engine is not hard because the math is deep. It is hard because dozens of small decisions — minor units, rounding mode, day-count, the final-row true-up, recompute-versus-patch — each have a correct answer, and every one of them is visible to someone who will notice a one-cent discrepancy. Pin them down as explicit inputs and invariants, and the schedule becomes what it should be: boring, reproducible, and correct on every path.
+
+## Key takeaways
+
+- Build the schedule as a *pure function* from loan terms to installments: pass today's date, the rate, and prepayment events in as explicit arguments so the same inputs always yield byte-identical rows.
+- Store the amortization method (annuity/EMI vs. reducing-balance) as a first-class field, never as an implicit consequence of which code branch ran — it changes total interest, disclosed APR, and payoff amount.
+- Day-count convention (30/360, ACT/365F, ACT/360, ACT/ACT) is a contract input, not a detail; "12% / 12" is itself a 30/360-flavoured convention, so don't hardcode it.
+- The final installment is forced to repay the exact remaining balance (the "true-up on the last row"), which guarantees principal sums back to the original and the closing balance is exactly zero.
+- A prepayment is a new input, not a patch: freeze the rows before the event date and recompute the tail — either reduce tenor (same EMI, fewer rows) or reduce installment (new EMI, same end date).
+
+## Further reading
+
+- [Building a Daily Interest Accrual Engine](/blog/posts/fintech-interest-accrual-engine.html)
+- [Loan Origination System](/blog/posts/fintech-loan-origination-system.html)
+- [Repayment Waterfall Allocation](/blog/posts/fintech-repayment-waterfall-allocation.html)
+- [Amortization schedule (Wikipedia)](https://en.wikipedia.org/wiki/Amortization_schedule)

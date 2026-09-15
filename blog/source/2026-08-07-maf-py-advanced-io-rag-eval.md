@@ -208,3 +208,10 @@ Explore the concepts in this guide as self-contained, pan/zoom interactive diagr
 
 - [Background Responses](/blog/diagrams/maf-py-18-background-responses.html)
 - [Harness](/blog/diagrams/maf-py-23-harness.html)
+
+## Further reading
+
+- [Tools: functions, hosted tools, MCP, Skills & CodeAct](/blog/posts/maf-py-tools-functions-mcp.html)
+- [Memory, context, and state](/blog/posts/maf-py-memory-context-state.html)
+- [Human-in-the-loop and observability](/blog/posts/maf-py-human-in-loop-observability.html)
+- [Model Context Protocol](https://modelcontextprotocol.io) — the standard behind MCP-backed retrieval tools

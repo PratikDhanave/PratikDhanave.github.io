@@ -101,3 +101,17 @@ The rule I settled on: reach for an orchestration when your problem *is* one of 
 ---
 
 Next: [Advanced Workflows — Microsoft Agent Framework in Python](/blog/posts/maf-python-11-advanced-workflows.html)
+
+## Key takeaways
+
+- Orchestrations are prebuilt multi-agent shapes in `agent_framework.orchestrations`; each takes a participant list and returns an ordinary `.run()`-able workflow, and what separates them is *who decides what runs next*.
+- Sequential is a pipeline where list order *is* execution order (`chain_only_agent_responses=True` passes just the previous reply); Concurrent fans one prompt to all participants with latency `max(agent)` and a built-in aggregator you can override.
+- Group Chat puts a coordinator in a star topology choosing the next speaker (`selection_func` or `orchestrator_agent`) — always set a `termination_condition`; Handoff has no boss, agents transfer the conversation peer-to-peer via an auto-injected tool and it stays interactive unless you call `.with_autonomous_mode()`.
+- Magentic is for open-ended tasks with no known path: a manager agent plans, keeps a task ledger, and picks the next specialist by reading each agent's `description`, bounded by `max_stall_count` / `max_reset_count`.
+- Reach for an orchestration when your problem *is* one of these shapes (you get correct fan-in, termination, and history-broadcasting for free) and drop to raw `WorkflowBuilder` only for genuinely bespoke control flow — orchestrations are the 90% case, the graph is the escape hatch.
+
+## Further reading
+
+- [Workflows with Agents — Microsoft Agent Framework in Python](/blog/posts/maf-python-09-workflows-with-agents.html)
+- [Advanced Workflows — Microsoft Agent Framework in Python](/blog/posts/maf-python-11-advanced-workflows.html)
+- [Orchestration Patterns — Microsoft Agent Framework Go](/blog/posts/maf-go-10-orchestrations.html) — the same patterns in the Go SDK

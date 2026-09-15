@@ -147,3 +147,18 @@ A single green run can be luck, because the agent is stochastic. **Pass@k** quan
 Everything above about `adk eval`, the criteria config, model-graded metrics, the typed eval object model, and multi-turn simulation is **Python-only** today. A search of the entire `adk-go` v2 tree turns up no `evaluation`, `simulation`, or `optimization` package — there is no eval CLI, and its binary only does `deploy`. What *does* port is the pure arithmetic: the two lexical metric functions and the Pass@k estimator are identical in Go, so you can drive the Go runner yourself and assert the same scores in `go test`. But the recorded-case → criteria-config → `adk eval` workflow is Python's, and the eval set JSON — being data, not code — scores a Go agent just as well as a Python one.
 
 **Next in the series:** deploying the agent to Cloud Run, GKE, or Vertex Agent Engine.
+
+## Key takeaways
+
+- ADK scores an agent on two axes, not one: `tool_trajectory_avg_score` (did it call the right tools, with the right args, in the right order — default gate an exact `1.0`) and `response_match_score` (is the answer close to a reference — a lenient ROUGE-1 pass around `0.7`).
+- Dividing the trajectory match by `max(len(expected), len(actual))` penalizes spurious *extra* tool calls too, so the right answer followed by an unnecessary call is not a `1.0`.
+- An eval set is a behavioral spec of golden traces you commit and defend: include rejection cases, assert on arguments and order (not just tool names), keep one behavioral concern per case, and add a case whenever you fix a bug.
+- `Pass@k` quantifies stochastic fragility — run each case n times, and the gap between `Pass@1` and `Pass@5` is what you gate on, not one lucky green run.
+- Honest Go gap: `adk eval`, the criteria config, model-graded metrics, and the typed eval object model are Python-only today; the pure arithmetic (the two lexical metrics and the Pass@k estimator) ports to Go, and the eval-set JSON scores a Go agent just as well.
+
+## Further reading
+
+- [Deploying an ADK agent to Cloud Run and Agent Engine](/blog/posts/adk-13-deploy.html)
+- [Observability in ADK: seeing inside a running agent](/blog/posts/adk-14-observability.html)
+- [The ADK eval model (Evaluating Agents in Go)](/blog/posts/eval-agents-go-02-the-adk-eval-model.html)
+- [Google Agent Development Kit documentation](https://google.github.io/adk-docs/)

@@ -257,3 +257,9 @@ Explore the concepts in this guide as self-contained, pan/zoom interactive diagr
 
 - [Parallelism](/blog/diagrams/maf-py-45-parallelism.html)
 - [Checkpointing](/blog/diagrams/maf-py-46-checkpointing.html)
+
+## Further reading
+
+- [Workflows: the core model](/blog/posts/maf-py-workflows-core.html)
+- [Multi-agent orchestration](/blog/posts/maf-py-multi-agent-orchestration.html)
+- [DevUI and durable agents](/blog/posts/maf-py-devui-durability.html)

@@ -91,3 +91,18 @@ The ledger discipline that keeps this honest: an authorization posts to a **memo
 ## What to hold onto
 
 Model the card transaction as an explicit, event-sourced state machine, not a `paid` flag. Keep a stable authorization identifier that increments and captures reference. Enforce the *captured ≤ authorized* invariant as a hard control. Treat expiry as a timed transition with a sweeper, and always release residual holds on partial capture and reversal. Finally, reconcile authorized against settled per transaction, allow a tolerance band, and only recognize cash at settlement. Get those five things right and the messy real-world cases — hotels, fuel, tips, split shipments, cancellations — stop being special cases and become ordinary transitions on a state machine you already trust.
+
+## Key takeaways
+
+- A card purchase is not atomic: it moves through three money states — authorization (a hold, no money moves), capture (what you intend to collect), and clearing/settlement (when funds physically arrive) — so a single `paid` boolean lies the moment shipping delays, tips, or partial fulfilment appear.
+- Model it as an event-sourced state machine where `authorized`, `incremental_auth`, `captured`, `reversed`, `expired`, `cleared`, `settled` are append-only facts folded into current state, each carrying its own amount and currency.
+- Keep a stable authorization identifier that all increments and captures reference; enforce `captured <= authorized` as a hard control, and encode residual-hold release per acquirer since some auto-release on first capture and others need an explicit reversal.
+- Treat expiry as a first-class timed transition with a sweeper — issuer holds age out (often ~7 days) whether or not your records agree, and capturing against an expired auth gets rejected or forces an unexpected re-authorization.
+- Post authorizations to a memo/hold account, never revenue; only capture creates a receivable and only settlement realizes cash, then reconcile authorized vs settled per transaction with a tolerance band for rounding, FX, and permitted tips.
+
+## Further reading
+
+- [Integrating 3-D Secure 2](/blog/posts/fintech-3ds2-authentication-flow.html)
+- [Incremental and partial authorization](/blog/posts/fintech-incremental-partial-auth.html)
+- [EMV cryptograms and the ARQC](/blog/posts/fintech-emv-cryptogram-arqc.html)
+- [The interchange fee engine](/blog/posts/fintech-interchange-fee-engine.html)

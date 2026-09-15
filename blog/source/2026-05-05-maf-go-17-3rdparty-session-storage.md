@@ -44,6 +44,19 @@ go run ./tutorial/02-agents/agents/step07_3rdparty_session_storage
 
 The program needs Foundry; the persist/reload path is tested offline, and the live end-to-end call is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **A history provider is two hooks.** `Provide` loads prior messages before a run, `Store` persists new ones after; everything else — reading/writing files keyed by message ID — is ordinary Go.
+- **`SourceID` prevents double-persisting.** Loaded messages are source-stamped so the default store filter skips them; omit it and reloaded history gets re-persisted and duplicates.
+- **`DisableStoreOutput: true` is the crucial companion.** It tells Foundry not to keep server-side state, making your local provider the single source of truth; omit it and the two histories conflict.
+- **The session stays small on purpose.** `Store` records only message IDs, so `json.Marshal(session)` produces a compact blob no matter how long the conversation grows.
+
+## Further reading
+
+- [step06 · Persisted Conversation](/blog/posts/maf-go-16-persisted-conversation.html) — the simpler variant where the whole session (transcript included) is the blob.
+- [step08 · Observability (OpenTelemetry)](/blog/posts/maf-go-18-observability.html) — add tracing on top of the same agent wiring.
+- [04 · Memory](/blog/posts/maf-go-05-04-memory.html) — a context provider that stores extracted *facts* rather than raw messages.
+
 ---
 
 Next: [step08 · Observability (OpenTelemetry)](/blog/posts/maf-go-18-observability.html)

@@ -95,3 +95,18 @@ A dunning engine is, by nature, a system that issues the same charge more than o
 Instrument the funnel, not just the endpoints. The metric that matters is *recovery rate by decline class and attempt number* — it tells you where retries are wasted and where an extra attempt would pay for itself. Watch attempt-1 recovery separately from attempt-4: if late attempts almost never succeed, tighten the budget and save the fees. Track updater/token-refresh hit rate as its own line, since it is usually the cheapest recovery lever you have.
 
 A dunning engine is deceptively simple to sketch and easy to get wrong in ways that quietly lose money or annoy customers. The discipline is in the classification table, the reason-aware scheduling, and the replay safety — get those three right and the rest is tuning.
+
+## Key takeaways
+
+- The whole system turns on one early decision: is the decline hard (instrument fundamentally unusable — stop and dunning-cancel) or soft (transient — schedule a retry)? Never hard-code raw processor strings; normalize them into your own taxonomy with a per-entry policy, and give unknown codes a cautious single retry, never a hard cancel.
+- Backoff spacing follows the *reason* for the decline, not a generic exponential curve — retry `insufficient_funds` near payday cadence, `issuer_unavailable` on short backoff — and snap each attempt into an allowed business-hours window.
+- Enforce a per-instrument retry budget (often a global per-billing-period cap too) so one dunning cycle can't fire ten authorizations.
+- The highest-leverage recovery move is fixing the credential, not the timing: run Account Updater and network-token refresh *before* consuming a retry attempt on `expired_card`.
+- Replay safety rests on three invariants — idempotency per attempt, a single writer of dunning state, and ledger reconciliation — so a retry that succeeded at the network but timed out on your side can't become a phantom double-charge.
+
+## Further reading
+
+- [Account Updater and the Card-on-File Lifecycle](/blog/posts/fintech-account-updater-cof.html)
+- [Network Tokenization and PCI Scope](/blog/posts/fintech-network-tokenization-pci-scope.html)
+- [VRP and Subscription Billing](/blog/posts/fintech-vrp-subscription-billing.html)
+- [Card Authorization, Capture, and Clearing](/blog/posts/fintech-card-auth-capture-clearing.html)

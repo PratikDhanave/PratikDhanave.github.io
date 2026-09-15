@@ -50,6 +50,19 @@ go run ./tutorial/00-setup/check_setup
 
 This lesson is fully offline — it never contacts the model. Later lessons build and test offline too, gating their live model calls behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **Three ingredients wire a Foundry agent**: a project endpoint, a model deployment name, and a `TokenCredential`. The preflight confirms all three are *present* before spending a single token.
+- **Constructing a credential is not authenticating with it.** `demo.Credential()` only proves the Azure auth chain is available; the actual token is exercised on the first live request, which is why the check warns you to `az login` "if the first lesson 401s."
+- **The check is fully offline** and every later lesson inherits the same two environment variables — `FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_MODEL` — from the shared `internal/demo` helper.
+- A green run means "configured," not "working": the false sense of security is the gotcha to internalize.
+
+## Further reading
+
+- [01 · Hello Agent](/blog/posts/maf-go-02-01-hello-agent.html) — the first lesson that actually spends a token and proves the credential works.
+- [step01 · Basic Foundry Provider](/blog/posts/maf-go-39-basic.html) — the same endpoint/credential/deployment wiring seen from the provider angle.
+- [Azure AI Foundry documentation](https://learn.microsoft.com/azure/ai-foundry/) — what a project endpoint and a model deployment actually are.
+
 ---
 
 Next: [01 · Hello Agent](/blog/posts/maf-go-02-01-hello-agent.html)

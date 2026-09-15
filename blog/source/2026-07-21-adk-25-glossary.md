@@ -133,3 +133,17 @@ Terms are grounded in the real ADK APIs. Where a concept has a distinct Python a
 That is the core vocabulary of the Agent Development Kit — enough to read any ADK project and recognize every primitive at play. From a single `LlmAgent` with one function tool, up through workflow orchestration, persistent sessions, grounded and evaluated behavior, and a managed deployment, every concept in this series composes from the terms above.
 
 Thanks for reading all 26 parts of *Google ADK, Concept by Concept.* Start anywhere: the official [ADK docs](https://google.github.io/adk-docs/), the [Python SDK](https://github.com/google/adk-python), and the [Go SDK](https://github.com/google/adk-go) are the canonical next stops.
+
+## Key takeaways
+
+- ADK's vocabulary groups cleanly by subsystem — agents and orchestration, tools, sessions/state/memory, context and callbacks, runtime/events/streaming, models and reasoning, grounding and evaluation, and protocols and deployment.
+- The single most important string in a multi-agent system is a sub-agent's `description` — it is the routing signal a coordinator matches against when it delegates.
+- State is never mutated in place: every change rides on an event's `state_delta`, and the append-only event stream *is* the run's checkpoint, so resumption just replays the log. Prefixes (`user:`, `app:`, `temp:`) scope how long a key lives.
+- Context comes in escalating flavors — `ReadonlyContext`, `CallbackContext`, `ToolContext`, `InvocationContext` — each granting exactly the capabilities its call site should have.
+- The open protocols split the difference: MCP is "USB for tools" (an agent connects as a client to a server), A2A is "HTTP for agents" (peers discover each other via an Agent Card and call named skills).
+
+## Further reading
+
+- [Agent Config: defining an ADK agent in YAML](/blog/posts/adk-24-agent-config.html) — the declarative capstone the series ends on.
+- [Context caching in ADK](/blog/posts/adk-23-context-caching.html) — one glossary entry expanded into a full post.
+- [ADK docs](https://google.github.io/adk-docs/) — the canonical reference behind every term here.

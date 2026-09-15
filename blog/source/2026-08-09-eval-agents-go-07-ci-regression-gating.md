@@ -393,3 +393,10 @@ The payoff is real despite the softness: a change that drops tool-trajectory acc
 - **Split the schedule:** a deterministic sample on PRs for speed, the full dataset nightly for an authoritative baseline — one env knob, one code path.
 - **Report deltas and save artifacts** so a red build explains itself.
 - **Accept that eval gates are softer than unit tests.** Start advisory, promote the metrics you trust to blocking, version baselines and thresholds in the repo, and watch trends over single runs.
+
+## Further reading
+
+- [Building eval datasets](/blog/posts/eval-agents-go-06-eval-datasets.html)
+- [An eval harness in Go](/blog/posts/eval-agents-go-03-eval-harness-in-go.html)
+- [Evaluating multi-turn and multi-agent systems](/blog/posts/eval-agents-go-08-multi-turn-multi-agent.html)
+- [Agent Development Kit documentation](https://google.github.io/adk-docs/) — the metric model this series ports to Go

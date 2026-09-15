@@ -82,3 +82,17 @@ They are the same idea from three angles: `run()` takes richer *input* (a multi-
 ---
 
 Next: [Middleware — Microsoft Agent Framework in Python](/blog/posts/maf-python-06-middleware.html)
+
+## Key takeaways
+
+- Structured output, streaming, and multimodal input are three dials on the same `run()` call — no new agent type or separate API.
+- With `response_format`, the parsed object lands on `response.value` (a typed instance or a `dict` for a raw schema), *not* `response.text` — and `.value` is `None` when parsing fails, so guard on it.
+- Streaming is `run(..., stream=True)`; not every chunk carries text, so guard on `update.text`, and `get_final_response()` reuses the collected updates rather than re-running the model.
+- A user turn is a `Message` whose `contents` is a list of `Content` parts — text is just one part; add `Content.from_uri(...)` or `Content.from_data(...)` to send an image.
+- Multimodal only works if the deployed `FOUNDRY_MODEL` is vision-capable, otherwise the image part is silently ignored.
+
+## Further reading
+
+- [Conversation and Memory — Microsoft Agent Framework in Python](/blog/posts/maf-python-04-conversation-and-memory.html)
+- [Middleware — Microsoft Agent Framework in Python](/blog/posts/maf-python-06-middleware.html)
+- [Observability, Safety, and Providers — Microsoft Agent Framework in Python](/blog/posts/maf-python-07-observability-safety-providers.html)

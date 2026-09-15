@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-03">July 03, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/crypto/" class="tag-link"><span class="tag">#Crypto</span></a><a href="/blog/tags/custody/" class="tag-link"><span class="tag">#Custody</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/cryptocurrency/" class="tag-link"><span class="tag">#Cryptocurrency</span></a><a href="/blog/tags/security/" class="tag-link"><span class="tag">#Security</span></a></div>
   </header>
@@ -172,6 +172,21 @@
 ledger_effect(key) → applied_once            ← natural-key dedupe
 </code></pre>
 <p>The result is a settlement layer where &ldquo;confirmed&rdquo; is an explicit depth threshold, a credit is a reversible ledger fact rather than a deletion, and every reorg — even a nested one — resolves to a deterministic re-evaluation of the transaction on the chain that actually won. That is the difference between a wallet that occasionally gives away money and one that does not.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>A deposit is not final when first seen; the confirmation threshold <code>N</code> is a risk parameter (not a protocol constant) chosen per asset and scaled with amount, and no ledger credit posts before depth <code>N</code> — anything earlier is display state, not money.</li>
+<li>Treat mempool sightings as advisory: create a <code>SEEN</code> record with no ledger effect, upsert idempotently by <code>(txid, vout)</code>, and match on destination address and amount so a fee-bump replacement reconciles to the same logical deposit instead of double-counting.</li>
+<li>Detect reorgs without a special event — remember the block hash at each processed height and act when the node reports a different hash for a height you recorded; an orphaned credit is reversed with a compensating journal entry, never a deletion.</li>
+<li>After an unconfirm, re-evaluate the transaction on the winning chain into one of three outcomes: re-mined (reset depth, climb back to <code>N</code>), back in mempool (<code>CONFIRMING</code> at depth 0), or replaced/double-spent (terminal, stays reversed).</li>
+<li>Keep it replay-safe by deriving, not accumulating — state is <code>f(containing_block, depth, tip)</code> recomputed each poll — and guard every ledger effect with a natural idempotency key (<code>credit:{txid}:{vout}</code>, <code>reversal:{txid}:{vout}:{orphaned_block_hash}</code>) so nested reorgs and concurrent workers each apply once.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-onchain-event-indexing.html">On-chain event indexing</a></li>
+<li><a href="/blog/posts/fintech-nonce-gas-management.html">Nonce and gas management</a></li>
+<li><a href="/blog/posts/fintech-hd-wallet-deposit-sweeping.html">HD wallets and deposit sweeping</a></li>
+<li><a href="/blog/posts/fintech-handbook-05-idempotency-and-resumability.html">Idempotency and resumability</a></li>
+</ul>
 
 
   <aside class="related-posts">

@@ -75,3 +75,18 @@ Model control as a distinct edge type with its own predicate, evaluated in paral
 A UBO engine that returns a list of names has done half the job. The other half is the control path: for each surfaced owner, the exact chain of edges and weights that produced the determination, serialized alongside the result. When a regulator asks why you cleared a customer, "our system said so" is not an answer; "Person A holds 30 percent through two documented chains, sourced from these two filings dated on these days" is.
 
 Concretely, the engine emits, per beneficial owner: the effective percentage, whether the qualification was ownership or control, every contributing path with per-edge provenance, and the graph version the run executed against. That payload is what makes the whole thing auditable, replayable, and defensible — which, for a compliance control, is the actual product. The names are easy; the evidence is the engineering.
+
+## Key takeaways
+
+- UBO resolution is a weighted directed-graph traversal, not a lookup: the word "indirectly" in the >25% rule is where the engineering lives, and entity resolution (collapsing "ACME HOLDINGS LTD" variants to one node) is a hard prerequisite.
+- Indirect ownership is the product of edge weights along a path, *summed across all distinct paths* — a naive "largest single path" heuristic misses an owner who clears 25% only across multiple chains.
+- Compute in fixed-point basis points or a decimal type, never binary floats — a UBO at 24.9999% vs 25.0001% is a compliance decision — and memoize per (owner, target) since dense cross-holdings explode combinatorially.
+- Cycles (cross-shareholdings) are legal structure, not corruption; guard traversal with a visited-set (or collapse SCCs and solve linearly), and treat a detected cycle as a risk signal in its own right.
+- Control is a separate axis from ownership (board rights, golden shares, voting agreements); qualify on ownership *or* control, and fall back to a senior managing official when no natural person qualifies — an empty UBO list is almost never acceptable.
+
+## Further reading
+
+- [Fraud Ring Graph Detection](/blog/posts/fintech-fraud-ring-graph-detection.html)
+- [Customer Risk Rating](/blog/posts/fintech-customer-risk-rating.html)
+- [Identity Verification (IDV)](/blog/posts/fintech-identity-verification-idv.html)
+- [Beneficial ownership (Wikipedia)](https://en.wikipedia.org/wiki/Beneficial_ownership)

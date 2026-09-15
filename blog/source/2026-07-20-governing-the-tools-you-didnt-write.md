@@ -86,3 +86,17 @@ Fail-closed governance is only *complete* if it accounts for tools that don't ex
 The design lesson generalizes past this one framework: put your policy check on the *invocation* path, not the *registration* path. Middleware that fires per call sees runtime-injected tools for free; a gateway that only validates a startup manifest never will. Then make the default deny. A fail-closed default converts the runtime-injection blind spot from a silent ungoverned bypass into a visible failure — a blocked call with a name attached — and a named block is something you can triage, enumerate, and resolve. You allowlist the known-safe internals deliberately, one verified name at a time, and you leave the rest to fail loud until you've actually looked.
 
 Governance you can only assert about tools you wrote isn't governance. It's a manifest.
+
+## Key takeaways
+
+- Put the policy check on the *invocation* path (function-invocation middleware), not the *registration* path — middleware that fires per call sees runtime-injected tools for free; a gateway that only validates a startup manifest never will.
+- Make the default fail-closed: no `(workload, tool)` policy row means deny. That converts the runtime-injection blind spot from a silent ungoverned bypass into a visible, named block you can triage.
+- Autonomous harnesses inject their own control tools at runtime (`mode-set` / `mode-get` via a `before_run` hook calling `context.extend_tools`), and those carry no policy row — so they hit the fail-closed default and break the loop until handled.
+- The fix is an internal-tools allowlist of specific, personally verified names (not a pattern like `mode-*`), justified because they mutate in-process state with no network or store side effect; also disable framework built-ins like web-search and memory to shrink the surprise surface.
+- You cannot allowlist what you have not observed — the second (todo) provider's tools stay subject to the fail-closed default until a live run reveals the actual injected names off the wire.
+
+## Further reading
+
+- [Tell the agent what it's allowed to do](/blog/posts/tell-the-agent-what-its-allowed-to-do.html) — the cost-and-latency companion: hand the model a capabilities brief so it stops probing the wall.
+- [Policy is code, not a prompt](/blog/posts/policy-is-code-not-a-prompt.html) — why enforcement must live out-of-band where the model can't reach it.
+- [Give every agent its own credential](/blog/posts/per-agent-identity-three-layers.html) — bounding blast radius with per-agent identity, the layer beneath tool policy.

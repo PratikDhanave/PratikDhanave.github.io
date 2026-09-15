@@ -85,3 +85,18 @@ Because the UETR is format-agnostic, this works identically whether the hop that
 Treat the migration surface as three cooperating components rather than one translator. A **codec layer** parses MT into typed field objects and validates MX against the schema, so bad messages fail at the edge. A **mapping layer** transforms between the typed MT model and the MX tree with an explicit, tested table and a truncation policy that preserves the canonical payload. A **tracking layer** owns the UETR invariant and posts idempotent status events to the gpi tracker.
 
 Kept separate, each is testable in isolation: golden-file tests for the codec, round-trip property tests for the mapping (MT to MX to MT should lose only what your policy documents as lossy), and idempotency tests for the tracker. The coexistence window will last longer than anyone plans for, so the code that carries you through it should read like infrastructure — boring, typed, and impossible to accidentally break the one identifier that keeps every payment findable.
+
+## Key takeaways
+
+- The MT-to-MX migration is a long coexistence window, not a flag day: a single payment may be re-formatted between block-and-tag MT (MT103, MT202) and XML MX (`pacs.008`, `pacs.009`, `pacs.002`) several times before it reaches the beneficiary.
+- The UETR is the invariant — a UUIDv4 minted once at origination and copied, never regenerated; a correspondent that mints a fresh one severs the trace. It lives in the MX transaction group header and in MT field 121 of the block-3 user header.
+- Parse MT fields as typed extractors: convert amounts to integer minor units immediately (no floats) and pull the currency exponent from a table, since a naive `* 100` corrupts zero-decimal currencies like JPY.
+- MX-to-MT is the lossy direction — structured names, addresses, and remittance get truncated — so persist the full MX payload as the record of truth, emit the truncated MT for the hop that needs it, and flag it as truncated.
+- gpi tracking needs idempotency at two layers: the UETR keys the payment, and a status-event key derived from `(UETR, BIC, status, settlement-date)` collapses duplicate tracker posts. Watch for charge-bearer drift and value-date vs settlement-date confusion.
+
+## Further reading
+
+- [Modeling ISO 20022 payment messages](/blog/posts/fintech-iso-20022-message-modeling.html)
+- [Nostro/vostro reconciliation](/blog/posts/fintech-nostro-vostro-reconciliation.html)
+- [Interbank mTLS and message signing](/blog/posts/fintech-interbank-mtls-message-signing.html)
+- [CLS and PvP FX settlement](/blog/posts/fintech-cls-pvp-fx-settlement.html)

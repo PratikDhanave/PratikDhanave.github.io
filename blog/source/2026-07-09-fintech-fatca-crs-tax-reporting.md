@@ -80,3 +80,17 @@ The end-to-end invariant worth enforcing in code is simple to state: every repor
 ## Closing thought
 
 None of the individual steps here are algorithmically hard. What makes tax reporting an engineering problem is *identity and time*: an account has multiple residencies, its documentation status changes mid-year, and every file may need to be amended a year later. Model residency as a set, withholding as an event stream, and filings as a diff against a stored baseline, and the three regimes stop being three projects and become one pipeline with three serializers on the end.
+
+## Key takeaways
+
+- Compute residency once and make every file a projection of it — three parallel batch scripts each re-deriving residency slightly differently is the failure mode.
+- Residency is a **classification, not a `tax_country` column**: an account holder can be tax-resident in several jurisdictions, and residency is derived by reconciling a self-certification against your own indicia (unexplained indicia are reportable until cured). Persist a *set* of reportable residences per account.
+- Withholding and reporting are separate axes: withholding happens continuously at payment time and writes an immutable record; year-end reporting *sums those records* rather than recomputing, because documentation status changed during the year.
+- File generation is a projection over one internal representation — a flat `(account, jurisdiction, amounts)` table, since CRS partitions by receiving jurisdiction — feeding three serializers (1099, FATCA XML, CRS XML).
+- Corrections are the underestimated part: stable, stored document references let a regeneration diff against the filed baseline (omit / correct / void / new), which *is* the whole correction engine.
+
+## Further reading
+
+- [Regulatory transaction reporting](/blog/posts/fintech-regulatory-transaction-reporting.html)
+- [Perpetual KYC monitoring](/blog/posts/fintech-perpetual-kyc-monitoring.html)
+- [Customer risk rating](/blog/posts/fintech-customer-risk-rating.html)

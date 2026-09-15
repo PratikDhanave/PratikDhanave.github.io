@@ -141,3 +141,17 @@ Go expresses it identically with `session.InMemoryService()` and a per-call `run
 For compliance beyond your code, GCP adds managed layers *around* the agent — **Model Armor** (a `model_armor_config` naming server-side prompt/response screening templates on Vertex AI) and **VPC Service Controls** (a network perimeter that keeps agent traffic inside a trusted boundary even with valid credentials). Neither is an ADK API; both are platform controls you enable outside the code.
 
 **Next in the series:** Protocols — MCP and A2A, where connecting external tool servers and other agents opens each a new trust boundary this defense-in-depth mindset applies to.
+
+## Key takeaways
+
+- Safety is a *stack* of independent layers, not a switch: input guardrail, model safety settings, tool guardrail, in-tool validation, least-privilege identity, and output filter — a request has to slip past *all* of them to do harm.
+- The callback layers reuse one short-circuit rule: a `before_*` callback that returns a value skips its step, an `after_*` callback that returns a value replaces the output. Keep the decision logic pure (plain functions of strings/dicts) so it's fast, exhaustively unit-testable, and offline.
+- Guard the tool from the inside too: the `before_tool` callback is defense in *breadth* (and can be misconfigured or forgotten), while an in-tool business-limit check is defense in *depth* — the last line before a destructive action executes.
+- Least privilege beats detection: scope each tool's credentials, use tool auth for scoped credentials at call time, require human approval for irreversible actions, and isolate identity per user/session — not giving a tool access to a secret beats redacting a leaked one.
+- Sandbox untrusted or under-test agents with a throwaway `Runner` plus a fresh in-memory session service *per invocation* so they share zero state — distinct from `AgentTool` (shares the whole context) and `include_contents='none'` (drops history but shares state).
+
+## Further reading
+
+- [Protocols in ADK: MCP and A2A](/blog/posts/adk-16-protocols-mcp-a2a.html)
+- [Callbacks in ADK](/blog/posts/adk-09-callbacks.html)
+- [OWASP](https://owasp.org/)

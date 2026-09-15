@@ -59,6 +59,20 @@ go run ./tutorial/03-workflows/subworkflows/nested_order_processing
 
 Fully offline — no model, no provider. The test builds the identical nested graph, asserts its wiring, runs it end-to-end, and checks the nested `FraudRiskAssessedEvent` surfaces at the top level.
 
+## Key takeaways
+
+- A whole `*workflow.Workflow` binds as a single executor inside a larger workflow via `inproc.BindSubworkflowAsExecutor`, and the composition is recursive — a subworkflow's builder can bind *its* subworkflow as a node.
+- Nesting does not hide observability: an event raised deep inside `FraudCheck` (`ctx.AddEvent`) bubbles up to the *top-level* run's `WatchStream`, so encapsulation doesn't cost you cross-level tracing.
+- One payload crosses every boundary — the same `OrderInfo` struct flows through all levels, each executor enriching it — and subworkflow boundaries don't reshape the message.
+- Scoped shared state works inside a subworkflow (`ctx.QueueStateUpdate` / `ctx.ReadState` under a local scope), and each subworkflow's `WithOutputFrom` output becomes the message on the parent's outgoing edge.
+- Build order is bottom-up (leaf first), which is how you keep large graphs modular and independently testable — a fraud-check, payment, and shipping pipeline each built and tested on its own, then composed.
+
+## Further reading
+
+- [shared-states · Coordinating executors through shared state](/blog/posts/maf-go-82-shared-states.html)
+- [Subworkflow — Microsoft Agent Framework in Go](/blog/posts/maf-go-65-05-subworkflow.html)
+- [microsoft/agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)
+
 ---
 
 Next: [A2A Client](/blog/posts/maf-go-84-a2a-client.html)

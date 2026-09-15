@@ -84,3 +84,18 @@ The actual submission goes to the relevant Financial Intelligence Unit (FIU) ove
 The theme running through every stage is that the append-only audit log is not a side effect — it is the deliverable. Auth decisions, triage scores, state transitions, evidence attachments, and the final filing acknowledgment all land in the same tamper-evident event stream, each carrying actor, timestamp, and reason.
 
 Build the pipeline log-first and the compliance properties fall out for free: you can replay any case, prove separation of duties, demonstrate that no alert was silently dropped, and reconstruct exactly what was known when a decision was made. Build it state-field-first and you will spend the next exam explaining why you cannot answer those questions. The case management pipeline is where AML stops being a detection problem and becomes a systems-of-record problem — and systems of record live or die by their logs.
+
+## Key takeaways
+
+- An **alert is not a case**: alerts are cheap and high-volume, cases are expensive durable investigations. A correlation step groups alerts by subject and time window so one case aggregates many alerts and outlives the one that opened it.
+- Triage is the pressure-relief valve on a 90–95% false-positive rate — it enriches, scores, and dispositions (auto-close, hold, or promote). Crucially, an auto-close is still a decision: it needs a reason code, model version, and timestamp in the same append-only log as human decisions.
+- Model the case as a state machine where invariants matter more than the boxes: no terminal state without a written rationale, transitions are append-only (recompute state by folding the log), and separation of duties makes `FILE_SAR` reachable only via an approval by a different authenticated actor.
+- The investigation workspace must assemble evidence *as of the case's timeline*, not now — snapshot enrichment on promotion and keep evidence write-once, because balances and risk ratings drift.
+- Filing has two hard constraints: a regulatory clock (a queue-latency SLO with legal teeth, needing aging dashboards and escalation) and strict anti-tipping-off confidentiality that compartmentalizes filing records away from customer-facing systems.
+
+## Further reading
+
+- [Transaction monitoring rules](/blog/posts/fintech-transaction-monitoring-rules.html)
+- [The sanctions screening engine](/blog/posts/fintech-sanctions-screening-engine.html)
+- [Perpetual KYC monitoring](/blog/posts/fintech-perpetual-kyc-monitoring.html)
+- [Customer risk rating](/blog/posts/fintech-customer-risk-rating.html)

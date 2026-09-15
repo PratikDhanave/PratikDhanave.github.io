@@ -143,3 +143,17 @@ One triage router hands off to one specialist. But a specialist often has to bre
 ---
 
 Next: [Hierarchical Supervision: Fan-Out, Fan-In, Fault Isolation](/blog/posts/harness-engineering-go-07-hierarchical-supervision.html)
+
+## Key takeaways
+
+- Triage is a first-match keyword `Router`: lowercase once, scan the trigger table in order, return the first specialist whose keyword appears, and fall through to `Fallback` when nothing matches.
+- The trigger table is a *slice, not a map*, on purpose — Go randomizes map iteration order, so a message with two trigger words ("error on my invoice") would pick a different winner each run. First-match requires an ordered structure.
+- `RouteDecision` carries the matched keyword, not just the destination, which is what makes routing auditable — you can see it was "refund" that sent a request to Billing.
+- `Fallback` is not an error state — it is a first-class destination (a general agent or human) for requests triage can't confidently place, which keeps the front door honest instead of forcing a mis-route.
+- State the leak: a substring table has no notion of meaning ("it won't build" misses "compile") and no thread context. A real Foundry triage agent classifies on meaning, sees the whole thread, and can ask a clarifying question.
+
+## Further reading
+
+- [Advanced Memory: threads, retrieval, summarization](/blog/posts/harness-engineering-go-05-advanced-memory.html) — the previous lesson, whose keyword index shares this same "meaning" leak.
+- [Hierarchical supervision: fan-out, fan-in, fault isolation](/blog/posts/harness-engineering-go-07-hierarchical-supervision.html) — the next lesson, one level up from single handoff.
+- [microsoft/agent-framework-go](https://github.com/microsoft/agent-framework-go) — the handoff-orchestration triage agent this router stands in for.

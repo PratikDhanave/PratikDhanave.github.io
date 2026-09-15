@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-08-03">August 03, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/cards/" class="tag-link"><span class="tag">#Cards</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/card-payments/" class="tag-link"><span class="tag">#Card Payments</span></a></div>
   </header>
@@ -208,6 +208,21 @@
 <h2 id="operational-edges-worth-designing-for">Operational edges worth designing for</h2>
 <p>Three failure modes deserve explicit handling. First, <strong>ACS unavailability</strong>: if the issuer&rsquo;s ACS times out or returns <code>U</code>, you decide per risk appetite — proceed without a shift, or decline. Encode that as policy, not an exception handler. Second, <strong>version negotiation</strong>: not every BIN supports 2.2; your DS lookup tells you the supported range, and you must degrade to 2.1 fields or a non-3DS authorization cleanly. Third, <strong>data-only and decoupled flows</strong>: some regions let the issuer authenticate out of band and confirm later, so your state machine needs a &ldquo;pending, resolve asynchronously&rdquo; branch rather than assuming every authentication resolves within the checkout session.</p>
 <p>Treat the whole thing as a small distributed transaction with one durable piece of state — the pending authentication keyed by <code>threeDSServerTransID</code> — and both the frictionless and challenge paths become the same resumable flow with different latencies. That framing, more than any field-level detail, is what keeps a 3DS2 integration from quietly leaking conversion or liability.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>3DS2 replaces v1&rsquo;s full-page redirect with a data-rich, mostly invisible exchange: the merchant collects device and transaction context up front, the issuer scores it, and only genuinely risky payments get an interactive challenge.</li>
+<li>Four actors carry it — your 3DS Server, the scheme&rsquo;s Directory Server (routes by BIN), the issuer&rsquo;s ACS (decides), and the browser — with <code>AReq</code>/<code>ARes</code> for authentication, <code>CReq</code>/<code>CRes</code> for the challenge, and the out-of-band <code>RReq</code>/<code>RRes</code> you must trust over the browser-delivered result.</li>
+<li>Fire the 3DS Method fingerprint invisibly when the customer reaches the payment page (not on Pay), with a bounded ~10s timeout falling back to <code>threeDSCompInd=N</code>; a richer <code>AReq</code> payload is a conversion lever toward frictionless approval.</li>
+<li>The <code>transStatus</code> field is your control flow (<code>Y</code> authenticate-and-go, <code>C</code> challenge, <code>A</code> attempted, <code>N</code>/<code>R</code>/<code>U</code> fallback); persist cart, amount, and <code>threeDSServerTransID</code> so a challenge is a resumable detour, not a lost transaction.</li>
+<li>Authentication is worthless unless ECI, CAVV/AAV (the issuer cryptogram), and dsTransID reach the authorization message intact — a dropped CAVV is invisible on the happy path and surfaces months later as lost chargebacks, so assert them against the scheme sandbox before launch.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-card-auth-capture-clearing.html">Card authorization, capture, and clearing</a></li>
+<li><a href="/blog/posts/fintech-sca-exemptions-psd2.html">SCA exemptions under PSD2</a></li>
+<li><a href="/blog/posts/fintech-step-up-auth-orchestration.html">Step-up authentication orchestration</a></li>
+<li><a href="/blog/posts/fintech-network-tokenization-pci-scope.html">Network tokenization and PCI scope</a></li>
+</ul>
 
 
   <aside class="related-posts">

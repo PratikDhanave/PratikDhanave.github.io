@@ -82,6 +82,18 @@ Printing `result` gives you the text, but the result is more than a string. It c
 
 That's the loop. A client you can point anywhere, an instruction string that is the agent, and a `run()` you consume whole or piece by piece. Next I give this agent a function it can actually call.
 
+## Key takeaways
+
+- The whole loop is three parts: a **client** (`FoundryChatClient` with project endpoint, model deployment name, and credential), an **Agent** (instructions wrapped around the client), and a **run**.
+- `AzureCliCredential()` reuses your `az login` session and mints a bearer token on the first call — nothing hits the network at construction, so the client object returns instantly even offline.
+- The `instructions` string *is* the agent: persona, tone, and guardrails all live there, with no separate template class; change the string and behavior shifts immediately.
+- The same `run()` works two ways — non-streaming returns one result object; `stream=True` turns it into an async iterator of chunks that, concatenated, equal the same text. Guard on `chunk.text` because some chunks carry metadata or tool-call deltas.
+
+## Further reading
+
+- [Learning the Microsoft Agent Framework in Python](/blog/posts/maf-python-01-learning-by-building.html) — why this series is built as one runnable lesson per concept
+- [Giving an Agent Tools](/blog/posts/maf-python-03-giving-agents-tools.html) — the next post: giving this agent a function it can call
+
 ---
 
 Next: [Giving an Agent Tools — Microsoft Agent Framework in Python](/blog/posts/maf-python-03-giving-agents-tools.html)

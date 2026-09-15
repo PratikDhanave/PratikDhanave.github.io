@@ -56,6 +56,18 @@ This is the canonical "assembly-line of specialists" pattern: several Foundry-ba
 
 **Run it:** `go run ./tutorial/03-workflows/01-start-here/04_multi_model_service`. The offline test builds the identical graph with a fake credential and walks the edges to assert the researcher → fact_checker → reporter chain; the live run is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- Role separation is the whole idea: researcher, fact_checker, and reporter share one Foundry model but carry different `Instructions`, reading like a small editorial team.
+- `NewSequentialWorkflowBuilder(agents...)` turns the ordered slice into a graph — the first agent is the start executor, an edge runs from each agent to the next, and the last agent's response is the output.
+- The builder names each executor `"<agentName>_<agentID>"`, not the plain name — so the program prints the full ID as a header and the offline test asserts on ID *prefixes*.
+- `WithName` / `WithOutputFrom` / `WithIntermediateOutputFrom` let you name the workflow and choose which stages surface as output, e.g. showing the fact-checker's notes alongside the final summary.
+
+## Further reading
+
+- [03 · Agent Workflow Patterns](/blog/posts/maf-go-63-03-agent-workflow-patterns.html) — the pattern lesson this one specializes
+- [05 · Subworkflows (composing workflows)](/blog/posts/maf-go-65-05-subworkflow.html) — packaging a pipeline like this as a reusable node
+
 ---
 
 Next: [05 · Subworkflows (composing workflows)](/blog/posts/maf-go-65-05-subworkflow.html)

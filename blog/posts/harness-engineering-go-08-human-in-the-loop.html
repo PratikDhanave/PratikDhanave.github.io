@@ -112,7 +112,7 @@
       <span>·</span>
       <time datetime="2026-07-25">July 25, 2026</time>
       <span>·</span>
-      <span>7 min read</span>
+      <span>9 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/harness-engineering/" class="tag-link"><span class="tag">#Harness Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/human-in-the-loop/" class="tag-link"><span class="tag">#Human-in-the-Loop</span></a><a href="/blog/tags/azure/" class="tag-link"><span class="tag">#Azure</span></a><a href="/blog/tags/engineering-practices/" class="tag-link"><span class="tag">#Engineering Practices</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -259,6 +259,21 @@ func TestLateApprovalTimesOut(t *testing.T) {
 <p>Every one of them is the same move: an Azure primitive (Content Safety, Cosmos DB, Foundry, AI Search, a request/response executor) named explicitly, then stood in for by a small Go struct behind an interface, with the leak stated out loud. The caller never learns which side of the seam it&rsquo;s on.</p>
 <h2 id="whats-next">What&rsquo;s next</h2>
 <p>There is exactly one seam left un-swapped, and it&rsquo;s the one I stubbed on purpose in Lesson 1: the agent call itself. Every lesson routes around a <code>// --- agent call (STUB) ---</code> that echoes the input back. The remaining step — the real one — is to replace that stub with a <code>foundryprovider</code> run from microsoft/agent-framework-go, so the guardrails guard a real model, the durable workflow checkpoints real tool calls, and this approval gate pauses a genuinely consequential action. Everything around it already tests offline, runs deterministically, and states where it&rsquo;s weaker than the managed service. That was the whole point: build the harness first, drop the model in last, and never be surprised by the seam.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Suspension is not a new mechanism — <code>RequestApproval</code> just writes an <code>awaiting_approval</code> checkpoint to the same <code>durable.Store</code> from Lesson 2 and returns without touching the action, so a crash or a week&rsquo;s idle loses nothing. That is why Lesson 2 was the spine.</li>
+<li><code>Resume</code> checks the deadline <em>first</em>, against an injected <code>now</code>: past the window, the action does not run even on a &ldquo;yes&rdquo; — a late approval is void, not &ldquo;better late than never&rdquo; (a refund approved after the dispute, a deploy approved after the rollback).</li>
+<li>Rejected means the action is never performed, and it&rsquo;s enforced structurally, not by trusting the caller; approved-and-on-time runs the action and records <code>performed=true</code> plus its output, so &ldquo;the action ran&rdquo; is itself durable.</li>
+<li>Every function takes <code>now time.Time</code> and never reads the wall clock, which makes deadline behavior testable with <code>base.Add(2*time.Hour)</code> as a value — no <code>time.Sleep</code>, no flaky tests.</li>
+<li>State the leak twice: a real request/response executor also <em>routes</em> the request to a person, authenticates who may approve, and correlates the reply — this stand-in does none of that; and execution is at-least-once, so the sensitive action must be idempotent (an idempotency key like <code>refund_id: rf_123</code>) since a crash after the action but before the terminal checkpoint re-runs it.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/harness-engineering-go-03-durable-execution.html">Durable execution: checkpoint every step</a> — Lesson 2, the store this approval gate reuses.</li>
+<li><a href="/blog/posts/harness-engineering-go-01-the-seam.html">The seam (series overview)</a> — the interface-and-local-stand-in pattern the whole arc is built on.</li>
+<li><a href="https://github.com/microsoft/agent-framework-go">microsoft/agent-framework-go</a> — the request/response executor and <code>foundryprovider</code> the final swap targets.</li>
+</ul>
 <hr>
 <p>Next: <a href="/agent-framework/">My upstream Microsoft Agent Framework Go contributions</a></p>
 

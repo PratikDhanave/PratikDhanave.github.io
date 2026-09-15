@@ -48,3 +48,16 @@ Start the three servers first, then `go run ./tutorial/05-end-to-end/a2a_client_
 ---
 
 Next: [A2A Server](/blog/posts/maf-go-85-a2a-server.html)
+
+## Key takeaways
+
+- The host is a local Foundry "HostClient" agent; `resolveRemoteTools` walks the remote URLs, resolves each agent card, and turns every remote agent into one callable tool — the client never hard-codes what a remote can do.
+- Discovery is `agentcard.DefaultResolver.Resolve` → `a2aclient.NewFromCard` → `a2aprovider.NewAgent` → `agenttool.New`; the card's `Name`/`Description` name the tool and dial the endpoint.
+- `agenttool.New` collapses a whole remote agent into a single tool, so the host model picks a specialist the same way it picks any function tool — the network hop is invisible to it.
+- `splitURLs` is the one piece of pure logic (parse the semicolon-separated `A2A_AGENT_URLS`, trim blanks, fall back to the default trio), which is why the offline test can build the host from a fake remote and fake credential; the live loop is gated behind `AF_LIVE=1`.
+
+## Further reading
+
+- [A2A Server](/blog/posts/maf-go-85-a2a-server.html) — the other half of the pair
+- [Hosting and the Capstone App — Microsoft Agent Framework in Go](/blog/posts/maf-go-12-hosting-and-capstone.html)
+- [agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)

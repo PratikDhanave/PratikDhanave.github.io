@@ -56,6 +56,18 @@ Data flows by output → input: each executor returns a string, and the edge for
 
 **Run it:** `go run ./tutorial/03-workflows/01-start-here/05_subworkflow`. This lesson makes no model call, so it runs entirely offline — the test both asserts the parent/child wiring and runs the parent end-to-end to confirm the composed output.
 
+## Key takeaways
+
+- `inproc.BindSubworkflowAsExecutor(wf, id)` converts a built `*workflow.Workflow` into an `ExecutorBinding` that slots into `AddEdge` exactly like a leaf executor — workflows compose.
+- Once embedded, the subworkflow's inner nodes are invisible to the parent, which sees one executor whose input is its incoming string and whose output is whatever the subworkflow's own `WithOutputFrom` yields.
+- That encapsulation is the payoff: adding a stage *inside* the subworkflow doesn't change the parent's wiring or its assertions.
+- Because the binding is just another `ExecutorBinding`, the same subworkflow can be embedded twice with distinct IDs or mixed with agent-backed executors.
+
+## Further reading
+
+- [01 · Streaming — your first workflow](/blog/posts/maf-go-61-01-streaming.html) — the plain string-transform executors reused here
+- [06 · Mixed Workflow — Agents and Executors in One Graph](/blog/posts/maf-go-66-06-mixed-workflow-agents-and-executors.html) — mixing deterministic and agent nodes in one graph
+
 ---
 
 Next: [06 · Mixed Workflow — Agents and Executors in One Graph](/blog/posts/maf-go-66-06-mixed-workflow-agents-and-executors.html)

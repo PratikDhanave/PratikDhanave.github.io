@@ -85,3 +85,18 @@ A few principles hold up across every DvP settlement system worth trusting:
 - **Treat fails as first-class data, not errors.** Emit durable fail records that buy-in and penalty processes can consume, and never let a fail degrade into a partial settlement.
 
 DvP is conceptually simple — two obligations, settled together or not at all — but the value is entirely in the "or not at all." Get the atomicity and the fail semantics right, and the rest of the settlement stack is bookkeeping around a promise the system can always keep.
+
+## Key takeaways
+
+- DvP exists to remove **principal risk**: the securities leg and the cash leg settle as a single indivisible event so neither party can deliver without receiving — the securities-market cousin of FX PvP.
+- The settlement timeline is not the trade timeline: T+2 is a deliberate batch reconciliation window, so "instructed but not yet settled" must be a first-class, days-long status, not latency to minimize.
+- Novation replaces the bilateral contract with buyer-to-CCP and CCP-to-seller, which changes who you settle against *and* enables netting — generate settlement obligations from net positions per instrument per date, never one instruction per trade.
+- The atomic swap is the whole point: both legs commit inside one transaction boundary (reserve the buyer's cash first to collapse it into a single securities-availability check), and a shortfall aborts the whole thing.
+- Fails are a normal business outcome, not an exception — a fail must **unwind, never partial-settle** (a partial reintroduces the exact risk DvP prevents), and it should emit a durable fail record that buy-in and penalty processes consume.
+
+## Further reading
+
+- [CLS and PvP FX settlement](/blog/posts/fintech-cls-pvp-fx-settlement.html)
+- [CCP clearing and margin](/blog/posts/fintech-ccp-clearing-margin.html)
+- [Netting engine design](/blog/posts/fintech-netting-engine-design.html)
+- [Delivery versus payment (Wikipedia)](https://en.wikipedia.org/wiki/Delivery_versus_payment)

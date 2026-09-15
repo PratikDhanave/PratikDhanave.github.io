@@ -79,6 +79,21 @@ If you are building on AP2, three areas deserve early attention.
 
 AP2 turns "an agent bought this for me" from a liability into a provable claim. Three signed mandates, Intent, Cart, and Payment, each answer a distinct accountability question, and chained with verifiable credentials they produce a tamper-evident audit trail. The upfront Intent Mandate is what makes autonomous, human-not-present purchases legitimate; the Cart Mandate guarantees what-you-see-is-what-you-pay-for; and the Payment Mandate keeps the network and issuer in the loop. Payment-method agnostic and complementary to MCP and A2A, AP2 is the accountability layer agentic commerce was missing.
 
+## Key takeaways
+
+- AP2 decomposes every agent purchase into three signed mandates, each answering a distinct accountability question: Intent (what the user wants and the rules), Cart (the exact items and price), and Payment (the instrument, amount, and the signal that an agent is involved).
+- Each mandate is signed as a Verifiable Credential, giving tamper-evidence (any post-signing change invalidates it) and non-repudiation (no party can deny authorizing its part); chained, they form a cryptographic audit trail, not a self-serving log.
+- The two operating modes differ only in signature timing: human-present signs the Cart Mandate in real time, while the delegated flow signs a detailed Intent Mandate upfront whose rule specificity is the user's control surface.
+- AP2 is deliberately narrow and payment-method agnostic — it describes authorization, not settlement — so it composes with MCP (tools/context) and A2A (agent coordination) and works over cards, bank transfers, or stablecoins via the x402 extension.
+- Engineers should treat key management/signing, mandate revocation and expiry, and per-transaction audit retrieval as first-class concerns rather than afterthoughts.
+
+## Further reading
+
+- [Agentic commerce, explained](/blog/posts/agentic-commerce-explained.html)
+- [Verifiable mandates](/blog/posts/agentic-commerce-verifiable-mandates.html)
+- [x402 and HTTP 402 payments](/blog/posts/agentic-commerce-x402-http-402.html)
+- [The agentic commerce protocol stack](/blog/posts/agentic-commerce-protocol-stack.html)
+
 ## Sources
 
 - https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol

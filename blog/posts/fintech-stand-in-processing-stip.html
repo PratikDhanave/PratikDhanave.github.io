@@ -112,7 +112,7 @@
       <span>·</span>
       <time datetime="2026-06-28">June 28, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/cards/" class="tag-link"><span class="tag">#Cards</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">#Reliability</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/card-payments/" class="tag-link"><span class="tag">#Card Payments</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a></div>
   </header>
@@ -183,6 +183,21 @@
 <h2 id="what-the-state-model-teaches">What the state model teaches</h2>
 <p>Reduced to a state machine, STIP is a clean lesson in designing for partial failure. The happy path — online auth to reconciled ledger — is a straight rail. Everything interesting hangs off the later phases as bounded exceptions: an over-limit decline that terminates immediately, an advice that retries then expires, a reconciled item the issuer later reverses.</p>
 <p>The engineering discipline is in the boundaries. Stand-in is not &ldquo;approve when unsure&rdquo;; it is &ldquo;approve <em>this much</em>, <em>this often</em>, for <em>these categories</em>, and record every approval as a durable, idempotent promise you will make good the instant the issuer is reachable.&rdquo; Build the limits too tight and you recreate the decline storm you were avoiding. Build them too loose and an issuer outage becomes an issuer <em>loss event</em>. STIP lives in the narrow band between availability and exposure — and the advice queue is the ledger that keeps that trade honest.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Declining everything during an issuer outage is safe and terrible — a decline storm strands every cardholder of that bank at once, so issuers pre-authorize a bounded fallback posture the network enforces on their behalf.</li>
+<li>The fallback trigger is a cascade, not a flag: hard connectivity loss, timeout (2–5s), or malformed/repeated failures; a timeout is ambiguous because the issuer may have approved before the response was lost.</li>
+<li>Stand-in decisions ride an intentionally conservative envelope: per-transaction ceiling, cumulative exposure cap, velocity rules, category/geography filters, and card-status checks — anything above the envelope is a terminal decline.</li>
+<li>Every stand-in approval generates an ISO 8583 advice (0120/0220) held in a durable, idempotent, TTL-bounded store-and-forward queue — that queue <em>is</em> the risk ledger of money the issuer owes but hasn&rsquo;t booked.</li>
+<li>Reconciliation squares the exposure when the issuer signs back on: it posts normal cases, deduplicates the timeout ambiguity by reference number, and occasionally reverses an untenable approval into the dispute rails — continuity at the outage, correctness afterward.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-iso-8583-codec.html">ISO 8583 Codec</a></li>
+<li><a href="/blog/posts/fintech-card-auth-capture-clearing.html">Card Authorization, Capture, and Clearing</a></li>
+<li><a href="/blog/posts/fintech-payments-observability-slos.html">Payments Observability and SLOs</a></li>
+<li><a href="https://en.wikipedia.org/wiki/ISO_8583">ISO 8583 (Wikipedia)</a></li>
+</ul>
 
 
   <aside class="related-posts">

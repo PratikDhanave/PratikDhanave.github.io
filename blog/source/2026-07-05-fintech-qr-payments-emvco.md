@@ -105,3 +105,18 @@ Static codes have no reference, so they cannot expire and cannot be made idempot
 Settlement arrives asynchronously, often batched hours later, and it is only useful if you can match each settled line back to an intent. For dynamic codes this is clean: the acquirer returns your tag `62` reference on the clearing record, you look up the stored intent, confirm the amount and currency agree, and mark it settled. Mismatches — a settled amount that differs from the intent, or a reference with no stored intent — go to an exceptions queue rather than silently closing the ledger entry.
 
 For static codes you have no such key, so reconciliation degrades to matching on merchant id, amount, and timestamp windows, which is inherently fuzzy. The engineering lesson generalizes past QR entirely: the cheapest reconciliation is the identifier you chose to embed at initiation time. Plant a unique, persisted reference in the payload up front, and the settlement side becomes a lookup instead of a heuristic.
+
+## Key takeaways
+
+- An EMVCo QR is a flat tag-length-value string in ASCII digits — a two-digit tag, a two-digit length, then the value, concatenated with no delimiter because the length tells you where the next field starts.
+- Tag `63` (CRC) is the classic trap: the checksum is computed over the payload *including* the literal `6304` prefix but *excluding* the four hex characters it protects — get it wrong and every payer app rejects the code.
+- Static codes (tag `01` = `11`) omit the amount and carry no per-transaction identity, so they can't be made single-use or expire; dynamic codes (`01` = `12`) carry the amount and a reference you generate and persist *before* rendering (in the tag `62` template), which becomes your join key for the payment's whole life.
+- Decode in order: verify the CRC first, then read the initiation method — honor the fixed `54` amount on a dynamic code and never let the user edit it; prompt for an amount only on a static one.
+- EMVCo has no universal expiry tag, so store `expires_at` with the reference and treat the reference as an idempotency key; reconciliation is a clean lookup by that reference for dynamic codes and degrades to fuzzy merchant/amount/time matching for static ones.
+
+## Further reading
+
+- [The ISO 8583 codec](/blog/posts/fintech-iso-8583-codec.html)
+- [RTP and FedNow instant payments](/blog/posts/fintech-rtp-fednow-instant-payments.html)
+- [Request to Pay and mandate engines](/blog/posts/fintech-request-to-pay-mandates.html)
+- [The card payment actors map](/blog/posts/fintech-payments-actors-map.html)

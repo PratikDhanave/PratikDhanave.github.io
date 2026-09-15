@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-06-23">June 23, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/settlement/" class="tag-link"><span class="tag">#Settlement</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a></div>
   </header>
@@ -173,6 +173,20 @@ func bilateralNet(pair []Obligation, a, b PartyID) Money {
 <p>A breach cannot be waved through; that is exactly the uncollateralized exposure the cap exists to prevent. There are two disciplined responses. The gentler one is to require the breaching party to post additional collateral to lift its cap before settlement runs. The failure path is <strong>unwinding</strong>: remove the offending participant&rsquo;s obligations from the snapshot entirely and recompute the whole matrix without it. Unwinding is systemically ugly — it shifts positions for <em>everyone</em>, because obligations that were funding other parties&rsquo; net credits just vanished — which is precisely why real systems prefer caps plus pre-funded collateral and treat an unwind as a last resort. Design for it, instrument it, and alert loudly when it triggers, but architect so it almost never does.</p>
 <h2 id="emitting-settlement-instructions">Emitting settlement instructions</h2>
 <p>The final stage turns the validated net vector into concrete transfers against the settlement account. Debtors pay in; the engine waits until <strong>all</strong> required pay-ins land, then releases credits to the long parties — never credit before the matching debits have settled, or you have extended intraday credit you never agreed to. Stamp every instruction with the <code>cycle_hash</code> so the settlement leg is traceable back to the exact snapshot that produced it, and make instruction generation idempotent on <code>(cycle_id, party_id)</code> so a retried settlement run cannot double-pay. Net small, snapshot hard, cap always, and the arithmetic that started as a hundred thousand lines settles as a handful of transfers you can fully reconstruct on demand.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Netting collapses gross obligations into a handful of net positions — bilateral netting removes 50–70% of gross value, multilateral routinely 90%+ — but it <em>creates</em> a settlement obligation that did not exist gross, so every design choice exists to make that result survivable.</li>
+<li>The cycle snapshot is the whole game: an obligation belongs to exactly one cycle decided at snapshot time and never moves. Implement it as an immutable, content-addressed set with a <code>cycle_hash</code> for byte-identical reproducibility, sourced from an append-only ledger by monotonic sequence — never a <code>WHERE status = 'pending'</code> query against live-mutating rows.</li>
+<li>One currency per cycle and integer minor units are non-negotiable; a floating-point cent eventually yields a matrix whose column sums don&rsquo;t zero, and a matrix that doesn&rsquo;t zero cannot be settled.</li>
+<li>Assert <code>Σ net_i = 0</code> before emitting any instructions and refuse if it fails — a non-zero sum means an obligation was double-counted, dropped, or leaked rounding.</li>
+<li>Bound every net debit with a collateral-backed net-debit cap; a breach means post more collateral or unwind (remove the party and recompute the whole matrix) — architect for unwind but treat it as a loud last resort.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-rtgs-vs-dns-architecture.html">RTGS vs Deferred Net Settlement</a> — where netting sits in the settlement-finality-versus-liquidity tradeoff</li>
+<li><a href="/blog/posts/fintech-cls-pvp-fx-settlement.html">Payment-versus-Payment: Settling FX Without Principal Risk</a> — netting applied to two-currency FX settlement</li>
+<li><a href="/blog/posts/fintech-ccp-clearing-margin.html">CCP Clearing and Margin</a> — multilateral netting after novation into a central counterparty</li>
+</ul>
 
 
   <aside class="related-posts">

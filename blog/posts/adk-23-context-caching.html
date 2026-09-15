@@ -112,7 +112,7 @@
       <span>·</span>
       <time datetime="2026-07-19">July 19, 2026</time>
       <span>·</span>
-      <span>5 min read</span>
+      <span>6 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/google-adk/" class="tag-link"><span class="tag">#Google ADK</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/software-engineering/" class="tag-link"><span class="tag">#Software Engineering</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/prompt-engineering/" class="tag-link"><span class="tag">#Prompt Engineering</span></a></div>
   </header>
@@ -247,6 +247,21 @@ app = App(name=&quot;caching_demo&quot;, root_agent=agent, context_cache_config=
 <h2 id="a-neighbour-context-compaction">A neighbour: context compaction</h2>
 <p>Caching reuses the stable <strong>head</strong> of the prompt. <strong>Compaction</strong> attacks the growing <strong>tail</strong>: as a session accumulates events, ADK can summarize old ones so the history keeps fitting the context window. It is a separate, App-level policy (experimental in current ADK), attached via <code>App(events_compaction_config=EventsCompactionConfig(...))</code> — a runtime rewrite of session events, not model-side token reuse. The two compose cleanly: caching cuts the cost of the stable prefix, compaction bounds the growing history.</p>
 <p>You can read the field reference for both under <code>App</code> in the official ADK docs at <a href="https://google.github.io/adk-docs/">google.github.io/adk-docs</a>. The takeaway: reach for caching when a large, stable prefix dominates a multi-turn conversation — and let ADK&rsquo;s floor decide when it actually pays off.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Context caching stores the stable prompt <em>prefix</em> (a long system instruction, a fixed reference doc, a big tool schema) model-side, so later turns re-process and re-bill only the new tail tokens.</li>
+<li>In Python ADK it is an App-level feature: attach one <code>ContextCacheConfig</code> to the <code>App</code> and every <code>LlmAgent</code> under it inherits the policy (defaults: <code>cache_intervals=10</code>, <code>ttl_seconds=1800</code>, <code>min_tokens=0</code>; leaving it <code>None</code> disables caching).</li>
+<li>Three rules explain every &ldquo;why didn&rsquo;t it cache?&rdquo; surprise: no cache on turn 1 (there is no prior token count yet), the prefix must clear <code>max(min_tokens, model floor)</code> where the floor is 2048 for Gemini 2.5 and 4096 for Gemini 3, and a cache expires after <code>cache_intervals</code> reuses or <code>ttl_seconds</code>.</li>
+<li><code>static_instruction</code> holds byte-for-byte-fixed content sent verbatim as the system instruction at the very start; it relocates the templated <code>instruction</code> to after the prefix so the cacheable region ends cleanly. The Live API ignores it.</li>
+<li>The feature is language-asymmetric: <code>adk/v2</code> has no <code>ContextCacheConfig</code> or <code>StaticInstruction</code> — Go only <em>observes</em> caching via <code>UsageMetadata.CachedContentTokenCount</code>, and manual caching is done through the <code>google.golang.org/genai</code> <code>CachedContent</code> API.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/adk-24-agent-config.html">Agent Config: defining an ADK agent in YAML</a> — the next concept in the series.</li>
+<li><a href="/blog/posts/adk-22-planners-and-thinking.html">Planners and thinking budgets</a> — the previous post, on model-side reasoning.</li>
+<li><a href="/blog/posts/adk-25-glossary.html">Google ADK glossary</a> — every core term in one place.</li>
+<li><a href="https://google.github.io/adk-docs/">ADK docs</a> — the <code>App</code>, <code>ContextCacheConfig</code>, and <code>EventsCompactionConfig</code> field reference.</li>
+</ul>
 <p><em>Next in the series: describing agents declaratively with Agent Config (YAML).</em></p>
 
 

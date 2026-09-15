@@ -112,7 +112,7 @@
       <span>·</span>
       <time datetime="2026-08-01">August 01, 2026</time>
       <span>·</span>
-      <span>7 min read</span>
+      <span>8 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/capital-markets/" class="tag-link"><span class="tag">#Capital Markets</span></a><a href="/blog/tags/rails/" class="tag-link"><span class="tag">#Rails</span></a><a href="/blog/tags/trading/" class="tag-link"><span class="tag">#Trading</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/payment-rails/" class="tag-link"><span class="tag">#Payment Rails</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a></div>
   </header>
@@ -181,6 +181,21 @@
 <p><strong>Clock and reset-at-logon policies.</strong> Many venues reset sequence numbers daily at a fixed time. If your engine and the venue disagree on whether today is a fresh session, you will spend the morning in a resend storm. Codify the reset policy per counterparty; don&rsquo;t assume.</p>
 <h2 id="what-to-remember">What to remember</h2>
 <p>FIX is old, plain, and stubbornly alive because it solves one problem well: reliable, ordered message delivery between parties who share only a dictionary. Build the engine as two layers — a session that obsesses over sequence numbers and a persistent store, and an application that never sees them. Persist every outbound message before it leaves, treat reconnect as ordinary logon-plus-resend rather than an exception, and respect PossDup so a replay never becomes a double execution. Get those invariants right and a dropped connection becomes a non-event instead of an incident.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>A FIX message is a flat list of <code>tag=value</code> pairs separated by SOH (0x01); both sides agree a dictionary in advance, which is why the protocol is trivial to parse, cheap to log, and stubbornly persistent.</li>
+<li>The session layer exists to guarantee ordered, gap-free, exactly-once-observed delivery via sequence numbers (tag 34); Heartbeat, TestRequest, ResendRequest, and SequenceReset all serve that one guarantee on top of a TCP link that will drop.</li>
+<li>The application layer reuses one message type — ExecutionReport (35=8) — to report every order state transition (New, Partial Fill, Fill, Rejected, Canceled), disambiguated by OrdStatus (39) and ExecType (150).</li>
+<li>Build the engine as two components sharing a persistent message store: persist every outbound message with its sequence number <em>before</em> it hits the wire, so a ResendRequest can be answered byte-for-byte after a crash. In-memory-only sequence state wedges the session on the first crash.</li>
+<li>Respect PossDupFlag (43) on replays so a resend is deduplicated on ClOrdID rather than double-executed, and never let slow business logic block the session thread into heartbeat starvation.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-order-types-time-in-force.html">Order types and time-in-force</a></li>
+<li><a href="/blog/posts/fintech-smart-order-routing-best-ex.html">Smart order routing and best execution</a></li>
+<li><a href="/blog/posts/fintech-matching-engine-design.html">Designing a matching engine</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Financial_Information_eXchange">Financial Information eXchange</a> — Wikipedia overview of the FIX protocol</li>
+</ul>
 
 
   <aside class="related-posts">

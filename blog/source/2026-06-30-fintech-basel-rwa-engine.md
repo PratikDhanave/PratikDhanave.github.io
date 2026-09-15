@@ -93,3 +93,18 @@ Divide eligible capital by total RWA and you have the CET1 and Tier 1 ratios tha
 - **Attribution deltas.** When the ratio moves quarter over quarter, you need to decompose the change into new exposures, reclassifications, and rule or table updates.
 
 Build the RWA engine as a chain of pure stages over an immutable exposure snapshot, keep the regulatory parameters in versioned tables rather than code, and make every number trace back to the rule and row that produced it. Do that and the quarterly capital calculation stops being a fire drill and becomes what it should be: a deterministic function you can run, audit, and trust.
+
+## Key takeaways
+
+- The standardized-approach RWA engine is more a data-engineering problem than a quant one: `total RWA = Σ(EAD × risk_weight)`, and all the difficulty is getting EAD and the weight right for millions of heterogeneous positions and proving it later.
+- Run the engine over a normalized, immutable *exposure* record — not your product tables directly — snapshotting the book as of the reporting date so you can re-run last quarter's numbers bit-for-bit.
+- Model classification as an ordered ruleset (most-specific first, first match wins), record which rule fired, and *raise* on an unclassifiable exposure — silent defaulting to a low weight understates capital.
+- Off-balance items convert to EAD via a credit conversion factor before weighting; keep that CCF path separate so it can be tested and versioned independently of the on-balance flow.
+- Keep risk weights in a versioned, effective-dated table (not in code), stamp every RWA figure with the table version, and defend the number with replayability, lineage, no silent defaults, and quarter-over-quarter attribution deltas.
+
+## Further reading
+
+- [LCR/NSFR Liquidity Reporting](/blog/posts/fintech-lcr-nsfr-liquidity-reporting.html)
+- [Model Risk Governance](/blog/posts/fintech-model-risk-governance.html)
+- [Building a Credit Decisioning Engine](/blog/posts/fintech-credit-decisioning-engine.html)
+- [Basel III (Wikipedia)](https://en.wikipedia.org/wiki/Basel_III)

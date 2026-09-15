@@ -59,6 +59,19 @@ go run ./tutorial/02-agents/providers/foundry/step04_function_tools_with_approva
 
 The offline test drives the approval plumbing with a fake credential; the live run is gated behind `AF_LIVE=1` with `az login` and `FOUNDRY_PROJECT_ENDPOINT`.
 
+## Key takeaways
+
+- **`tool.ApprovalRequiredFunc` decorates an ordinary function tool** so the run pauses and yields a `message.ToolApprovalRequestContent` instead of invoking it — the pattern for side-effecting or sensitive tools.
+- **Consent is a loop, not a callback.** `collectApprovals` scans the response for each request, prompts the user, and calls `request.CreateResponse(approved, "")`, pairing the decision with the original `RequestID`; you re-run with `RunMessage(message.New(userResponses...))` until no requests remain.
+- **The session is what makes it work.** It ties successive runs together so the agent remembers the pending call while it waits; drop `agent.WithSession` and the second run wouldn't know what it's approving.
+- Note the second run uses `RunMessage`, not `RunText` — you're feeding structured approval content back in, not a text prompt — and passing explicit `in`/`out` streams keeps the loop testable offline with a scripted `"y\n"`.
+
+## Further reading
+
+- [step03 · Function Tools (Foundry)](/blog/posts/maf-go-42-function-tools.html) — the ungated tool this lesson wraps.
+- [Human In Loop](/blog/posts/maf-go-30-human-in-loop.html) — the same approval primitive over the AG-UI transport.
+- [21 · Shell with Environment](/blog/posts/maf-go-25-shell-with-environment.html) — a tool whose default `ApprovalRequired()` is the same consent boundary.
+
 ---
 
 Next: [step05 · Structured Output](/blog/posts/maf-go-44-structured-output.html)

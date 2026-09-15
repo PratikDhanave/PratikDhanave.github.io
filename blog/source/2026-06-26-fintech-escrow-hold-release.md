@@ -85,3 +85,18 @@ Escrow is a place to be paranoid, because the failure mode is stranded or duplic
 - **Exit exclusivity**: an agreement cannot be both released and refunded; drive a dispute and an expiry at the same instant and assert exactly one wins.
 
 Build escrow as a ledger with a state machine on top, make every transition a balanced and idempotent posting, and reconcile the total against a real segregated account daily. Do that, and the hard questions — "where is this customer's money right now?" — always have a single, provable answer.
+
+## Key takeaways
+
+- Escrow is a small ledger with its own invariants, not an `is_released` boolean on a payment row — held funds live in a segregated `escrow_liability` account, moved by balanced journal entries.
+- The escrow balance *is* the sum of its journal lines, so there is no separate "amount held" field to drift; at any instant `SUM(escrow_liability:*)` must equal the real segregated bank balance — your daily reconciliation check.
+- Model the states explicitly (deposited, held, condition check, releasing, released) with dispute and expiry branching off the condition check, and let transitions be the *only* place money moves.
+- Partial releases fall out for free — a partial release is just a journal entry for part of the balance — provided you enforce one invariant: you cannot release more than is held, checked inside the posting transaction.
+- Key every posting on a caller-supplied idempotency key so a retried release is a no-op, and guard the expiry sweep with the state machine (or `FOR UPDATE`) so it can never race a genuine last-second release.
+
+## Further reading
+
+- [The Ledger (fintech handbook)](/blog/posts/fintech-handbook-02-the-ledger.html)
+- [Idempotency and Resumability (fintech handbook)](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html)
+- [Marketplace Split Payments](/blog/posts/fintech-marketplace-split-payments.html)
+- [Escrow (Wikipedia)](https://en.wikipedia.org/wiki/Escrow)

@@ -105,3 +105,18 @@ Run reconciliation on a schedule — hourly for high-value flows, at least daily
 ## Why it matters
 
 The outbox stops you losing events. CDC gets state out with minimal ceremony. Idempotent consumers absorb the duplicates that at-least-once delivery guarantees you will produce. And reconciliation is the backstop that assumes all of it will still, occasionally, be wrong — because across a system boundary, it will be. In most domains a dropped event is an inconvenience. In fintech it is someone's rent. Reconciliation is not a feature you bolt on after launch; it is the only mechanism by which you can *say* your books are right instead of hoping they are.
+
+## Key takeaways
+
+- The dual-write problem has no "be careful" fix: committing the DB then publishing can lose an event, and publishing then committing can announce a phantom. A crash between the two lines breaks either order.
+- The transactional outbox collapses two writes into one — insert the event row in the same transaction as the state change — so the event is durable the moment the business transaction commits.
+- The outbox is at-least-once, so the relay can republish after a crash; every consumer must be idempotent on a stable event ID (dedup table or a unique constraint on the effect).
+- CDC tails the write-ahead log and needs no outbox table, but it emits row diffs, not domain events — reach for the outbox for deliberate domain events, CDC for low-touch replication to a warehouse, cache, or index.
+- Delivery guarantees only cover your own events; internal books and an external party's statement still drift. Reconciliation matches on (external_id, amount, date), auto-resolves known breaks, and escalates the rest — track break age and count as a first-class metric.
+
+## Further reading
+
+- [The transactional outbox pattern](/blog/posts/fintech-handbook-06-apis-and-webhooks.html) — the APIs and webhooks that consume these events
+- [Idempotency and resumability](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html) — the consumer-side discipline that makes at-least-once safe
+- [Reconciliation and break detection](/blog/posts/fintech-reconciliation-break-detection.html) — the matching and classification engine in depth
+- [Change data capture](https://en.wikipedia.org/wiki/Change_data_capture) — Wikipedia background on log-based CDC

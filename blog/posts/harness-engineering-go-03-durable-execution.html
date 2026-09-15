@@ -112,7 +112,7 @@
       <span>·</span>
       <time datetime="2026-07-20">July 20, 2026</time>
       <span>·</span>
-      <span>9 min read</span>
+      <span>10 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/harness-engineering/" class="tag-link"><span class="tag">#Harness Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/durable-execution/" class="tag-link"><span class="tag">#Durable Execution</span></a><a href="/blog/tags/azure/" class="tag-link"><span class="tag">#Azure</span></a><a href="/blog/tags/engineering-practices/" class="tag-link"><span class="tag">#Engineering Practices</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -256,6 +256,20 @@ _, _ = Run(&quot;r&quot;, steps, store)
 <p>Durable execution gives the agent a memory that survives crashes — but the next problem is the opposite kind of danger. When an agent writes code and you <em>run</em> it, you&rsquo;ve handed an LLM a shell on your machine. Lesson 3 builds a secure sandbox: executing agent-written code behind a hard timeout and a locked-down environment, so a runaway or malicious snippet can&rsquo;t hang your process or reach past its box.</p>
 <hr>
 <p>Next: <a href="/blog/posts/harness-engineering-go-04-secure-sandboxing.html">Secure Sandboxing: Running Agent-Written Code Behind a Timeout</a></p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><code>workflow.Run</code> takes a <code>runID</code> and named steps, checkpoints after each one lands, and on re-run loads the last checkpoint and resumes from the next step — there is no separate &ldquo;begin&rdquo; and &ldquo;resume&rdquo; API, just <code>Run</code>.</li>
+<li><code>Load</code> returning <code>nil</code> is a fresh start, not an error; the checkpoint is written <em>after</em> a step&rsquo;s function returns, carrying the index of the last completed step, and the loaded state is cloned before mutation so a resume never corrupts what it loaded from.</li>
+<li><code>FileStore</code> writes atomically: marshal to a temp file, then <code>os.Rename</code> over the target, because <code>rename(2)</code> is atomic on POSIX — a crash mid-write leaves the old checkpoints intact rather than a truncated, unparseable file.</li>
+<li>Execution is at-least-once (step runs, then checkpoint saves), so step functions <em>must be idempotent</em> — append keyed by <code>runID</code>, set <code>status=done</code>, use deterministic tool-call IDs. This is the honest guarantee of any checkpoint-after model, true of Cosmos DB too.</li>
+<li>The durability claim is proven by a test that re-execs the binary and calls <code>os.Exit(3)</code> mid-run — a real process death that can&rsquo;t be deferred past — then resumes from a fresh <code>FileStore</code> and sees only the unfinished step re-run.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/harness-engineering-go-02-agent-harness-guardrails.html">The Agent Harness: guardrails as middleware</a> — Lesson 1, the guardrail this workflow sits behind.</li>
+<li><a href="/blog/posts/harness-engineering-go-08-human-in-the-loop.html">Human-in-the-loop: an approval gate on durable state</a> — Lesson 7, which reuses this exact store to park a pending approval.</li>
+<li><a href="https://github.com/microsoft/agent-framework-go">microsoft/agent-framework-go</a> — the checkpointed-workflow model the Cosmos DB seam targets.</li>
+</ul>
 
 
   <aside class="related-posts">

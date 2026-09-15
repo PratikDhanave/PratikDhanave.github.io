@@ -70,3 +70,18 @@ PoR is genuinely useful, but it is not a solvency guarantee, and pretending othe
 The engineering frontier is closing these gaps with stronger cryptography. Zero-knowledge proofs can attest that every included balance is non-negative and that the sum matches, without revealing any balance or even the customer count, replacing the trust in the summation tree's construction with a verifiable circuit. Combining a zk proof of liabilities with on-chain reserve verification gives a much tighter statement than a hash root and a spreadsheet.
 
 But no amount of cryptography converts a point-in-time snapshot into a continuous guarantee, or reveals a debt the prover refuses to commit. Treat Proof of Reserves as what it is: a strong, verifiable *lower bound* on honesty that shifts real work from blind trust to arithmetic, while leaving governance, auditing, and the timing gap firmly in human hands.
+
+## Key takeaways
+
+- PoR proves one inequality — **reserves ≥ liabilities** — and must let an outsider confirm it *and* let each customer confirm their own balance was counted, or it collapses into a marketing claim.
+- Proof of liabilities is a Merkle tree of salted leaves (`hash(salt || user_id || balance)`): salting stops low-entropy balances being brute-forced, only the root is published, and each customer gets a private proof path of sibling hashes that reveals nothing about neighbors.
+- The critical detail is a **summation** Merkle tree — every node carries `(hash, sum)` with `parent.sum = left.sum + right.sum` — so a verifier confirms not just inclusion but that no negative or fabricated balances were smuggled in to shrink the total.
+- Proof of reserves is signatures over a dated challenge with each address's private key; ownership, not existence, is what signing proves, and only verified addresses count.
+- The limits are sharp and must be stated honestly: PoR is point-in-time (borrow-before-snapshot is possible), can't prove absence of hidden/off-book liabilities, doesn't prove keys are still controlled, and double-counts shared addresses.
+
+## Further reading
+
+- [Stablecoin mint, burn, and reserves](/blog/posts/fintech-stablecoin-mint-burn-reserves.html)
+- [Hot/cold wallet architecture and the HSM](/blog/posts/fintech-hot-cold-wallet-hsm.html)
+- [MPC and threshold wallets](/blog/posts/fintech-mpc-threshold-wallets.html)
+- [Merkle tree (Wikipedia)](https://en.wikipedia.org/wiki/Merkle_tree)

@@ -87,6 +87,20 @@ If you build checkout, catalogs, or payment infrastructure, four concerns move f
 
 Agentic commerce is not a new payment method bolted onto the old flow. It removes the human from the moment of purchase, which dissolves the implicit trust checkout was built around, and forces that trust to be re-established explicitly, in verifiable data. The protocol stack, MCP and A2A for capability, AP2, ACP, x402, and network tokens for payment, is the industry's coordinated attempt to answer three questions at machine speed: is this the user's agent, what did the user authorize, and can we prove it later. Build for those three, and idempotency and scoped mandates stop being edge cases and start being your foundation.
 
+## Key takeaways
+
+- Agentic commerce removes the human from the moment of purchase, dissolving the implicit trust — device fingerprints, typing cadence, 3-D Secure — that every checkout and fraud model was tuned around.
+- Every protocol in the space answers three questions: is this really the user's agent (authorization), what exactly did they authorize (scoped intent), and can you prove it later (accountability).
+- The stack is layered, not winner-take-all: MCP and A2A give agents capability, while AP2 (signed mandates), ACP (order submission for ChatGPT Instant Checkout), x402 (HTTP 402 stablecoin micropayments), and card-network tokens handle payment — a merchant may speak several.
+- Four engineering concerns become load-bearing: machine-first identity bound to a human principal, explicit scoped delegation verified per-request, idempotency keys on every purchase (agents retry and run concurrently), and tamper-evident audit that stores the signed mandate.
+
+## Further reading
+
+- [The agentic commerce protocol stack](/blog/posts/agentic-commerce-protocol-stack.html)
+- [AP2 mandates in depth](/blog/posts/agentic-commerce-ap2-mandates.html)
+- [Verifiable mandates](/blog/posts/agentic-commerce-verifiable-mandates.html)
+- [Model Context Protocol](https://modelcontextprotocol.io) — the tool-and-context layer for agents
+
 ## Sources
 
 - [Announcing Agents to Payments (AP2) protocol](https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol)

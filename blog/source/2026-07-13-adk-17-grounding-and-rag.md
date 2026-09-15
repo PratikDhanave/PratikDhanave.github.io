@@ -192,3 +192,17 @@ You rarely hand-roll retrieval at scale. ADK gives you managed grounding whose A
 The core discipline never changes: give the model a source, ask it to answer *from* that source, and always render the metadata so the answer ships with its receipts. Full details on the built-in tools and grounding metadata live in the official ADK docs at <https://google.github.io/adk-docs/>.
 
 **Next in the series:** Models — making the agent model-agnostic, swapping Gemini for Claude, Llama, or anything else behind the same interface.
+
+## Key takeaways
+
+- Grounding comes in two flavors: search grounding (live web, `google_search`/`GoogleSearch`) for public current facts, and RAG over your own corpus (Vertex AI Search / RAG retrieval) for private enterprise knowledge.
+- Grounded responses carry `grounding_metadata` (chunks with `.web.title`/`.web.uri`) — metadata you don't render is metadata you might as well not have received.
+- Render citations with a *pure* function (metadata in, Markdown out, no I/O) and wire it as an after-model callback, so you can assert exact Markdown offline against synthetic metadata even though real grounded answers are non-deterministic.
+- In Go the Gemini API won't mix `GoogleSearch` with custom function tools in one agent — isolate search in its own sub-agent and coordinate from a root agent.
+- RAG is retrieve → augment ("answer using ONLY this context") → generate; a keyword-overlap retriever is the smallest honest version, and production swaps in an embedding index without changing how you fold results into the prompt.
+
+## Further reading
+
+- [Models in Google ADK: One Agent, Any Backend](/blog/posts/adk-18-models.html)
+- [Protocols in Google ADK: MCP for Tools, A2A for Agents](/blog/posts/adk-16-protocols-mcp-a2a.html)
+- [Google ADK documentation](https://google.github.io/adk-docs/)

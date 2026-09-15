@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-10">July 10, 2026</time>
       <span>·</span>
-      <span>3 min read</span>
+      <span>4 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/microsoft-agent-framework/" class="tag-link"><span class="tag">#Microsoft Agent Framework</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/middleware/" class="tag-link"><span class="tag">#Middleware</span></a><a href="/blog/tags/guardrails/" class="tag-link"><span class="tag">#Guardrails</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -187,6 +187,20 @@ func (rc *runCounter) Middleware() agent.Middleware { return agent.MiddlewareFun
 <h2 id="what-the-offline-test-proves">What the offline test proves</h2>
 <p>The test builds the agent with a <strong>fake credential</strong>, asserts both middlewares are wired in order, then drives each <code>Run</code> directly with a <code>next</code> that <em>fails the test if called</em> — so a harmful message must yield its refusal without ever invoking the model, and a safe one must pass a sentinel straight through. No Foundry, no tokens, just the wiring and the branch. That same &ldquo;drive it with a fake <code>next</code>&rdquo; discipline is how the nil-update panic became reproducible.</p>
 <p>Middleware is the composable seam around every run. Next I open the box wider: telemetry, safety, and swapping the provider underneath.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>With no decorators in Go, a middleware is any value implementing <code>agent.Middleware</code> — a <code>Run</code> method that receives <code>next</code>, the context, messages, and options, and returns the <code>iter.Seq2[*agent.ResponseUpdate, error]</code> stream.</li>
+<li>Block vs. pass through is one branch: <code>return next(...)</code> passes the chain along untouched, while returning your own iterator short-circuits it so the model is never called — that&rsquo;s how the guardrail refuses offline with no network.</li>
+<li>Two ways to be a middleware: a struct implementing <code>Run</code> directly, or <code>agent.MiddlewareFunc</code> adapting a method value when the middleware needs state (like a run counter).</li>
+<li>Middlewares in <code>Config.Middlewares</code> apply <strong>outermost-first</strong>, so wiring the guardrail before the logger means a blocked request stops at the guardrail and never reaches the logger&rsquo;s downstream or the model.</li>
+<li>Reading the chain closely surfaced a real SDK edge: the tool-approval middleware panicked on a <code>nil</code> update at a stream boundary; the fix (guard the nil) went upstream as PR #472, and the &ldquo;drive it with a hostile fake <code>next</code>&rdquo; discipline is what made it reproducible offline.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/maf-go-14-using-function-tools-with-approvals.html">Using function tools with approvals — Microsoft Agent Framework in Go</a></li>
+<li><a href="/blog/posts/maf-go-07-observability-safety-providers.html">Observability, Safety, and Providers — Microsoft Agent Framework in Go</a></li>
+<li><a href="https://github.com/microsoft/agent-framework-go">microsoft/agent-framework-go on GitHub</a></li>
+</ul>
 <hr>
 <p>Next: <a href="/blog/posts/maf-go-07-observability-safety-providers.html">Observability, Safety, and Providers — Microsoft Agent Framework in Go</a></p>
 

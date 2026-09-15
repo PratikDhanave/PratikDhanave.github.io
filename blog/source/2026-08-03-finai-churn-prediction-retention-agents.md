@@ -58,3 +58,18 @@ The final and most-skipped piece is measurement. If you treat everyone the model
 ## Bringing it together
 
 A mature retention system is not a model with a dashboard bolted on. It is a closed loop: a churn model that flags risk on an actionable horizon, an uplift model that narrows the flagged population to the persuadables, an agent that selects and executes guardrailed interventions, and a permanent holdout that measures whether any of it worked and feeds the answer back into training. Each piece is modest on its own. Together they turn a prediction that changed nothing into a lifecycle that keeps customers, spends deliberately, and can prove it.
+
+## Key takeaways
+
+- A churn definition must be precise and behavioral (e.g. balance below threshold plus 60 days no activity), because a closure event never fires for a deposit customer who quietly moves their direct deposit elsewhere.
+- The prediction horizon is a design choice: a 7-day horizon is accurate but useless because the customer has already left, while ~90 days leaves room to act; compute features as of a cutoff and label the forward window without leaking post-cutoff signal.
+- The strongest features are trajectories, not levels — a balance that fell 40% month over month, lengthening transaction gaps, a competitor added as a payee — built from event streams aggregated into rolling windows and deltas.
+- Propensity ranking is the classic mistake; model uplift instead, which splits customers into persuadables (the whole game), sure-things, lost causes, and sleeping dogs who churn *because* you contacted them.
+- Wrap the intervention agent in non-negotiable guardrails — budget cap, offer ceiling routing high-value saves to humans, fairness rules, logged rationale — and keep a permanent randomized holdout, which both measures true incremental lift and trains the next uplift model.
+
+## Further reading
+
+- [A personalization engine for finance](/blog/posts/finai-personalization-engine-finance.html)
+- [Why ML in finance is different](/blog/posts/finai-why-ml-in-finance-is-different.html)
+- [Supervised fraud detection on imbalanced data](/blog/posts/finai-supervised-fraud-imbalanced-data.html)
+- [Uplift modelling](https://en.wikipedia.org/wiki/Uplift_modelling) — Wikipedia background on incremental treatment effects

@@ -112,7 +112,7 @@
       <span>·</span>
       <time datetime="2026-07-06">July 06, 2026</time>
       <span>·</span>
-      <span>5 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/google-adk/" class="tag-link"><span class="tag">#Google ADK</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/python/" class="tag-link"><span class="tag">#Python</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/software-engineering/" class="tag-link"><span class="tag">#Software Engineering</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/streaming/" class="tag-link"><span class="tag">#Streaming</span></a></div>
   </header>
@@ -233,6 +233,21 @@ class Narrator(BaseAgent):
 <p>Think of the Runner as a driver reading the agent&rsquo;s script aloud, and the session as a stenographer transcribing every line as it&rsquo;s spoken. You&rsquo;re the audience receiving each line live — nothing is hidden until the end. You see the tool calls, the partial tokens, the state changes as they happen. The final answer is just the line marked as the conclusion.</p>
 <p>Both SDKs converge here: the shape of an event, the meaning of &ldquo;final,&rdquo; and the discipline of iterating a stream are the same across Python and Go. Get comfortable reading the event stream and the rest of ADK reads like open source, because it is — see the official docs at <a href="https://google.github.io/adk-docs/">google.github.io/adk-docs</a>.</p>
 <p><strong>Next in the series:</strong> Streaming — consuming <code>partial</code> events token by token, and bidirectional (live) streaming.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Running an agent doesn&rsquo;t return a string — it starts an <em>invocation</em> that the <em>Runner</em> drives, streaming back a sequence of <em>Event</em> objects; those three terms (invocation = all from one user message, event = one discrete happening, runner = the engine) are the whole model.</li>
+<li>You consume the stream, not a return value: <code>async for event in runner.run_async(...)</code> in Python, <code>for ev, err := range r.Run(...)</code> in Go — the range-over-function idiom yields <code>(event, error)</code> pairs so you check <code>err</code> each step.</li>
+<li>Every event carries the same shape — <code>author</code>, <code>content</code> (Parts), <code>actions</code> (<code>state_delta</code>, <code>artifact_delta</code>, <code>escalate</code>, <code>transfer_to_agent</code>), <code>partial</code>, and <code>is_final_response()</code> — and in multi-agent runs each participating agent can emit its own final response, so don&rsquo;t assume exactly one per invocation.</li>
+<li>The stream is the backbone: callbacks fire between events, state deltas apply per event, the dev UI renders its trace from events, and streaming is just consuming <code>partial</code> events as they arrive.</li>
+<li>Durability comes almost for free because the Runner appends every event (with its <code>state_delta</code>) to the session, making the session an append-only log you replay to resume — but only as good as your store (in-memory is wiped on exit), and full durable resumption of a normal invocation is currently an experimental Python feature.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/adk-09-callbacks.html">Callbacks in Google ADK</a> — what the Runner fires between events</li>
+<li><a href="/blog/posts/adk-11-streaming.html">Streaming in ADK</a> — consuming <code>partial</code> events token by token</li>
+<li><a href="/blog/posts/adk-05-sessions-and-state.html">Sessions &amp; State in ADK</a> — the append-only log behind durability</li>
+<li><a href="https://google.github.io/adk-docs/">Google ADK documentation</a></li>
+</ul>
 
 
   <aside class="related-posts">

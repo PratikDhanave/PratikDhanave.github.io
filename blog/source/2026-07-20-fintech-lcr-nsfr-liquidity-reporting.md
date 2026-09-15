@@ -79,3 +79,18 @@ Reconciliation is where the abstract pipeline meets accounting reality: intraday
 ## What good looks like
 
 A liquidity reporting system that survives audit tends to share the same properties. Classification is deterministic and explainable, with every position resolving to one bucket. Factors live in versioned tables, and the version is recorded on the output. The same classified dataset drives both ratios, so LCR and NSFR can never silently disagree about what a position is. And reconciliation to the balance sheet is a hard gate rather than a report someone reads later. Get those four right and the ratios themselves are almost an afterthought — two divisions at the very end of a long, careful pipeline.
+
+## Key takeaways
+
+- LCR = HQLA / net 30-day stressed outflows ≥ 100%; NSFR = ASF / RSF ≥ 100% over one year. Both follow the *same* pattern — classify each position into a regulatory bucket, multiply by a factor, sum — which is why one pipeline can produce both returns.
+- HQLA is tiered with haircuts (Level 1 at 0%, 2A at 15%, 2B at 25–50%, with Level 2 capped at 40% of HQLA), and inflows are capped at 75% of outflows so a bank can never look liquid on paper receivables alone.
+- Classification is the real work: every position must resolve to exactly one bucket, the decision must be explainable (which rule fired and why), and encumbrance is a cross-system join a stale value quietly overstates.
+- Treat factors and haircuts as versioned data, not code — pin one version per run and stamp it on the return, so you can reproduce any historical filing and diff two versions to see exactly what a regulatory change moved.
+- Reconciliation to the general ledger is a hard gate that blocks unbalanced filings; the goal is *zero unexplained breaks*, not zero breaks.
+
+## Further reading
+
+- [Basel RWA engine](/blog/posts/fintech-basel-rwa-engine.html) — the capital-side counterpart to these liquidity ratios.
+- [Regulatory transaction reporting](/blog/posts/fintech-regulatory-transaction-reporting.html) — the same eligibility, validation, and reconciliation shape for trade reporting.
+- [The ledger: double-entry bookkeeping](/blog/posts/fintech-handbook-02-the-ledger.html) — the balance-sheet facts these returns must reconcile against.
+- [Liquidity Coverage Ratio (Wikipedia)](https://en.wikipedia.org/wiki/Liquidity_Coverage_Ratio) — background on the Basel III liquidity framework.

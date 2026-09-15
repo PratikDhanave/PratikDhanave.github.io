@@ -73,3 +73,18 @@ Put the pieces together and the guarantee falls out. Every forward step that mov
 The one thing left is a sweeper: a background process that scans for transfers stuck in a non-terminal state past a deadline and drives them to resolution — forward if the downstream steps actually succeeded, backward through compensation if not. This is the safety net that converts "almost always correct" into "eventually always correct," and it is the reason a saga tolerates the failures a distributed transaction would have tried to prevent. You do not avoid partial failure; you make partial failure a state the system knows how to leave.
 
 A payment saga is not the simplest thing you can build, but it is honest about the world it runs in. Services fail independently, networks lie about outcomes, and no lock spans your whole money path. Committed local steps plus idempotent compensators plus a durable orchestrator plus a sweeper give you a system where every dollar is always either where it started or where it was going — and never nowhere.
+
+## Key takeaways
+
+- A multi-service payment cannot be one database transaction and 2PC just moves failure into a coordinator that freezes funds; a saga buys back correctness with committed local steps, each carrying a compensator that undoes it.
+- The `reserve → debit → credit → notify → settled` decomposition never leaves money nowhere — between debit and credit the value sits as an explicit in-flight/clearing balance a recovery process can see and resolve.
+- Prefer orchestration over choreography for money: one durable, restartable coordinator owns the state machine so a crash resumes from the last recorded step, and there is a single place to ask "where is this transfer and what happens next."
+- Compensation is a new forward transaction (release/refund/reverse), not a rollback — so it can fail and must be retried with the same durability, irreversible steps (like `notify`) go last, and compensators run in reverse order of completion.
+- Idempotency is load-bearing: key every step and compensator by a stable identifier (`txn.id + ":" + step.name`) generated once and threaded through retries, and add a sweeper that drives transfers stuck past a deadline to a terminal state, turning "almost always correct" into "eventually always correct."
+
+## Further reading
+
+- [Rolling back a half-succeeded saga](/blog/posts/saga-rollback-half-succeeded.html)
+- [Executing money flows](/blog/posts/fintech-handbook-04-executing-money-flows.html)
+- [Idempotency and resumability](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html)
+- [Payment orchestration and routing](/blog/posts/fintech-payment-orchestration-routing.html)

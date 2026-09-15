@@ -112,7 +112,7 @@
       <span>·</span>
       <time datetime="2026-07-22">July 22, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/harness-engineering/" class="tag-link"><span class="tag">#Harness Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/retrieval/" class="tag-link"><span class="tag">#Retrieval</span></a><a href="/blog/tags/azure/" class="tag-link"><span class="tag">#Azure</span></a><a href="/blog/tags/engineering-practices/" class="tag-link"><span class="tag">#Engineering Practices</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -230,6 +230,20 @@ out = append(out, tail...)
 <p>Memory gives the agent a past and a set of facts; it still doesn&rsquo;t tell the agent <em>which agent should handle a request</em>. When a single agent grows enough responsibilities that a monolithic prompt starts to blur, you split it — a router reads intent and hands off to a specialist. That&rsquo;s the next seam: local intent classification standing in for a managed multi-agent orchestrator, with the same honest note about where keyword routing falls short of a model that actually understands the request.</p>
 <hr>
 <p>Next: <a href="/blog/posts/harness-engineering-go-06-orchestration-handoff.html">Orchestration and Handoff: Routing Intent to a Specialist</a></p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>&ldquo;Memory&rdquo; is three non-overlapping jobs, so it is three interfaces: a <em>thread</em> (short-term running transcript), a <em>knowledge index</em> (long-term retrieval across conversations), and a <em>summarizer</em> (compression when a thread outgrows the context window).</li>
+<li>The thread is append-only and never lossy, and <code>History</code> returns a <em>copy</em> so callers can&rsquo;t mutate the in-file slice — that lossless log is exactly what makes the lossy summarizer safe.</li>
+<li>The knowledge index scores each document by the fraction of distinct query terms it contains (a stable 0.0–1.0), returns top-k with <code>DocID</code> tie-breaks for determinism, and <code>Add</code> upserts to mirror an AI Search index merge.</li>
+<li>The summarizer prefers lossless (returns verbatim if it fits), and only compresses by keeping the first and last <code>keep</code> turns with a <code>[...N earlier turns omitted...]</code> marker — with guards so too few turns or <code>keep &lt; 1</code> never silently hides or keeps everything.</li>
+<li>State the leak twice: keyword search misses meaning (&ldquo;car&rdquo; won&rsquo;t match &ldquo;automobile&rdquo; — Azure AI Search&rsquo;s vectors fix that), and first-and-last summarization is a heuristic, not comprehension. The pattern worth keeping to production is a lossy roll-up over a lossless append-only log — never let the compression own the only copy.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/harness-engineering-go-04-secure-sandboxing.html">Secure Sandboxing: running agent-written code behind a timeout</a> — the previous lesson.</li>
+<li><a href="/blog/posts/harness-engineering-go-06-orchestration-handoff.html">Orchestration and handoff: routing intent to a specialist</a> — the next seam, keyword routing standing in for a managed orchestrator.</li>
+<li><a href="https://github.com/microsoft/agent-framework-go">microsoft/agent-framework-go</a> — managed threads and the Azure AI Search retrieval these seams target.</li>
+</ul>
 
 
   <aside class="related-posts">

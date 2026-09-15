@@ -131,4 +131,17 @@ In Go that's `agenttool.New(summarizer, nil)` passed in `Tools: []tool.Tool{...}
 
 Use a coordinator/dispatcher when you have several **specialist** agents with clearly separable jobs — a support triage that routes to billing vs. technical vs. account agents, or an assistant that fans out to domain experts. Keep each specialist's `description` sharp and non-overlapping, because overlap is exactly where the model's routing goes wrong. And remember the contrast with Module 02: reach for a **workflow agent** when the sequence is known and fixed, and a **coordinator with `sub_agents`** when the *right next step depends on the input* and you want the LLM to decide.
 
-*Next in the series: Module 04 — Tools, the full ecosystem of built-in, OpenAPI, MCP, and third-party tools, plus tool-level human-in-the-loop.*
+## Key takeaways
+
+- Delegation is dynamic composition: you give an `LlmAgent` a list of `sub_agents` and the *model* chooses which one to hand off to via an implicit `transfer_to_agent(...)`.
+- Each child's `description` field *is* the routing table — write it vaguely and routing breaks; there is no separate config that overrides it.
+- Delegation is a *transfer*, not a call: the specialist owns the rest of the turn and control does not bounce back automatically. Lock it down with `disallow_transfer_to_parent`/`disallow_transfer_to_peers`.
+- Contrast with agent-as-tool: there the parent *calls* the child, gets a return value, and *keeps* control to keep reasoning — use it for "summarize this, then use the summary."
+- An agent can have only one parent, so to both delegate to and wrap the same agent you must create two distinct instances.
+
+## Further reading
+
+- [Workflow Agents: Deterministic Orchestration in ADK](/blog/posts/adk-02-workflow-agents.html) — fixed orchestration, the mirror of delegation
+- [Tools in ADK](/blog/posts/adk-04-tools.html) — including agent-as-tool
+- [Protocols: MCP and A2A](/blog/posts/adk-16-protocols-mcp-a2a.html)
+- [Google ADK documentation](https://google.github.io/adk-docs/)

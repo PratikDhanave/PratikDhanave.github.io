@@ -91,3 +91,18 @@ Generating these post hoc — asking a model "why did you decline this?" weeks l
 Tie the stages together with one invariant: given the same application ID and the same pinned versions, the engine reproduces the identical decision. That requires persisting, per decision, the full feature vector, every source pull with its `as_of`, the scorer version and output, the ordered list of rules evaluated, the verdict, and the reason codes.
 
 This record is what auditors, dispute handlers, and your own debugging depend on. It also enables the champion/challenger and backtesting work that keeps the engine honest: you can re-run a new policy or model against historical decisions and measure the delta before shipping. An engine you can replay is an engine you can improve safely. One you cannot replay is one you are afraid to touch — and in credit, fear is how good models quietly rot behind stale policy.
+
+## Key takeaways
+
+- Feature assembly, not the model, is where correctness is won or lost: enforce point-in-time correctness (compute every feature as of the decision timestamp, refuse later-ingested data) and give each feature an explicit contract — name, type, source, version, null rule.
+- The `missing` flag is not a detail: "utilization is zero" and "we never learned utilization" drive different policy branches and reason codes, and silently coercing missing to zero is the most expensive bug in the domain.
+- Hide the scorer behind a stable interface so a scorecard and an ML model are interchangeable and both return the same `ScoreResult`; pin the scorer version into every decision record.
+- Keep policy a separate, ordered, versioned ruleset evaluated *after* scoring — hard knockouts first, then score cutoffs, then affordability overrides — because policy changes weekly while models retrain quarterly.
+- Adverse-action reason codes are a first-class output computed inline and frozen; every code must trace to a concrete input, and the whole pipeline must be replayable to the identical decision given the same inputs and pinned versions.
+
+## Further reading
+
+- [Loan Origination System](/blog/posts/fintech-loan-origination-system.html)
+- [Rules vs. ML Fraud Scoring](/blog/posts/fintech-rules-vs-ml-fraud-scoring.html)
+- [Model Risk Governance](/blog/posts/fintech-model-risk-governance.html)
+- [Credit score (Wikipedia)](https://en.wikipedia.org/wiki/Credit_score)

@@ -57,6 +57,18 @@ This is the reflection / self-critique pattern realized as a graph: one Foundry 
 
 **Run it:** `go run ./tutorial/03-workflows/01-start-here/07_writer_critic_workflow`. The offline test builds the identical graph with a fake credential and asserts `Build()` succeeds (proving executors, edges, switch cases, and `WithOutputFrom` are consistent), plus unit-tests the switch predicates. The live loop is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- `AddSwitch(critic)` with two `AddCase` predicates — `Approved` → summary, `!Approved` → writer — is what turns a linear graph into a feedback loop; the back-edge to the writer is the whole lesson.
+- The Critic emits a structured `CriticDecision` (via `agent.WithStructuredOutput`) so the switch routes on the `Approved` flag; `Content`/`Iteration` are `json:"-"` and set by the executor after the model responds.
+- One executor can have two input shapes: `Writer` registers `string → *message.Message` (first draft) and `CriticDecision → *message.Message` (revise), letting it be both start node and loop-back target.
+- Per-run `Context` state caps the loop: once `Iteration >= maxIterations` the Critic force-approves, so a fault-finding Critic can't loop forever — the answer every cyclic workflow needs.
+
+## Further reading
+
+- [06 · Mixed Workflow — Agents and Executors in One Graph](/blog/posts/maf-go-66-06-mixed-workflow-agents-and-executors.html) — the straight-line graph this one adds a cycle to
+- [custom_agent_executors — a feedback loop you control](/blog/posts/maf-go-68-custom-agent-executors.html) — the same reflection pattern with hand-written executors owning the loop
+
 ---
 
 Next: [custom_agent_executors — agents as custom workflow executors with a feedback loop](/blog/posts/maf-go-68-custom-agent-executors.html)

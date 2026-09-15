@@ -118,3 +118,17 @@ func FirstRunnableCode(text string) (CodeBlock, bool) {
 **Mental model:** treat model-written code like any other untrusted input the moment it isn't fully under your control. The safe progression is: `UnsafeLocalCodeExecutor` for trusted local demos → `ContainerCodeExecutor` for local isolation → `VertexAiCodeExecutor` / `GkeCodeExecutor` (or `BuiltInCodeExecutor`) for anything facing real users. And apply the same discipline you'd apply to any sandbox: least privilege, no secrets in the executing process, no ambient network unless the task needs it, and **validate what comes back out** — stdout is attacker-influenced too. The sandbox contains the blast radius; it doesn't make the output trustworthy.
 
 **Next in the series:** Planners and thinking — letting an agent plan its steps and reason before it acts.
+
+## Key takeaways
+
+- A code executor closes the write-code → extract → run-in-sandbox → feed-output-back loop, so the model reasons from real stdout instead of hallucinating arithmetic or data results.
+- Every executor shares the same four-step shape; the only thing that varies is *where the code runs*, and that dimension is the entire security story.
+- The split that matters is client-side (`UnsafeLocal`, `Container`, `VertexAi`, `Gke` — you pick the sandbox) vs. model-side (`BuiltInCodeExecutor` — Gemini runs it server-side); swapping executors is a one-argument change that never touches agent logic.
+- The pure, language-independent step is extracting the fenced code block (`first_runnable_code`), which is why it makes a clean offline test — and it's exactly where the Go story ends today, since `adk/v2 v2.0.0` ships no code-executor package.
+- "Unsafe" is not a typo: `UnsafeLocalCodeExecutor` runs model-written code in an unsandboxed subprocess with your full privileges — treat model output as untrusted input, progress to a container or cloud sandbox for real users, and validate what comes back out because stdout is attacker-influenced too.
+
+## Further reading
+
+- [Planners & Thinking: Making an ADK Agent Reason Before It Acts](/blog/posts/adk-22-planners-and-thinking.html)
+- [Skills: Packaging Agent Capabilities](/blog/posts/adk-20-skills.html)
+- [Google ADK documentation](https://google.github.io/adk-docs/)

@@ -112,3 +112,18 @@ The mindset shift is the whole point: you don't prove a money system correct wit
 Everything earlier in this handbook — the double-entry ledger, immutable events, idempotent gateways, reconciliation — gives you a system that is *correct by construction*. The controls layer keeps it correct *in operation*, once real humans with real access and real deadlines start using it.
 
 That's the through-line of the whole series. A financial system isn't trustworthy because it's clever; it's trustworthy because no single person can move money alone, every change is attributable, elevated power is temporary, and correctness is asserted continuously rather than assumed. Get the data model right and you can sleep. Get the controls and testing right and you can let other people touch it while you sleep. That, in the end, is what it means to build a system that moves money — not just code that runs, but a machine you can *prove* is honest on the day someone asks.
+
+## Key takeaways
+
+- Segregation of duties splits every consequential action so initiating and completing it require two independent people; the boundary is enforced at the point of action by the system, not by a signed policy PDF.
+- Maker-checker only counts if the approval endpoint rejects self-approval at execution time (`checker_id != maker_id`), scopes approval authority, and treats the pending state as durable and idempotent so a double-click can't execute twice.
+- Access control is `(who, what action, which accounts)`, not a global role flag; the most dangerous operations sit behind time-bound elevation rather than standing permissions, and every decision — granted or denied — is logged.
+- Production configuration is production code: fee tables, rates, and thresholds flow through the same maker-checker gate and an append-only change log that answers who, old/new value, when, and who approved.
+- Test invariants, not examples: property-based ledger tests (postings sum to zero), replay determinism, fault injection for idempotency, and a golden reconciliation that asserts every account nets to zero.
+
+## Further reading
+
+- [Reliable delivery: the outbox, CDC, and reconciliation](/blog/posts/fintech-handbook-07-outbox-cdc-reconciliation.html)
+- [Idempotency and resumability](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html)
+- [The ledger: double-entry from first principles](/blog/posts/fintech-handbook-02-the-ledger.html)
+- [QuickCheck](https://en.wikipedia.org/wiki/QuickCheck) — Wikipedia background on property-based testing

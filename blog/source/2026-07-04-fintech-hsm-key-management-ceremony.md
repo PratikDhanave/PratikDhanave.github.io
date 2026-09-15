@@ -76,3 +76,18 @@ Retiring a key is not deletion-and-forget. You keep the old key cryptogram (stil
 None of this is trustworthy without evidence. Every ceremony produces a signed, witnessed record tying components to named custodians and a verified KCV. Every HSM key operation is logged with the key label and version but never the key material. Custodian duties are separated so the person holding a component is not the person who approves the key's use. And you rehearse the emergency-rotation runbook, because the first time you rotate an LMK should never be during an actual compromise.
 
 Build key management this way and the guarantee becomes structural rather than aspirational: working keys live only as cryptograms, plaintext keys exist only inside tamper-protected hardware, and no single person — however privileged — can reconstruct a key or use one alone. The ceremony is the human protocol that bootstraps that guarantee; the hierarchy is the machine protocol that preserves it on every transaction.
+
+## Key takeaways
+
+- The key hierarchy is strictly tiered — LMK (root, generated in the HSM and never exported) encrypts the ZMK (cross-organization key-encrypting key), which moves working keys like the ZPK — so at rest your database holds only key cryptograms and an exfiltrated key table is useless without the LMK.
+- A key ceremony bootstraps trust with two principles enforced together: split knowledge (the key arrives as components that XOR to the real value, none revealing anything) and dual control (each component has a different custodian, loading needs at least two present in sequence).
+- The key check value (KCV) — the first bytes of encrypting zeros under the key — lets you and a counterparty confirm you loaded the *same* ZMK over an insecure channel without ever transmitting the key or a component; a KCV mismatch means halt and re-run.
+- The HSM's everyday job is translation, not decrypt-to-clear: a PIN block is re-enciphered from ZPK-A to ZPK-B with the cleartext existing only inside the module for microseconds, so application code holds references (cryptograms, labels) and never key material.
+- Rotate live keys without an outage via overlap windows and versioned cryptograms, automate working-key re-injection under the standing ZMK (ceremony only for the roots), and retire — not delete — old keys, keeping them for dispute verification before destroying them under dual control.
+
+## Further reading
+
+- [Custody: hot, warm and cold wallets](/blog/posts/fintech-hot-cold-wallet-hsm.html)
+- [DUKPT and P2PE PIN security](/blog/posts/fintech-dukpt-p2pe-pin-security.html)
+- [Network tokenization and PCI scope](/blog/posts/fintech-network-tokenization-pci-scope.html)
+- [EMV cryptograms and the ARQC](/blog/posts/fintech-emv-cryptogram-arqc.html)

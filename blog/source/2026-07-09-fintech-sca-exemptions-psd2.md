@@ -74,3 +74,17 @@ Track a few more:
 - **Challenge abandonment** — how many shoppers drop at 3-D Secure, which is the conversion cost you're trying to avoid and the number that justifies every exemption you take.
 
 The engine is doing its job when the frictionless rate is high, the fraud on that traffic is flat, and the challenges you do raise are landing on the payments that genuinely needed them. That balance is a live setting, not a one-time configuration — it moves with your fraud performance, and the instrumentation is what keeps you honest about which way it's drifting.
+
+## Key takeaways
+
+- You don't decide whether authentication happens — the issuer does. You set an **exemption flag** and attach risk data to justify it; the engine's output is "requested frictionless, now handle the issuer disagreeing," not "frictionless, done."
+- The four exemptions worth building are ranked, not parallel: low-value (stateful — needs a cumulative per-card counter), TRA (contingent on your own rolling fraud rate), trusted beneficiary (an issuer-held allowlist), and recurring/merchant-initiated. Pick deterministically and record which one you chose.
+- Frictionless is a bet: challenging shifts fraud liability to the issuer, while exempting generally leaves the loss with you — so "exempt everything under the ceiling" quietly maximizes your own fraud exposure. Lean on the same risk signals as your fraud model, not just the flat threshold.
+- Treat a soft-decline as routine: resolve the exemption *before* touching the authorization rail, and fall through to 3-D Secure automatically so the shopper never sees a double-hit.
+- Watch exemption rate against fraud rate on exempted traffic as a pair (never either alone), plus soft-decline rate by type, TRA ceiling headroom, and challenge abandonment.
+
+## Further reading
+
+- [The 3DS2 authentication flow](/blog/posts/fintech-3ds2-authentication-flow.html)
+- [Step-up authentication orchestration](/blog/posts/fintech-step-up-auth-orchestration.html)
+- [PSD2 open banking consent](/blog/posts/fintech-psd2-open-banking-consent.html)

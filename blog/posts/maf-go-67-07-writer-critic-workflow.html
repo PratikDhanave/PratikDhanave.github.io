@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-06-24">June 24, 2026</time>
       <span>·</span>
-      <span>2 min read</span>
+      <span>3 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/microsoft-agent-framework/" class="tag-link"><span class="tag">#Microsoft Agent Framework</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/cyclic-workflow/" class="tag-link"><span class="tag">#Cyclic Workflow</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -159,6 +159,18 @@ return b.Build()
 <h2 id="how-it-maps-to-azure-ai-foundry">How it maps to Azure AI Foundry</h2>
 <p>This is the reflection / self-critique pattern realized as a graph: one Foundry agent produces, a second evaluates against structured criteria, and the loop continues until quality is met or a budget is spent. <code>WithStructuredOutput</code>, conditional <code>AddSwitch</code> routing, and workflow <code>Context</code> state are the SDK features that make it declarative rather than a hand-rolled <code>for</code> loop. The Writer/Critic/Summary executors each call a Foundry-backed agent, so a live run needs <code>az login</code> + <code>FOUNDRY_PROJECT_ENDPOINT</code> (+ <code>FOUNDRY_MODEL</code>).</p>
 <p><strong>Run it:</strong> <code>go run ./tutorial/03-workflows/01-start-here/07_writer_critic_workflow</code>. The offline test builds the identical graph with a fake credential and asserts <code>Build()</code> succeeds (proving executors, edges, switch cases, and <code>WithOutputFrom</code> are consistent), plus unit-tests the switch predicates. The live loop is gated behind <code>AF_LIVE=1</code>.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><code>AddSwitch(critic)</code> with two <code>AddCase</code> predicates — <code>Approved</code> → summary, <code>!Approved</code> → writer — is what turns a linear graph into a feedback loop; the back-edge to the writer is the whole lesson.</li>
+<li>The Critic emits a structured <code>CriticDecision</code> (via <code>agent.WithStructuredOutput</code>) so the switch routes on the <code>Approved</code> flag; <code>Content</code>/<code>Iteration</code> are <code>json:"-"</code> and set by the executor after the model responds.</li>
+<li>One executor can have two input shapes: <code>Writer</code> registers <code>string → *message.Message</code> (first draft) and <code>CriticDecision → *message.Message</code> (revise), letting it be both start node and loop-back target.</li>
+<li>Per-run <code>Context</code> state caps the loop: once <code>Iteration &gt;= maxIterations</code> the Critic force-approves, so a fault-finding Critic can&rsquo;t loop forever — the answer every cyclic workflow needs.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/maf-go-66-06-mixed-workflow-agents-and-executors.html">06 · Mixed Workflow — Agents and Executors in One Graph</a> — the straight-line graph this one adds a cycle to</li>
+<li><a href="/blog/posts/maf-go-68-custom-agent-executors.html">custom_agent_executors — a feedback loop you control</a> — the same reflection pattern with hand-written executors owning the loop</li>
+</ul>
 <hr>
 <p>Next: <a href="/blog/posts/maf-go-68-custom-agent-executors.html">custom_agent_executors — agents as custom workflow executors with a feedback loop</a></p>
 

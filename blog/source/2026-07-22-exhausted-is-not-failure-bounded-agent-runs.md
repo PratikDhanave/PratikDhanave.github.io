@@ -94,3 +94,17 @@ One objection I take seriously: does capping runs create an ungoverned back door
 ## Why it matters
 
 Two-outcome thinking is why runaway agents feel scary: a cost-and-latency problem with no name gets to hide inside "still working" or "generic error," and by the time you notice, it has already spent the money and paged the human. Name the third outcome. Cap every run at `max_turns`, make `EXHAUSTED` a distinct value your callers can branch on, and emit a typed terminal event so it shows up on a dashboard the instant it happens. Do that and the most frightening thing an autonomous agent can do — loop forever, burning tokens, never finishing — stops being an incident. It becomes a routine, observable, recoverable event that routes itself to a human, a fallback, or a partial, on its own, before anyone's phone rings.
+
+## Key takeaways
+
+- Model three outcomes, not two: `COMPLETED`, `FAILED`, and `EXHAUSTED` (hit `max_turns` with no final answer). The runaway loop fits neither success nor error, so it hides inside "still working" until it has already spent the money.
+- Because `EXHAUSTED` is a distinct value, the caller can route on it — escalate to a human with the partial work attached, fall back to a cheaper deterministic path, or surface an honest "incomplete" flag.
+- The bound is structural: `run_bounded` has three `return` points and one hard loop cap, so there is no way to stay in the loop forever — not a hopeful external timeout.
+- Report progress as a *typed event stream* (`Started`, `Turn`, then exactly one terminal event), not log strings, so callers can `match` on outcomes live and the terminal event *is* the metric dimension — "how many runs exhausted this hour" becomes a counter, not a grep.
+- Bounding is not an escape hatch: governance sits *below* the runner, so every tool call still passes the policy gateway regardless of how many turns remain — bounding controls how long, the gateway controls what.
+
+## Further reading
+
+- [Testing agents without a model](/blog/posts/testing-agents-without-a-model.html) — the same swap-a-deterministic-runner-for-a-live-one contract that makes bounded runs testable.
+- [Tell the agent what it's allowed to do](/blog/posts/tell-the-agent-what-its-allowed-to-do.html) — cutting wasted turns from the other direction.
+- [Policy is code, not a prompt](/blog/posts/policy-is-code-not-a-prompt.html) — the governance layer that sits beneath the runner.

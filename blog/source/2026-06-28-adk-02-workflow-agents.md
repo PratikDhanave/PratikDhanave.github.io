@@ -150,4 +150,17 @@ Reach for a workflow agent when *you* already know the control flow: the order o
 
 > **API note:** ADK's `SequentialAgent`, `ParallelAgent`, and `LoopAgent` are the clearest way to *learn* these ideas and still run today, but current releases point toward a more general graph-based orchestrator that folds sequential, parallel, loop, and branching into one graph. The concepts — ordering, fan-out, iteration, shared state — carry over unchanged. Check the [official docs](https://google.github.io/adk-docs/) for the version you're on.
 
-*Next in the series: multi-agent systems — dynamic, LLM-driven delegation, the mirror image of this post's fixed orchestration.*
+## Key takeaways
+
+- A workflow agent contains *no model*: it is plain, deterministic, unit-testable control flow, and the intelligence lives entirely in the LLM sub-agents it coordinates.
+- ADK ships four shapes — Sequential (pipeline sharing state), Parallel (fan-out), Loop (iterate until `max_iterations` or *escalate*), and Custom (anything else).
+- Sub-agents never call each other or return values; the shared session state is the only channel — an LLM stage writes via `output_key`, a custom stage via a `state_delta` on the event it emits (which keeps every change on the replayable event log).
+- In `ParallelAgent`, each branch must have a distinct `output_key` or concurrent writes clobber each other; the framework merges the branch deltas on join.
+- Reach for a workflow agent when *you* already know the control flow (order, branches, loop bound); reach for a coordinator with `sub_agents` when the right next step depends on the input.
+
+## Further reading
+
+- [LLM Agents in Google ADK: The Four Knobs You Actually Tune](/blog/posts/adk-01-llm-agents.html)
+- [Multi-Agent Systems in ADK](/blog/posts/adk-03-multi-agent-systems.html) — the dynamic, LLM-driven mirror of this post
+- [Tools in ADK](/blog/posts/adk-04-tools.html)
+- [Google ADK documentation](https://google.github.io/adk-docs/)

@@ -113,3 +113,18 @@ Think of the Runner as a driver reading the agent's script aloud, and the sessio
 Both SDKs converge here: the shape of an event, the meaning of "final," and the discipline of iterating a stream are the same across Python and Go. Get comfortable reading the event stream and the rest of ADK reads like open source, because it is — see the official docs at [google.github.io/adk-docs](https://google.github.io/adk-docs/).
 
 **Next in the series:** Streaming — consuming `partial` events token by token, and bidirectional (live) streaming.
+
+## Key takeaways
+
+- Running an agent doesn't return a string — it starts an *invocation* that the *Runner* drives, streaming back a sequence of *Event* objects; those three terms (invocation = all from one user message, event = one discrete happening, runner = the engine) are the whole model.
+- You consume the stream, not a return value: `async for event in runner.run_async(...)` in Python, `for ev, err := range r.Run(...)` in Go — the range-over-function idiom yields `(event, error)` pairs so you check `err` each step.
+- Every event carries the same shape — `author`, `content` (Parts), `actions` (`state_delta`, `artifact_delta`, `escalate`, `transfer_to_agent`), `partial`, and `is_final_response()` — and in multi-agent runs each participating agent can emit its own final response, so don't assume exactly one per invocation.
+- The stream is the backbone: callbacks fire between events, state deltas apply per event, the dev UI renders its trace from events, and streaming is just consuming `partial` events as they arrive.
+- Durability comes almost for free because the Runner appends every event (with its `state_delta`) to the session, making the session an append-only log you replay to resume — but only as good as your store (in-memory is wiped on exit), and full durable resumption of a normal invocation is currently an experimental Python feature.
+
+## Further reading
+
+- [Callbacks in Google ADK](/blog/posts/adk-09-callbacks.html) — what the Runner fires between events
+- [Streaming in ADK](/blog/posts/adk-11-streaming.html) — consuming `partial` events token by token
+- [Sessions & State in ADK](/blog/posts/adk-05-sessions-and-state.html) — the append-only log behind durability
+- [Google ADK documentation](https://google.github.io/adk-docs/)

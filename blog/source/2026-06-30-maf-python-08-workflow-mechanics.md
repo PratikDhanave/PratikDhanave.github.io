@@ -78,3 +78,17 @@ Everything above is model-free — `01_control_flow.py` routes evens and odds wi
 ---
 
 Next: [Workflows with Agents — Microsoft Agent Framework in Python](/blog/posts/maf-python-09-workflows-with-agents.html)
+
+## Key takeaways
+
+- An executor is a node — either a `class Executor` with an `@handler` or an `@executor` async function — and edges carry the messages it emits with `ctx.send_message`; a terminal node uses `ctx.yield_output` and sends nothing onward.
+- The `WorkflowContext[...]` type parameters are load-bearing, not decoration: `WorkflowContext[int]` declares "sends an int," `WorkflowContext[Never, str]` declares "terminal, yields a str," and the builder validates the graph against them before the first run.
+- `WorkflowBuilder` takes the start node as the `start_executor=` constructor kwarg (there is no `set_start_executor()` here); `add_switch_case_edge_group` gives first-match-wins routing, and `add_fan_out_edges` → `add_fan_in_edges` hands the fan-in target one `list` of all branch messages after every branch completes.
+- Streaming has no per-kind event classes and no `run_stream()` — you pass `stream=True` to `workflow.run` and branch on `event.type` (`"executor_completed"`, `"output"`), watching the graph light up node by node.
+- Learn the mechanics with pure functions first; dropping in an agent is anticlimactic because `WorkflowBuilder` auto-wraps it in an `AgentExecutor` that sits on the same `add_edge` chain — the graph cares only what a node sends, not what it is.
+
+## Further reading
+
+- [Observability, Safety & Providers — Microsoft Agent Framework in Python](/blog/posts/maf-python-07-observability-safety-providers.html)
+- [Workflows with Agents — Microsoft Agent Framework in Python](/blog/posts/maf-python-09-workflows-with-agents.html)
+- [Workflow Mechanics — Microsoft Agent Framework Go](/blog/posts/maf-go-08-workflow-mechanics.html) — the same graph model in the Go SDK

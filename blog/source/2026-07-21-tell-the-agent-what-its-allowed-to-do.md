@@ -90,3 +90,17 @@ The capabilities brief is alignment in the plain, mechanical sense of the word: 
 ## Why it matters
 
 Blocking a bad tool call protects you. Making the agent *discover* the block by trying is a tax you pay on every incident, forever, for information you already had. If your enforcement layer knows the answer at construction time, tell the model the answer at construction time. Keep the gateway as the wall — but stop charging yourself full price to teach the agent where the wall is.
+
+## Key takeaways
+
+- A blind model discovers a fail-closed gateway by trial and error — call `restart_service` (blocked), `drain_node` (blocked), then finally `read_interface_status` — paying for two wasted model turns per incident that never show up in your error logs, only your token bill.
+- The fix is a capabilities brief: a generated markdown list of exactly the tools an agent's policy permits, appended to its system instructions, with approval-gated tools flagged and forbidden tools *omitted entirely* (never advertise the wall).
+- The same policy set is the single source of truth with two consumers — the gateway reads it to enforce, the agent factory reads it to inform — and alignment is just making the model's self-understanding match that ground truth.
+- It is explicitly *not* a security control (deleting a tool from the brief doesn't remove it from the runtime; the gateway still catches a hallucinated call) and *not* required for correctness (the system was already correct, just wasteful).
+- It is strictly best-effort: an empty policy map yields an empty brief and unchanged instructions, so a missing or malformed brief degrades to the original blind-probing behavior, never to weaker safety.
+
+## Further reading
+
+- [Governing the tools you didn't write](/blog/posts/governing-the-tools-you-didnt-write.html) — the enforcement side: fail-closed policy over runtime-injected tools.
+- [Policy is code, not a prompt](/blog/posts/policy-is-code-not-a-prompt.html) — why the brief can never be the boundary the gateway is.
+- [EXHAUSTED is not failure: bounding agent runs](/blog/posts/exhausted-is-not-failure-bounded-agent-runs.html) — another way wasted turns hide inside a two-outcome model.

@@ -78,3 +78,17 @@ Everything above is model-free. Dropping an *agent* into the graph is then trivi
 ---
 
 Next: [Workflows with Agents — Microsoft Agent Framework in Go](/blog/posts/maf-go-09-workflows-with-agents.html)
+
+## Key takeaways
+
+- A workflow is a directed graph of *executors* joined by *edges*; `workflow.NewExecutor(id, fn).Bind()` turns a plain `string -> string` function into a node, so you can learn the mechanics with no model or Azure credential.
+- The builder describes the graph, not the run: `NewBuilder(start)` fixes the entry, `AddEdge(src, dst)` wires an edge, `WithOutputFrom(node)` marks the output node, and `Build()` validates the whole graph.
+- `RunStreaming` + `WatchStream(ctx)` yield typed events you `switch` on — `ExecutorCompletedEvent` fires per step, `OutputEvent` carries the value from the `WithOutputFrom` node; completing and being the output are two different things.
+- `inproc.Default` runs every executor in-process, making a functions-only workflow deterministic and offline — the right way to see edges before agents enter the picture.
+- Reading the route builder closely surfaced a real upstream bug (PR #489): a dead `reflect.Type` guard silently accepted a mismatched handler at `Build()` time and misrouted at run time; the fix makes `Build()` fail loudly.
+
+## Further reading
+
+- [Workflows with Agents — Microsoft Agent Framework in Go](/blog/posts/maf-go-09-workflows-with-agents.html)
+- [Orchestration Patterns — Microsoft Agent Framework in Go](/blog/posts/maf-go-10-orchestrations.html)
+- [agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)

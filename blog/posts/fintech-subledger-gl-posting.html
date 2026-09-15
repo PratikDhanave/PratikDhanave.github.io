@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-07-06">July 06, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/ledger/" class="tag-link"><span class="tag">#Ledger</span></a><a href="/blog/tags/accounting/" class="tag-link"><span class="tag">#Accounting</span></a><a href="/blog/tags/architecture/" class="tag-link"><span class="tag">#Architecture</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a></div>
   </header>
@@ -169,6 +169,21 @@
 <h2 id="the-period-close-handoff">The period-close handoff</h2>
 <p>Period close is where the pipeline hands control to the accounting team. The sequence is deliberate: stop or quiesce posting for the period, run the final aggregation so no subledger line is stranded, execute the tie-out until the variance is zero, then freeze the GL period so no further entries land in it. Only after the freeze do the financial statements get produced.</p>
 <p>The engineering payoff of keeping the ledgers separate now shows: the operational subledger never stopped accepting new events for the <em>next</em> period while the <em>current</em> period was closing. The two-ledger split is not accounting pedantry — it is what lets a high-throughput system keep writing money movements continuously while the books close cleanly behind it.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>The GL and the subledger are deliberately different: the GL is coarse, immutable, and closed monthly; the subledger is transaction-grain and can absorb tens of millions of lines a day. Posting subledger detail directly into the GL destroys reconcilability.</li>
+<li>Posting rules are versioned configuration, not code — they translate product events into balanced debit/credit entries, and any entry whose debits and credits don&rsquo;t equal is rejected before it reaches storage.</li>
+<li>Idempotency comes from a deterministic key (event ID plus rule version) enforced by a unique constraint, so at-least-once delivery becomes a safe no-op; events no rule maps to land in a suspense account instead of silently disappearing.</li>
+<li>Aggregation is a lossy-but-reversible bridge: it groups subledger lines by account, currency, and entity into a few GL entries, each carrying a reference back to the exact window and grouping key for drill-down.</li>
+<li>The tie-out is a strictly read-only control that gates period close — subledger detail must equal the posted GL balance per account and period, and late-arriving events post into the next open period rather than reopening a frozen one.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-period-close-trial-balance.html">Period close and the trial balance</a></li>
+<li><a href="/blog/posts/fintech-chart-of-accounts-modeling.html">Modeling a chart of accounts</a></li>
+<li><a href="/blog/posts/fintech-handbook-02-the-ledger.html">The ledger (fintech handbook)</a></li>
+<li><a href="/blog/posts/fintech-handbook-07-outbox-cdc-reconciliation.html">Outbox, CDC, and reconciliation (fintech handbook)</a></li>
+</ul>
 
 
   <aside class="related-posts">

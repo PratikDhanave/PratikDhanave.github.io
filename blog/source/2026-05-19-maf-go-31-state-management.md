@@ -59,6 +59,19 @@ go run ./tutorial/02-agents/agui/step05_state_management/client   # terminal 2
 
 The middleware and state helpers test offline; the live server run is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **State travels as content, not a side channel.** It's a `DataContent` with media type `application/json` attached to messages in both directions — the same envelope the framework uses for any structured payload.
+- **A middleware turns the model's JSON reply into a snapshot.** Whenever a reply parses as a JSON object, the middleware emits an extra `DataContent` update before passing the original through — a pure function of the wrapped `RunFunc`, so the offline test drives it with a fake `next`.
+- **The client carries state in and adopts state out.** Each turn sends the user's text plus the current snapshot; `extractState` scans the reply for the first `application/json` `DataContent` and, if none is present, keeps the state it already holds.
+- Pure round-trip helpers (`toStateContent`/`extractState`) are unit-tested offline with no server — think a recipe card or dashboard filling in as the conversation proceeds.
+
+## Further reading
+
+- [Human In Loop](/blog/posts/maf-go-30-human-in-loop.html) — the previous AG-UI lesson, pausing a run for human approval.
+- [step01 · Running an Agent (with middleware)](/blog/posts/maf-go-11-running.html) — the middleware seam this state-snapshot trick relies on.
+- [Structured Output on Azure AI Foundry](/blog/posts/maf-go-44-structured-output.html) — constrain the model's JSON at the source instead of parsing it in middleware.
+
 ---
 
 Next: [mcp · Agent with tools from an MCP Server](/blog/posts/maf-go-32-agent-mcp-server.html)

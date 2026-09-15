@@ -65,3 +65,17 @@ Second, **calibration**: do the predicted default rates match reality? A model c
 Gradient-boosted trees and neural nets often edge out a scorecard on raw discrimination. Yet regulated lenders keep choosing the scorecard, and the reason is governance, not nostalgia. Fair-lending law demands that a lender explain an adverse decision with specific reasons; an additive points table produces those reasons for free, since each attribute's contribution is right there. Model-risk teams can inspect every coefficient, challenge every bin, and reproduce every score by hand. The monotonic WOE bins make the model's behavior predictable at the edges of the data, and the whole artifact is stable enough to monitor for drift over years.
 
 The lesson generalizes beyond credit: in high-stakes, regulated decisions, a model you can defend line by line often beats a marginally sharper one you cannot. The scorecard endures because it was engineered, from its first design choice to its last validation chart, to be explained.
+
+## Key takeaways
+
+- The label is a definition, not a given: "bad" is typically 90+ days past due within a fixed performance window (12–24 months), observed forward from an origination snapshot, with ambiguous accounts carved out as indeterminate. Getting the two timelines right avoids an immature window and target leakage.
+- Weight of Evidence puts every predictor onto one log-odds scale — `ln((goods_in_bin/total_goods)/(bads_in_bin/total_bads))` — which handles missing values as their own bin, tames outliers into edge bins, and (with enforced monotonicity) keeps the model intuitive; Information Value is the first-pass filter for which features earn a place.
+- The model is logistic regression on WOE features, so inputs and coefficients live in the same additive log-odds space, and a coefficient whose sign flips against its monotonic bin trend is a red flag to investigate before production.
+- Scaling to points is linear — `points = offset + factor × log-odds`, `factor = PDO/ln(2)` — and because WOE keeps features additive, the total distributes across bins into a literal points table: that table *is* the scorecard.
+- Validate on holdout for both discrimination (KS, Gini/AUC) and calibration (predicted vs. observed default rates); a model can rank perfectly and still be miscalibrated, and calibration is what makes a score usable for pricing and provisioning.
+
+## Further reading
+
+- [Weight of Evidence and Information Value](/blog/posts/finai-weight-of-evidence-iv-binning.html) — the binning step at the heart of the scorecard, in depth.
+- [Explaining credit decisions: SHAP and reason codes](/blog/posts/finai-credit-explainability-shap-reason-codes.html) — turning a score into the legally required adverse-action reasons.
+- [Reject inference: modeling the applicants you declined](/blog/posts/finai-reject-inference-credit-scoring.html) — correcting the sample-selection bias baked into scorecard training data.

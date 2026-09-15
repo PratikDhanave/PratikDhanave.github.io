@@ -122,4 +122,17 @@ Two more fields shape *how the agent is fed*, and they pair naturally with the f
 
 Four knobs cover most of what you'll tune: `description` for delegation, `instruction` for behavior (templated from state), generation params for sampling, and an output schema for typed results. The one place to slow down is structured output — Python's Pydantic-to-schema convenience and Go's explicit `genai.Schema` produce the same guarantee, but Go additionally forbids tools on a schema'd agent. Know that difference and you'll design your agent boundaries correctly from the start.
 
-*Next in the series: composing these agents into Sequential, Parallel, and Loop workflows.*
+## Key takeaways
+
+- Four fields recur on nearly every `LlmAgent`: `description` (a routing hint for parent agents, not the system prompt), `instruction` (the behavioral prompt, templated from state), generation params, and an output schema.
+- `instruction` is a template: `{key}` is substituted from session state and `{key?}` no-ops when the key is absent — no string concatenation in your own code.
+- Generation config differs by idiom: Python takes a bare `temperature=0.1` because `None` means "unset", while Go makes temperature a `*float32` pointer via `genai.Ptr` to distinguish unset from explicit zero.
+- Structured output diverges most — Python hands over a Pydantic model, Go builds a `genai.Schema` explicitly — and Go additionally forbids tools/transfer on a schema'd agent (reply-only), while Python still allows them.
+- `output_key` stashes the result into `session.state[...]`, which is how one agent hands data to the next; `include_contents='none'` makes a stateless worker for lower cost and determinism.
+
+## Further reading
+
+- [Foundations: The Smallest ADK Agent](/blog/posts/adk-00-foundations.html)
+- [Workflow Agents: Deterministic Orchestration in ADK](/blog/posts/adk-02-workflow-agents.html)
+- [Multi-Agent Systems in ADK](/blog/posts/adk-03-multi-agent-systems.html)
+- [Google ADK documentation](https://google.github.io/adk-docs/)

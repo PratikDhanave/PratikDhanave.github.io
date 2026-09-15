@@ -46,6 +46,18 @@ go run ./tutorial/02-agents/providers/foundry/step07_observability
 
 The tracing test runs offline against the fake recorder; the live model calls are gated behind `AF_LIVE=1` with `az login` and `FOUNDRY_PROJECT_ENDPOINT`.
 
+## Key takeaways
+
+- `otelprovider.NewMiddleware` opens an OpenTelemetry span around every run and tags it with `gen_ai.*` attributes (operation, provider, agent id/name) — the same middleware hook you'd use for logging or guardrails.
+- Order in `Config.Middlewares` matters: list the tracer first so its span encloses the logger and the eventual model call, and the span's duration reflects the whole run.
+- One-shot and streaming runs are traced identically, but a streamed run keeps its span open until the last update is yielded — which is why the recorder must be safe for concurrent use.
+- The lesson stays offline by embedding OTel API no-op types (`noop.Tracer`, `noop.Span`) and overriding only `Start`, `IsRecording`, and `SetStatus`; production swaps in `stdouttrace` + `sdktrace` with the middleware wiring unchanged.
+
+## Further reading
+
+- [step12 · Middleware (guardrail + logger)](/blog/posts/maf-go-50-middleware.html) — the same middleware hook used to short-circuit unsafe runs
+- [09 · MCP Client as Tools (Foundry)](/blog/posts/maf-go-47-mcp-client-as-tools.html) — the next lesson in this Foundry provider track
+
 ---
 
 Next: [09 · MCP Client as Tools (Foundry)](/blog/posts/maf-go-47-mcp-client-as-tools.html)

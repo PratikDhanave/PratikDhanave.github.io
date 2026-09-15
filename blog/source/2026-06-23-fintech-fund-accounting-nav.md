@@ -75,3 +75,9 @@ A general ledger records what *happened* — it is transaction-history-driven, d
 ## What to remember
 
 NAV is one number, but it is the tip of a reconciled, valued, accrued, and controlled pipeline. Build it so the silent failures — stale prices, missed accruals, mis-dated corporate actions — surface as loud exceptions. Make fair value explicit, make the tolerance check unmissable, and never let a number reach investors without a second set of eyes. The arithmetic is trivial; the discipline is the product.
+
+## Further reading
+
+- [Corporate Actions Processing](/blog/posts/fintech-corporate-actions-processing.html) — the splits, dividends, and mergers whose ex-date timing is the NAV pipeline's sharp edge
+- [Multi-Currency Accounting and FX Revaluation](/blog/posts/fintech-multi-currency-revaluation.html) — how a currency-hedged share class picks up its own P&L
+- [Custody and Asset Servicing](/blog/posts/fintech-custody-asset-servicing.html) — the custodian records positions must reconcile against before a strike

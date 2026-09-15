@@ -81,7 +81,22 @@ Every state-changing operation in the flow (create checkout, pay, capture) must 
 
 ACP and AP2 are not competing skeletons; they are competing implementations of the same one. ACP leans on OAuth-style permission and a shared payment token with a create-pay-complete lifecycle. AP2 leans on a signed Intent to Cart to Payment mandate chain. Both give the agent a discovery feed, a scoped credential, a merchant checkout, a network authorization, and asynchronous settlement. If you build the skeleton with idempotency keys, structured declines, webhooks, and a durable audit trail from the mandate or token chain, adopting either protocol becomes a matter of adapters, not architecture.
 
+## Key takeaways
+
+- Agent checkout skips none of a human checkout's steps — it moves them behind a program; ACP and AP2 are two implementations of one eight-stage skeleton (discovery → cart → approval → token → checkout → authorize → fulfill → webhook).
+- Approval diverges: AP2 uses a signed Cart Mandate in an Intent→Cart→Payment chain, ACP uses an OAuth-style scoped checkout permission — but no charge happens without an explicit, recorded act of approval.
+- The delegated payment token is what makes this tolerable: the agent never touches a raw card, and a good token is narrow in amount, merchant, and time, so a leak's blast radius is one purchase.
+- Idempotency is the single most consequential difference from human checkout — agents retry programmatically after lost responses, so every mutating call (create, pay, capture) must accept a key and replay the original result.
+- Return *structured* decline reasons: "payment failed" is useless to an agent, but a reason code distinguishing insufficient funds from an expired token lets it decide whether to retry, re-approve, or abandon.
+
 ## Sources
 
 - https://docs.stripe.com/agentic-commerce/acp
 - https://ap2-protocol.org/
+
+## Further reading
+
+- [Agent Identity, Delegation, and Scoped Authorization](/blog/posts/agentic-commerce-agent-identity-auth.html)
+- [Building an Agent-Ready Merchant](/blog/posts/agentic-commerce-agent-ready-merchant.html)
+- [The Agentic Commerce Protocol Stack](/blog/posts/agentic-commerce-protocol-stack.html)
+- [AP2 Mandates](/blog/posts/agentic-commerce-ap2-mandates.html)

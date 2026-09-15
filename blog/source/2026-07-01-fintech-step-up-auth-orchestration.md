@@ -92,3 +92,18 @@ When a verdict returns, the orchestrator resolves the pending session into exact
 Instrument the funnel, not just the endpoints. The numbers that matter are **step-up rate** (what fraction of transactions get challenged — too high and you are taxing good customers), **challenge completion rate by tier** (a low OTP completion often means a deliverability problem, not fraud), and **pending-session leak count** (sessions that should have terminated but did not). Alert on the leak metric specifically; it is the leading indicator that your sweeper or release path is broken.
 
 A step-up orchestrator earns its keep by being invisible on the 98% of traffic that should never see a prompt, and rock-solid on the 2% that must. Keep the risk decision separate from the challenge, make the pending state durable and time-bounded, and treat resumption and abandonment as first-class terminal paths — and the rest is adding adapters.
+
+## Key takeaways
+
+- Separate the risk engine (emits a small typed `RiskDecision` with action, tier, reasons, TTL) from the orchestrator (turns a `challenge` verdict into a ceremony); a `deny` cannot be rescued by a step-up, and only `challenge` enters the orchestrator with its tier already chosen.
+- Challenge tiers are a ladder of rising friction and assurance — silent/device signals, OTP, biometric (WebAuthn), 3-D Secure — and the orchestrator raises the *lowest* tier that satisfies the flagged risk, with each provider behind one `issue`/`verify` interface so a new method is an adapter, not a new state-machine branch.
+- The durable pending state is the whole design: persist a `ChallengeSession` (challenge_id, txn_ref, tier, status, attempts, expires_at, resume_token), and issue the challenge only *after* the session row commits so a crash never leaves a code with no session to verify it.
+- Resolve into exactly one terminal outcome — verified resumes idempotently keyed on `txn_ref`; a failure retries within the *same* expiry window (a retry must not reset the deadline); abandonment must *actively* release the held authorization, reservation, and rate-limit slot, never leave them to rot.
+- Operate by the funnel: watch step-up rate, completion rate by tier, and pending-session leak count — alert on the leak metric as the leading indicator that the sweeper or release path is broken.
+
+## Further reading
+
+- [Rules and ML in one fraud decision path](/blog/posts/fintech-rules-vs-ml-fraud-scoring.html) — the risk engine that feeds this orchestrator
+- [The 3-D Secure 2 authentication flow](/blog/posts/fintech-3ds2-authentication-flow.html)
+- [SCA exemptions under PSD2](/blog/posts/fintech-sca-exemptions-psd2.html)
+- [Device fingerprinting and biometrics](/blog/posts/fintech-device-fingerprinting-biometrics.html)

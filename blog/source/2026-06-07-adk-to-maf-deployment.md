@@ -224,6 +224,19 @@ done
 
 Result: Scalable, observable, resilient multi-agent system.
 
+## Key takeaways
+
+- The per-request `AgentThread` model is what makes horizontal scaling trivial: the `ChatClient` is reused across requests while conversation state is scoped to each request, so any replica can serve any request behind a load balancer.
+- ADK's implicit session state makes multi-replica deploys ambiguous ("which replica owns the session?"); the explicit thread model removes that question.
+- A2A lets one agent call another over HTTP via `A2AExecutor` (server) and `A2AAgent` (client), instead of hand-rolling the HTTP wrapping ADK requires.
+- Production hardening adds `setup_observability()` for tracing (Jaeger/Laminar) and SIGTERM-driven graceful shutdown so in-flight requests finish during rolling Cloud Run deploys.
+
+## Further reading
+
+- [Callbacks and Middleware](/blog/posts/adk-to-maf-callbacks.html) — the observability middleware wired in at deploy time
+- [Provider Abstraction and .env Configuration](/blog/posts/adk-to-maf-provider-config.html) — switching to the Foundry provider for production
+- [Lessons from Converting 18 Agents in 90 Days](/blog/posts/adk-to-maf-lessons.html) — the production retrospective across 18 agents
+
 ---
 
 Next: [Lessons Learned (18 Agents, 90 Days)](/blog/posts/adk-to-maf-lessons.html)

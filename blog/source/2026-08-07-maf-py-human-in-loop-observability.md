@@ -158,3 +158,9 @@ The rendering carries meaning: the start executor draws as green "(Start)", fan-
 Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):
 
 - [Human In The Loop](/blog/diagrams/maf-py-47-human-in-the-loop.html)
+
+## Further reading
+
+- [Middleware and cross-cutting concerns](/blog/posts/maf-py-middleware-cross-cutting.html)
+- [DevUI and durable agents](/blog/posts/maf-py-devui-durability.html)
+- [Advanced I/O, RAG & evaluation](/blog/posts/maf-py-advanced-io-rag-eval.html)

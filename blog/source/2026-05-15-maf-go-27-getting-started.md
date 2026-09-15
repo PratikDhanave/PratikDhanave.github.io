@@ -50,6 +50,19 @@ go run ./tutorial/02-agents/agui/step01_getting_started/client   # terminal 2
 
 Most of the wiring builds and tests offline; the live server run is gated behind `AF_LIVE=1` (needs `az login` + `FOUNDRY_PROJECT_ENDPOINT`).
 
+## Key takeaways
+
+- **AG-UI changes only the transport.** The agent is the ordinary `foundryprovider` assistant; `aguiprovider.NewJSONHTTPHandler(a, ...)` returns a plain `http.Handler` where each POST becomes one agent run streamed back as Server-Sent-Events.
+- **The client holds no credential — just a URL.** The model lives on the server; the client wraps an SSE client with `aguiprovider.NewAgent` and presents the same `*agent.Agent` surface (`CreateSession`, then streamed `RunText`).
+- **`CreateSession` does no network I/O for this provider** — it just pins a thread ID; the socket opens on the first `RunText`, which is why the whole client/server can be wired offline without binding a port.
+- The handler only accepts POST; a `GET /` short-circuits with `405 Method Not Allowed` before the agent is ever invoked.
+
+## Further reading
+
+- [Backend Tools](/blog/posts/maf-go-28-backend-tools.html) — give the hosted agent a server-side tool while the client stays thin.
+- [Frontend Tools](/blog/posts/maf-go-29-frontend-tools.html) — run a tool on the client instead, with the `DisableFuncAutoCall` flag.
+- [AG-UI State Management](/blog/posts/maf-go-31-state-management.html) — share an evolving state snapshot between client and server.
+
 ---
 
 Next: [Backend Tools](/blog/posts/maf-go-28-backend-tools.html)

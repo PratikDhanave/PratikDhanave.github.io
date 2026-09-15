@@ -79,3 +79,18 @@ Sweeps are the one place where per-address private keys get exercised, so treat 
 ## What makes custody defensible
 
 The teams that sleep at night share a few habits. They size the hot float to a bounded, insurable loss and let cold hold the rest. They keep deposit-address generation public-key-only so the online attack surface has nothing to steal. They ensure no single key and no single person can move funds — hardware or math enforces the quorum, and requester-approver separation enforces the human side. And they route every spend through a policy engine and an append-only audit trail, so custody is a property they can *prove* rather than a promise they hope holds. Custody is not one clever trick; it is making the failure of any single component survivable by design.
+
+## Key takeaways
+
+- The tiered hot/warm/cold model trades availability against blast radius, and its defining invariant is asymmetry: value flows *down* toward cold cheaply under automation, and *up* toward hot only under increasing human control.
+- Size the hot float to a bounded, insurable loss — enough to service normal withdrawals for a window and no more — so a full hot compromise is a known operational cost rather than existential risk.
+- HD wallets back up one seed yet derive unlimited deposit addresses, and public derivation lets an online service vend addresses from an extended *public* key while every spendable private key stays in cold — an attacker who owns the address generator learns addresses, not the ability to move a coin.
+- On the signing side, no single machine ever holds a spendable key: HSMs keep non-exportable keys inside hardware, MPC never assembles the key at all (threshold shares), and both require a quorum.
+- Every withdrawal passes a policy engine (velocity, allowlist/travel-rule, anomaly, N-approver quorum with requester ≠ approver) *before* any signer participates, tracked as an explicit state machine written to an append-only audit log; sweeps derive keys just-in-time, never persist them, and are checkpoint-safe.
+
+## Further reading
+
+- [HD wallets and deposit sweeping](/blog/posts/fintech-hd-wallet-deposit-sweeping.html)
+- [MPC and threshold wallets](/blog/posts/fintech-mpc-threshold-wallets.html)
+- [The HSM key-management ceremony](/blog/posts/fintech-hsm-key-management-ceremony.html)
+- [Proof of reserves](/blog/posts/fintech-proof-of-reserves.html)

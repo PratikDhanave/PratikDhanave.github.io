@@ -70,3 +70,18 @@ Break management is a workflow engine with SLAs. Each break needs an owner, a ro
 Here is the mindset shift that separates a reporting system that survives an inspection from one that does not: **the report is a side effect; the audit trail is the deliverable.** A regulator can ask, two years later, why a specific trade was reported the way it was — or why it was not reported at all. You must reconstruct the full lineage: the source event, the eligibility decision and the rule version that made it, every enriched value and its provenance, the exact submitted payload, the venue's response, and any subsequent correction.
 
 Build this as an append-only, immutable event log keyed by trade and reporting identifiers. Version the rulesets. Timestamp everything to a trusted clock. Make reconciliation a first-class scheduled job, not a quarterly fire drill. Do that, and completeness, accuracy, and timeliness stop being aspirations you hope to hit and become properties you can measure, alert on, and prove.
+
+## Key takeaways
+
+- Regulators judge reporting on three axes — completeness, accuracy, timeliness (MiFID II and EMIR are T+1) — and every design decision traces back to one of them.
+- Eligibility is a matrix (trade × regime × action), not a boolean: one lifecycle event such as a partial termination can produce a MiFIR cancel and an EMIR modify at once. Encode it as versioned decision tables, not branching code.
+- Enrichment attaches LEI, UPI, UTI, and ISIN — each an I/O-bound lookup that can miss, time out, or return stale data — so make it idempotent, retryable, and record the *provenance* of every value as future audit evidence.
+- Validate locally in two tiers (cheap schema checks, then the regulator's business rules) before submission, because a venue rejection costs a full round trip against a hard deadline.
+- The report is a side effect; the audit trail is the deliverable — you must reconstruct, years later, the source event, the rule version that fired, every enriched value, the submitted payload, and the venue response.
+
+## Further reading
+
+- [LCR and NSFR liquidity reporting](/blog/posts/fintech-lcr-nsfr-liquidity-reporting.html) — the same versioned-factors-and-reconciliation discipline for Basel ratios.
+- [ISO 20022 message modeling](/blog/posts/fintech-iso-20022-message-modeling.html) — the schema the REFIT rewrites increasingly submit in.
+- [Audit trails and event sourcing](/blog/posts/fintech-handbook-03-audit-trails-event-sourcing.html) — building the immutable lineage the trail depends on.
+- [ISO 20022 (Wikipedia)](https://en.wikipedia.org/wiki/ISO_20022) — background on the financial messaging standard.

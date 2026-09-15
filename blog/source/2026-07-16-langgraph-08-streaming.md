@@ -104,3 +104,17 @@ Think of a run as a train stopping at stations. Each station (superstep barrier)
 See the official [LangGraph streaming concepts](https://langchain-ai.github.io/langgraph/concepts/streaming/) for the full mode list and the sync/async (`.stream` / `.astream`) variants.
 
 Next in the series: persistence and checkpointers — how a graph pauses, resumes, and remembers where it was.
+
+## Key takeaways
+
+- `.stream(input, stream_mode=...)` runs the graph identically to `.invoke()` — only the *shape* of each yielded chunk changes; all modes see the same underlying sequence of node executions.
+- `"values"` yields the full accumulated state after each step (best for a progress UI, verbose); `"updates"` yields `{node: partial_update}` — the node's raw return before reducers fold it in (best for logging "what did this node do?"); `"debug"` yields raw engine events (best for tracing).
+- The `updates`-vs-`values` distinction is the reducer: for an append-reducer `log`, `updates` shows the delta `["classified"]` while `values` shows the full accumulated list.
+- Streaming is nearly free because the superstep barrier is the natural emit point — the runtime already holds both the delta and the new full state, so it yields a step record before advancing; `.stream()` is a thin projection over those records, not a separate engine.
+- `"messages"` (LLM token streaming) exists too and modes can be multiplexed, but the three core modes are the load-bearing ones.
+
+## Further reading
+
+- [Checkpointing and Persistence: Pause, Resume, Time-Travel](/blog/posts/langgraph-09-checkpointing-persistence.html)
+- [Cycles and the Agent Loop](/blog/posts/langgraph-06-cycles-agent-loop.html)
+- [LangGraph streaming concepts](https://langchain-ai.github.io/langgraph/concepts/streaming/)

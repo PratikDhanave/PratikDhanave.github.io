@@ -225,3 +225,9 @@ The pattern that holds across all of it: Microsoft Agent Framework doesn't hide 
 Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):
 
 - [Compaction](/blog/diagrams/maf-py-27-compaction.html)
+
+## Further reading
+
+- [Tools: functions, hosted tools, MCP, Skills & CodeAct](/blog/posts/maf-py-tools-functions-mcp.html)
+- [Getting started with Microsoft Agent Framework (Python)](/blog/posts/maf-py-getting-started.html)
+- [Workflows: the core model](/blog/posts/maf-py-workflows-core.html)

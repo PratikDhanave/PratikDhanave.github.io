@@ -44,6 +44,20 @@ go run ./tutorial/03-workflows/shared-states
 
 Fully offline — no model, no network. The test builds the same graph, asserts its structure, and runs it end-to-end.
 
+## Key takeaways
+
+- Executors coordinate through **scoped shared state** (`ctx.QueueStateUpdate` / `ctx.ReadState`) instead of copying a whole payload down every edge — one executor stores a value under a scoped key and later ones read it back, passing only a small ID on the wire.
+- Scopes namespace keys (`fileContentScope`) so unrelated executors can't collide, and state updates are *queued*, not immediate — the runtime applies the write, which keeps state consistent across parallel fan-out reads.
+- The `AddFanInBarrierEdge` barrier is the synchronization point: it fires the aggregator only after *all* upstream executors deliver, while the aggregator's own buffering controls what it does with each arrival.
+- Combined with `AddFanOutEdge`, this is the map-reduce shape — split work across parallel executors, then join — and the aggregator is bound per session with `BindNewExecutorFunc` and declares its output type for `WithOutputFrom`.
+- The design lesson is "pass an ID, not the payload," which matters most for large shared data like a retrieved document or accumulated context many nodes need.
+
+## Further reading
+
+- [Map-reduce — Microsoft Agent Framework in Go](/blog/posts/maf-go-75-map-reduce.html)
+- [subworkflows · Nested Order Processing](/blog/posts/maf-go-83-nested-order-processing.html)
+- [microsoft/agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)
+
 ---
 
 Next: [subworkflows · Nested Order Processing](/blog/posts/maf-go-83-nested-order-processing.html)

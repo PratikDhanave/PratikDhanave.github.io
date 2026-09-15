@@ -52,6 +52,19 @@ ANTHROPIC_API_KEY=sk-... go run ./tutorial/02-agents/providers/anthrophic
 
 The structural test builds the agent with a dummy key and runs fully offline; the live call needs a real `ANTHROPIC_API_KEY` and is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **The agent contract is provider-agnostic.** The identical `agent.Agent` you built against Foundry runs on Anthropic's Claude by changing three lines: the client, the `NewAgent` call, and the credential source. `agent.Config` — name, middleware, instructions — is shared verbatim.
+- **Credentials follow the Anthropic SDK's own convention.** `anthropic.NewClient()` reads `ANTHROPIC_API_KEY` — no Azure `TokenCredential`, no Foundry endpoint. The client is lazy, so the structural test builds the whole agent with a throwaway key and no network.
+- **Model IDs are provider-specific strings.** The constant is `claude-sonnet-4-5`; a Foundry deployment name won't work here and vice versa.
+- `a.ProviderName()` reports the provider so downstream code can tell a Claude-backed agent from a Foundry-backed one.
+
+## Further reading
+
+- [providers/azure · Azure AI Project](/blog/posts/maf-go-35-ai-project.html) — the same swap pointed back at a Foundry project endpoint.
+- [Azure · OpenAI Chat Completions](/blog/posts/maf-go-37-openai-chat-completion.html) — another provider swap, onto Azure OpenAI.
+- [Microsoft Agent Framework Go SDK](https://github.com/microsoft/agent-framework-go) — the provider packages (`anthropicprovider`, `foundryprovider`, `openaiprovider`) this series wires.
+
 ---
 
 Next: [providers/azure · Azure AI Project](/blog/posts/maf-go-35-ai-project.html)

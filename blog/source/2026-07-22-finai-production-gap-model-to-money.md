@@ -67,3 +67,17 @@ So monitoring must be linked back to the money metric. Track the input distribut
 The through-line of every gate is the same: the model that survives is the one designed backward from the outcome. Frame the money metric with the sponsor first. Prototype against it, not against a leaderboard. Write validation evidence as you go. Build the serving path with the same feature code as training. Roll out in the shadow before the light. Monitor the dollars, not just the servers.
 
 None of this makes the modeling easier. It makes the modeling *matter*. A mediocre model that ships and is monitored will out-earn a brilliant one that sits in a repository every single time — because zero times any accuracy is still zero. The production gap is not crossed by a better algorithm. It is crossed by refusing to start until you know exactly which number, measured in currency, this model exists to change, and by treating every gate between the prototype and that number as part of the model itself.
+
+## Key takeaways
+
+- The chasm between a model that predicts well and one that earns is a design problem, not an engineering one — it starts on day one, when a model is built forward from data toward an offline score instead of backward from a business outcome someone with a budget wants to move.
+- Write down the money metric before modeling ("reduce charge-offs on the near-prime segment by X bps without shrinking approved volume"). It tells you when to stop chasing AUC, gives you a sponsor, and defines what monitoring must measure. If you can't write that sentence, you have a hobby, not a project.
+- Independent validation is where strong models stumble; teams clear it fast by writing documentation, assumption logs, and fairness/stability tests *while* building, and sign-off is a human decision by an accountable owner, not a rubber stamp.
+- Feature parity between training and serving is make-or-break — build the serving path with the same feature definitions and transformations, versioned together, or the deployed model behaves like a different, worse one than you validated.
+- Roll out as a controlled experiment (shadow mode, then a gradual share) and monitor the *money*, not just latency and uptime — a drift alert reopening the rework loop is the system working, not failing.
+
+## Further reading
+
+- [Why machine learning in finance is different](/blog/posts/finai-why-ml-in-finance-is-different.html) — the forces (regulators, adversaries, non-stationarity) that make designing backward necessary.
+- [Building a credit scorecard](/blog/posts/finai-credit-scorecard-from-data-to-score.html) — a model built, from the first choice, to survive validation.
+- [Model risk governance](/blog/posts/fintech-model-risk-governance.html) — the validation and sign-off gate as an institutional discipline.

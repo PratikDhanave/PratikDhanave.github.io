@@ -59,3 +59,18 @@ Fully offline. The built-in email is long and ordinary, so the assigner routes i
 ---
 
 Next: [human_in_the_loop_basic · A Workflow That Asks a Human](/blog/posts/maf-go-79-human-in-the-loop-basic.html)
+
+## Key takeaways
+
+- An edge assigner sits between a single conditional edge (one branch) and default fan-out (every target): it delivers a message to a chosen *subset* of targets, possibly more than one.
+- The assigner is a `func(int, any) iter.Seq[int]` that yields the *indexes* of the targets a message should reach, attached via `AddFanOutEdge(src, targets, workflow.WithEdgeAssigner(...))`.
+- Indexes refer to the target slice by position, so the order you pass to `AddFanOutEdge` is load-bearing — a reordered slice silently reroutes everything; yielding zero indexes drops the message for that edge.
+- Yielding more than once is the whole point (a "not spam" long email reaches assistant *and* summary), which is the shape of real dispatch — a document needing both translation and summarization, an alert going to logging and an on-call agent.
+- Assigners coexist with plain conditional edges on the same source node, and `iter.Seq[int]` honors back-pressure through the `yield`-returns-bool idiom of Go 1.23 range-over-func.
+
+## Further reading
+
+- [02 · Switch Case — multi-way conditional routing](/blog/posts/maf-go-77-02-switch-case.html) — routing to exactly one target
+- [human_in_the_loop_basic · A Workflow That Asks a Human](/blog/posts/maf-go-79-human-in-the-loop-basic.html)
+- [concurrent · Fan-out / Fan-in Workflow](/blog/posts/maf-go-74-concurrent.html)
+- [Microsoft Agent Framework Go source](https://github.com/microsoft/agent-framework-go)

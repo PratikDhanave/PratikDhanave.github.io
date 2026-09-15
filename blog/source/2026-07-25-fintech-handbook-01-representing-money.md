@@ -109,3 +109,17 @@ Deposit 100.00 USD, converted to INR
 ## Why it matters
 
 None of this is advanced. It is a value object, a rounding mode, an allocation loop, and a habit of recording the rate you used. But money is the one domain where "close enough" is a defect, not a tolerance. The systems that stay auditable and reconcilable for years are the ones that made these four choices correctly in the first commit — because every layer above them inherits the exactness, or inherits the bug.
+
+## Key takeaways
+
+- Money is never a float — not for storage, arithmetic, or an intermediate variable. IEEE-754 stores base-10 fractions as the nearest binary approximation (`0.1 + 0.2 == 0.30000000000000004`), and the error accumulates until a reconciliation report fails.
+- Store an integer count of minor units plus the currency and an explicit scale; the integer is the source of truth and formatting to `1,299.50` happens only at the edge. Keep scale explicit because it isn't always 2 (three-digit dinar currencies, four-digit unit prices).
+- Rounding is a policy: prefer round-half-even (banker's rounding) so up- and down-rounds cancel across a population and totals stay unbiased, and apply it consistently across services or nothing reconciles.
+- Split money with the largest-remainder allocation, not independent rounding — dividing 10.00 three ways as 3.33+3.33+3.33 loses a cent; hand out the floor, then distribute leftover minor units to the largest remainders so the parts re-sum to the whole.
+- Currency is part of the value (adding 100 INR to 5 USD is a category error the type should forbid), and an exchange rate must be stored with its direction, timestamp, and source so any conversion can be replayed months later.
+
+## Further reading
+
+- [The ledger: double-entry bookkeeping](/blog/posts/fintech-handbook-02-the-ledger.html) — the next chapter, where these exact `Money` values become balanced postings.
+- [Multi-currency revaluation](/blog/posts/fintech-multi-currency-revaluation.html) — what reproducible exchange rates enable at the accounting layer.
+- [IEEE 754 (Wikipedia)](https://en.wikipedia.org/wiki/IEEE_754) — why binary floating point can't represent decimal fractions exactly.

@@ -103,3 +103,17 @@ The mistake that cost me time: a vague docstring. When I wrote `"""Convert curre
 ---
 
 Next: [Conversation and Memory — Microsoft Agent Framework in Python](/blog/posts/maf-python-04-conversation-and-memory.html)
+
+## Key takeaways
+
+- A tool is just a `@tool`-decorated Python function; the framework reads its type annotations and docstring to build the JSON schema, so you never hand-write one.
+- The docstring and each `Annotated` `Field(description=...)` are the prompt the model reasons over — a vague `"""Convert currency."""` produced wrong currency codes until it was spelled out.
+- Registration is a populated `tools=[...]` list on the `Agent`; the same `AzureCliCredential` Foundry auth from earlier posts is unchanged.
+- You never tell the agent which tool to use — the model matches the question's wording to a tool's docstring and parameters, so the description *is* the routing logic.
+- `approval_mode="never_require"` runs the tool without pausing; a side-effecting production tool uses `"always_require"` with a human-in-the-loop instead.
+
+## Further reading
+
+- [Your First Agent — Microsoft Agent Framework in Python](/blog/posts/maf-python-02-your-first-agent.html)
+- [Conversation and Memory — Microsoft Agent Framework in Python](/blog/posts/maf-python-04-conversation-and-memory.html)
+- [Middleware — Microsoft Agent Framework in Python](/blog/posts/maf-python-06-middleware.html) — guardrails that can refuse a tool call before it runs

@@ -112,7 +112,7 @@
       <span>·</span>
       <time datetime="2026-07-21">July 21, 2026</time>
       <span>·</span>
-      <span>7 min read</span>
+      <span>8 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/harness-engineering/" class="tag-link"><span class="tag">#Harness Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/sandboxing/" class="tag-link"><span class="tag">#Sandboxing</span></a><a href="/blog/tags/azure/" class="tag-link"><span class="tag">#Azure</span></a><a href="/blog/tags/engineering-practices/" class="tag-link"><span class="tag">#Engineering Practices</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -230,6 +230,20 @@
 <p>Timeouts protect the harness from a runaway <em>action</em>. The next thing a real agent needs is a <em>memory</em> that outlives a single request — one that can retrieve the right past turns instead of replaying the whole transcript, and summarize when the thread grows too long to fit the context window. That&rsquo;s a different seam standing in for a different Azure primitive, with its own honest leak.</p>
 <hr>
 <p>Next: <a href="/blog/posts/harness-engineering-go-05-advanced-memory.html">Advanced Memory: Threads, Retrieval, and Summarization</a></p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Bound the runtime with a <code>context.WithTimeout</code> passed to <code>exec.CommandContext</code> — when the deadline fires, <code>os/exec</code> kills the process for you, with no goroutine race and no manual <code>Kill</code>, and <code>defer cancel()</code> leaks nothing either way.</li>
+<li>The <code>Result</code> carries two booleans that are not redundant: <code>OK</code> and <code>TimedOut</code> distinguish three distinct outcomes — success, the code ran and failed (a real result to show the agent), and the code never terminated (an operational event).</li>
+<li>To tell a timeout from an ordinary non-zero exit, check <code>ctx.Err() == context.DeadlineExceeded</code>, <em>not</em> the error text — a killed process returns &ldquo;signal: killed&rdquo; which is indistinguishable from any other SIGKILL. That check must come first.</li>
+<li>The timeout test asserts <em>promptness</em> (<code>sleep 5</code> on a 200ms budget must return in well under two seconds), proving the process was actually reaped rather than merely waited on.</li>
+<li>State the leak plainly: a local subprocess is not a security boundary — it shares your filesystem, environment, and network. The timeout stops code running <em>forever</em>, not from reading, writing, or exfiltrating <em>quickly</em>. The real boundary is Foundry Code Interpreter or ACA Dynamic Sessions.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/harness-engineering-go-03-durable-execution.html">Durable Execution: checkpoint every step</a> — the previous lesson, protecting the harness from a crash rather than a runaway.</li>
+<li><a href="/blog/posts/harness-engineering-go-05-advanced-memory.html">Advanced Memory: threads, retrieval, summarization</a> — the next seam.</li>
+<li><a href="https://learn.microsoft.com/en-us/azure/container-apps/sessions">Azure Container Apps Dynamic Sessions</a> — the Hyper-V-isolated per-request sandbox this stand-in targets.</li>
+</ul>
 
 
   <aside class="related-posts">

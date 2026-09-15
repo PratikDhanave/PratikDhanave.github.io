@@ -90,3 +90,17 @@ The final discipline is choosing *what* pages a human. Do not alert on infrastru
 - Technical-decline share crossing a ceiling, which almost always means an integration or config regression rather than customer behavior.
 
 Route each alert to the owner implied by its category: soft-decline drops to the payments-routing team, aging breaks to reconciliation, technical spikes to on-call engineering. An SLO that pages the wrong team is only marginally better than no SLO at all. The whole system rests on one idea worth repeating: one normalized event per state transition, one correlation ID, and every metric that matters falls out as an aggregation you can trust when it is 3 a.m. and the money has stopped moving.
+
+## Key takeaways
+
+- Generic uptime lies about payments: a gateway can be 100% up while silently declining a card range, because every decline returns a valid HTTP 200 — treat a payment as a business event with a lifecycle, not an HTTP request.
+- The three SLOs that matter are authorization rate, settlement lag, and decline-reason distribution; all fall out as aggregations of one normalized event per state transition carrying a stable `payment_id`, with a fixed decline-code enum and no unbounded cardinality.
+- Auth rate needs a chosen denominator — exclude customer hard declines, keep issuer soft declines — and must be *sliced* (psp × scheme × issuer_country × method) and alerted per-slice against its own trailing baseline, because a blended number hides a single collapsing cell.
+- Settlement lag is multi-modal (clustered around batch cut-offs), so track p50/p95/p99 and, above all, unsettled aging buckets — a small growing cohort that never settles is the finance ticket three weeks out.
+- Alert on symptoms customers feel (per-slice auth drops, contractual-window aging breaches, technical-decline share) rather than infrastructure proxies like CPU or queue depth, and route each alert to the team that owns its category.
+
+## Further reading
+
+- [Reconciliation and Break Detection](/blog/posts/fintech-reconciliation-break-detection.html)
+- [Payment Orchestration and Routing](/blog/posts/fintech-payment-orchestration-routing.html)
+- [Stand-In Processing (STIP)](/blog/posts/fintech-stand-in-processing-stip.html)

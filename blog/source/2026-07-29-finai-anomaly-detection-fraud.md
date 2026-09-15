@@ -71,3 +71,17 @@ The complementary move is to keep the unsupervised detector as a **fallback for 
 ## Practical guidance
 
 Start with an isolation forest — it is the fastest path to a working signal on tabular data and asks almost nothing of you. Reach for an autoencoder when fraud hides in feature *interactions* rather than univariate extremes, and guard its training set against contamination. Threshold on your team's review capacity as a percentile, not on a magic score, and recompute it on a rolling window. Never sell the output as a fraud verdict; sell it as a prioritized queue, measured by precision and volume at your operating point rather than by accuracy. Then fold the score into your supervised stack as a feature and keep the raw detector alive as a novelty tripwire. Labels will always lag the fraudsters. Unsupervised anomaly detection is how you keep a signal in the window before they arrive.
+
+## Key takeaways
+
+- Unsupervised detection learns "what normal looks like" and flags deviation, which sidesteps the label bottleneck and can catch a novel attack on its first appearance — but it measures "unusual," not "fraudulent," and that gap (a legitimate first international purchase) is the source of nearly every false positive.
+- The three workhorses map to three angles: isolation forests score isolation *depth* (fraud is easy to cut off in few random splits), autoencoders score *reconstruction error* and catch fraud hiding in feature *interactions*, and one-class SVMs draw a *boundary* around normal.
+- With no labels, threshold on the score *distribution* as a review-capacity budget (e.g. top 0.5%), recomputed on a rolling window, and use whatever confirmed labels you have to *evaluate* the threshold, not train the detector.
+- The base rate governs everything: at 0.2% fraud even a 95%-accurate detector produces a review queue thousands deep to find a couple hundred real cases, so the output is a *prioritized ranking of scarce attention*, not a verdict — and "just lower the threshold" is usually wrong.
+- The mature pattern is not either/or: feed the anomaly score into a supervised model as a feature, and keep the raw detector as a novelty tripwire whose review queue seeds the labels for the next retrain.
+
+## Further reading
+
+- [Supervised fraud detection with imbalanced data](/blog/posts/finai-supervised-fraud-imbalanced-data.html) — the labeled counterpart the anomaly score feeds into.
+- [Fraud ring detection with graphs](/blog/posts/fintech-fraud-ring-graph-detection.html) — a third, relational view of the same problem.
+- [Isolation forest (Wikipedia)](https://en.wikipedia.org/wiki/Isolation_forest) — the depth-based method in detail.

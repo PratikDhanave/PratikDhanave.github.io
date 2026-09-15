@@ -186,3 +186,9 @@ Explore the concepts in this guide as self-contained, pan/zoom interactive diagr
 - [Group Chat](/blog/diagrams/maf-py-63-group-chat.html)
 - [Magentic](/blog/diagrams/maf-py-64-magentic.html)
 - [A2A](/blog/diagrams/maf-py-66-a2a.html)
+
+## Further reading
+
+- [Workflows: the core model](/blog/posts/maf-py-workflows-core.html)
+- [Advanced workflows](/blog/posts/maf-py-workflows-advanced.html)
+- [Tools: functions, hosted tools, MCP, Skills & CodeAct](/blog/posts/maf-py-tools-functions-mcp.html)

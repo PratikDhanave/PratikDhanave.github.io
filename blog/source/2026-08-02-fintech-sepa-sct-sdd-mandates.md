@@ -108,3 +108,18 @@ def apply_r_transaction(collection, reason_code):
 ```
 
 Kept this disciplined, SEPA stops being a pile of acronyms. SCT is a near-irreversible push; SDD is a mandate-gated pull whose every reversal is a named state with a deadline attached. Encode the mandate lifecycle, the sequence types, and the R-transaction timeline as first-class state, and the rulebook edge cases become guard clauses instead of production incidents.
+
+## Key takeaways
+
+- SCT (push) and SDD (pull) look symmetric but differ fundamentally: SCT needs no mandate because authorization is implicit in the payer pushing funds, while SDD's mandate is the legal object every collection references.
+- Never store free-text status; every transition is triggered by a typed ISO reason code (`AC04`, `MD06`, `MS03`) from an inbound `pacs.004`/`camt.056`, so key the state machine off those codes and route unknown ones to a manual queue.
+- Enforce mandate guards on the collection path, not as a hoped-for background job: the UMR is your primary key, and SDD Core mandates lapse after 36 months idle; pre-notification (14 days default) must precede submission.
+- R-transactions map to distinct states with deadlines: reject is pre-settlement (no unwind), return is post-settlement by the debtor bank (reverse the ledger), and refund is debtor-initiated for 8 weeks no-questions or 13 months if unauthorized.
+- "Settled" is not "final" — a settled SDD stays refund-eligible for at least 8 weeks, so any downstream payout, goods release, or revenue recognition must hold a reserve or gate on the refund horizon.
+
+## Further reading
+
+- [Modeling ISO 20022 payment messages](/blog/posts/fintech-iso-20022-message-modeling.html)
+- [NACHA ACH file processing](/blog/posts/fintech-nacha-ach-file-processing.html)
+- [RTP and FedNow instant payments](/blog/posts/fintech-rtp-fednow-instant-payments.html)
+- [Variable recurring payments and subscription billing](/blog/posts/fintech-vrp-subscription-billing.html)

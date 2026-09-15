@@ -147,3 +147,9 @@ The hardest part is behind you. The rest is engineering.
 - CONVERSION_GUIDE.md *(repository unavailable)*
 - [Microsoft Agent Framework Reference Architecture](https://github.com/microsoft/agent-framework)
 - [Agent Governance Toolkit (AGT)](https://github.com/microsoft/agent-governance-toolkit)
+
+## Further reading
+
+- [Provider Abstraction: From Gemini-Only to Swappable LLMs](/blog/posts/adk-to-maf-provider-config.html) — the "win" this retrospective opens with
+- [Tool Wrapping: From ADK Functions to Governed Tools](/blog/posts/adk-to-maf-tool-wrapping.html) — the governance patterns that made tools portable
+- [Callbacks and Middleware](/blog/posts/adk-to-maf-callbacks.html) — the observability and token-budgeting layers referenced above

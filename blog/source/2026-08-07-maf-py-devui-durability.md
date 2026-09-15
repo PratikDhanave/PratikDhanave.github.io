@@ -131,3 +131,10 @@ DevUI and the Durable Extension bracket an agent's life: you build and debug it 
 Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):
 
 - [Durable Extension](/blog/diagrams/maf-py-67-durable-extension.html)
+
+## Further reading
+
+- [Human-in-the-loop and observability](/blog/posts/maf-py-human-in-loop-observability.html)
+- [Getting started with Microsoft Agent Framework (Python)](/blog/posts/maf-py-getting-started.html)
+- [Multi-agent orchestration](/blog/posts/maf-py-multi-agent-orchestration.html)
+- [Durable Functions overview](https://learn.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-overview) — Microsoft Learn docs on the Durable Task model

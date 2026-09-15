@@ -56,6 +56,19 @@ go run ./tutorial/02-agents/mcp/agent_mcp_server
 
 The agent wiring and pure helpers test offline; the live path (real MCP server + real model) needs `az login`, `FOUNDRY_PROJECT_ENDPOINT`, network access, and is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **An agent's tools can be borrowed from a remote MCP server.** `mcptool.Connect` opens a streamable-HTTP session (here against `https://learn.microsoft.com/api/mcp`) and `mcptool.ListTools` fetches the catalog; the returned tools go straight into `agent.Config.Tools`, indistinguishable from local ones.
+- **Separate the networked step from the pure wiring.** `newDocsAgent` takes the tools as a parameter rather than fetching them, so the offline test builds the identical agent with fake tools and never opens a connection.
+- **Close the session.** `mcptool.Connect` returns a live `*mcp.ClientSession` the tools keep calling back into for the life of the run — `defer session.Close()` or the tool calls have nothing to talk to.
+- Tools arrive at runtime over the wire, so the catalog depends on what the server advertises that day (e.g. `microsoft_docs_search`, `microsoft_code_sample_search`).
+
+## Further reading
+
+- [step10 · Agent as an MCP Tool](/blog/posts/maf-go-20-as-mcp-tool.html) — the reverse direction: publish *your* agent as an MCP tool.
+- [Backend Tools](/blog/posts/maf-go-28-backend-tools.html) — server-side tools you author directly instead of borrowing.
+- [Model Context Protocol](https://modelcontextprotocol.io/) — the protocol the Learn server and your agent both speak.
+
 ---
 
 Next: [providers · A2A (Agent2Agent)](/blog/posts/maf-go-33-a2a.html)

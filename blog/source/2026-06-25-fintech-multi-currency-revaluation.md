@@ -100,3 +100,17 @@ Settlement of EUR 100.00 receivable @ 1.10
 ```
 
 The realized/unrealized split is the whole point of the exercise. Unrealized movement tells you what the open book is worth right now; realized movement tells you what you actually earned or lost when positions closed. Keeping them on distinct P&L lines — and keeping revaluation journals reversible and idempotent on top of an immutable base ledger — is what lets a multi-currency system report an honest balance sheet on any date without ever mutating the original economic record.
+
+## Key takeaways
+
+- Pick one functional currency; every foreign posting stores *both* the original transaction amount and its functional-currency equivalent plus the rate used — the functional amount feeds the double-entry invariant, the transaction amount preserves the original economic fact (the customer owes exactly 100 EUR).
+- Store amounts as signed integers in minor units and rates as exact rationals or fixed-scale decimals (never floats); conversion rounds deterministically (round-half-even) so re-deriving the functional amount always yields the same cents.
+- Three dates matter and are frequently different: the transaction date fixes the original functional amount, the reporting/period-end date is where revaluation happens, and the settlement date determines the realized result.
+- Revaluation re-measures open foreign balances at the closing rate and books the delta as *unrealized* FX gain/loss — adjusting only the functional amount and posting to a separate contra line, so the original booking stays immutable.
+- The period-end run is idempotent (keyed on account, currency, period) and reversing (backed out on day 1 of the next period so unrealized adjustments don't stack); settlement then recognizes realized gain/loss and reverses any prior unrealized mark so the movement is never counted twice.
+
+## Further reading
+
+- [Fund Accounting and NAV Calculation](/blog/posts/fintech-fund-accounting-nav.html) — where a currency-hedged share class adds its own hedge P&L
+- [Chart of Accounts and Sub-Ledger Modeling](/blog/posts/fintech-chart-of-accounts-modeling.html) — the currency dimension and posting rules these journals ride on
+- [FX Forwards, Swaps, and Hedging](/blog/posts/fintech-fx-forwards-swaps-hedging.html) — the instruments used to hedge the FX exposure revaluation measures

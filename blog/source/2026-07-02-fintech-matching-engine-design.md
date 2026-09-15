@@ -79,3 +79,18 @@ To keep replay bounded, snapshot the full book state at periodic sequence number
 ## What to get right first
 
 If you build one of these, the invariants matter more than throughput. Integer prices and quantities, never floats. A sequencer that is the single linearization point, so ordering is decided once. A core that reads no clock, no random source, and no shared mutable state outside the book. And an event stream that is append-only and gap-checked end to end. Get those four right and you have an engine whose behavior you can prove; optimize the match loop afterward, because a fast engine that cannot be replayed is not an exchange core — it is a liability with good latency numbers.
+
+## Key takeaways
+
+- The book is two priced ladders under price-time priority; store prices as integer ticks (`int64`), never floats, so "best price" is an exact integer min/max — and each trade prints at the *resting* order's price (passive sets, aggressor pays).
+- Every order type is one match loop parameterized by three fields (limit price, time-in-force, fill constraint); only FOK needs a dry-run pass over the book before mutating state.
+- The single-threaded core is a feature: determinism requires state transitions be a pure function of the input sequence, so all non-deterministic work (I/O, parsing, risk checks, allocation) is front-loaded before the core.
+- The sequencer is the single linearization point — its monotonic sequence number *is* the clock, so the engine never reads wall-clock time inside a decision — and scaling is done by sharding per instrument, not parallelizing one book.
+- The gap-free, sequence-tagged event stream is the source of truth; journaling the sequenced inputs plus periodic between-input snapshots lets you replay bit-for-bit for recovery, hot standby, and dispute resolution.
+
+## Further reading
+
+- [Order types and time-in-force](/blog/posts/fintech-order-types-time-in-force.html)
+- [Order-book reconstruction from market data](/blog/posts/fintech-market-data-orderbook-reconstruction.html)
+- [Smart order routing and best execution](/blog/posts/fintech-smart-order-routing-best-ex.html)
+- [Pre-trade risk, position and P&L](/blog/posts/fintech-pretrade-risk-position-pnl.html)

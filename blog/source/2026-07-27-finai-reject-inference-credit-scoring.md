@@ -69,3 +69,17 @@ Two more checks pay for themselves. Track the acceptance-rate region: the inferr
 ## Practical guidance
 
 Treat reject inference as a governed, reversible experiment rather than a data-cleaning step. Start with a well-calibrated base model, because every downstream method inherits its errors. Prefer the softer methods — parceling, fuzzy augmentation, or reweighting — over a hard cutoff, since fabricating confident labels is the fastest way to fool yourself. Document the missingness assumption and the exact weight or proxy assigned to each inferred row, so an auditor can reconstruct what you did and why. And keep the base model on the shelf, ready to reclaim, until held-out evidence says the augmented one earns its place. The applicants you declined are not noise to be ignored; they are the part of the picture your data politely hid from you, and modeling them well is what separates a scorecard that measures your old policy from one that can safely change it.
+
+## Key takeaways
+
+- Training only on funded loans is sample selection bias, and it is dangerous *because* the model still validates beautifully on accept-only data — it overstates discrimination and is poorly calibrated near the cutoff, exactly where marginal decisions are worth the most.
+- The four techniques trade certainty for honesty: hard cutoff (reclassification) reinforces the base model's beliefs; parceling assigns labels randomly within score bands in proportion to observed bad rates; augmentation reweights accepts that resemble rejects; fuzzy augmentation enters each reject twice, fractionally, as both good and bad.
+- Every method leans on one load-bearing assumption — that conditional on recorded features, rejection carries no *additional* outcome information (missing at random). If a loan officer rejected on a reason never logged, no method can recover it.
+- Reject inference interpolates into gaps between observed data; it cannot extrapolate into regions where you rejected essentially everyone and no analogous accept exists to borrow strength from.
+- Never assume inference helped — prove it on a held-out slice of *accepts* neither model saw, watching calibration near the cutoff plus a swap-set analysis, and keep the base model on the shelf to revert to. A pipeline that can't fall back ships regressions.
+
+## Further reading
+
+- [Building a credit scorecard](/blog/posts/finai-credit-scorecard-from-data-to-score.html) — the accepts-only model reject inference exists to de-bias.
+- [Weight of Evidence and Information Value](/blog/posts/finai-weight-of-evidence-iv-binning.html) — the binning whose stability near the cutoff this addresses.
+- [Why machine learning in finance is different](/blog/posts/finai-why-ml-in-finance-is-different.html) — sample bias and leakage as recurring themes of the domain.

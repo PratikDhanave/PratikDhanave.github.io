@@ -43,6 +43,19 @@ go run ./tutorial/02-agents/providers/foundry/step03_function_tools
 
 Tests (including the direct tool exercise) run offline; the live tool-calling run is gated behind `AF_LIVE=1` with `az login` and `FOUNDRY_PROJECT_ENDPOINT`.
 
+## Key takeaways
+
+- **`functool.MustNew` wraps a plain Go function as a tool** and derives the JSON input/output schema from its types — here `string → string` — which is what the model reads to decide when to call.
+- **A single non-struct argument is exposed as `Arg0`**; take a struct if you want named parameters. And the **`Description` is load-bearing** — it's the text the model uses to decide *when* to fire the tool.
+- **One `RunText` can be two model round-trips.** The model asks for `weather`, the framework runs it and returns the output, and the model produces a final answer; `Collect` drains that entire multi-hop exchange into one `Response`.
+- Because the tool is a pure function, the offline test asserts its name, description, schema, and `Call` output with no network.
+
+## Further reading
+
+- [step04 · Function Tools with Approvals](/blog/posts/maf-go-43-function-tools-with-approvals.html) — gate this tool behind human consent.
+- [Structured Output on Azure AI Foundry](/blog/posts/maf-go-44-structured-output.html) — constrain the model's *output* shape, the flip side of tool *input* schemas.
+- [mcp · Agent with tools from an MCP Server](/blog/posts/maf-go-32-agent-mcp-server.html) — the same `agent.Config.Tools` slot, filled from a remote catalog.
+
 ---
 
 Next: [step04 · Function Tools with Approvals](/blog/posts/maf-go-43-function-tools-with-approvals.html)

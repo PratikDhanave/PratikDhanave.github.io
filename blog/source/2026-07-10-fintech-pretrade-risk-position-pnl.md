@@ -89,3 +89,17 @@ The engineering decision here is *which price is the mark*. Last-trade is noisy 
 The gate, the reservation ledger, and the position keeper all read and write the same per-account state, which invites races. The clean answer is a **single writer per account**: route every order, fill, and cancel for one account through one sequenced processor so all mutations are serialized without locks. Different accounts shard onto different processors, so throughput scales horizontally while each account stays strictly consistent.
 
 That single-writer discipline is also what makes the numbers trustworthy. There is exactly one place where buying power is reserved, one place where positions fold in fills, and one place where marks update P&L. When those three live behind one sequenced writer, the gate always evaluates against a coherent snapshot — and "is this order allowed right now?" gets an answer you can actually stand behind.
+
+## Key takeaways
+
+- Pre-trade risk is synchronous and on the critical path, so its latency adds to every order: order checks cheapest-first, keep all state the checks read in memory, treat the engine as a hot loop, and **fail closed** when a rule can't be evaluated.
+- Buying power is a **reservation, not a balance**: reserve worst-case cost at accept, convert filled portions to position, release the remainder on fill/cancel/reject — so `available = cash_and_margin − open_reservations − position_cost` and a burst of orders can't each spend the same dollar.
+- The position keeper is a fold over an ordered fill log: blend average cost when adding, realize P&L against the existing average when reducing, and reset the average at fill price when the sign flips. Recovery is snapshot-plus-replay.
+- Realized P&L never changes once booked; unrealized moves on every tick (`position × (mark − avg_cost)`) — so choosing the mark (last-trade vs. mid vs. a dedicated source) matters, and unrealized P&L feeds back into the gate.
+- A **single writer per account** serializes the gate, reservation ledger, and position keeper without locks, sharding different accounts onto different processors — that's what keeps the numbers coherent and trustworthy.
+
+## Further reading
+
+- [Order types and time-in-force as a lifecycle](/blog/posts/fintech-order-types-time-in-force.html)
+- [Matching engine design](/blog/posts/fintech-matching-engine-design.html)
+- [Reconstructing an order book from a market-data feed](/blog/posts/fintech-market-data-orderbook-reconstruction.html)

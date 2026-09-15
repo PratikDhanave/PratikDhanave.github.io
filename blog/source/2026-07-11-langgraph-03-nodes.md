@@ -127,3 +127,17 @@ That is the entire bridge between "a function you wrote" and "a node the graph r
 The partial-update-plus-reducer design is what makes LangGraph composable. Because a node only declares deltas and never mutates shared state, the framework — not you — owns *when* updates apply and *how* they merge. That's what buys you deterministic parallelism, clean checkpointing, and the ability to swap a node's routing (linear vs. cyclic) without rewriting the node. See the official [LangGraph concepts overview](https://langchain-ai.github.io/langgraph/concepts/low_level/) for the reference definitions of nodes, state, and reducers.
 
 Next in the series: **Edges** — how a node's output actually reaches the next node, and how `START`/`END` bookend the flow.
+
+## Key takeaways
+
+- A node is a plain function (sync or `async`) with one signature: it takes the current state and returns a **partial update** — a dict of only the channels it changed. `add_node("name", fn)` registers it, and the name is how edges refer to it.
+- Return only what you changed, never the whole state: returning an accumulated list into an append reducer duplicates it, and the partial return documents the node's exact side effects. Returning `{}` or `None` is a valid no-op node.
+- The immutable-snapshot guarantee: a node is handed a snapshot and *returns* an update; the framework builds a new state by running each channel through its reducer. That's BSP discipline — no shared mutable state to race on within a step.
+- Nodes do work; edges decide flow. An `agent` node leaves tool calls in the state and a conditional edge routes to `tools` or `END` — which is why the same two functions form a linear pipeline *or* a cyclic agent loop with no change to their bodies.
+- The bridge from "a function you wrote" to "a node the graph runs" is a ~10-line executor: call your function, normalize the return, reduce it into a fresh state, forward it — everything else (supersteps, barrier, routing) is the same engine underneath.
+
+## Further reading
+
+- [Edges, START, END, and compile](/blog/posts/langgraph-04-edges-start-end-compile.html)
+- [State, channels, and reducers: how LangGraph merges updates](/blog/posts/langgraph-02-state-and-reducers.html)
+- [LangGraph documentation](https://langchain-ai.github.io/langgraph/)

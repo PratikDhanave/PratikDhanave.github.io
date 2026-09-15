@@ -181,3 +181,17 @@ A supervisor can run a hundred sub-agents unattended. Some decisions shouldn't b
 ---
 
 Next: [Human-in-the-Loop: An Approval Gate on Durable State](/blog/posts/harness-engineering-go-08-human-in-the-loop.html)
+
+## Key takeaways
+
+- Bounded fan-out is a semaphore in eight bytes: a buffered channel of `maxWorkers` slots, sent to *before* launching each goroutine, so the loop itself blocks once the cap is in flight — no worker pool, no library.
+- Ordered fan-in comes from pre-sizing `results` to `len(subtasks)` and having each goroutine write only its own index, so results return in decomposition order regardless of completion order, race-free without a lock.
+- A panic in a goroutine nobody recovers crashes the *entire* program, and a parent `recover` can't catch it — so each worker runs behind a `defer/recover` that converts the panic into an ordinary error via a named return, containing it exactly like a returned error.
+- Fault isolation means one failing (or panicking) worker writes one `Error` into its slot and returns; the siblings succeed. The two tests pin exactly this — order survives a completion race, and one panic doesn't sink the batch.
+- State the leak: this is static one-shot fan-out (a dumb string split, no re-planning) and isolation covers faults, not liveness — a worker that *hangs forever* blocks its slot with no per-worker timeout, because cancellation is a real orchestrator's job.
+
+## Further reading
+
+- [Orchestration and handoff: routing intent to a specialist](/blog/posts/harness-engineering-go-06-orchestration-handoff.html) — the previous lesson, single handoff one level down.
+- [Human-in-the-loop: an approval gate on durable state](/blog/posts/harness-engineering-go-08-human-in-the-loop.html) — the finale, combining durability with a real human in the loop.
+- [microsoft/agent-framework-go](https://github.com/microsoft/agent-framework-go) — the Magentic/concurrent orchestration this supervisor models the concurrency contract of.

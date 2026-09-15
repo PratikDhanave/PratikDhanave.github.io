@@ -45,6 +45,19 @@ go run ./tutorial/02-agents/agents/step12_as_function_tool
 
 The offline structural test runs anywhere; the live end-to-end run needs `az login` + `FOUNDRY_PROJECT_ENDPOINT` and is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **`agenttool.New` turns a whole agent into a `tool.Tool`**, so an orchestrator can delegate to a specialist exactly as it would call any function — no hand-written routing.
+- **The inner agent's name and description become the tool's contract** — that's the schema the outer model reads when deciding to delegate, so give the specialist a clear identity.
+- **The input shape differs from a plain function tool.** A function tool wraps a single argument as `Arg0`; the agent-as-tool takes a `{"query": "..."}` object, feeding `query` to the inner agent.
+- Two levels of tool-calling with zero dispatch code: the orchestrator calls the `WeatherAgent` tool, which calls its leaf `weather` function, and the answer bubbles back up (here, returned in French).
+
+## Further reading
+
+- [step10 · Agent as an MCP Tool](/blog/posts/maf-go-20-as-mcp-tool.html) — expose the same agent-as-tool adapter over MCP for cross-process reuse.
+- [02 · step03 — Using Function Tools](/blog/posts/maf-go-13-using-function-tools.html) — the leaf function-tool mechanism this composes on top of.
+- [providers · A2A (Agent2Agent)](/blog/posts/maf-go-33-a2a.html) — delegate to a *remote* specialist instead of an in-process one.
+
 ---
 
 Next: [17 · Additional AI Context](/blog/posts/maf-go-23-additional-ai-context.html)

@@ -100,3 +100,9 @@ Model each of these as explicit events with their own timestamps and amounts. A 
 - Increment the delta, never re-hold the running total, or you double-lock available balance.
 - Always emit your own reversal for the hold-minus-capture excess; do not wait for issuer-side expiry.
 - Treat a partial approval as split tender with a provisional hold, and reverse it fast if the remainder cannot be collected.
+
+## Further reading
+
+- [Card Authorization, Capture, and Clearing](/blog/posts/fintech-card-auth-capture-clearing.html)
+- [Stand-In Processing (STIP)](/blog/posts/fintech-stand-in-processing-stip.html)
+- [EMV Cryptograms: ARQC, ARPC, and Offline Data Authentication](/blog/posts/fintech-emv-cryptogram-arqc.html)

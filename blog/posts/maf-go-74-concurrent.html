@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-07-01">July 01, 2026</time>
       <span>·</span>
-      <span>2 min read</span>
+      <span>3 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/microsoft-agent-framework/" class="tag-link"><span class="tag">#Microsoft Agent Framework</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/concurrency/" class="tag-link"><span class="tag">#Concurrency</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -152,6 +152,21 @@ go test ./tutorial/03-workflows/concurrent/concurrent
 <p>Both lines of output may appear in either order — the experts run concurrently; the barrier only guarantees both are present before the aggregator fires. There&rsquo;s no live model path here; the offline test actually runs the workflow and asserts both experts&rsquo; answers reach the aggregated output.</p>
 <hr>
 <p>Next: <a href="/blog/posts/maf-go-75-map-reduce.html">concurrent · Map-Reduce Workflow</a></p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>The lesson teaches the graph primitives with no agent at all — every executor is a plain <code>string → string</code> Go function, so the workflow and its test run in-process with no model, credential, or network.</li>
+<li>The start executor broadcasts with <code>ctx.SendMessage("", question)</code>: the empty target ID means &ldquo;send onto all my outgoing edges,&rdquo; which the fan-out edge picks up.</li>
+<li><code>AddFanInBarrierEdge</code> is what makes the merge a join rather than a race — it holds delivery until every source has produced a message, so the aggregator always sees both answers instead of whichever finished first.</li>
+<li>A stateful aggregator is created per run with <code>BindNewExecutorFunc</code> (a fresh instance each time) and joins its collected messages in <code>OnMessageDeliveryFinishedFunc</code>, calling <code>ctx.YieldOutput</code> once delivery is done.</li>
+<li>Executors declare their protocol via <code>Extend</code> + <code>ConfigureProtocol</code> (<code>SendsMessageType</code>, <code>YieldsOutputType</code>) so the builder type-checks the graph before it runs; these fan-out/fan-in edges are the same primitives that back <code>NewConcurrentWorkflowBuilder</code>.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/maf-go-75-map-reduce.html">concurrent · Map-Reduce Workflow</a> — the next lesson, built on these edges</li>
+<li><a href="/blog/posts/maf-go-08-workflow-mechanics.html">Workflow Mechanics — Microsoft Agent Framework Go</a></li>
+<li><a href="/blog/posts/maf-go-62-02-agents-in-workflows.html">Agents in Workflows — Microsoft Agent Framework Go</a></li>
+<li><a href="https://github.com/microsoft/agent-framework-go">Microsoft Agent Framework Go source</a></li>
+</ul>
 
 
   <aside class="related-posts">

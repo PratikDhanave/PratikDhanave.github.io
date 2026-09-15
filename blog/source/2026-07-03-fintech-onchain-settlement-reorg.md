@@ -79,3 +79,18 @@ ledger_effect(key) → applied_once            ← natural-key dedupe
 ```
 
 The result is a settlement layer where "confirmed" is an explicit depth threshold, a credit is a reversible ledger fact rather than a deletion, and every reorg — even a nested one — resolves to a deterministic re-evaluation of the transaction on the chain that actually won. That is the difference between a wallet that occasionally gives away money and one that does not.
+
+## Key takeaways
+
+- A deposit is not final when first seen; the confirmation threshold `N` is a risk parameter (not a protocol constant) chosen per asset and scaled with amount, and no ledger credit posts before depth `N` — anything earlier is display state, not money.
+- Treat mempool sightings as advisory: create a `SEEN` record with no ledger effect, upsert idempotently by `(txid, vout)`, and match on destination address and amount so a fee-bump replacement reconciles to the same logical deposit instead of double-counting.
+- Detect reorgs without a special event — remember the block hash at each processed height and act when the node reports a different hash for a height you recorded; an orphaned credit is reversed with a compensating journal entry, never a deletion.
+- After an unconfirm, re-evaluate the transaction on the winning chain into one of three outcomes: re-mined (reset depth, climb back to `N`), back in mempool (`CONFIRMING` at depth 0), or replaced/double-spent (terminal, stays reversed).
+- Keep it replay-safe by deriving, not accumulating — state is `f(containing_block, depth, tip)` recomputed each poll — and guard every ledger effect with a natural idempotency key (`credit:{txid}:{vout}`, `reversal:{txid}:{vout}:{orphaned_block_hash}`) so nested reorgs and concurrent workers each apply once.
+
+## Further reading
+
+- [On-chain event indexing](/blog/posts/fintech-onchain-event-indexing.html)
+- [Nonce and gas management](/blog/posts/fintech-nonce-gas-management.html)
+- [HD wallets and deposit sweeping](/blog/posts/fintech-hd-wallet-deposit-sweeping.html)
+- [Idempotency and resumability](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html)

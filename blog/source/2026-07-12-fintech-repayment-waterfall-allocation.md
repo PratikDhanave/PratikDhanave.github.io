@@ -76,3 +76,18 @@ Three properties make this engine trustworthy.
 The engine's contract is small and strict: take a `(loan snapshot, payment, effective-dated config)` and return an ordered list of ledger entries plus a new status — as a **pure function**, with idempotency and persistence wrapped around it as a thin, transactional shell. Keeping the allocation math pure is what makes it unit-testable against the tricky cases: the payment that exactly clears one period, the one cent short of curing, the overpayment that spans two future installments, the payment applied under a since-changed waterfall order.
 
 A repayment waterfall looks like arithmetic. It is really a policy engine whose every output is a promise to a borrower and a line in a regulatory report. Treat the ordering as versioned configuration, make the core deterministic and pure, write immutable ledger entries, and guard posting with an idempotency key — and "split this payment" becomes a decision you can explain, reproduce, and defend years later.
+
+## Key takeaways
+
+- The bucket order (fees → interest → principal) is *policy, not a constant* — it varies by product and regulation — so model it as an ordered list of bucket definitions attached to the product, versioned and effective-dated.
+- Allocation is two-dimensional: within a period you walk the bucket order, across periods you settle the oldest past-due period first, so a partial payment that covers one month of arrears advances the delinquency clock by exactly one period rather than curing the account.
+- Overpayment surplus must go somewhere explicit — an advance (prepaid installments) or a suspense account — never silently absorbed into principal, which would rewrite the agreed amortization schedule.
+- Allocation *is* the decision, not after-the-fact bookkeeping: it drives delinquency status (credit reporting, collections) and interest accrual (accrues on outstanding principal), so a mis-posting propagates into every downstream number.
+- Trustworthiness rests on three properties — deterministic (pass the value date in, integer/decimal money, fixed rounding), auditable (immutable ledger entries, corrections as reversing entries), and idempotent (dedup on a payment key, dedup-and-write in one transaction).
+
+## Further reading
+
+- [Amortization Schedule Engine](/blog/posts/fintech-amortization-schedule-engine.html)
+- [Interest Accrual Engine](/blog/posts/fintech-interest-accrual-engine.html)
+- [Delinquency and NPA State Machine](/blog/posts/fintech-delinquency-npa-state-machine.html)
+- [Idempotency and Resumability](/blog/posts/fintech-handbook-05-idempotency-and-resumability.html)

@@ -80,3 +80,17 @@ Around this core, real systems need:
 - **Graceful failure.** If a member misses a pay-in, its trades are excluded from that cycle rather than settled unfunded. Downstream systems must treat "matched but not settled" as a first-class state, not an error.
 
 The lesson that transfers to any money-movement system: eliminating principal risk is not about moving faster, it is about making two transfers *conditional on each other*. Net where you can to save liquidity, snapshot before you fund so the numbers hold still, and never let a booked position exist without the money behind it. PvP is simply that discipline enforced at the scale of the global FX market.
+
+## Key takeaways
+
+- PvP closes the principal-risk (Herstatt) window by making both currency legs conditional on each other: neither is final until both are funded and both book as one indivisible unit.
+- The system only settles matched, two-sided trades; matching is idempotent and deterministic, keyed by `(submitter, trade_ref, value_date)`, then frozen into a settlement snapshot so the net figures hold still while members fund.
+- Net pay-in funds only the currencies a member is net-short, cutting required liquidity by up to an order of magnitude versus gross; the pay-in schedule staggers deadlines by each currency's own RTGS hours.
+- A positional control keeps every settlement-account balance non-negative through the cycle, so trades settle progressively as funding arrives and gridlock is broken by finding a subset that can all settle at once — the same problem an RTGS queue resolver solves.
+- Pay-out is deliberately last, messaging is idempotent and replayable, time is modeled per-currency, and end-of-cycle pay-ins minus pay-outs must net to zero per currency before finality is declared.
+
+## Further reading
+
+- [RTGS vs Deferred Net Settlement](/blog/posts/fintech-rtgs-vs-dns-architecture.html) — the gridlock-resolver problem PvP settlement reuses
+- [Designing a Netting Engine](/blog/posts/fintech-netting-engine-design.html) — the net pay-in arithmetic in isolation
+- [Securities Settlement and DvP](/blog/posts/fintech-securities-settlement-dvp.html) — the securities analogue of payment-versus-payment

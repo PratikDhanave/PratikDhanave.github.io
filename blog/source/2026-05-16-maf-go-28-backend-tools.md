@@ -55,6 +55,19 @@ go run ./tutorial/02-agents/agui/step02_backend_tools/client   # terminal 2
 
 The tool logic and wiring build/test offline; the live run is gated behind `AF_LIVE=1` (server needs `az login` + `FOUNDRY_PROJECT_ENDPOINT`).
 
+## Key takeaways
+
+- **A backend tool is server-owned.** The server holds a `search_restaurants` tool; when the model calls it, it executes on the server and folds back into the same streamed reply — the client never sees a tool-call event, only more text.
+- **`functool` derives the schema from ordinary structs.** `searchRestaurants` is a pure `func(ctx, request) (response, error)` with no framework or network dependency, so the offline test calls it directly (e.g. asserting an empty/`"any"` cuisine defaults to Italian).
+- **The client stays credential-free and dumb** — its only config is the endpoint URL; it reuses one `CreateSession` across turns so the server-side history and tool state stay coherent.
+- Transport and tool are orthogonal: the tool is just a `tool.Tool` in `agent.Config.Tools`, so AG-UI changes nothing about how you author it.
+
+## Further reading
+
+- [Frontend Tools](/blog/posts/maf-go-29-frontend-tools.html) — the mirror image, where the tool runs on the client.
+- [AG-UI Getting Started: The Client](/blog/posts/maf-go-27-getting-started.html) — the transport-only baseline this builds on.
+- [mcp · Agent with tools from an MCP Server](/blog/posts/maf-go-32-agent-mcp-server.html) — source server-side tools from a remote MCP catalog.
+
 ---
 
 Next: [Frontend Tools](/blog/posts/maf-go-29-frontend-tools.html)

@@ -94,3 +94,17 @@ That is the whole arc across both series: a provider + config became an agent; t
 ---
 
 That is the whole framework, one lesson at a time. See [my upstream Microsoft Agent Framework Go contributions](/agent-framework/).
+
+## Key takeaways
+
+- The hosting pattern is uniform: the agent is the same plain `foundryprovider` agent from earlier lessons — only the *transport* is new (MCP, AG-UI, or A2A).
+- MCP lets an agent borrow tools that live in another service; connected over streamable HTTP, remote tools are indistinguishable from local `agent.Config.Tools`, and the one networked step stays isolated so tests can substitute fake tools.
+- AG-UI wraps an agent over HTTP+SSE with a single `aguiprovider.NewJSONHTTPHandler`; each POST becomes an agent run streamed back as AG-UI events, and the agent never knows it's being served over HTTP.
+- The capstone shows agents-as-tools over A2A: servers publish a card + JSON-RPC endpoint, the client resolves each card and wraps the whole remote agent into one tool with `agenttool.New`, and the host model picks a specialist like any function tool.
+- The card is the contract — server-set `Name`, `Skills`, and interface URL are exactly what the client reads back — and the consistent discipline (factor construction out of `main`, take dependencies as parameters, test wiring offline) is what made faithful ports and upstream bug fixes possible.
+
+## Further reading
+
+- [A2A Client](/blog/posts/maf-go-84-a2a-client.html)
+- [Advanced Workflows — Microsoft Agent Framework in Go](/blog/posts/maf-go-11-advanced-workflows.html)
+- [agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)

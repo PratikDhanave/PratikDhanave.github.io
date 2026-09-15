@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-04-28">April 28, 2026</time>
       <span>·</span>
-      <span>2 min read</span>
+      <span>3 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/microsoft-agent-framework/" class="tag-link"><span class="tag">#Microsoft Agent Framework</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/resumable-streaming/" class="tag-link"><span class="tag">#Resumable Streaming</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/streaming/" class="tag-link"><span class="tag">#Streaming</span></a></div>
   </header>
@@ -159,6 +159,19 @@ for update, err := range remoteAgent.RunText(ctx, query, agent.WithSession(sessi
 <pre><code class="language-bash">A2A_AGENT_HOST=http://127.0.0.1:5000 go run ./tutorial/02-agents/a2a/stream_reconnection
 </code></pre>
 <p>Expected: streaming starts, prints <code>Captured continuation token …</code>, &ldquo;interrupts,&rdquo; then prints <code>Reconnecting to task …</code> and resumes to completion. The program needs a live A2A server; the offline tests build a real client from an in-memory JSON-RPC card without dialing, and the end-to-end flow is gated behind <code>AF_LIVE=1</code>.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>The continuation token appears mid-stream.</strong> While a remote task is <code>submitted</code>/<code>working</code>, the provider sets <code>update.ContinuationToken</code> to the task ID; capturing it lets you reconnect after a proxy timeout, sleep, or network drop.</li>
+<li><strong>Reconnect passes NO messages.</strong> Phase 2 sends <code>Run(ctx, nil, WithContinuationToken(token), Stream(true))</code>; the provider re-subscribes (<code>SubscribeToTask</code>, falling back to <code>GetTask</code>) so the original heavy query is never re-sent — you don&rsquo;t pay for the compute twice.</li>
+<li><strong>A task can finish before you ever see a token.</strong> The program guards for <code>continuationToken == ""</code> — assuming a token exists would leave you re-subscribing to nothing.</li>
+<li>A2A carries no <code>TokenCredential</code>; auth, if any, rides on the underlying <code>*http.Client</code> the <code>a2aclient</code> was built with.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/maf-go-08-polling-for-task-completion.html">A2A · Polling for Task Completion</a> — the non-streaming sibling of this reconnection pattern.</li>
+<li><a href="/blog/posts/maf-go-09-protocol-selection.html">A2A · Protocol Selection</a> — choose which transport carries the resumable stream.</li>
+<li><a href="/blog/posts/maf-go-11-running.html">step01 · Running an Agent (with middleware)</a> — the middleware seam these A2A lessons reuse for logging.</li>
+</ul>
 <hr>
 <p>Next: <a href="/blog/posts/maf-go-11-running.html">step01 · Running an Agent (with middleware)</a></p>
 

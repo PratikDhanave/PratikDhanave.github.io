@@ -86,3 +86,18 @@ A common and dangerous shortcut is to keep sequence state in memory only. It wor
 ## What to remember
 
 FIX is old, plain, and stubbornly alive because it solves one problem well: reliable, ordered message delivery between parties who share only a dictionary. Build the engine as two layers — a session that obsesses over sequence numbers and a persistent store, and an application that never sees them. Persist every outbound message before it leaves, treat reconnect as ordinary logon-plus-resend rather than an exception, and respect PossDup so a replay never becomes a double execution. Get those invariants right and a dropped connection becomes a non-event instead of an incident.
+
+## Key takeaways
+
+- A FIX message is a flat list of `tag=value` pairs separated by SOH (0x01); both sides agree a dictionary in advance, which is why the protocol is trivial to parse, cheap to log, and stubbornly persistent.
+- The session layer exists to guarantee ordered, gap-free, exactly-once-observed delivery via sequence numbers (tag 34); Heartbeat, TestRequest, ResendRequest, and SequenceReset all serve that one guarantee on top of a TCP link that will drop.
+- The application layer reuses one message type — ExecutionReport (35=8) — to report every order state transition (New, Partial Fill, Fill, Rejected, Canceled), disambiguated by OrdStatus (39) and ExecType (150).
+- Build the engine as two components sharing a persistent message store: persist every outbound message with its sequence number *before* it hits the wire, so a ResendRequest can be answered byte-for-byte after a crash. In-memory-only sequence state wedges the session on the first crash.
+- Respect PossDupFlag (43) on replays so a resend is deduplicated on ClOrdID rather than double-executed, and never let slow business logic block the session thread into heartbeat starvation.
+
+## Further reading
+
+- [Order types and time-in-force](/blog/posts/fintech-order-types-time-in-force.html)
+- [Smart order routing and best execution](/blog/posts/fintech-smart-order-routing-best-ex.html)
+- [Designing a matching engine](/blog/posts/fintech-matching-engine-design.html)
+- [Financial Information eXchange](https://en.wikipedia.org/wiki/Financial_Information_eXchange) — Wikipedia overview of the FIX protocol

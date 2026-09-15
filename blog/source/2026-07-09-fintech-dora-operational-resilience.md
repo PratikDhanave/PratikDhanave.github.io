@@ -78,3 +78,17 @@ The pipeline described so far is reactive. What makes it a resilience system rat
 Those findings must land back in the risk register as new or revised entries, which re-ranks the thinnest ice, which redirects monitoring and remediation. Without that write-back, testing becomes a compliance ritual whose results evaporate. With it, each test measurably moves the register, and the register measurably drives the next quarter's engineering work. That closed loop — inventory to register to monitoring to classification to reporting, and testing feeding the register — is the whole architecture, and it is the part a regulator is genuinely checking for.
 
 The lesson from building this is that resilience is not a document you produce; it is a property you can query. If every arrow in that loop is a real integration rather than a manual copy, you can answer any resilience question from your own systems — and that is precisely what the regulation is trying to force.
+
+## Key takeaways
+
+- Everything anchors to a stable asset identity, and resilience is a **graph property**: the inventory must carry dependency edges (service → asset → third party) so you can answer "which business functions break if this vendor goes dark" from a query.
+- The risk register is a materialized view *downstream* of evidence, never a source of it — controls come from scanners, recovery objectives from tests, concentration from the dependency graph. An engineer editing it directly breaks the audit chain.
+- Instrument monitoring for the classification you'll have to do: a candidate incident needs affected function, start time, clients/transactions hit, and data-integrity status — not just "latency high on service-x."
+- Incident classification is a deterministic, **versioned-rule** function from facts to severity that decides whether a regulatory clock starts; store the classifier version so any past decision replays exactly.
+- What makes it a resilience *system* rather than an incident-reporting one is the write-back loop: test findings (drills, TLPT) must land in the risk register, re-ranking the thinnest ice and redirecting the next quarter's work.
+
+## Further reading
+
+- [Payments observability and SLOs](/blog/posts/fintech-payments-observability-slos.html)
+- [Model risk governance](/blog/posts/fintech-model-risk-governance.html)
+- [Regulatory transaction reporting](/blog/posts/fintech-regulatory-transaction-reporting.html)

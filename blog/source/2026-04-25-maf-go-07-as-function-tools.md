@@ -49,6 +49,19 @@ go run ./tutorial/02-agents/a2a/as_function_tools
 
 Most of the lesson builds and tests offline — the structural tests wire a fake credential and fake remote agent with no network — and the live end-to-end run is gated behind `AF_LIVE=1` (it needs a running A2A server *and* `az login`).
 
+## Key takeaways
+
+- **A remote agent's advertised skills become local function tools.** `createSkillTools` builds one `functool.MustNew` per `a2a.AgentSkill`; each handler closure forwards the query to the remote agent via `remoteAgent.RunText(...).Collect()`, so a network call looks like an ordinary tool call to the host model.
+- **Names and descriptions are derived, not hand-written.** `sanitizeToolName` lower-cases and collapses non-alphanumeric runs to underscores (falling back to the skill `ID`, then `a2a_skill`), and `formatSkillDescription` flattens description, tags, examples, and I/O modes so the host model has enough to choose the tool.
+- **Two providers compose.** `a2aprovider.NewAgent` wraps the remote agent; `foundryprovider.NewAgent` builds the local host — the host never knows a tool is backed by a network call.
+- **The gotcha:** a human-readable skill `Name` like "Route Planner" is not a valid tool identifier; skip sanitizing and registration fails or two skills silently collide.
+
+## Further reading
+
+- [A2A · Polling for Task Completion](/blog/posts/maf-go-08-polling-for-task-completion.html) — drive a slow remote agent with a continuation token instead of one long call.
+- [providers · A2A (Agent2Agent)](/blog/posts/maf-go-33-a2a.html) — swap the LLM behind an agent for a remote agent reached over A2A.
+- [step10 · Agent as an MCP Tool](/blog/posts/maf-go-20-as-mcp-tool.html) — the MCP counterpart to exposing an agent as a reusable capability.
+
 ---
 
 Next: [A2A · Polling for Task Completion](/blog/posts/maf-go-08-polling-for-task-completion.html)

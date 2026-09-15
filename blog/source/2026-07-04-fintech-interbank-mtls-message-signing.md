@@ -90,3 +90,18 @@ The two checks are load-bearing together. Without the timestamp you would have t
 Order matters because each stage is cheaper and safer than the next, and you want to spend nothing on a bad request. Reject at the connection on an unenrolled or unpinned certificate. Then check freshness — timestamp window and nonce — before any cryptographic verification, so a replay flood costs you a cache lookup rather than a signature check. Then verify the detached signature against the enrolled signing key for the transport-identified party, confirming the two identities are consistent. Only then does the message reach business validation and the ledger.
 
 Log the decision at every gate with the transport fingerprint, the signing key id, the nonce, and the outcome. When a dispute lands six months later, that trail — plus the counterparty's signed acknowledgement — is the difference between "we can prove what happened" and "we think it was fine." The cryptography is standard; the discipline of keeping the two identities separate, verifying in the cheap-to-expensive order, and signing both directions is what makes an interbank channel defensible.
+
+## Key takeaways
+
+- Transport security (mTLS) and message security (detached signatures) are orthogonal layers protecting different adversaries — never let a valid TLS session imply an authenticated message, or a valid signature imply an authorized socket; enforce both independently on every request.
+- The mTLS guarantee evaporates at each TLS termination (gateway → queue → core), while a detached signature rides the payload end to end and can be re-verified at rest, in an audit, or in a dispute months later.
+- Certificate discipline for a closed correspondent community means pinning the counterparty's CA or leaf fingerprint (not trusting the public web PKI) and binding the cert to an enrolled identity — and the transport identity is deliberately separate from the signing identity, so modeling them as one field breaks on rotation.
+- A detached JWS keeps the payload byte-for-byte identical, so verification must run over the exact original bytes — re-serializing the parsed object first is the classic way to break an otherwise-correct signature — and non-repudiation must be bidirectional: sign the acknowledgement too.
+- Replay protection needs timestamp *and* nonce together inside the signed content — the timestamp bounds how old a message may be (tight window), the nonce guarantees exactly-once within it, with cache TTL ≥ window + clock skew — and verification runs cheap-to-expensive: certificate, then freshness, then signature, then business validation.
+
+## Further reading
+
+- [ISO 20022 message modeling](/blog/posts/fintech-iso-20022-message-modeling.html)
+- [SWIFT MT, MX and gpi](/blog/posts/fintech-swift-mt-mx-gpi.html)
+- [NACHA ACH file processing](/blog/posts/fintech-nacha-ach-file-processing.html)
+- [RTGS vs. DNS settlement architecture](/blog/posts/fintech-rtgs-vs-dns-architecture.html)

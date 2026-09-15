@@ -98,3 +98,17 @@ A customer with $500 current and a $200 hold has $300 available. Show them the w
 Double-entry is not overhead you tolerate to keep accountants happy. It is the cheapest correctness guarantee available to anyone who moves money. The sum-to-zero invariant catches a whole class of bugs at write time, before bad state ever exists. The append-only rule gives you an audit trail that answers "what happened and when" without archaeology. Separating the three clocks and the three balances keeps you honest about the difference between money promised, money available, and money held.
 
 Build the ledger this way from day one and the hard questions — reconciliation, disputes, regulatory reporting — become queries over facts you already have. Skip it, and you will be reconstructing the truth from logs at 2 a.m. while your balances quietly drift. Money systems do not forgive drift. Make the invariant the backbone, and everything else has something solid to hang from.
+
+## Key takeaways
+
+- A transaction is a set of postings, not a single number, and the postings *must sum to zero* — money is never created or destroyed, only moved. Enforce it as a hard constraint at write time (signed integer minor units make the check exact), not in a nightly job.
+- There is no `balance` column: a balance is *derived* by summing an account's postings. Store the facts, compute the aggregates.
+- Accounts have five types with a normal balance each; the counterintuitive one is that a customer's wallet balance is a *liability* you owe them — a $50 deposit debits your cash asset and credits their liability, and still nets to zero.
+- The ledger is append-only: never `UPDATE` or `DELETE` a posting. Correct with a new reversing transaction, which buys reproducibility, auditability, and concurrency safety for free.
+- Model three clocks (booking, value, settlement) and three balances (current, available, pending) as separate fields/derivations — flattening either makes whole categories of correct reporting impossible.
+
+## Further reading
+
+- [Representing money](/blog/posts/fintech-handbook-01-representing-money.html) — the previous chapter, on the integer minor-unit values these postings are built from.
+- [Audit trails, event sourcing, and the GDPR problem](/blog/posts/fintech-handbook-03-audit-trails-event-sourcing.html) — the next chapter, taking append-only to its logical conclusion.
+- [Executing money flows](/blog/posts/fintech-handbook-04-executing-money-flows.html) — how postings get written inside a transfer state machine.

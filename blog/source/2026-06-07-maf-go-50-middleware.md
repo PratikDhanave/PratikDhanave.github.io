@@ -46,6 +46,18 @@ go run ./tutorial/02-agents/providers/foundry/step12_middleware
 
 The first prompt is refused offline by the guardrail; only the second reaches the model and needs `az login` + `FOUNDRY_PROJECT_ENDPOINT`. The offline test drives each middleware with a fake `next` (proving the guardrail never calls it on a harmful message); the live call is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- A middleware is any value with a `Run` method (`agent.Middleware`); it sees the incoming messages before the model and every update on the way back.
+- A guardrail short-circuits by yielding its own `ResponseUpdate` and never calling `next` — so a blocked request never touches the model, running entirely offline.
+- Wiring order is outermost-first: putting the guardrail before the logger means blocked requests stop before the logger even fires.
+- There are two ways to be a middleware — a struct implementing `agent.Middleware` directly, or `agent.MiddlewareFunc` to adapt a method value when the middleware must close over state (like a run counter).
+
+## Further reading
+
+- [step07 · Observability](/blog/posts/maf-go-46-observability.html) — tracing implemented as the same middleware hook
+- [step13 · Plugins (grouping tools)](/blog/posts/maf-go-51-plugins.html) — the next lesson in this Foundry provider track
+
 ---
 
 Next: [step13 · Plugins (grouping tools)](/blog/posts/maf-go-51-plugins.html)

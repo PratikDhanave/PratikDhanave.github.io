@@ -235,6 +235,19 @@ Result:
 - Token budget enforcement for cost control
 - All composable; each layer does one thing
 
+## Key takeaways
+
+- ADK's named `before_callback`/`after_callback` hooks are observers; Microsoft Agent Framework replaces them with middleware — decorator functions that wrap `agent.run` and can act, not just watch.
+- Because middleware wraps the call, it can retry on `TimeoutError`/`ConnectionError` with exponential backoff, enforce a token budget, or emit OpenTelemetry spans and metrics — things a pure observer cannot do.
+- Middleware composes by stacking decorators; execution flows outside-in (telemetry → retry → audit → token budget → agent) and back up through each layer.
+- Each layer does one thing, so audit logging can be tested independently of tracing or retry.
+
+## Further reading
+
+- [Provider Abstraction and .env Configuration](/blog/posts/adk-to-maf-provider-config.html) — the `build_chat_client()` these middleware layers wrap
+- [Deployment and A2A](/blog/posts/adk-to-maf-deployment.html) — wiring this observability into a deployed service
+- [Lessons from Converting 18 Agents in 90 Days](/blog/posts/adk-to-maf-lessons.html) — the token-budgeting and observability lessons that shaped these patterns
+
 ---
 
 Next: [Deployment and A2A](/blog/posts/adk-to-maf-deployment.html)

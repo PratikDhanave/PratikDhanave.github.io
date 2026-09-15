@@ -82,3 +82,10 @@ Two operational realities shape the design. First, long-lived AIS consents requi
 - Propagate revocation and expiry to live tokens instantly, and back it with both a read-time check and a background sweep.
 
 The account and payment endpoints behind this layer are the easy part. The consent object, the scope boundary, and the authentication decision are the system, and they are worth modeling with the same rigor you would give a ledger.
+
+## Further reading
+
+- [SCA Exemptions under PSD2](/blog/posts/fintech-sca-exemptions-psd2.html)
+- [Step-Up Authentication Orchestration](/blog/posts/fintech-step-up-auth-orchestration.html)
+- [Request to Pay and Mandates](/blog/posts/fintech-request-to-pay-mandates.html)
+- [Payment Services Directive (Wikipedia)](https://en.wikipedia.org/wiki/Payment_Services_Directive)

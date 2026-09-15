@@ -79,3 +79,18 @@ The batch/stream split also handles late and out-of-order events. The stream, op
 Decide up front what a velocity check returns when the store is unreachable or slow. The two options — fail-open (approve, assume zero velocity) and fail-closed (decline or step up) — are a fraud-loss-versus-false-decline tradeoff, and the right answer is segment-specific: fail-closed on a high-risk corridor, fail-open on a trusted low-value flow. Bound every lookup with a hard timeout well inside the auth budget, and treat a timeout as a first-class outcome the rules can branch on, not an exception that bubbles up.
 
 Finally, remember counts are a **feature, not a verdict**. Velocity feeds the rules and the model; it does not decide alone. Emit the raw counts and let the decisioning layer combine them with everything else — which is exactly where the next boundary in the fraud stack begins.
+
+## Key takeaways
+
+- Velocity checks live on the auth critical path with only a few milliseconds of budget, so counts are pre-aggregated and pushed to a store optimized for keyed point reads — never a `COUNT(*)` scan inline.
+- The core primitive is a bucketed sliding window: one counter per fixed sub-interval, summed across overlapping buckets, giving O(1) increments and fixed-cost reads; buckets self-expire via TTL so there's no delete job. Edge counts are approximate, which is fine for a threshold rule.
+- One event fans out into many entity-keyed counters (PAN, device, IP, email, merchant, composites); drive the fan-out from a declarative feature table that both the stream and batch jobs read, and guard the key space against high-cardinality garbage.
+- Train/serve skew silently poisons models: defend it with one definition across two runtimes, batch as the source of truth reconciling the stream's live edge, and by logging the exact feature vector each decision saw.
+- Decide fail-open vs fail-closed per segment, bound every lookup with a hard timeout inside the auth budget, and treat the count as a feature the decisioning layer combines — not a verdict on its own.
+
+## Further reading
+
+- [Rules vs. ML Fraud Scoring](/blog/posts/fintech-rules-vs-ml-fraud-scoring.html)
+- [AML Transaction Monitoring Rules Engine](/blog/posts/fintech-transaction-monitoring-rules.html)
+- [Device Fingerprinting and Biometrics](/blog/posts/fintech-device-fingerprinting-biometrics.html)
+- [HyperLogLog (Wikipedia)](https://en.wikipedia.org/wiki/HyperLogLog)

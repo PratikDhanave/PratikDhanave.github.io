@@ -46,6 +46,19 @@ echo "Tell me a joke about a pirate." | go run ./tutorial/02-agents/agents/step0
 
 Reads one question per line until Ctrl-D. The offline tests run anywhere; the live chat loop needs `az login` + `FOUNDRY_PROJECT_ENDPOINT`, and its live test is gated behind `AF_LIVE=1`.
 
+## Key takeaways
+
+- **Go's answer to a DI container is a narrow interface plus a constructor.** `ChatService` depends on a two-method `ChatAgent` port (`Name`, `RunText`); `NewChatService` is the whole injection point — `main` passes the real Foundry agent, the test passes a fake, through the same seam.
+- **Keep the interface tiny** so any implementation satisfies it with zero adapters — `*agent.Agent` fulfills the port for free.
+- **Inject the I/O too.** `Chat(ctx, r io.Reader, w io.Writer)` lets the test drive the full loop with a `strings.Reader` and a `bytes.Buffer` — no terminal, no `os.Stdin`.
+- **The gotcha:** `RunText` returns a streaming `agent.ResponseStream`, so `Ask` must `.Collect()` it into a finished `*agent.Response` before calling `.String()`.
+
+## Further reading
+
+- [step10 · Agent as an MCP Tool](/blog/posts/maf-go-20-as-mcp-tool.html) — expose the injected agent as a discoverable MCP tool.
+- [step01 · Basic Foundry Provider](/blog/posts/maf-go-39-basic.html) — the `foundryprovider.NewAgent` construction this lesson factors behind the port.
+- [step01 · Running an Agent (with middleware)](/blog/posts/maf-go-11-running.html) — the other cross-cutting seam, middleware, that composes with this pattern.
+
 ---
 
 Next: [step10 · Agent as an MCP Tool](/blog/posts/maf-go-20-as-mcp-tool.html)

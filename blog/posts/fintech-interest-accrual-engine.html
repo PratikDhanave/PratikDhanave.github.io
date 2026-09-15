@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-06-27">June 27, 2026</time>
       <span>·</span>
-      <span>7 min read</span>
+      <span>8 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/lending/" class="tag-link"><span class="tag">#Lending</span></a><a href="/blog/tags/credit/" class="tag-link"><span class="tag">#Credit</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/credit-risk/" class="tag-link"><span class="tag">#Credit Risk</span></a></div>
   </header>
@@ -192,6 +192,21 @@ def daily_accrual(principal: int, annual_rate: Decimal, day_count: int) -&gt; in
 <h2 id="the-discipline-that-ties-it-together">The discipline that ties it together</h2>
 <p>Every hard part of an accrual engine dissolves into the same rule: <strong>make each day&rsquo;s interest an immutable, dated, deterministically-derived fact, and express every change as a new fact rather than a mutation of an old one.</strong></p>
 <p>Daily granularity handles mid-cycle balance and rate moves for free. Integer minor units and fixed rounding keep the engine and ledger bit-for-bit reconcilable. A per-account-per-day idempotency key makes the nightly job safe to crash and retry. An as-of-queryable balance and rate timeline make the whole history replayable. Get those four disciplines right and interest — the thing that quietly compounds every wrong assumption — becomes the most boringly auditable number in the system. That is exactly what you want it to be.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Accrue once per day against that day&rsquo;s balance, not once per billing cycle — a single monthly multiplication is wrong the moment a payment, drawdown, or rate change moves the balance mid-cycle.</li>
+<li>Day-count convention is a business input, not a detail: A/360 yields about 1.4% more interest per year than A/365 on the same nominal rate, so store it per product and never hardcode it.</li>
+<li>Simple vs. compound is decided by whether accrued interest is capitalized back into the base; keep accrued-but-unbilled interest in its own receivable sub-ledger, separate from the billed balance.</li>
+<li>Make the nightly job idempotent per account per day, as-of aware (reads <code>as_of</code>, not the wall clock), and replayable — which requires both the balance snapshot and the rate as queryable <em>as of a date</em>.</li>
+<li>Model the rate as an append-only <code>(effective_from, rate)</code> timeline, not a mutable field, so a mis-entered rate is corrected by replaying the affected range and posting a true-up — never by editing a posted accrual.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-amortization-schedule-engine.html">Building a Deterministic Amortization Schedule Engine</a></li>
+<li><a href="/blog/posts/fintech-multi-currency-revaluation.html">Multi-Currency Revaluation</a></li>
+<li><a href="/blog/posts/fintech-subledger-gl-posting.html">Subledger and GL Posting</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Accrual">Accrual (Wikipedia)</a></li>
+</ul>
 
 
   <aside class="related-posts">

@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-06-23">June 23, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/cards/" class="tag-link"><span class="tag">#Cards</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/card-payments/" class="tag-link"><span class="tag">#Card Payments</span></a></div>
   </header>
@@ -203,6 +203,20 @@ on timer_fire(case_id):
 <h2 id="reconciliation-and-the-invariant-that-saves-you">Reconciliation and the invariant that saves you</h2>
 <p>The single invariant worth asserting continuously: the balance of every dispute-hold account equals the sum of disputed amounts across all non-terminal cases. If a case is <code>representment</code> for 120 units, the hold account must carry exactly that reservation. Run this check on a schedule; any drift means a transition posted a ledger entry it should not have, or skipped one it should have.</p>
 <p>This invariant is what turns a pile of edge cases — duplicate notifications, deadline races, partial-amount disputes — into something you can trust. The state machine makes transitions explicit, the reservation model makes money movements reversible, and the reconciliation check makes both auditable. Build the dispute engine in that order and the &ldquo;chargeback support ticket&rdquo; becomes a system you can reason about instead of a source of quiet losses.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Model a dispute as a state machine, not a workflow, because the scheme owns the clock: a representment window (commonly 30–45 days) forfeits by default the instant it&rsquo;s missed, no matter how strong the evidence.</li>
+<li>Every non-terminal state carries exactly one governing <code>deadline_at</code>, driven by a single idempotent timer sweep that only auto-transitions if the case&rsquo;s revision counter hasn&rsquo;t moved underneath it.</li>
+<li>Money moves only on transitions, via a reservation model — a provisional debit to a dispute-hold account on entry to <code>first_chargeback</code>, reversed to the merchant on <code>won</code> or finalized to the issuer on <code>lost</code>/<code>accepted</code>.</li>
+<li>Each ledger posting must be part of the same atomic unit as the state change, keyed by an idempotency token derived from <code>(case_id, revision, transition)</code>, so a replayed scheme notification is a no-op instead of a double debit.</li>
+<li>Assert one invariant continuously: each dispute-hold account balance equals the sum of disputed amounts across all non-terminal cases; any drift means a transition posted or skipped a ledger entry.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-card-auth-capture-clearing.html">Card Authorization, Capture, and Clearing</a> — the transaction lifecycle a dispute reverses</li>
+<li><a href="/blog/posts/fintech-reconciliation-break-detection.html">Reconciliation and Break Detection</a> — the discipline the dispute-hold invariant relies on</li>
+<li><a href="/blog/posts/fintech-saga-compensation-payments.html">Sagas and Compensation in Payments</a> — the reversal patterns behind provisional-credit entries</li>
+</ul>
 
 
   <aside class="related-posts">

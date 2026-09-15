@@ -94,3 +94,18 @@ Finally, the invoice's fees post to the **ledger** as double-entry postings. The
 ## What to separate, and why
 
 If you take one thing from this: **keep pricing config out of the rating runtime**. The rater is a stable, deterministic function you rarely change. Pricing plans, promos, and discounts are data that changes daily. When they live apart, sales can ship a custom rate and marketing can launch a promo without touching the code that turns events into money — and the code that turns events into money stays boring, replayable, and correct.
+
+## Key takeaways
+
+- Separate three concerns that share a data path but change at different rates: **pricing** (the rules), **rating** (applying rules to events), and **billing** (assembling and posting). Each has a different failure mode.
+- Pricing plans are versioned, immutable data — flat, per-unit, basis-points, tiered, and volume — expressed as configuration, not branches in code. Confusing tiered (each band at its own rate) with volume (the whole quantity at one band's rate) is a classic billing bug.
+- Rating is a pure function `rate(event, plan_version) → rate_event`: no wall-clock reads, no "current" plan lookup, no randomness. Determinism is what makes it replayable, and a deterministic idempotency key per rate event absorbs at-least-once retries without inflating revenue.
+- Rate events are an append-only log; corrections, discounts, promos, and disputes are new **adjustment** entries that reference the originals, never edits — so gross, adjustment, and net all stay visible.
+- Idempotency also lives at the run level: a billing run keyed on `(account, period)` produces exactly one invoice no matter how many times cron or an operator fires it, and proration is just rating over two shorter intervals.
+
+## Further reading
+
+- [Variable recurring payments and metered billing](/blog/posts/fintech-vrp-subscription-billing.html)
+- [The revenue recognition engine](/blog/posts/fintech-revenue-recognition-engine.html)
+- [The interchange fee engine](/blog/posts/fintech-interchange-fee-engine.html)
+- [Subledger to general ledger: posting and aggregation](/blog/posts/fintech-subledger-gl-posting.html)

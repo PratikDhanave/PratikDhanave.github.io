@@ -82,3 +82,18 @@ Then it has to reconcile. The total cash and shares your platform posted must eq
 ## What to remember
 
 Corporate actions are a fan-out problem wrapped in a set of hard deadlines. Get the golden-source event right, snapshot positions at the record date, do the ratio and rounding math as exact arithmetic that reconciles to the issuer total, and model voluntary elections as a real state machine where the deadline is terminal and the default is defined in advance. The mandatory path is careful batch arithmetic; the voluntary path adds a stateful window whose only forgiving property is that you decided the default before anyone missed it.
+
+## Key takeaways
+
+- There is no single source of truth: the same event arrives from issuer, vendors, exchange, and depository with disagreeing fields, so build a reconciled golden-source record and never post from an unverified announcement.
+- One event fans out to every holder — a mistake in the event definition is multiplied across the whole book — and the ordered dates (announcement, ex-date, record date, election window, payment) must be modeled explicitly since swapping ex-date and record date pays the wrong holders.
+- Compute entitlements against a frozen record-date position snapshot, not live positions, or you double-count trades settling after the record date.
+- Do ratio math as exact rational arithmetic (not floating point) and apply a consistent rounding/cash-in-lieu policy that reconciles the sum of holder entitlements back to the issuer's total — per-account rounding silently leaks or invents shares.
+- Mandatory actions are a careful batch pipeline; voluntary actions add a stateful election-capture subsystem where the deadline is terminal, lapse-to-default is a real tested state transition, and market claims move entitlements for trades in-flight over the record date.
+
+## Further reading
+
+- [Custody and asset servicing](/blog/posts/fintech-custody-asset-servicing.html)
+- [Cost-basis and lot accounting](/blog/posts/fintech-cost-basis-lot-accounting.html)
+- [Securities settlement and DvP](/blog/posts/fintech-securities-settlement-dvp.html)
+- [Fund accounting and NAV](/blog/posts/fintech-fund-accounting-nav.html)

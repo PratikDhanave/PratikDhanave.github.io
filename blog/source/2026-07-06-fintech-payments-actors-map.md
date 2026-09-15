@@ -71,3 +71,18 @@ Keep the map in front of you and these stop being mysteries. A decline is an iss
 ## What to hold onto
 
 A card payment is a relay across six parties with two flows in opposite directions: an authorization question travelling from cardholder to issuer, and a settlement payment travelling from issuer back to merchant. Each actor owns exactly one responsibility — the merchant sells, the gateway secures and formats, the acquirer routes and funds, the scheme switches and sets rules, the issuer decides and pays. Money never moves on the request path; it moves only on settlement, minus interchange, scheme fees, and acquirer margin. Fix the map first, and declines, missing payouts, fee surprises, and chargebacks all resolve to a specific actor and a specific leg of the flow instead of a vague "the bank did something."
+
+## Key takeaways
+
+- A card payment is a relay across six distinct parties, not "the bank" and "the processor" — collapsing them is where most integration and debugging confusion begins.
+- It runs on two flows in opposite directions: an authorization *question* travels cardholder → merchant → gateway → acquirer → scheme → issuer in milliseconds, and a settlement *payment* travels issuer → scheme → acquirer → merchant hours or days later; nothing moves on the request path.
+- Each actor owns exactly one responsibility — cardholder supplies credentials and consent, merchant sells via an acquirer-provisioned MID/MCC, gateway secures and formats (no money decision), acquirer routes and funds while the processor is the operational engine, the scheme switches and sets rules but holds no money, and the issuer decides and pays.
+- The return leg defines the economics: interchange (to the issuer) plus scheme fees plus acquirer margin are deducted as the merchant discount rate, so the payout never equals the sticker price, and funding lands T+1/T+2 — so your ledger carries a receivable between capture and payout.
+- Liability resolves by actor and authentication: a decline is an issuer decision (no acquirer retry fixes it), fraud liability shifts to the issuer for chip/3-D Secure and to the merchant for unauthenticated card-not-present, and chargebacks run the same chain in reverse.
+
+## Further reading
+
+- [Card authorization, capture and clearing](/blog/posts/fintech-card-auth-capture-clearing.html)
+- [The interchange fee engine](/blog/posts/fintech-interchange-fee-engine.html)
+- [Merchant settlement and payout](/blog/posts/fintech-merchant-settlement-payout.html)
+- [Building the issuer side of a card program](/blog/posts/fintech-card-issuing-platform.html)

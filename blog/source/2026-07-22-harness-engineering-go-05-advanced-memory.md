@@ -146,3 +146,17 @@ Memory gives the agent a past and a set of facts; it still doesn't tell the agen
 ---
 
 Next: [Orchestration and Handoff: Routing Intent to a Specialist](/blog/posts/harness-engineering-go-06-orchestration-handoff.html)
+
+## Key takeaways
+
+- "Memory" is three non-overlapping jobs, so it is three interfaces: a *thread* (short-term running transcript), a *knowledge index* (long-term retrieval across conversations), and a *summarizer* (compression when a thread outgrows the context window).
+- The thread is append-only and never lossy, and `History` returns a *copy* so callers can't mutate the in-file slice — that lossless log is exactly what makes the lossy summarizer safe.
+- The knowledge index scores each document by the fraction of distinct query terms it contains (a stable 0.0–1.0), returns top-k with `DocID` tie-breaks for determinism, and `Add` upserts to mirror an AI Search index merge.
+- The summarizer prefers lossless (returns verbatim if it fits), and only compresses by keeping the first and last `keep` turns with a `[...N earlier turns omitted...]` marker — with guards so too few turns or `keep < 1` never silently hides or keeps everything.
+- State the leak twice: keyword search misses meaning ("car" won't match "automobile" — Azure AI Search's vectors fix that), and first-and-last summarization is a heuristic, not comprehension. The pattern worth keeping to production is a lossy roll-up over a lossless append-only log — never let the compression own the only copy.
+
+## Further reading
+
+- [Secure Sandboxing: running agent-written code behind a timeout](/blog/posts/harness-engineering-go-04-secure-sandboxing.html) — the previous lesson.
+- [Orchestration and handoff: routing intent to a specialist](/blog/posts/harness-engineering-go-06-orchestration-handoff.html) — the next seam, keyword routing standing in for a managed orchestrator.
+- [microsoft/agent-framework-go](https://github.com/microsoft/agent-framework-go) — managed threads and the Azure AI Search retrieval these seams target.

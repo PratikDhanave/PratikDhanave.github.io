@@ -50,3 +50,16 @@ Normally a provider attaches middleware that auto-executes function tools locall
 ---
 
 Next: [AG-UI Human-in-the-Loop — The Server](/blog/posts/maf-go-90-human-in-loop-server.html)
+
+## Key takeaways
+
+- Frontend tools invert where work happens: the Foundry agent runs on the server, but the tool implementations live on the *client*, so the server must forward tool calls rather than execute them.
+- The whole lesson is one flag — `DisableFuncAutoCall: true` — which turns off the middleware that normally auto-runs function tools, letting the model's tool request flow out through the AG-UI handler to the client.
+- The server registers *no* tools (`agent.Config` has no `Tools` set); it only needs to not swallow the calls, and the AG-UI wiring (`aguiprovider.NewJSONHTTPHandler`) is identical to the earlier servers — where a tool runs is a config decision.
+- The offline test builds the same agent with a fake credential and asserts `DisableFuncAutoCall` is on and the handler is non-nil; the live bind on `:8888` runs only under `AF_LIVE`.
+
+## Further reading
+
+- [AG-UI Backend Tools — The Server](/blog/posts/maf-go-88-backend-tools-server.html)
+- [AG-UI Human-in-the-Loop — The Server](/blog/posts/maf-go-90-human-in-loop-server.html)
+- [agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)

@@ -118,3 +118,18 @@ def on_decision(transfer_id, decision):
 - **Losing the link to the on-chain tx.** Persist the mapping from the Travel Rule exchange to the eventual transaction hash, so an audit can reconstruct which identity data authorized which settled transfer.
 
 The mental model that keeps this correct is to stop thinking of the Travel Rule as paperwork attached to a transfer and start thinking of it as a **distributed handshake that gates an irreversible action**. The chain gives you no take-backs, so all the safety has to live in the ordering: discover, exchange, accept, and only then sign.
+
+## Key takeaways
+
+- A blockchain transaction carries no identity, so the Travel Rule is a *pre-transfer messaging protocol* running alongside custody — it must complete before your signer ever broadcasts.
+- Identity data is exchanged and *accepted first*; only an `ACCEPTED` exchange unlocks the signer. A pending exchange sits in `HELD`, not `SIGNING` — the gate in step 4 is the whole design.
+- Counterparty discovery from a bare destination address has three outcomes — known VASP (exchange required), self-hosted (collect and record, no peer), unattributed (policy gate) — so model it as an explicit enum, not a boolean.
+- IVMS101 is the shared canonical schema; keep transport concerns out of it, minimize and validate the fields you send (it's PII to a third party), and run the exchange over a mutually authenticated, peer-pinned channel.
+- Never let a timeout fall through to broadcast — no answer is a hold, never an implicit yes — and make the accept-then-sign transition a guarded, once-only step keyed on a stable transfer id.
+
+## Further reading
+
+- [On-Chain AML Address Screening](/blog/posts/fintech-onchain-aml-address-screening.html)
+- [Hot/Cold Wallet and HSM Architecture](/blog/posts/fintech-hot-cold-wallet-hsm.html)
+- [Sanctions Screening Engine](/blog/posts/fintech-sanctions-screening-engine.html)
+- [Financial Action Task Force (Wikipedia)](https://en.wikipedia.org/wiki/Financial_Action_Task_Force)

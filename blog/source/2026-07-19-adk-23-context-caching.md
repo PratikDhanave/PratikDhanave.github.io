@@ -126,4 +126,19 @@ Caching reuses the stable **head** of the prompt. **Compaction** attacks the gro
 
 You can read the field reference for both under `App` in the official ADK docs at [google.github.io/adk-docs](https://google.github.io/adk-docs/). The takeaway: reach for caching when a large, stable prefix dominates a multi-turn conversation — and let ADK's floor decide when it actually pays off.
 
+## Key takeaways
+
+- Context caching stores the stable prompt *prefix* (a long system instruction, a fixed reference doc, a big tool schema) model-side, so later turns re-process and re-bill only the new tail tokens.
+- In Python ADK it is an App-level feature: attach one `ContextCacheConfig` to the `App` and every `LlmAgent` under it inherits the policy (defaults: `cache_intervals=10`, `ttl_seconds=1800`, `min_tokens=0`; leaving it `None` disables caching).
+- Three rules explain every "why didn't it cache?" surprise: no cache on turn 1 (there is no prior token count yet), the prefix must clear `max(min_tokens, model floor)` where the floor is 2048 for Gemini 2.5 and 4096 for Gemini 3, and a cache expires after `cache_intervals` reuses or `ttl_seconds`.
+- `static_instruction` holds byte-for-byte-fixed content sent verbatim as the system instruction at the very start; it relocates the templated `instruction` to after the prefix so the cacheable region ends cleanly. The Live API ignores it.
+- The feature is language-asymmetric: `adk/v2` has no `ContextCacheConfig` or `StaticInstruction` — Go only *observes* caching via `UsageMetadata.CachedContentTokenCount`, and manual caching is done through the `google.golang.org/genai` `CachedContent` API.
+
+## Further reading
+
+- [Agent Config: defining an ADK agent in YAML](/blog/posts/adk-24-agent-config.html) — the next concept in the series.
+- [Planners and thinking budgets](/blog/posts/adk-22-planners-and-thinking.html) — the previous post, on model-side reasoning.
+- [Google ADK glossary](/blog/posts/adk-25-glossary.html) — every core term in one place.
+- [ADK docs](https://google.github.io/adk-docs/) — the `App`, `ContextCacheConfig`, and `EventsCompactionConfig` field reference.
+
 *Next in the series: describing agents declaratively with Agent Config (YAML).*

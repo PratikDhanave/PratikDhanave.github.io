@@ -87,3 +87,17 @@ That's the whole discipline. You never edit the baseline to make red go away; yo
 Testing determinism is easy — you assert and you're done. Testing quality is different: it needs a baseline you agree to move on purpose. Without that, agent quality degrades on a timescale slower than any single PR review, so no individual reviewer ever sees it happen, and it surfaces in production as trust erosion you can't easily attribute to any one change.
 
 A committed baseline plus a gate collapses that whole failure mode into a single red X on a pull request. Regressions become build failures. Improvements become reviewable diffs. And "the agents got worse" stops being something a user tells you and becomes something CI told you first — before you shipped.
+
+## Key takeaways
+
+- Agent quality rots quietly — a prompt tweak, a model version bump, a tool reorder — and none of it trips a unit test, so give quality the same standing as any other test.
+- An eval is a *measurement against a baseline*, not an assertion: score scenarios (routing accuracy, diagnosis accuracy, an LLM-judge rubric) and gate on "not worse than the committed baseline, within a tight tolerance" rather than exact matches.
+- The baseline is a committed `baseline.json` — which makes the bar reviewable (a PR diff), versioned (`git log`), and shared (CI and every dev read the same numbers).
+- Keep it fast or it gets disabled: run most of the suite offline and deterministic (stubbed/recorded responses, fixed seeds) in seconds, and reserve slower gated live-model runs for scenarios that genuinely need a model — skipped live evals in normal CI are expected, not a failure.
+- Never widen tolerance to make red go away; when the system genuinely improves, ratchet the bar *up* by bumping `baseline.json` in the same PR as a reviewed diff.
+
+## Further reading
+
+- [The Cheapest Reliable Executor Wins](/blog/posts/cheapest-reliable-executor-wins.html)
+- [Most-Restrictive-Wins: Composing Two Layers of Policy](/blog/posts/most-restrictive-wins-policy-composition.html)
+- [Azure-Preferred, In-Memory Fallback](/blog/posts/azure-preferred-in-memory-fallback.html)

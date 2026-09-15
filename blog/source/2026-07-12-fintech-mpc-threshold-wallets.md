@@ -72,3 +72,18 @@ MPC removes the single-key failure mode. It does not remove authorization risk. 
 MPC also is not the same as on-chain multisig. Multisig is enforced by a smart contract and is visible on chain as multiple signatures; MPC produces a *single* ordinary signature and is invisible to the chain, which keeps fees and privacy identical to a normal wallet but moves all the enforcement into your own infrastructure. That is a feature and a responsibility: with MPC, the quorum logic is yours to get right, test, and defend.
 
 Threshold custody is worth the operational weight when the alternative is a single key you can never fully de-risk. Design for independent trust domains, insist that the full key exists nowhere, and put your real controls in the policy engine that every party consults before it contributes a single partial signature.
+
+## Key takeaways
+
+- Threshold signature schemes (TSS) produce a valid signature directly from key *shares* — unlike Shamir secret sharing, the full private key is never reassembled in memory, so there is no reconstruction window for an attacker.
+- Real distributed key generation (DKG) has no step where a coordinator makes the whole key and splits it; verify in review that the full scalar ever lives *nowhere*.
+- The coordinator is deliberately powerless over keys (routing only); the policy engine — spending limits, allow-lists, velocity, dual-auth — sits in front of the quorum, and every party independently refuses requests it hasn't seen approved.
+- `t` and `n` encode a security-vs-availability trade-off; model shares as independent failure domains (different clouds, regions, operators), because three shares in one cluster share a blast radius.
+- MPC removes the single-key failure mode but not authorization risk (a tricked requester still gets a signed fraudulent-but-authorized tx), and it is *not* on-chain multisig — the quorum logic is entirely yours to test and defend.
+
+## Further reading
+
+- [Hot/Cold Wallets and HSM Custody](/blog/posts/fintech-hot-cold-wallet-hsm.html)
+- [The HSM Key Management Ceremony](/blog/posts/fintech-hsm-key-management-ceremony.html)
+- [Proof of Reserves](/blog/posts/fintech-proof-of-reserves.html)
+- [Threshold cryptosystem (Wikipedia)](https://en.wikipedia.org/wiki/Threshold_cryptosystem)

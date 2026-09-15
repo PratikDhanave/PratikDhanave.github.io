@@ -110,7 +110,7 @@
       <span>·</span>
       <time datetime="2026-06-26">June 26, 2026</time>
       <span>·</span>
-      <span>6 min read</span>
+      <span>7 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">#Reliability</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a></div>
   </header>
@@ -179,6 +179,21 @@ Release (condition met, pay seller $100)
 <li><strong>Exit exclusivity</strong>: an agreement cannot be both released and refunded; drive a dispute and an expiry at the same instant and assert exactly one wins.</li>
 </ul>
 <p>Build escrow as a ledger with a state machine on top, make every transition a balanced and idempotent posting, and reconcile the total against a real segregated account daily. Do that, and the hard questions — &ldquo;where is this customer&rsquo;s money right now?&rdquo; — always have a single, provable answer.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Escrow is a small ledger with its own invariants, not an <code>is_released</code> boolean on a payment row — held funds live in a segregated <code>escrow_liability</code> account, moved by balanced journal entries.</li>
+<li>The escrow balance <em>is</em> the sum of its journal lines, so there is no separate &ldquo;amount held&rdquo; field to drift; at any instant <code>SUM(escrow_liability:*)</code> must equal the real segregated bank balance — your daily reconciliation check.</li>
+<li>Model the states explicitly (deposited, held, condition check, releasing, released) with dispute and expiry branching off the condition check, and let transitions be the <em>only</em> place money moves.</li>
+<li>Partial releases fall out for free — a partial release is just a journal entry for part of the balance — provided you enforce one invariant: you cannot release more than is held, checked inside the posting transaction.</li>
+<li>Key every posting on a caller-supplied idempotency key so a retried release is a no-op, and guard the expiry sweep with the state machine (or <code>FOR UPDATE</code>) so it can never race a genuine last-second release.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-handbook-02-the-ledger.html">The Ledger (fintech handbook)</a></li>
+<li><a href="/blog/posts/fintech-handbook-05-idempotency-and-resumability.html">Idempotency and Resumability (fintech handbook)</a></li>
+<li><a href="/blog/posts/fintech-marketplace-split-payments.html">Marketplace Split Payments</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Escrow">Escrow (Wikipedia)</a></li>
+</ul>
 
 
   <aside class="related-posts">

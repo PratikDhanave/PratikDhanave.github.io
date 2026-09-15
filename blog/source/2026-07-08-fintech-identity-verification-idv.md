@@ -96,3 +96,17 @@ A few engineering rules keep this honest:
 The models are rarely the problem. What breaks is the plumbing around them: retries that double-charge a per-check vendor bill, timeouts that leave a user stranded mid-capture, and thresholds calibrated on one country's documents then applied globally. Instrument the funnel stage by stage — capture, extract, authenticity, biometric, decision — and watch the *drop-off* at each, not just the final pass rate. A sudden spike in extraction failures usually means a client update broke the capture UI, not that fraud went up.
 
 Treat IDV as a pipeline of cheap-to-expensive, independently scored stages feeding a graded decision, and it stays observable, tunable, and defensible. Treat it as a black-box boolean, and every hard question a regulator asks becomes a research project.
+
+## Key takeaways
+
+- IDV is a pipeline of independent, fail-cheap stages (capture → extract → authenticity → liveness+match → score), ordered cheapest-to-most-expensive so a low OCR confidence routes to re-capture before you pay a biometric vendor.
+- The most common failure is glare/blur/thumb, not fraud — client-side capture guidance removes more downstream failures than any server-side model. The MRZ carries its own check digits, so validate it and treat printed-field disagreement as a signal.
+- Liveness and face match are two different checks people conflate: liveness defends against replays/masks (passive by default, escalate to active when marginal), match binds the human to the document. Keep both as continuous scores, not booleans.
+- The whole design pays off at the scoring layer: feed every raw signal into one calibrated risk score mapped to three bands — pass / **refer** / fail — where the middle band routes ambiguity to a human instead of forcing a single threshold.
+- Persist every signal, model version, and image (not just the outcome), pin thresholds/versions per decision for reproducibility, and instrument drop-off stage by stage — a spike in extraction failures usually means a broken capture UI, not more fraud.
+
+## Further reading
+
+- [Device fingerprinting and biometrics](/blog/posts/fintech-device-fingerprinting-biometrics.html)
+- [Perpetual KYC monitoring](/blog/posts/fintech-perpetual-kyc-monitoring.html)
+- [Customer risk rating](/blog/posts/fintech-customer-risk-rating.html)

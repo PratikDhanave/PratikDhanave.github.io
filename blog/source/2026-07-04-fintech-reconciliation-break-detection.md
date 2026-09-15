@@ -90,3 +90,18 @@ The rules should be conservative by construction: when in doubt, escalate. An au
 Reconciliation runs repeatedly over overlapping windows, so it must be safe to re-run. A break is identified by a stable content hash of its constituent records and class, not by a fresh row on every execution. Re-processing the same statement must converge on the same break set, update ages, and apply auto-resolutions — never duplicate them. Equally, every resolution, automatic or manual, appends an immutable record: what closed the break, which rule or user, and the exact residual posted. When an auditor asks why a fee entry appeared with no invoice, the reconciliation log is the answer.
 
 Get these two properties right — deterministic classification and idempotent, audited resolution — and the engine stops being a daily fire drill. The vast majority of breaks route themselves; humans see only the genuinely ambiguous long tail, which is exactly where their judgment is worth paying for.
+
+## Key takeaways
+
+- Two-way reconciliation hides where a break was born; keeping the internal ledger, the processor report, and the bank statement as three first-class inputs tells you precisely which leg disagrees, turning triage into a routed queue.
+- The unglamorous work is normalization: project each source onto a canonical tuple (amount in minor units, value date, currency, join keys) with `join_keys` ordered most-specific-first, and earn each weaker fallback key from a real observed gap rather than adding it speculatively.
+- Tolerances are not ignoring differences — an amount band absorbs fees and FX rounding, a timing window absorbs auth/capture/settle lag — but every in-tolerance match still records the residual so a slowly widening fee error can't hide.
+- Classification (amount / timing / missing-leg / unknown) must be deterministic and explainable, carrying the raw records, the key that did or didn't match, and the computed residual so an analyst never reverse-engineers the engine's reasoning.
+- Breaks age against a per-class SLA (a young timing break is expected, not an incident), auto-resolution rules are conservative by construction (close-no-op on a later match, post-fee when the residual equals the published fee, else escalate), and the engine is idempotent by content hash with an immutable audit trail of every resolution.
+
+## Further reading
+
+- [Nostro/vostro reconciliation](/blog/posts/fintech-nostro-vostro-reconciliation.html)
+- [Outbox, CDC and reconciliation](/blog/posts/fintech-handbook-07-outbox-cdc-reconciliation.html)
+- [Subledger and GL posting](/blog/posts/fintech-subledger-gl-posting.html)
+- [Period close and the trial balance](/blog/posts/fintech-period-close-trial-balance.html)

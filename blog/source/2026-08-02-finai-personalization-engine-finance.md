@@ -66,3 +66,18 @@ Report lift on the business outcome, not the proxy. A model can raise click-thro
 ## Closing
 
 A finance personalization engine is less a single clever model than a pipeline of small, well-bounded responsibilities: a governed feature store, cheap recall, calibrated ranking, hard compliance filters, careful cold-start handling, and honest measurement. The parts that keep it out of trouble, the gate and the holdout, are the least glamorous and the most important. Build those first, and personalization becomes a durable advantage rather than a standing liability.
+
+## Key takeaways
+
+- The objective is expected long-term value conditioned on suitability and eligibility, not raw click-through — an offer a customer accepts but cannot afford is negative value once delinquency and remediation are counted.
+- Keep scoring and constraints separate: scores are soft and probabilistic, constraints are hard and auditable, so an unlucky weight update can never start recommending something you are legally required never to surface.
+- The feature store's key job in finance is point-in-time correctness (no future leakage) and it is the single chokepoint where a feature derived from a protected attribute or proxy gets caught once, not per-model.
+- Use two stages — cheap high-recall candidate generation, then calibrated ranking where a 0.2 score really means ~20% — because downstream decisions compare scores against real thresholds, not just against each other.
+- Eligibility, suitability, and fair-lending are pass/fail filters after ranking, not features; survivors carry a human-readable reason ("explainable offer"), and effectiveness is proven with a persistent random holdout measuring causal lift on the business outcome plus guardrail metrics.
+
+## Further reading
+
+- [Why ML in finance is different](/blog/posts/finai-why-ml-in-finance-is-different.html)
+- [Churn prediction and retention agents](/blog/posts/finai-churn-prediction-retention-agents.html)
+- [News-driven alpha: LLM sentiment analysis](/blog/posts/finai-news-sentiment-llm-alpha.html)
+- [Recommender system](https://en.wikipedia.org/wiki/Recommender_system) — Wikipedia background on candidate generation and ranking

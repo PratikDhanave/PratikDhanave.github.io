@@ -111,7 +111,7 @@
       <span>·</span>
       <time datetime="2026-07-30">July 30, 2026</time>
       <span>·</span>
-      <span>7 min read</span>
+      <span>8 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/fintech/" class="tag-link"><span class="tag">#Fintech</span></a><a href="/blog/tags/payments/" class="tag-link"><span class="tag">#Payments</span></a><a href="/blog/tags/webhooks/" class="tag-link"><span class="tag">#Webhooks</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">#Reliability</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/financial-systems/" class="tag-link"><span class="tag">#Financial Systems</span></a></div>
   </header>
@@ -177,6 +177,20 @@ def valid(raw_body: bytes, header_sig: str, secret: bytes) -&gt; bool:
 <p>And process the event the same way you handle an ambiguous outbound call: the webhook tells you <em>something changed</em> — it is a hint to go read authoritative state, not a fact to trust wholesale. Fetch the current status from the rail&rsquo;s API and act on that. This also gives you a clean seam for policy — the point where an event, once verified, gets acted on is exactly where logic like <a href="/blog/posts/npci-rail-routing-with-hitl.html">routing NPCI rails with a human in the loop</a> belongs.</p>
 <h2 id="why-it-matters">Why it matters</h2>
 <p>Every rule here — timeouts, idempotency keys, jittered backoff, breakers, reconciliation, signature checks, replay rejection, fast acks, idempotent async handlers — exists because a real system moved real money into a state nobody could explain. The integration layer is where your clean internal model meets an unreliable, adversarial outside world, and it is the layer that determines whether a bad network day is a shrug or a support queue full of double charges. Assume the call can lie about whether it worked. Assume the webhook is forged, replayed, out of order, and doubled. Build so that none of that corrupts your books. Get this boundary right and everything upstream of it gets to stay simple.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Every outbound call gets an explicit, short connect <em>and</em> read timeout — the default is effectively infinity, and infinity is how one slow dependency exhausts a thread/connection pool and takes down endpoints that never touched it.</li>
+<li>Retries carry a stable idempotency key and use exponential backoff <em>with jitter</em> (without jitter you manufacture a synchronized thundering herd), and a circuit breaker caps them so you fail fast instead of hammering a dependency already on the floor.</li>
+<li>A timeout is ambiguous, not failed: reconcile, don&rsquo;t blindly retry — persist intent as <code>PENDING</code> before the call, then ask the rail&rsquo;s status endpoint what actually happened and act only on authoritative state. An operation is done when the source of truth confirms it, not when your code returned.</li>
+<li>Inbound webhooks invert the trust model: verify the HMAC signature over the <em>raw</em> body with a constant-time compare <em>before</em> parsing, reject stale timestamps and track a nonce to defeat replays, and assume events are unordered and not exactly-once — so handlers must be idempotent, keyed on event id.</li>
+<li>Ack fast, process later: verify, dedupe, enqueue, return 200 immediately, then do the real work asynchronously — a slow handler makes the rail time out and retry, manufacturing the duplicates you were trying to avoid.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="/blog/posts/fintech-handbook-05-idempotency-and-resumability.html">Idempotency and full resumability</a> — the previous chapter, on the keys and dedup this relies on.</li>
+<li><a href="/blog/posts/fintech-handbook-04-executing-money-flows.html">Executing money flows</a> — the state machine a reconciliation sweep updates.</li>
+<li><a href="/blog/posts/fintech-payment-orchestration-routing.html">Payment orchestration and routing</a> — where verified events get acted on across multiple rails.</li>
+</ul>
 
 
   <aside class="related-posts">

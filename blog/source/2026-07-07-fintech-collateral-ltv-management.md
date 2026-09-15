@@ -90,3 +90,17 @@ Clock and cadence gaps are the classic one: if you re-value every five minutes, 
 The second is treating the price feed as ground truth. Feeds lag, halt, and print bad ticks precisely when markets are most stressed — exactly when your liquidation logic is most likely to fire. Every adverse transition should be defensible from confirmed, multi-source data, because every liquidation is a decision you may have to justify to the borrower, to an auditor, or in a dispute.
 
 Build the loop so that the boring path — pledge, value, stay healthy, release — is the overwhelming common case, and the sharp edges into margin call and liquidation are rare, explicit, idempotent, and fully logged. That is the difference between a collateral system that quietly does its job for years and one that becomes the subject of the post-mortem after a volatile afternoon.
+
+## Key takeaways
+
+- Model collateral as an explicit state machine (`PLEDGED → VALUED → HEALTHY`, with edges into `MARGIN CALL` and `LIQUIDATION`) rather than a scatter of boolean columns — replayable transitions are what you show when a borrower disputes a liquidation timestamp.
+- Valuation, not the LTV arithmetic, is the hard part: every mark carries a source and freshness, a stale mark must fail loud rather than substitute "last known good," haircuts discount for liquidity, and outlier ticks are cross-checked before they can trigger a sale.
+- Use hysteresis — a call level to enter `MARGIN CALL` and a distinct, lower cure level to return to `HEALTHY` — so LTV oscillating around a threshold doesn't flap and spam the borrower.
+- Liquidation is the one irreversible transition: guard it with state plus a liquidation id for idempotency, sell only the minimum quantity that restores the cure level, and reconcile partial fills and slippage before assuming the breach is cured.
+- Production failures cluster around timing and trust — cadence gaps that let a fast move blow through both thresholds between marks, and treating a lagging/halting price feed as ground truth exactly when markets are stressed.
+
+## Further reading
+
+- [CCP clearing and margin](/blog/posts/fintech-ccp-clearing-margin.html)
+- [Securities lending and repo](/blog/posts/fintech-securities-lending-repo.html)
+- [Pre-trade risk, positions, and real-time P&L](/blog/posts/fintech-pretrade-risk-position-pnl.html)
