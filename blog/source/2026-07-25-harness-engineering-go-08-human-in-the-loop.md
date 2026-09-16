@@ -150,12 +150,12 @@ There's a second, quieter leak carried over from Lesson 2: **execution is at-lea
 
 Stepping back, the series built one harness, one seam at a time:
 
-1. **Guardrails** — a hard block wrapping the model call.
+1. **Guardrails** — middleware wrapping the model call.
 2. **Durable execution** — checkpoint each step, resume after a crash. *The spine.*
-3. **Retries** — bounded, jittered backoff around flaky calls.
-4. **Memory** — an append-only thread of turns.
-5. **Structured output** — validate the model's JSON against a schema, or reject it.
-6. **Routing** — pick a tool/sub-agent by intent.
+3. **Secure sandboxing** — run agent-written code behind a timeout.
+4. **Memory** — threads, keyword retrieval, and lossy summarization.
+5. **Orchestration and handoff** — route intent to a specialist.
+6. **Hierarchical supervision** — bounded fan-out, ordered fan-in, fault isolation.
 7. **Human-in-the-loop** — this post: a durable approval gate, built on lesson 2.
 
 Every one of them is the same move: an Azure primitive (Content Safety, Cosmos DB, Foundry, AI Search, a request/response executor) named explicitly, then stood in for by a small Go struct behind an interface, with the leak stated out loud. The caller never learns which side of the seam it's on.
