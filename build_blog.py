@@ -6197,6 +6197,7 @@ NAV_HTML = """<nav>
       <li><a href="/about/">About</a></li>
       <li><a href="/projects/">Projects</a></li>
       <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/consulting/">Consulting</a></li>
       <li><a href="/open-source/">Open Source</a></li>
       <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
       <li><a href="/recommendations/">Recommendations</a></li>

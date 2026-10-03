@@ -100,6 +100,7 @@ def collect_main_pages():
         ("/gsoc/", "gsoc/index.html", "monthly", "0.7"),
         ("/gallery/", "gallery/index.html", "monthly", "0.6"),
         ("/certifications/", "certifications/index.html", "monthly", "0.5"),
+        ("/consulting/", "consulting/index.html", "monthly", "0.8"),
         ("/open-source/", "open-source/index.html", "monthly", "0.7"),
         ("/agent-framework/", "agent-framework/index.html", "monthly", "0.8"),
         ("/recommendations/", "recommendations/index.html", "monthly", "0.7"),
