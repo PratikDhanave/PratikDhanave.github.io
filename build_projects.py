@@ -215,7 +215,7 @@ PROJECT_META = {
         ],
         "metrics": [
             ["57%", "DWH cost ↓"],
-            ["57%", "cost ↓"],
+            ["₹100 Cr+", "saved"],
             ["10K+", "queries analyzed"],
         ],
         "links": [
@@ -1157,7 +1157,7 @@ def main():
             slug = meta.get("slug", "")
             post_file = SITE_ROOT / "blog" / "posts" / f"{slug}.html"
             if post_file.exists():
-                html_head = post_file.read_text()[:500]
+                html_head = post_file.read_text()[:4000]
                 m = re.search(r"<title>(.*?)(?:\s*—\s*Pratik Dhanave)?</title>", html_head)
                 if m:
                     meta["title"] = m.group(1).strip()

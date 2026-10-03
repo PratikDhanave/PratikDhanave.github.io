@@ -144,13 +144,13 @@ Recall the trap from post 4: because of `omitempty`, a `float64` temperature of 
 
 When a prompt mixes instructions with data, the model has to guess where one ends and the other begins — using the same next-token machinery, so ambiguity leaks into behavior. Remove the guesswork with explicit delimiters: fenced blocks, XML-ish tags, labeled sections. You saw `<context>...</context>` above; the same discipline applies whenever you interpolate a value.
 
-```text
+````text
 Summarize the review delimited by triple backticks in one sentence.
 
 ```
 {{ .ReviewText }}
 ```
-```
+````
 
 Structure does double duty. It makes the model's parse of your intent unambiguous, and — as the next section shows — it is the first line of defense when the data you are delimiting comes from someone you do not trust.
 
