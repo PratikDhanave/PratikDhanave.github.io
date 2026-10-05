@@ -62,7 +62,11 @@ PROJECT_META = {
             ["Documentation", "https://github.com/c2siorg/genie#readme"],
         ],
         "blog_tags": ["Microsoft Agent Framework", "Multi-Agent AI", "Architecture", "Security", "Governance"],
-        "blog_posts": ["/blog/posts/adk-to-maf-migration-why.html"],
+        "blog_posts": [
+            "/blog/posts/adk-to-maf-migration-why.html",
+            "/blog/posts/maf-governance-with-agt.html",
+            "/blog/posts/defence-in-depth-for-agentic-ai.html",
+        ],
         "credits": [
             {
                 "name": "Microsoft Agent Framework Team",
@@ -86,11 +90,11 @@ PROJECT_META = {
         "kind": "oss",
         "name": "Bodh",
         "tagline": "Medical AI platform with physician panel orchestration",
-        "org": "Open Source · Original",
+        "org": "Original Project",
         "status": "active",
         "featured": False,
         "summary": "Virtual physician panel on the Microsoft Agent Framework, inspired by Microsoft's MAI-DxO. FHIR R4 + HL7 v2 aware with role-specialized diagnostic agents.",
-        "description_html": """<p>Bodh is an open-source medical AI platform that orchestrates a virtual physician panel on the Microsoft Agent Framework. The system is inspired by Microsoft's <a href="https://microsoft.ai/news/the-path-to-medical-superintelligence/">MAI-DxO</a> and SD-Bench, implementing role-specialized agents for intake, questioning, test planning, diagnostician analysis, and reasoning verification.</p>
+        "description_html": """<p>Bodh is a medical AI platform that orchestrates a virtual physician panel on the Microsoft Agent Framework. The system is inspired by Microsoft's <a href="https://microsoft.ai/news/the-path-to-medical-superintelligence/">MAI-DxO</a> and SD-Bench, implementing role-specialized agents for intake, questioning, test planning, diagnostician analysis, and reasoning verification.</p>
 <p>The platform is fully aware of healthcare standards (FHIR R4 for structured medical data, HL7 v2 for clinical messaging) and implements cost-aware diagnostic budget enforcement to optimize care delivery while managing expenses.</p>
 <p>Bodh follows a multi-agent sequential diagnosis workflow. Each patient case progresses through a structured pipeline: the intake agent collects and normalizes patient data, the questioning agent gathers clinical history through targeted follow-ups, the test planner recommends appropriate diagnostics, the diagnostician agents analyze results in parallel, and the reasoning verifier validates the final assessment for logical consistency.</p>
 <p>All patient data handling is designed with HIPAA-compliant safeguards. Protected health information is encrypted at rest and in transit, access is scoped per agent role, and audit logs capture every data access event for compliance review. The platform enforces clinical decision support with human-in-the-loop oversight, ensuring that AI-generated insights serve as decision aids rather than autonomous actions.</p>""",
@@ -111,7 +115,7 @@ PROJECT_META = {
             ["HL7 v2", "aware"],
         ],
         "links": [
-            ["Project Page", "https://pratikdhanave.com/projects/bodh/"],
+            ["Built on the Microsoft Agent Framework", "/agent-framework/"],
         ],
         "blog_tags": ["Microsoft Agent Framework", "Medical AI", "Architecture", "Healthcare"],
         "blog_posts": [],
@@ -172,7 +176,11 @@ PROJECT_META = {
             ["Google Cloud Docs", "https://cloud.google.com/spanner/docs/migration-tools"],
         ],
         "blog_tags": ["Cloud Spanner", "Database Migration", "Performance"],
-        "blog_posts": [],
+        "blog_posts": [
+            "/blog/posts/spanner-migration-tool-contributor-reading-map.html",
+            "/blog/posts/spanner-pk-design-write-hotspots.html",
+            "/blog/posts/picnic-protobuf-consolidation-47pct-latency.html",
+        ],
         "credits": [
             {
                 "name": "Google Cloud Platform",
@@ -979,13 +987,16 @@ def render_project_detail_html(project_slug, tag_index):
                         pinned_slugs.add(meta.get("slug"))
                         break
 
-            # Then auto-related (skip already-pinned)
-            for post in related:
-                post_date = post["meta"]["date"]
-                post_slug = post["meta"]["slug"]
-                if post_slug in pinned_slugs:
-                    continue
-                related_posts_html += f'<div style="margin-bottom: 12px;"><a href="/blog/posts/{post_slug}.html">{_html_escape(post["meta"].get("title", "Untitled"))}</a> <span style="color: var(--text-muted); font-size: 0.9rem;">({post_date})</span></div>'
+            # Auto-related only when the project has NO explicit pins — curated
+            # pins are authoritative and must not be diluted by the tag-based
+            # auto-picker (which can surface off-topic posts for sparse tags).
+            if not project.get("blog_posts"):
+                for post in related:
+                    post_date = post["meta"]["date"]
+                    post_slug = post["meta"]["slug"]
+                    if post_slug in pinned_slugs:
+                        continue
+                    related_posts_html += f'<div style="margin-bottom: 12px;"><a href="/blog/posts/{post_slug}.html">{_html_escape(post["meta"].get("title", "Untitled"))}</a> <span style="color: var(--text-muted); font-size: 0.9rem;">({post_date})</span></div>'
 
             related_posts_html += '</section>'
 
@@ -1038,7 +1049,11 @@ def render_project_detail_html(project_slug, tag_index):
   <p><a href="/projects/">← All projects</a></p>
 </section>"""
 
-    # Build JSON-LD schemas
+    # Build JSON-LD schemas. Only emit codeRepository when a real public repo exists
+    # (first github.com link); projects with no public source omit it rather than
+    # pointing codeRepository at the HTML page.
+    _gh_repo = next((u for _n, u in project.get("links", []) if "github.com" in u), None)
+    code_repo_field = f'"codeRepository": "{_gh_repo}",\n  ' if _gh_repo else ""
     schema_html = f"""
 <script type="application/ld+json">
 {{
@@ -1051,8 +1066,7 @@ def render_project_detail_html(project_slug, tag_index):
     "@type": "Person",
     "name": "Pratik Dhanave"
   }},
-  "codeRepository": "{project.get('links', [[None, 'https://github.com/PratikDhanave']])[0][1]}",
-  "programmingLanguage": "{project.get('language', 'Go')}"
+  {code_repo_field}"programmingLanguage": "{project.get('language', 'Go')}"
 }}
 </script>
 
