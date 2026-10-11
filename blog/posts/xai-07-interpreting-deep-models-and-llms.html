@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Interpreting Deep Networks and LLMs — Pratik Dhanave</title>
+<meta name="description" content="The hardest frontier: deep nets and LLMs with billions of parameters and no obvious place to find &#x27;the reason&#x27;. Saliency maps (fragile), attention (not...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Interpreting Deep Networks and LLMs — Pratik Dhanave">
+<meta property="og:description" content="The hardest frontier: deep nets and LLMs with billions of parameters and no obvious place to find &#x27;the reason&#x27;. Saliency maps (fragile), attention (not explanation), probing, and mechanistic interpretability&#x27;s attempt to reverse-engineer circuits — plus the honest truth that we largely cannot yet explain why frontier LLMs behave as they do.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/xai-07-interpreting-deep-models-and-llms.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-15T00:00:00Z">
+<meta property="article:tag" content="Explainable AI">
+<meta property="article:tag" content="Deep Learning">
+<meta property="article:tag" content="LLMs">
+<meta property="article:tag" content="Mechanistic Interpretability">
+<meta property="article:tag" content="Interpretability">
+<meta property="article:tag" content="Machine Learning">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Interpreting Deep Networks and LLMs — Pratik Dhanave">
+<meta name="twitter:description" content="The hardest frontier: deep nets and LLMs with billions of parameters and no obvious place to find &#x27;the reason&#x27;. Saliency maps (fragile), attention (not explanation), probing, and mechanistic interpretability&#x27;s attempt to reverse-engineer circuits — plus the honest truth that we largely cannot yet explain why frontier LLMs behave as they do.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/xai-07-interpreting-deep-models-and-llms.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}:root[data-theme="dark"]{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav{background:rgba(13,17,23,0.85)}}:root[data-theme="dark"] nav{background:rgba(13,17,23,0.85)}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}#read-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-hover));z-index:1000;transition:width .1s ease-out}.rh-controls{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:900}.rh-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;box-shadow:var(--shadow);transition:transform .15s,color .15s,opacity .2s}.rh-btn:hover{transform:translateY(-2px);color:var(--accent)}#rh-top{opacity:0;pointer-events:none}#rh-top.show{opacity:1;pointer-events:auto}#toc{position:fixed;top:118px;right:24px;width:224px;max-height:72vh;overflow-y:auto;font-size:13px;padding:4px 0 4px 16px;border-left:2px solid var(--border);z-index:800}#toc .toc-title{font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;color:var(--text-muted);margin-bottom:10px}#toc a{display:block;color:var(--text-muted);padding:4px 0 4px 14px;line-height:1.35;border-left:2px solid transparent;margin-left:-16px;transition:color .15s,border-color .15s}#toc a.h3{padding-left:26px;font-size:12px}#toc a:hover{color:var(--accent);text-decoration:none}#toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}article pre{position:relative}.copy-btn{position:absolute;top:8px;right:8px;padding:3px 10px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-muted);cursor:pointer;opacity:0;transition:opacity .15s,color .15s,border-color .15s}article pre:hover .copy-btn,.copy-btn:focus-visible{opacity:1}.copy-btn:hover{color:var(--accent);border-color:var(--accent)}.copy-btn.copied{color:#2ea043;border-color:#2ea043}@media (max-width:1240px){#toc{display:none}}@media print{#read-progress,.rh-controls,#toc,.copy-btn{display:none !important}}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Interpreting Deep Networks and LLMs",
+  "description": "The hardest frontier: deep nets and LLMs with billions of parameters and no obvious place to find 'the reason'. Saliency maps (fragile), attention (not explanation), probing, and mechanistic interpretability's attempt to reverse-engineer circuits \u2014 plus the honest truth that we largely cannot yet explain why frontier LLMs behave as they do.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-07-15",
+  "dateModified": "2026-07-15",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Explainable AI, Deep Learning, LLMs, Mechanistic Interpretability, Interpretability, Machine Learning",
+  "url": "https://pratikdhanave.com/blog/posts/xai-07-interpreting-deep-models-and-llms.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/xai-07-interpreting-deep-models-and-llms.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/consulting/">Consulting</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Interpreting Deep Networks and LLMs</h1>
+    <p class="post-subtitle">The hardest interpretability frontier is the models that matter most right now: deep neural networks and large language models, with billions of parameters and no obvious place to look for &quot;the reason.&quot; The attribution methods that work on tabular models strain here, and a new field — mechanistic interpretability — is trying to reverse-engineer what these networks actually compute. This post covers how we peer inside deep models and LLMs, and why it&#x27;s both crucial and genuinely unsolved.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-07-15">July 15, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/explainable-ai/" class="tag-link"><span class="tag">#Explainable AI</span></a><a href="/blog/tags/deep-learning/" class="tag-link"><span class="tag">#Deep Learning</span></a><a href="/blog/tags/llms/" class="tag-link"><span class="tag">#LLMs</span></a><a href="/blog/tags/mechanistic-interpretability/" class="tag-link"><span class="tag">#Mechanistic Interpretability</span></a><a href="/blog/tags/interpretability/" class="tag-link"><span class="tag">#Interpretability</span></a><a href="/blog/tags/machine-learning/" class="tag-link"><span class="tag">#Machine Learning</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 7 of 8</span>
+    <a class="series-title" href="/blog/series/explainable-ai-and-interpretability/">Explainable AI and Interpretability</a>
+    <div class="series-nav"><a href="/blog/posts/xai-06-counterfactual-and-example-based.html" class="series-prev">&larr; Part 6: Counterfactual and Example-Based Explanations</a>
+<a href="/blog/posts/xai-08-interpretability-in-practice.html" class="series-next">Part 8: Interpretability in Practice — Choosing Methods and Avoiding Traps &rarr;</a></div>
+  </div>
+
+
+
+  <p>Posts 3–6 covered methods that largely treat the model as a black box. This post is about the deepest black boxes — deep nets and LLMs — where interpretability is hardest and highest-stakes. It&rsquo;s where the field is most active and least settled, and where honesty about what we <em>can&rsquo;t</em> yet explain matters most.</p>
+<h2 id="why-deep-models-are-especially-hard">Why deep models are especially hard</h2>
+<p>Deep networks defeat the comfortable assumptions of tabular interpretability:</p>
+<ul>
+<li><strong>No meaningful input features to attribute to.</strong> SHAP on a tabular model attributes to &ldquo;income&rdquo; and &ldquo;debt&rdquo; — meaningful features. But a deep net&rsquo;s inputs are <em>raw pixels</em> or <em>tokens</em>, and &ldquo;this pixel contributed 0.02&rdquo; isn&rsquo;t a human-meaningful explanation. The model&rsquo;s real &ldquo;concepts&rdquo; live in its <em>internal</em> representations, not its inputs.</li>
+<li><strong>Enormous scale and distributed representations.</strong> Meaning in a deep net is spread across millions or billions of parameters and activations, with concepts represented in combinations of neurons rather than individual ones (and single neurons often responding to many unrelated things — &ldquo;superposition&rdquo;). There&rsquo;s no single weight to read.</li>
+<li><strong>Emergent, compositional behavior</strong> — especially in LLMs, capabilities emerge from the interaction of many layers in ways nobody explicitly designed, so there&rsquo;s no blueprint to consult.</li>
+</ul>
+<p>So the tabular toolkit adapts awkwardly, and new approaches are needed. Two broad directions have emerged: <em>attribution adapted to deep models</em> (what in the input mattered) and <em>mechanistic interpretability</em> (what the network internally computes).</p>
+<h2 id="attribution-and-probing-for-deep-models">Attribution and probing for deep models</h2>
+<p>The first direction extends the attribution idea (posts 3–5) to deep nets, mostly asking &ldquo;which parts of the input drove this output?&rdquo;:</p>
+<ul>
+<li><strong>Saliency / attribution maps</strong> — for vision, highlight which <em>pixels or regions</em> most influenced the prediction (gradient-based methods and their relatives). The output is a heatmap over the image: &ldquo;the model looked here.&rdquo; These are intuitive and widely used, and they&rsquo;re exactly what caught the &ldquo;husky = snow&rdquo; and &ldquo;pneumonia = scanner&rdquo; failures (post 1). But they&rsquo;re known to be <strong>fragile and sometimes misleading</strong> — some saliency methods produce similar-looking maps regardless of what the model actually learned, so a plausible heatmap isn&rsquo;t proof the model is reasoning well.</li>
+<li><strong>Attention visualization</strong> — for transformers/LLMs, show which input tokens the model &ldquo;attended to.&rdquo; Intuitive, but with a crucial caveat: <strong>attention is not explanation</strong> — where a model attends is not reliably <em>why</em> it predicted something, and reading attention maps as explanations is a documented mistake. Attention is suggestive, not authoritative.</li>
+<li><strong>Probing</strong> — train a simple classifier on a network&rsquo;s <em>internal activations</em> to test whether some concept (part of speech, sentiment, a fact) is represented there. Probing reveals <em>what information</em> the network encodes at various layers, giving insight into its internal representations — a key tool for understanding what LLMs &ldquo;know&rdquo; and where.</li>
+<li><strong>Feature visualization</strong> — for vision nets, synthesize the input that maximally activates a given neuron/channel, revealing what it detects (edges, textures, then object parts, then whole objects up the layers). This produced the famous result that CNNs build a hierarchy of increasingly abstract features.</li>
+</ul>
+<p>These help, but note they&rsquo;re largely about <em>input attribution</em> and <em>what&rsquo;s encoded</em>, not the full <em>how</em> of the computation — which is the gap mechanistic interpretability tries to fill.</p>
+<h2 id="mechanistic-interpretability-and-the-honest-state-of-the-art">Mechanistic interpretability and the honest state of the art</h2>
+<p>The most ambitious direction is <strong>mechanistic interpretability</strong>: trying to <em>reverse-engineer</em> a network into human-understandable algorithms — not &ldquo;which input mattered&rdquo; but &ldquo;what computation is this network actually performing, circuit by circuit?&rdquo; The goal is to identify <strong>circuits</strong> (subgraphs of neurons implementing a specific function) and <strong>features</strong> (the concepts the network represents) and show how they combine to produce behavior, as if decompiling the network into readable logic.</p>
+<p>This is where much frontier interpretability energy goes, especially for LLMs and AI safety, because:
+- <strong>For safety, we need to know what models actually do</strong> — whether a powerful model has learned deceptive or dangerous behaviors, whether it&rsquo;s reasoning or pattern-matching, what it &ldquo;knows.&rdquo; Input attribution can&rsquo;t answer these; understanding the internal mechanism might.
+- There have been real successes — identifying specific circuits (e.g. mechanisms for in-context learning or simple reasoning), and work on resolving superposition into interpretable features — genuine progress in reading pieces of these networks.</p>
+<p>But honesty is essential, and it&rsquo;s the most important thing to convey: <strong>we largely cannot yet explain why large models do what they do.</strong> Mechanistic interpretability has illuminated <em>fragments</em> of small-to-medium networks and specific behaviors, but fully reverse-engineering a frontier LLM is far beyond current ability — the scale is staggering, superposition makes features hard to isolate, and the techniques are young. So the state of the art is: good tools for <em>input attribution</em> (fragile but useful), useful <em>probing</em> of what&rsquo;s encoded, and <em>early, partial</em> mechanistic understanding of internals — with the frontier models that most need explaining remaining substantially opaque. This matters because it tempers the expectation that we can simply &ldquo;open up&rdquo; an LLM and read its reasons; for now, we can see shadows and fragments, not the whole machine. Understanding this limit is itself crucial interpretability literacy — it&rsquo;s the difference between appropriate caution about deploying powerful opaque models and false confidence that we understand them.</p>
+<p>The throughline: deep nets and LLMs are the hardest interpretability frontier because their inputs (<strong>pixels/tokens</strong>) aren&rsquo;t human-meaningful features, meaning is spread across billions of parameters in <strong>distributed, superposed</strong> representations, and behavior is <strong>emergent</strong> — so the tabular toolkit strains. Two directions respond: <strong>input attribution/probing</strong> — <strong>saliency maps</strong> (which pixels mattered — caught the husky=snow failure, but <strong>fragile/misleading</strong>), <strong>attention visualization</strong> (<strong>attention is not explanation</strong>), <strong>probing</strong> (train classifiers on internal activations to see <em>what&rsquo;s encoded</em>), and <strong>feature visualization</strong> (what a neuron detects — revealing CNNs&rsquo; feature hierarchy) — and <strong>mechanistic interpretability</strong>, the ambitious attempt to reverse-engineer networks into human-readable <strong>circuits and features</strong>, crucial for AI safety (knowing whether a model reasons, deceives, or merely pattern-matches). The honest state of the art: good-but-fragile input attribution, useful probing, and only <strong>early, partial</strong> mechanistic understanding — <strong>we largely cannot yet explain why frontier LLMs do what they do</strong>, a limit whose recognition is itself essential literacy against false confidence in opaque models.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li>Deep nets/LLMs are the hardest frontier: inputs are <strong>raw pixels/tokens</strong> (not meaningful features to attribute to), meaning is <strong>distributed</strong> across billions of parameters with <strong>superposition</strong> (neurons encode many concepts), and behavior is <strong>emergent/compositional</strong> — so tabular methods (SHAP on &ldquo;income&rdquo;) don&rsquo;t transfer cleanly.</li>
+<li><strong>Input-attribution/probing</strong> tools adapt the attribution idea: <strong>saliency/attribution maps</strong> (which pixels/regions mattered — caught husky=snow, pneumonia=scanner, but <strong>fragile and sometimes misleading</strong>), <strong>attention visualization</strong> (intuitive but <strong>&ldquo;attention is not explanation&rdquo;</strong> — where a model attends ≠ why it predicted), <strong>probing</strong> (classifiers on internal activations reveal <em>what concepts are encoded</em> and where), and <strong>feature visualization</strong> (what maximally activates a neuron — revealed CNNs&rsquo; edge→part→object hierarchy).</li>
+<li>These mostly explain <strong>input influence and what&rsquo;s encoded</strong>, not the full <strong>how</strong> of the computation — the gap <strong>mechanistic interpretability</strong> targets.</li>
+<li><strong>Mechanistic interpretability</strong> tries to reverse-engineer networks into human-understandable <strong>circuits</strong> (neuron subgraphs implementing functions) and <strong>features</strong> (represented concepts) — decompiling the model — crucial for <strong>AI safety</strong> (does a powerful model reason, deceive, or pattern-match?), with real but <strong>fragmentary</strong> successes.</li>
+<li>The honest state of the art: good-but-fragile attribution, useful probing, only <strong>early/partial</strong> mechanistic understanding — <strong>we largely cannot yet explain why frontier LLMs behave as they do</strong>; recognizing this limit is essential literacy, separating appropriate caution about deploying opaque models from false confidence that we understand them.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://en.wikipedia.org/wiki/Explainable_artificial_intelligence">Explainable artificial intelligence — interpreting deep networks</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Large_language_model">Large language model — the opaque models interpretability targets</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/xai-08-interpretability-in-practice.html">Interpretability in Practice — Choosing Methods and Avoiding Traps</a>
+      <span class="related-date">Jul 16</span>
+    </li>
+    <li>
+      <a href="/blog/posts/xai-06-counterfactual-and-example-based.html">Counterfactual and Example-Based Explanations</a>
+      <span class="related-date">Jul 14</span>
+    </li>
+    <li>
+      <a href="/blog/posts/xai-05-shap.html">SHAP — Fair Credit for Every Feature</a>
+      <span class="related-date">Jul 13</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://en.wikipedia.org/wiki/Explainable_artificial_intelligence" target="_blank" rel="noopener noreferrer">Explainable artificial intelligence — interpreting deep networks</a></div>
+      <div class="citation-context">Deep-model interpretability</div>
+    </div>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://en.wikipedia.org/wiki/Large_language_model" target="_blank" rel="noopener noreferrer">Large language model — the opaque models interpretability targets</a></div>
+      <div class="citation-context">The frontier case</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+<div id="read-progress" aria-hidden="true"></div>
+<nav id="toc" aria-label="Table of contents"></nav>
+<div class="rh-controls">
+  <button id="rh-theme" class="rh-btn" type="button" aria-label="Toggle light and dark theme" title="Toggle theme"></button>
+  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top"><span aria-hidden="true">&uarr;</span></button>
+</div>
+<script>
+(function(){
+  var doc = document.documentElement;
+  function curTheme(){ return doc.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+  var themeBtn = document.getElementById('rh-theme');
+  function setIcon(){ if (themeBtn) themeBtn.textContent = curTheme() === 'dark' ? '\u2600\uFE0E' : '\u263D'; }
+  setIcon();
+  if (themeBtn) themeBtn.addEventListener('click', function(){
+    var t = curTheme() === 'dark' ? 'light' : 'dark';
+    doc.setAttribute('data-theme', t);
+    try { localStorage.setItem('theme', t); } catch(e){}
+    setIcon();
+  });
+  var article = document.querySelector('article');
+  var toc = document.getElementById('toc');
+  if (article && toc) {
+    var heads = article.querySelectorAll('h2, h3');
+    if (heads.length >= 3) {
+      var title = document.createElement('div');
+      title.className = 'toc-title'; title.textContent = 'On this page';
+      toc.appendChild(title);
+      var links = [];
+      heads.forEach(function(h, i){
+        if (!h.id) h.id = 'sec-' + i;
+        var a = document.createElement('a');
+        if (h.tagName === 'H3') a.className = 'h3';
+        a.href = '#' + h.id;
+        a.textContent = h.textContent;
+        toc.appendChild(a);
+        links.push(a);
+      });
+      var byId = {}; links.forEach(function(a){ byId[a.getAttribute('href').slice(1)] = a; });
+      var obs = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if (e.isIntersecting) {
+            links.forEach(function(a){ a.classList.remove('active'); });
+            var a = byId[e.target.id]; if (a) a.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-80px 0px -70% 0px' });
+      heads.forEach(function(h){ obs.observe(h); });
+    } else { toc.style.display = 'none'; }
+  }
+  document.querySelectorAll('article pre').forEach(function(pre){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.type = 'button'; btn.textContent = 'Copy';
+    btn.addEventListener('click', function(){
+      var code = pre.querySelector('code');
+      var txt = code ? code.innerText : pre.innerText;
+      navigator.clipboard.writeText(txt).then(function(){
+        btn.textContent = 'Copied'; btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+  var bar = document.getElementById('read-progress');
+  var top = document.getElementById('rh-top');
+  function onScroll(){
+    var h = doc.scrollHeight - doc.clientHeight;
+    var p = h > 0 ? (doc.scrollTop / h) * 100 : 0;
+    if (bar) bar.style.width = p + '%';
+    if (top) { if (doc.scrollTop > 600) top.classList.add('show'); else top.classList.remove('show'); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+  if (top) top.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); });
+})();
+</script>
+</body>
+</html>
