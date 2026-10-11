@@ -1,0 +1,51 @@
+# Observational Methods — Causal Inference Without an Experiment
+
+*Often you can't run an experiment — it's unethical, infeasible, or too slow — but you still need to know whether something causes something. Observational causal inference is the set of techniques for extracting causal conclusions from data you didn't control, by reconstructing the comparable groups that randomization would have given you for free. This post covers the main tools (adjustment, matching, propensity scores) and the uncomfortable assumption they all depend on.*
+
+Posts 4–5 gave us the gold standard (randomization) and the map (causal graphs). This post is for when you can't randomize: you have observational data, confounding is lurking (post 3), and you must *reconstruct* comparability (post 2) rather than guarantee it. These methods are workhorses of economics, epidemiology, and data science — and understanding their shared assumption is understanding both their power and their limits.
+
+## The common goal: reconstruct comparable groups
+
+Every observational method chases the same target randomization achieves automatically: make the treated and untreated groups **comparable** so one can serve as the other's counterfactual (post 2). Since you didn't randomize, the groups differ in confounding ways — so you *statistically* adjust for those differences, comparing like with like. The causal graph (post 5) tells you *which* variables to adjust for (the confounders closing the backdoor paths); these methods are *how* you do the adjustment:
+
+- **Stratification / adjustment (regression).** Split the data into groups with the same confounder values (compare treated vs untreated users *at the same engagement level*), or include the confounders in a regression so their influence is accounted for. The most basic and common approach: control for the confounders directly. Its limit: with many confounders, you can't finely stratify on all of them (too few units per cell), and regression makes functional-form assumptions.
+- **Matching.** For each treated unit, find untreated unit(s) with the *same or similar* confounder values, and compare their outcomes — literally constructing comparable pairs. Intuitive and transparent, but hard when there are many confounders (nobody matches on all of them).
+- **Propensity scores.** The elegant trick for the many-confounders problem: instead of matching on every confounder, estimate each unit's **propensity** — its probability of *receiving* treatment given its confounders (a model predicting treatment from the confounders) — and then match or weight units by that single score. Units with the same propensity are comparable *on all the confounders at once* (that's what the score summarizes), collapsing a high-dimensional matching problem into one dimension. Propensity-score methods are a staple precisely because they make adjusting for many confounders tractable.
+
+All of these are variations on one idea: *remove the confounders' influence so the treated/untreated comparison reflects only the treatment.* They differ in how they handle the practical difficulty of many confounders, but they share the same goal and the same Achilles' heel.
+
+## The assumption everything rests on
+
+Here is the uncomfortable truth binding all observational methods: they only work if you've **measured and adjusted for all the confounders.** This is the **"no unmeasured confounding"** assumption (also called ignorability or conditional exchangeability), and it is the load-bearing assumption of observational causal inference:
+
+- If you've captured every confounder, adjustment reconstructs comparable groups and the causal estimate is valid.
+- If there's a confounder you *didn't* measure or *didn't think of*, it silently contaminates the result (post 3's unmeasured-confounding nightmare), and no amount of fancy adjustment fixes it — you can't adjust for what you don't have.
+
+The fatal problem is that **this assumption is unprovable.** You can never demonstrate that no unmeasured confounder exists; you can only argue it's plausible given domain knowledge. This is the permanent gap between observational methods and experiments: randomization *guarantees* comparability (even on unknown confounders), while observational adjustment *assumes* it (only on known, measured ones). Every observational causal claim is therefore vulnerable to "but what about some confounder you missed?" — and that objection can never be fully answered, only made less plausible. This is why observational causal evidence, however sophisticated the method, is categorically weaker than experimental evidence, and why "we controlled for X, Y, Z" is reassuring but never conclusive.
+
+## Using observational methods honestly
+
+Given this, observational causal inference is indispensable but demands intellectual honesty, and a few disciplines keep it credible:
+
+- **Draw the causal graph first (post 5).** Decide *what* to adjust for from the assumed structure — adjust for confounders, not mediators or colliders (post 5's over-adjustment traps apply with full force here). "Throw every variable into the regression" is wrong; the graph tells you the right adjustment set.
+- **State the no-unmeasured-confounding assumption explicitly** and argue for it with domain knowledge — what confounders could exist, which you've measured, which you can't, and how plausible it is that you've got the important ones. Honesty about this assumption is the difference between credible and misleading observational work.
+- **Run sensitivity analyses.** Since you can't rule out unmeasured confounding, quantify *how strong* an unmeasured confounder would have to be to overturn your conclusion. If only an implausibly strong hidden confounder could explain away the effect, the finding is more robust; if a mild one would, it's fragile. This is how serious observational research handles its central weakness honestly.
+- **Prefer natural experiments when available (post 7)** — situations where something *external* assigned treatment in a randomization-like way can give observational data experimental-grade credibility, sidestepping the unmeasured-confounding problem.
+- **Be appropriately humble.** Observational causal claims are *provisional* — good enough to guide decisions when experiments are impossible, but always carrying the caveat of their assumption. Present them as "consistent with a causal effect, assuming no major unmeasured confounding," not as proof.
+
+Observational methods let you learn about causation when you can't experiment — which is often — and that's genuinely valuable. But they trade randomization's ironclad guarantee for an unprovable assumption, so they must be used with the graph to guide adjustment, explicit statement of the assumption, sensitivity analysis to probe it, and humility about what they can and can't establish. Used that way, they're a rigorous tool; used as "we ran a regression, therefore causation," they're exactly the correlation-causation error of post 1 wearing a lab coat.
+
+The throughline: when you can't randomize, **observational methods** reconstruct the comparable groups randomization gives for free, by statistically adjusting away confounders — **stratification/regression** (control for confounders directly; struggles with many), **matching** (build comparable pairs on confounder values; hard in high dimensions), and **propensity scores** (summarize all confounders into one probability-of-treatment score, collapsing high-dimensional matching to one dimension — the staple for many confounders). All share one goal (remove confounders' influence) and one **Achilles' heel**: they require **"no unmeasured confounding"** — you must have measured and adjusted for *every* confounder — an assumption that is **unprovable**, which is why observational evidence is categorically weaker than experimental (randomization *guarantees* comparability even on unknown confounders; adjustment only *assumes* it on known ones). Use them honestly: **graph first** (adjust confounders, not mediators/colliders), **state the assumption**, run **sensitivity analyses**, prefer **natural experiments** (post 7), and stay **humble** — provisional causal claims, not proof.
+
+## Key takeaways
+
+- **Observational methods** reconstruct the **comparable groups** randomization provides automatically, by statistically adjusting for confounders (the graph, post 5, says *which* confounders) so the treated/untreated comparison reflects only the treatment.
+- The main tools: **stratification/regression** (control for confounders directly — basic, but struggles with many confounders and makes form assumptions), **matching** (pair treated with similar untreated units — transparent but hard in high dimensions), and **propensity scores** (summarize *all* confounders into one **probability of receiving treatment**, then match/weight on it — collapsing high-dimensional matching to one dimension; the staple for many confounders).
+- All rest on one load-bearing, **unprovable** assumption: **"no unmeasured confounding"** — you must have measured and adjusted for *every* confounder; a missed one silently invalidates the result and no method can fix it.
+- This is the **permanent gap** vs experiments: randomization *guarantees* comparability (even on unknown confounders); observational adjustment only *assumes* it (on measured ones) — so observational causal evidence is categorically weaker, forever open to "what confounder did you miss?"
+- Use them **honestly**: **draw the causal graph first** (adjust confounders, not mediators/colliders — post 5's traps), **state the no-unmeasured-confounding assumption** and argue it with domain knowledge, run **sensitivity analyses** (how strong a hidden confounder would overturn the result), prefer **natural experiments** (post 7), and present results as **provisional** ("consistent with a causal effect, assuming no major unmeasured confounding"), never as proof.
+
+## Further reading
+
+- [Causal inference — observational identification strategies](https://en.wikipedia.org/wiki/Causal_inference)
+- [Propensity score matching — adjusting for many confounders at once](https://en.wikipedia.org/wiki/Propensity_score_matching)
