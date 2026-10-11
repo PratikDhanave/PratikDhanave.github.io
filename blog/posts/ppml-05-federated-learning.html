@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<title>Federated Learning — Training Without Centralizing the Data</title>
+<meta name="description" content="The most direct way to protect data is to never move it. Federated learning trains where the data lives (phones, hospitals) and shares only model...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Federated Learning — Training Without Centralizing the Data">
+<meta property="og:description" content="The most direct way to protect data is to never move it. Federated learning trains where the data lives (phones, hospitals) and shares only model updates — data minimization by architecture. But updates leak too, so it&#x27;s combined with differential privacy and secure aggregation; it changes the threat model, not the threat.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/ppml-05-federated-learning.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-06T00:00:00Z">
+<meta property="article:tag" content="Privacy">
+<meta property="article:tag" content="Federated Learning">
+<meta property="article:tag" content="Machine Learning">
+<meta property="article:tag" content="Distributed Systems">
+<meta property="article:tag" content="Security">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Federated Learning — Training Without Centralizing the Data">
+<meta name="twitter:description" content="The most direct way to protect data is to never move it. Federated learning trains where the data lives (phones, hospitals) and shares only model updates — data minimization by architecture. But updates leak too, so it&#x27;s combined with differential privacy and secure aggregation; it changes the threat model, not the threat.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/ppml-05-federated-learning.html">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}:root[data-theme="dark"]{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav{background:rgba(13,17,23,0.85)}}:root[data-theme="dark"] nav{background:rgba(13,17,23,0.85)}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}#read-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-hover));z-index:1000;transition:width .1s ease-out}.rh-controls{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:900}.rh-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;box-shadow:var(--shadow);transition:transform .15s,color .15s,opacity .2s}.rh-btn:hover{transform:translateY(-2px);color:var(--accent)}#rh-top{opacity:0;pointer-events:none}#rh-top.show{opacity:1;pointer-events:auto}#toc{position:fixed;top:118px;right:24px;width:224px;max-height:72vh;overflow-y:auto;font-size:13px;padding:4px 0 4px 16px;border-left:2px solid var(--border);z-index:800}#toc .toc-title{font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;color:var(--text-muted);margin-bottom:10px}#toc a{display:block;color:var(--text-muted);padding:4px 0 4px 14px;line-height:1.35;border-left:2px solid transparent;margin-left:-16px;transition:color .15s,border-color .15s}#toc a.h3{padding-left:26px;font-size:12px}#toc a:hover{color:var(--accent);text-decoration:none}#toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}article pre{position:relative}.copy-btn{position:absolute;top:8px;right:8px;padding:3px 10px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-muted);cursor:pointer;opacity:0;transition:opacity .15s,color .15s,border-color .15s}article pre:hover .copy-btn,.copy-btn:focus-visible{opacity:1}.copy-btn:hover{color:var(--accent);border-color:var(--accent)}.copy-btn.copied{color:#2ea043;border-color:#2ea043}@media (max-width:1240px){#toc{display:none}}@media print{#read-progress,.rh-controls,#toc,.copy-btn{display:none !important}}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Federated Learning \u2014 Training Without Centralizing the Data",
+  "description": "The most direct way to protect data is to never move it. Federated learning trains where the data lives (phones, hospitals) and shares only model updates \u2014 data minimization by architecture. But updates leak too, so it's combined with differential privacy and secure aggregation; it changes the threat model, not the threat.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-06",
+  "dateModified": "2026-08-06",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Privacy, Federated Learning, Machine Learning, Distributed Systems, Security",
+  "url": "https://pratikdhanave.com/blog/posts/ppml-05-federated-learning.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/ppml-05-federated-learning.html"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/consulting/">Consulting</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Federated Learning — Training Without Centralizing the Data</h1>
+    <p class="post-subtitle">The most direct way to protect data is to never move it. Federated learning trains a shared model across many devices or organizations without their data ever leaving home — the model travels to the data, learns locally, and only the lessons (not the data) come back. It&#x27;s how your phone&#x27;s keyboard improves without uploading what you type, and how hospitals can build a shared model without sharing patient records. This post is about learning from data you&#x27;re never allowed to see.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-06">August 06, 2026</time>
+      <span>·</span>
+      <span>6 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/privacy/" class="tag-link"><span class="tag">#Privacy</span></a><a href="/blog/tags/federated-learning/" class="tag-link"><span class="tag">#Federated Learning</span></a><a href="/blog/tags/machine-learning/" class="tag-link"><span class="tag">#Machine Learning</span></a><a href="/blog/tags/distributed-systems/" class="tag-link"><span class="tag">#Distributed Systems</span></a><a href="/blog/tags/security/" class="tag-link"><span class="tag">#Security</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 5 of 8</span>
+    <a class="series-title" href="/blog/series/privacy-preserving-machine-learning/">Privacy-Preserving Machine Learning</a>
+    <div class="series-nav"><a href="/blog/posts/ppml-04-differential-privacy-in-practice.html" class="series-prev">&larr; Part 4: Differential Privacy in Practice — Training Models That Don&#x27;t Memorize</a>
+<a href="/blog/posts/ppml-06-secure-computation-and-homomorphic-encryption.html" class="series-next">Part 6: Secure Computation and Homomorphic Encryption — Computing on Data You Can&#x27;t See &rarr;</a></div>
+  </div>
+
+
+
+  <p>Post 4 kept data centralized but made the <em>model</em> private. Federated learning takes the opposite tack from post 1&rsquo;s toolkit: <strong>don&rsquo;t centralize the data at all.</strong> It&rsquo;s an architectural privacy technique rather than a mathematical one, and it addresses a different threat — data movement and pooling — making it complementary to differential privacy. This post explains how it works and, honestly, what it does and doesn&rsquo;t protect.</p>
+<h2 id="the-inversion-move-the-model-not-the-data">The inversion: move the model, not the data</h2>
+<p>Normal ML collects all data into one place and trains there. <strong>Federated learning</strong> inverts this: the data stays where it is — on users&rsquo; phones, in separate hospitals, across different companies — and the training comes to it. The loop:</p>
+<ol>
+<li>A central server sends the <strong>current model</strong> to each participant (device or organization).</li>
+<li>Each participant <strong>trains locally</strong> on its own data, computing an update (improved parameters) — its data never leaves.</li>
+<li>Participants send only their <strong>model updates</strong> back to the server (not their data).</li>
+<li>The server <strong>aggregates</strong> the updates (e.g. averages them — &ldquo;federated averaging&rdquo;) into an improved global model.</li>
+<li>Repeat, so the global model learns from everyone&rsquo;s data without any of it being collected.</li>
+</ol>
+<p>The result is a model trained on the <em>collective</em> data of all participants, while each participant&rsquo;s raw data never moved. Two flagship uses show the range:
+- <strong>Cross-device</strong> — millions of phones collaboratively improving a keyboard, speech, or suggestion model. Your typing improves the shared model via on-device training; what you typed never uploads. This is federated learning&rsquo;s famous origin.
+- <strong>Cross-silo</strong> — a handful of organizations (hospitals, banks) jointly training a model none could build alone, without pooling their regulated data. Each keeps its records; the shared model benefits from all of them. This is often the higher-value case, because it unlocks collaboration that regulation otherwise forbids.</p>
+<p>The core value is unambiguous: <strong>data minimization by architecture.</strong> The data isn&rsquo;t protected by a promise or a policy; it&rsquo;s protected because it was never collected. That structural guarantee is federated learning&rsquo;s distinctive offer, and it directly satisfies regulations and user expectations that oppose data pooling.</p>
+<h2 id="what-federated-learning-doesnt-solve">What federated learning doesn&rsquo;t solve</h2>
+<p>Here&rsquo;s the crucial, often-missed point: <strong>federated learning alone is not full privacy.</strong> It protects the raw data from being centralized, but the <em>model updates</em> participants send back can themselves leak information about the local data — because, as post 2 established, gradients and model updates carry information about the examples that produced them. An adversarial server (or anyone who sees the updates) can potentially infer things about a participant&rsquo;s data from its update, including membership and, in some cases, reconstructed examples. The data stayed home, but its <em>shadow</em> in the updates traveled.</p>
+<p>So federated learning is necessary-but-not-sufficient for strong privacy, and it&rsquo;s almost always <em>combined</em> with the other techniques in this series:
+- <strong>+ Differential privacy</strong> (posts 3–4) — add noise to the updates (or apply DP locally) so each participant&rsquo;s update provably reveals little about their data. This is the most important combination: <strong>federated learning + DP</strong> gives both &ldquo;data never centralizes&rdquo; <em>and</em> &ldquo;the updates can&rsquo;t leak individuals,&rdquo; and it&rsquo;s the standard for serious deployments.
+- <strong>+ Secure aggregation</strong> (a form of secure computation, post 6) — cryptographically combine updates so the server only ever sees the <em>aggregate</em>, never any individual participant&rsquo;s update. This closes the &ldquo;adversarial server reads your update&rdquo; hole directly, and it&rsquo;s widely used in cross-device federated learning.</p>
+<p>The lesson that matters: <em>federated learning changes the threat model, it doesn&rsquo;t eliminate the threat.</em> It removes the risk of centralized data (a huge win — no honeypot to breach, no pooling to regulate) but introduces the risk of leaky updates, which the other techniques must then close. Treating federated learning as &ldquo;automatically private&rdquo; is a real and common mistake.</p>
+<h2 id="the-practical-trade-offs">The practical trade-offs</h2>
+<p>Federated learning is powerful but genuinely harder to operate than centralized training, and the costs shape where it fits:</p>
+<ul>
+<li><strong>Systems complexity.</strong> Coordinating training across millions of unreliable devices (that drop off, have limited compute and battery, and vary wildly) or across organizations with different infrastructure is a hard distributed-systems problem. It&rsquo;s far more operationally complex than training on one cluster.</li>
+<li><strong>Non-IID data.</strong> Each participant&rsquo;s data is <em>not</em> a random sample of the whole — your phone&rsquo;s data reflects <em>you</em>, each hospital&rsquo;s reflects its population. This &ldquo;non-IID&rdquo; (not independent and identically distributed) data makes training harder and the global model potentially unfair to under-represented participants, requiring careful aggregation.</li>
+<li><strong>Communication cost.</strong> Repeatedly sending models and updates over networks (especially to constrained devices) is expensive, so federated learning works to minimize rounds and compress updates.</li>
+<li><strong>Weaker server-side guarantees and new attack surface.</strong> A malicious participant can try to <em>poison</em> the global model with bad updates, so federated systems need robustness against adversarial participants — a threat centralized training doesn&rsquo;t have.</li>
+</ul>
+<p>Given this, federated learning is the right tool when <strong>data genuinely cannot or should not be centralized</strong> — strict regulation, user-device data, cross-organization collaboration on sensitive data — and the architectural guarantee justifies the operational cost. When data <em>can</em> be centralized safely, centralized training with differential privacy is often simpler. And in the biggest deployments, the answer is the combination: federated learning for the architectural guarantee, differential privacy for the formal one, and secure aggregation for the server-trust one — three of this series&rsquo; techniques composed into a system that learns from data no one is allowed to see.</p>
+<p>The throughline: <strong>federated learning</strong> protects data by <strong>never moving it</strong> — the server sends the model to participants, each <strong>trains locally</strong> on data that never leaves, and only <strong>model updates</strong> come back to be <strong>aggregated</strong> into a shared model (cross-device: millions of phones; cross-silo: hospitals/banks collaborating on regulated data they can&rsquo;t pool). Its distinctive offer is <strong>data minimization by architecture</strong> — the data is safe because it was never collected. But it is <strong>not full privacy alone</strong>: the <strong>updates themselves leak</strong> information (gradients carry data, post 2), so it&rsquo;s combined with <strong>differential privacy</strong> (noise the updates — the key pairing) and <strong>secure aggregation</strong> (server sees only the aggregate). It changes the threat model (removes the centralized honeypot) rather than eliminating the threat, and carries real costs — <strong>systems complexity</strong>, <strong>non-IID data</strong> (fairness risk), <strong>communication cost</strong>, and <strong>poisoning</strong> by malicious participants — so use it when data genuinely can&rsquo;t be centralized, ideally composed with the series&rsquo; other techniques.</p>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Federated learning</strong> inverts normal ML: the data stays put (on devices/in organizations) and the <em>model</em> travels — server sends the model → participants <strong>train locally</strong> (data never leaves) → send back only <strong>updates</strong> → server <strong>aggregates</strong> (federated averaging) → repeat — producing a model trained on everyone&rsquo;s data without collecting any of it.</li>
+<li>Its value is <strong>data minimization by architecture</strong>: data is protected because it was <strong>never centralized</strong>, not because of a policy — enabling <strong>cross-device</strong> (phone keyboards) and high-value <strong>cross-silo</strong> (hospitals/banks jointly training on regulated data they can&rsquo;t pool) use.</li>
+<li><strong>Federated learning alone is not full privacy</strong>: the <strong>model updates leak</strong> information about local data (gradients carry it, post 2), so an adversarial server can infer membership or reconstruct examples — the data stayed home but its <em>shadow</em> in the updates traveled.</li>
+<li>It&rsquo;s therefore <strong>combined</strong> with other techniques: <strong>+ differential privacy</strong> (noise the updates so they provably reveal little — the key pairing, &ldquo;data never centralizes&rdquo; <em>and</em> &ldquo;updates can&rsquo;t leak individuals&rdquo;) and <strong>+ secure aggregation</strong> (server sees only the aggregate, not individual updates).</li>
+<li>Real <strong>costs</strong>: <strong>systems complexity</strong> (coordinating unreliable/constrained devices or heterogeneous orgs), <strong>non-IID data</strong> (each participant unrepresentative → harder training, fairness risk), <strong>communication cost</strong>, and <strong>poisoning</strong> by malicious participants — so use it when data genuinely can&rsquo;t be centralized, ideally composing federated learning + DP + secure aggregation.</li>
+</ul>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://en.wikipedia.org/wiki/Federated_learning">Federated learning — training across decentralized data</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Differential_privacy">Differential privacy — the formal guarantee paired with federated learning</a></li>
+</ul>
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ppml-08-privacy-preserving-ml-in-practice.html">Privacy-Preserving ML in Practice — Choosing and Combining the Tools</a>
+      <span class="related-date">Aug 09</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ppml-07-synthetic-data-and-anonymization.html">Synthetic Data and Anonymization — Safe-to-Share Data</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ppml-06-secure-computation-and-homomorphic-encryption.html">Secure Computation and Homomorphic Encryption — Computing on Data You Can&#x27;t See</a>
+      <span class="related-date">Aug 07</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← All posts</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+  <section class="post-citations">
+    <h3>Sources & References</h3>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://en.wikipedia.org/wiki/Federated_learning" target="_blank" rel="noopener noreferrer">Federated learning — training across decentralized data</a></div>
+      <div class="citation-context">Don&#x27;t centralize the data</div>
+    </div>
+    <div class="citation-item">
+      <div class="citation-title"><a href="https://en.wikipedia.org/wiki/Differential_privacy" target="_blank" rel="noopener noreferrer">Differential privacy — the guarantee paired with federated learning</a></div>
+      <div class="citation-context">Closing the leaky-updates gap</div>
+    </div>
+  </section>
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+<div id="read-progress" aria-hidden="true"></div>
+<nav id="toc" aria-label="Table of contents"></nav>
+<div class="rh-controls">
+  <button id="rh-theme" class="rh-btn" type="button" aria-label="Toggle light and dark theme" title="Toggle theme"></button>
+  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top"><span aria-hidden="true">&uarr;</span></button>
+</div>
+<script>
+(function(){
+  var doc = document.documentElement;
+  function curTheme(){ return doc.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+  var themeBtn = document.getElementById('rh-theme');
+  function setIcon(){ if (themeBtn) themeBtn.textContent = curTheme() === 'dark' ? '\u2600\uFE0E' : '\u263D'; }
+  setIcon();
+  if (themeBtn) themeBtn.addEventListener('click', function(){
+    var t = curTheme() === 'dark' ? 'light' : 'dark';
+    doc.setAttribute('data-theme', t);
+    try { localStorage.setItem('theme', t); } catch(e){}
+    setIcon();
+  });
+  var article = document.querySelector('article');
+  var toc = document.getElementById('toc');
+  if (article && toc) {
+    var heads = article.querySelectorAll('h2, h3');
+    if (heads.length >= 3) {
+      var title = document.createElement('div');
+      title.className = 'toc-title'; title.textContent = 'On this page';
+      toc.appendChild(title);
+      var links = [];
+      heads.forEach(function(h, i){
+        if (!h.id) h.id = 'sec-' + i;
+        var a = document.createElement('a');
+        if (h.tagName === 'H3') a.className = 'h3';
+        a.href = '#' + h.id;
+        a.textContent = h.textContent;
+        toc.appendChild(a);
+        links.push(a);
+      });
+      var byId = {}; links.forEach(function(a){ byId[a.getAttribute('href').slice(1)] = a; });
+      var obs = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if (e.isIntersecting) {
+            links.forEach(function(a){ a.classList.remove('active'); });
+            var a = byId[e.target.id]; if (a) a.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-80px 0px -70% 0px' });
+      heads.forEach(function(h){ obs.observe(h); });
+    } else { toc.style.display = 'none'; }
+  }
+  document.querySelectorAll('article pre').forEach(function(pre){
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn'; btn.type = 'button'; btn.textContent = 'Copy';
+    btn.addEventListener('click', function(){
+      var code = pre.querySelector('code');
+      var txt = code ? code.innerText : pre.innerText;
+      navigator.clipboard.writeText(txt).then(function(){
+        btn.textContent = 'Copied'; btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+  var bar = document.getElementById('read-progress');
+  var top = document.getElementById('rh-top');
+  function onScroll(){
+    var h = doc.scrollHeight - doc.clientHeight;
+    var p = h > 0 ? (doc.scrollTop / h) * 100 : 0;
+    if (bar) bar.style.width = p + '%';
+    if (top) { if (doc.scrollTop > 600) top.classList.add('show'); else top.classList.remove('show'); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+  if (top) top.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); });
+})();
+</script>
+</body>
+</html>
