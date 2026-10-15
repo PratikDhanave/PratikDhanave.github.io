@@ -1,0 +1,59 @@
+# Coding Agents in Practice — Where They Shine, Where They Don't
+
+*Coding agents are genuinely transformative on the right tasks and frustrating on the wrong ones, and knowing the difference is the practical skill that separates productive use from disappointment. This closing post is the honest field guide: where coding agents excel, where they struggle, how to work with them well, and where software engineering is heading. It turns the series into judgment you can apply today.*
+
+Posts 1–7 built how coding agents work and how to measure them. This post is how to *use* them well — the practitioner's synthesis. The theme, consistent with the whole series: coding agents are powerful within a reliable zone defined by *verifiability, scope, and groundability*, and productive use is about staying in that zone and directing well.
+
+## Where coding agents shine
+
+Coding agents excel on tasks with a recognizable profile — and it follows directly from the series:
+
+- **Well-scoped, verifiable tasks.** A clear task with good tests — fix this bug, implement this well-specified feature, make this failing test pass — is the agent's sweet spot, because it can *verify* its work (post 6) and *iterate* to a correct solution (post 2). The clearer the task and the stronger the tests, the better the agent. This is the heart of the reliable zone.
+- **Mechanical and repetitive work.** Refactors, boilerplate, migrations, applying a pattern across many files, writing tests, updating call sites — tedious, well-defined work the agent does fast and tirelessly. Agents are excellent at the voluminous mechanical work that's clear but time-consuming for humans.
+- **Working in a well-understood, groundable codebase.** When the relevant code is findable and the project is well-organized (post 3), the agent grounds itself well and makes integrated changes. Good codebases (clear structure, tests, docs) are where agents work best.
+- **Exploration and understanding.** Agents are great at *answering questions about a codebase* — "where is X handled?", "how does this flow work?", "what would changing this affect?" — fast codebase comprehension that's useful even when you write the change yourself.
+- **Tasks you can verify and review.** Anything where you can *check* the result (tests, review) lets you safely delegate to the agent and trust the verified output (post 6). Verifiability is the enabler.
+
+The common thread: **verifiable, well-scoped, groundable, reviewable** tasks. Where those hold, coding agents are genuinely transformative — doing real engineering work fast and reliably, freeing you for the parts that need judgment.
+
+## Where they struggle
+
+Equally important is knowing the tasks where coding agents are unreliable or frustrating — the anti-profile:
+
+- **Ambiguous or underspecified tasks.** When the task isn't clear ("make the app better," vague requirements), the agent guesses at intent and often guesses wrong — it can't read your mind about what you actually want. Ambiguity is a top failure mode; the agent needs a clear target.
+- **Weakly-verifiable work.** Where there are no good tests and success is fuzzy, the agent can't verify itself (post 6) and can confidently produce wrong code — so tasks without a clear success signal are risky. Verification weakness is the deepest limit.
+- **Large, complex, architectural tasks.** Big changes requiring deep architectural judgment, cross-cutting design decisions, or holding a huge system in mind strain the agent's planning (post 5) and grounding (post 3) — errors compound over many steps, and architectural judgment is where humans still clearly lead. The bigger and more design-heavy, the shakier.
+- **Poorly-grounded situations.** Sprawling, undocumented, convention-less codebases are hard to ground in (post 3), so the agent makes locally-plausible, globally-wrong changes. Bad codebases make bad agent work.
+- **Subtle correctness and the confident-wrong trap.** The agent can produce plausible, test-passing, *subtly-wrong* code (post 6), and an under-reviewing human merges it — the main way coding agents cause real harm. Where correctness is subtle and verification weak, danger is highest.
+- **Novel problems with no precedent.** Genuinely novel work (no similar patterns in training data or the codebase) is harder for agents, which lean on patterns. The more unprecedented, the less reliable.
+
+The anti-profile is the mirror of the sweet spot: **ambiguous, weakly-verified, large/architectural, poorly-grounded, novel** tasks. Recognizing when a task falls here — and *not* blindly delegating it — is the key judgment.
+
+## Working with coding agents well — and the future
+
+Practical principles for productive use, synthesizing the series:
+
+- **Scope and specify clearly.** Give the agent clear, well-scoped tasks with explicit intent and constraints — meet it where it's reliable (posts 1, 5). Vague asks get vague results; clear specs get good work. The single highest-leverage thing you do is scope well.
+- **Ensure verifiability.** Work with (or build) good tests, so the agent can verify itself and you can trust the result (post 6). Investing in test coverage pays off doubly with coding agents — it's what makes them reliable.
+- **Ground the agent.** Point it at the right code, provide project context, and keep codebases well-organized (post 3) — good engineering makes codebases agent-friendly. This both helps the agent and is good practice anyway.
+- **Review and stay accountable.** Verify the agent's work proportional to stakes, and own the result (post 6) — the engineer is the accountable director-reviewer (post 1), not a rubber stamp. Never merge on the agent's confidence alone.
+- **Delegate the mechanical, keep the judgment.** Hand the agent the well-specified, verifiable, mechanical work; keep architecture, ambiguous decisions, and high-stakes judgment for yourself (augmentation, post 1). Play to the division of strengths.
+
+Where it's heading: coding agents are improving fast (post 7's measured progress), expanding the range of tasks they handle reliably, and increasingly integrated into the whole development workflow (not just editing — reviewing, testing, operating). The role of the engineer is shifting toward *specifying, directing, reviewing, and architecting* — higher-level work, with agents doing more of the mechanical implementation. The durable skills are exactly the ones the series emphasizes: clear specification, verification discipline, good codebase engineering, and sound judgment about what to delegate and what to own. The engineers who thrive treat coding agents as powerful tools within a reliable zone — directing them well, verifying rigorously, and keeping accountability — rather than either dismissing them or over-trusting them.
+
+The series' synthesis: a coding agent is an AI that *independently does software tasks* by running a **read-edit-run-observe loop** (post 2) that closes against code's unique **verifiability** (post 1), **grounded** in the codebase (post 3), **acting through tools** (post 4), **planning** multi-step work (post 5), and **verified** by tests and human review (post 6) — measurably capable (post 7) and genuinely transformative on **verifiable, well-scoped, groundable, reviewable** tasks, while unreliable on **ambiguous, weakly-verified, large/architectural, poorly-grounded** ones. Use them by scoping clearly, ensuring verifiability, grounding well, reviewing proportional to stakes, and delegating the mechanical while keeping the judgment — the engineer as accountable director. Held that way, coding agents are one of AI's clearest practical wins: real engineering work, done fast and reliably, within a zone you define and verify.
+
+The throughline: coding agents **shine** on **verifiable, well-scoped, groundable, reviewable** tasks — clear bugs/features with good tests (iterate to correct via the loop), **mechanical/repetitive** work (refactors, boilerplate, migrations, tests), well-organized codebases, codebase **exploration/Q&A**, and anything you can **check** — where they're genuinely transformative. They **struggle** on the mirror-image anti-profile: **ambiguous/underspecified** tasks (guess intent wrong), **weakly-verifiable** work (can't self-check → confidently wrong — the deepest limit), **large/architectural** tasks (planning/grounding strain, errors compound, human judgment leads), **poorly-grounded** sprawling codebases, **subtly-wrong-but-plausible** code (the confident-wrong trap merged by under-review — the main harm), and **novel** no-precedent problems. **Work with them well** by **scoping/specifying clearly** (highest leverage), **ensuring verifiability** (good tests pay double), **grounding** (point at the right code, well-organized codebases), **reviewing proportional to stakes** (accountable director, never rubber-stamp), and **delegating the mechanical while keeping judgment/architecture**. The field is moving engineers toward **specifying, directing, reviewing, architecting** — and the durable skills are clear specification, verification discipline, good codebase engineering, and judgment about what to delegate vs own.
+
+## Key takeaways
+
+- Coding agents **shine** on a recognizable profile: **well-scoped, verifiable** tasks (clear bug/feature + good tests — the sweet spot, where they iterate to correct via the loop), **mechanical/repetitive** work (refactors, boilerplate, migrations, writing tests, call-site updates — fast and tireless), **well-organized/groundable** codebases, **exploration/comprehension** ("where is X handled?"), and anything **you can verify and review** — genuinely transformative there.
+- They **struggle** on the mirror anti-profile: **ambiguous/underspecified** tasks (guess intent, often wrong — top failure mode), **weakly-verifiable** work (can't self-check → confidently wrong — the deepest limit), **large/complex/architectural** tasks (planning + grounding strain, compounding errors, human judgment leads), **poorly-grounded** sprawling/undocumented codebases (locally-plausible, globally-wrong changes), **subtly-wrong-but-test-passing** code (the confident-wrong trap — the main real harm), and **novel, no-precedent** problems.
+- Recognizing which zone a task is in — and **not blindly delegating** the anti-profile ones — is the key practical judgment.
+- **Work with them well**: **scope and specify clearly** (highest-leverage — vague asks get vague results), **ensure verifiability** (good tests make the agent reliable *and* let you trust it — pays double), **ground the agent** (point at the right code, keep codebases well-organized — good engineering makes codebases agent-friendly), **review proportional to stakes and stay accountable** (the director-reviewer, post 1 — never merge on the agent's confidence alone), and **delegate the mechanical while keeping architecture/ambiguity/high-stakes judgment** (augmentation).
+- The field is shifting engineers toward **specifying, directing, reviewing, architecting**, with agents doing more mechanical implementation; the **durable skills** are clear specification, verification discipline, good codebase engineering, and sound delegate-vs-own judgment — thrive by treating coding agents as **powerful tools within a reliable zone you define and verify**, neither dismissing nor over-trusting them. The synthesis: a loop (post 2) closing against code's verifiability (post 1), grounded (post 3), tool-acting (post 4), planning (post 5), verified (post 6), measurable (post 7) — one of AI's clearest practical wins within its zone.
+
+## Further reading
+
+- [Software agent — coding agents as a practical agent success](https://en.wikipedia.org/wiki/Software_agent)
+- [Pair programming — the human-director model coding agents mature into](https://en.wikipedia.org/wiki/Pair_programming)
