@@ -1,0 +1,53 @@
+# Building Computer-Use Agents — Architecture and the Evolution of Automation
+
+*Assembling a computer-use agent means wiring together perception, grounding, action, and the loop into a system that can reliably (enough) operate software — and doing it with the safety and reliability discipline the previous posts demand. This post covers the architecture of a computer-use agent and places it in the larger story of GUI automation: how it evolves from, and improves on, decades of brittle scripting. It's the practitioner's assembly view.*
+
+Posts 2–6 built the components (perception, action, grounding, reliability, safety); this post assembles them and connects computer use to the history of automation (RPA) it grows out of. Understanding the architecture and the evolution clarifies both how to build these agents and why they're a meaningful step beyond what came before.
+
+## The architecture of a computer-use agent
+
+A computer-use agent assembles the series' components into a system, built around the perceive-act loop (post 3):
+
+- **A multimodal model as the brain** — a vision-language model (post 2) that perceives the screen, reasons about the task, and decides actions. This is the core intelligence, and capable multimodal models are what made modern computer use possible.
+- **A perception layer** (post 2) — captures screenshots and/or the accessibility tree/DOM, feeding the model a view of the screen (hybrid where possible: structured + visual).
+- **A grounding mechanism** (post 4) — turns the model's intent into precise targets (set-of-marks, element-based, or coordinates), so actions hit the right elements.
+- **An action executor** (post 3) — performs the physical actions (mouse, keyboard, navigation) on the actual interface, through an automation layer (the OS input APIs, a browser automation framework, or a virtual display).
+- **The orchestration loop** (post 3) — ties it together: perceive → decide → act → perceive, with planning for multi-step tasks (the planning ideas from [coding agents](/blog/series/coding-agents/) post 5) and progress tracking.
+- **Safety and reliability wrapping** (posts 5–6) — the sandbox/isolation, approval gates, monitoring, limits, verification, and human-in-the-loop that make it usable rather than dangerous. This isn't optional plumbing; it's integral to a usable computer-use agent.
+
+The architecture is essentially *the agent loop with a multimodal brain and GUI-specific perception/grounding/action layers, wrapped in safety and reliability controls.* Building a good one is largely about making each layer reliable (good perception, good grounding, robust action) and, crucially, *engineering the reliability and safety wrapping* (posts 5–6) — because, as throughout, the raw capability is less the bottleneck than the reliability and safety that make it deployable. Much of the real engineering is in the wrapping, not the model.
+
+## From RPA to intelligent computer use
+
+Computer-use agents are the latest step in a long evolution of GUI automation, and seeing that lineage clarifies what's genuinely new:
+
+- **Classic RPA (robotic process automation).** For years, businesses have automated GUI workflows with **RPA** — tools that script interactions ("click at coordinates X,Y, type this, click there"). RPA is widely used and valuable, but it's **brittle**: it follows *fixed scripts* with no understanding, so it breaks the moment the UI changes (a moved button, a new dialog, a different layout), and building/maintaining the scripts is laborious. RPA automates the *mechanics* without *understanding*, so it shatters on variation.
+- **Computer-use agents as intelligent RPA.** Computer-use agents are, in effect, **RPA with intelligence** — they *perceive and understand* the screen (post 2) and *adapt* (post 3) rather than following brittle coordinate scripts, so they handle UI variation, unexpected states, and tasks they weren't explicitly scripted for. This is the qualitative advance: automation that *adapts* instead of shattering, and that can be *directed in natural language* ("book this meeting") rather than hand-scripted. For the RPA world, this is transformative — far more flexible, robust, and general automation.
+- **The trade-off (reliability).** Classic RPA, within its brittle scripts, is *deterministic and fast* (it does exactly the same thing every time, quickly); computer-use agents are *flexible and adaptive* but *less deterministic and slower* (post 5's reliability challenges). So it's not purely better — scripted RPA may still win for high-volume, stable, well-defined workflows (where determinism and speed matter and the UI doesn't change), while computer-use agents win for variable, changing, or loosely-defined tasks where adaptability matters more than deterministic speed. Match the approach to the task: stable+high-volume → scripted; variable+adaptive → agent.
+
+The lineage clarifies the contribution: computer-use agents bring *understanding and adaptation* to GUI automation, generalizing the hand-scripted brittleness of RPA into flexible, natural-language-directed automation — a genuine advance for the large world of GUI-based work, tempered by the reliability trade-off that means it complements rather than wholly replaces deterministic scripting.
+
+## Building well — the practical synthesis
+
+Practical guidance for building (or choosing) computer-use agents, synthesizing the series:
+
+- **Use a capable multimodal model and strong grounding.** Perception (post 2) and grounding (post 4) are the reliability-limiting layers, so invest there — the best model you can, structured perception/grounding where available, set-of-marks for vision grounding. These most directly raise the per-step reliability that compounds (post 5).
+- **Engineer the reliability and safety wrapping as first-class.** The sandbox/isolation, approval gates, verification, monitoring, limits, and human-in-the-loop (posts 5–6) are *integral* — a capable agent without this wrapping is unusable (unreliable and unsafe). Much of building a *deployable* computer-use agent is this wrapping, not the raw loop.
+- **Scope to the reliable zone.** Design for *short, checkable, supervised* tasks (post 5) and the API-less use cases where computer use uniquely helps (post 1) — don't over-reach into long unattended high-stakes runs the reliability doesn't support.
+- **Prefer structured and prefer APIs.** Use accessibility/DOM over pure vision where available, and use an **API instead of the GUI entirely** where one exists (posts 1, 6) — the GUI is the fallback for when there's no cleaner path, more reliable and safer.
+- **Leverage existing tools.** You usually don't build from scratch — use the emerging computer-use frameworks, browser-automation tools, and provider computer-use capabilities, and focus your effort on the task design, grounding, and the reliability/safety wrapping for *your* use.
+
+The through-line: a computer-use agent is architecturally **the agent loop with a multimodal brain, GUI-specific perception/grounding/action layers, and a safety-and-reliability wrapping** — and building a *deployable* one is largely about making the perception/grounding layers reliable and engineering the wrapping (posts 5–6) as first-class, since reliability and safety, not raw capability, are the bottleneck. Historically, it's **intelligent RPA**: where classic **robotic process automation** follows brittle fixed scripts that shatter on UI change, computer-use agents **perceive, understand, and adapt** — flexible, natural-language-directed, robust to variation — a genuine advance for GUI automation, though **less deterministic/slower** (post 5), so it complements rather than replaces scripted RPA (stable high-volume → scripted; variable/adaptive → agent). Build well by investing in **model + grounding**, treating the **reliability/safety wrapping as first-class**, **scoping to the reliable zone**, **preferring structured/APIs**, and **leveraging existing frameworks**.
+
+## Key takeaways
+
+- A computer-use agent's architecture = **the agent loop + a multimodal brain + GUI-specific layers + safety/reliability wrapping**: a **multimodal model** (perceives, reasons, decides — the core intelligence), a **perception layer** (screenshots + accessibility/DOM, post 2), a **grounding mechanism** (intent → precise targets, post 4), an **action executor** (mouse/keyboard/navigation via an automation layer, post 3), the **orchestration loop** (+ planning/progress for multi-step, post 3/5), and the **safety + reliability wrapping** (sandbox, approval gates, monitoring, verification, human-in-the-loop, posts 5–6 — integral, not optional).
+- Building a **deployable** one is largely **making perception/grounding reliable** (the limiting layers that set the per-step reliability which compounds) and **engineering the reliability/safety wrapping** — because reliability and safety, not raw capability, are the bottleneck (much of the real work is the wrapping, not the loop).
+- Computer-use agents are **intelligent RPA**: classic **robotic process automation** scripts GUI interactions with fixed coordinates — widely used but **brittle** (shatters on any UI change, laborious to maintain, automates mechanics *without understanding*); computer-use agents **perceive, understand, and adapt** (post 2–3) and are **natural-language-directed**, handling variation and unexpected states — a qualitative advance.
+- The trade-off: classic RPA is **deterministic and fast** (within its scripts); computer-use agents are **flexible/adaptive but less deterministic and slower** (post 5) — so **match to task**: stable, high-volume, well-defined workflows → scripted RPA (determinism/speed); variable, changing, loosely-defined tasks → computer-use agent (adaptability). They complement rather than fully replace.
+- Build well: invest in **model + grounding** (the reliability-limiting layers), treat the **reliability/safety wrapping as first-class** (a capable agent without it is unusable), **scope to the reliable zone** (short/checkable/supervised, API-less use cases), **prefer structured perception/grounding and an API when one exists** (GUI is the fallback), and **leverage existing frameworks/provider capabilities** (focus effort on task design, grounding, and your reliability/safety wrapping).
+
+## Further reading
+
+- [Robotic process automation — the brittle-scripting automation computer use evolves from](https://en.wikipedia.org/wiki/Robotic_process_automation)
+- [Software agent — the agent architecture computer use specializes](https://en.wikipedia.org/wiki/Software_agent)
