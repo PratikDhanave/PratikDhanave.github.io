@@ -6672,12 +6672,14 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
   "inLanguage": "en",
   "author": {{
     "@type": "Person",
+    "@id": "{SITE_URL}/#pratik",
     "name": "Pratik Dhanave",
     "url": "{SITE_URL}",
     "image": "{SITE_URL}/pratik.png"
   }},
   "publisher": {{
     "@type": "Organization",
+    "@id": "{SITE_URL}/#org",
     "name": "Pratik Dhanave",
     "url": "{SITE_URL}",
     "logo": {{
