@@ -2,7 +2,7 @@
 
 *Classic discovery hunts for a business pain worth solving. AI discovery has to do that and one more thing: surface the fear. Every serious AI buyer is quietly managing dread about hallucination, cost, security, and lock-in — and if your discovery doesn't find and name those fears, your demo will walk straight into them. This post is about discovery for AI products.*
 
-Discovery is the most underrated skill in technical sales — the general craft of it (finding the real problem, quantifying it, mapping who cares) is covered in the [Sales for Engineers](/blog/series/sales-for-people-who-hate-sales/) discovery material and, canonically, in John Care's *Mastering Technical Sales*. This post adds the AI-era layer: discovery when the thing you're selling is probabilistic and the buyer is afraid of it.
+Discovery is the most underrated skill in technical sales — the general craft of it (finding the real problem, quantifying it, mapping who cares) is covered in the [Sales for Engineers](/blog/series/sales-presales-for-engineers/) discovery material and, canonically, in John Care's *Mastering Technical Sales*. This post adds the AI-era layer: discovery when the thing you're selling is probabilistic and the buyer is afraid of it.
 
 ## The two jobs of AI discovery
 

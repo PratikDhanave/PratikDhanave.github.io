@@ -32,7 +32,7 @@ This is also where the technical-GTM spectrum becomes a career and a business, n
 
 ## Where this series leads
 
-If you're an engineer, this is an invitation: the fundamentals of technical sales still matter (start with the [Sales for Engineers](/blog/series/sales-for-people-who-hate-sales/) series), and the AI-era patch is what this series added — but the role itself is tilting toward builders. The deeper technical craft of doing the work lives in [The AI Forward Deployed Engineer](/blog/series/the-ai-forward-deployed-engineer/); the craft and business of doing it as a practice lives in [The Forward Deployed Consultant](/blog/series/the-forward-deployed-consultant/).
+If you're an engineer, this is an invitation: the fundamentals of technical sales still matter (start with the [Sales for Engineers](/blog/series/sales-presales-for-engineers/) series), and the AI-era patch is what this series added — but the role itself is tilting toward builders. The deeper technical craft of doing the work lives in [The AI Forward Deployed Engineer](/blog/series/the-ai-forward-deployed-engineer/); the craft and business of doing it as a practice lives in [The Forward Deployed Consultant](/blog/series/the-forward-deployed-consultant/).
 
 ## Key takeaways
 

@@ -2,7 +2,7 @@
 
 *The classic technical-sales playbook was written for software that does what the datasheet says. AI isn't that. It's probabilistic, it fails in unfamiliar ways, and a dazzling demo proves almost nothing about whether it will work on the customer's real data. Selling and winning AI deals takes a different motion — this series is about that motion, and this post is why the old one isn't enough.*
 
-There is a great body of knowledge on technical sales and sales engineering — John Care's *Mastering Technical Sales* is the canonical reference, and the fundamentals in it still hold. This series doesn't replace them; it patches them for the AI era, where the product you're selling behaves unlike any software that came before. If you want the general foundation first, the [Sales for Engineers](/blog/series/sales-for-people-who-hate-sales/) series covers it; here we go AI-specific.
+There is a great body of knowledge on technical sales and sales engineering — John Care's *Mastering Technical Sales* is the canonical reference, and the fundamentals in it still hold. This series doesn't replace them; it patches them for the AI era, where the product you're selling behaves unlike any software that came before. If you want the general foundation first, the [Sales for Engineers](/blog/series/sales-presales-for-engineers/) series covers it; here we go AI-specific.
 
 ## What makes AI different to sell
 
