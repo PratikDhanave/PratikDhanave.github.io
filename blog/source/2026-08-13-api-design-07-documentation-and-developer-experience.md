@@ -80,10 +80,6 @@ Once the API is described as data, a whole ecosystem of tooling reads that data 
 - **Mock servers.** A mock server reads the `example` and schema data and serves plausible fake responses. Front-end developers can build against the mock before the backend is finished.
 - **Contract tests.** Because the spec declares exactly what each response should look like, you can automatically assert that the running server obeys it. That's the subject of the next post in this series — the spec is what makes contract testing possible at all.
 
-The through-line: you wrote the facts once, and every one of these artifacts is derived from them. When the contract changes, you regenerate, and everything downstream moves together.
-
----
-
 ## Reference docs versus guides — you need both
 
 A common failure is to stand up Swagger UI, admire the auto-generated endpoint list, and call documentation "done." It isn't. Reference and narrative are two different genres serving two different moments.

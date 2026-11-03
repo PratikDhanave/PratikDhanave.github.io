@@ -88,10 +88,6 @@ The most common error-handling mistake is sloppy code selection — returning `I
 
 ## Errors as part of the contract
 
-The through-line: **errors are part of your API contract, as much as the request and response messages.** Which codes a method can return, what they mean, and what details they carry are things callers depend on and that you should document and keep stable. A caller writes retry logic and user-facing handling against your error codes; changing them silently breaks that code just as surely as changing a field number.
-
-Treated this way, gRPC's structured error model becomes a strength unique to RPC: a standard vocabulary that makes failures *actionable* across languages and services automatically — retryable errors get retried, auth errors trigger re-auth, validation errors reach the user with specifics — instead of every failure collapsing into an opaque 500 that someone has to investigate by hand.
-
 ## Key takeaways
 
 - Every gRPC call ends with a **status**: a numeric **code** (from a fixed RPC-specific set, *not* HTTP codes), a message, and optional details — a standard vocabulary that clients and infrastructure can react to automatically.

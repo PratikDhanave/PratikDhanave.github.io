@@ -48,8 +48,6 @@ Like any framework, it fits some situations (the [agent-framework comparison](/b
 - **It's excellent for learning** how agents work, precisely because of its minimalism, and for tasks where code-as-action is a natural fit.
 - **Consider alternatives when** you need a batteries-included ecosystem (LangChain), heavy stateful orchestration (LangGraph), type-safe structured outputs (Pydantic AI), or you can't safely execute model-written code in your environment (the security constraint). smolagents is the small, code-first choice.
 
-The through-line: smolagents is Hugging Face's minimal, code-first agent library — small enough to understand fully, built on the powerful idea that agents should think and act in code. The next post goes deep on that code-agent idea, the heart of the library.
-
 ## Key takeaways
 
 - smolagents is a minimal, open-source agent library from Hugging Face — "a barebones library for agents that think in code" — defined by two traits: extreme minimalism (core ~1,000 lines) and a code-first approach.

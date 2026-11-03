@@ -216,10 +216,6 @@ The disciplined path:
 - **Reads and writes scale differently.** Replicas fan reads out but introduce replication lag (stale reads); writes bottleneck on the primary until you shard.
 - **Scale deliberately.** The scale cube (duplicate, decompose, partition) shows your options, but a single big box is fine longer than you think — measure, scale up, stay stateless, and only then scale out.
 
-The through-line: adding capacity is easy; keeping the system *correct* while you add it is the real work. Statelessness, stable routing, and honest measurement are what make growth boring — which is exactly what you want. The next posts take up the pieces this one foreshadowed: databases and sharding, then the consistency models that decide how stale a read is allowed to be.
-
----
-
 ## Further reading
 
 - [Consistent Hashing and Random Trees (Karger et al., 1997)](https://www.cs.princeton.edu/courses/archive/fall09/cos518/papers/chash.pdf) — the original paper that introduced consistent hashing for distributed caching.

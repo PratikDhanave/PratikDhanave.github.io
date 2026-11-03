@@ -46,8 +46,6 @@ Like any framework, it fits some situations better than others (the [agent-frame
 - **It shines for** applications where the agent's output must be *structured data* your program consumes (extraction, classification, form-filling, tool-driven workflows returning typed results) — its typed-output strength is most valuable exactly there.
 - **Consider alternatives when** you need a different paradigm — heavy graph-based stateful orchestration (LangGraph), a multi-agent-team metaphor (CrewAI), or a non-Python stack. Pydantic AI is a *Python, type-first, agent* framework; if that's not your shape, another framework may fit better.
 
-The through-line: Pydantic AI is what you choose when you want LLM agents built with the same typed, validated, testable discipline as the rest of your Python. The next post starts with its central primitive — the Agent.
-
 ## Key takeaways
 
 - Pydantic AI is an agent framework from the Pydantic team that brings type safety and validation to LLM agents — closing the gap between "the model returned a string" and "I have a validated typed object."

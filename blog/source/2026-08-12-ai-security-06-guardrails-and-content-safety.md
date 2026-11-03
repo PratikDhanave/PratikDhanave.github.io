@@ -22,10 +22,6 @@ Think of a request's lifecycle as a pipe: user input → your model call → mod
 
 **Groundedness (or faithfulness) checks** are the output rail that matters most for RAG. The model produced an answer; the retrieval step produced source passages. A groundedness check asks a second model, "Is this answer actually supported by these sources?" and flags claims that aren't. It is the practical defense against confident hallucination in a system that's supposed to be citing documents.
 
-The through-line: every rail is a **classifier** — it takes text and emits a verdict. That framing matters, because it tells you exactly how a guardrail can fail, which we'll return to.
-
----
-
 ## Defense in depth, not a silver bullet
 
 The single most important thing to internalize about guardrails is that they are a *layer*, not a *fix*. They stack on top of the controls from earlier posts; they don't replace them.

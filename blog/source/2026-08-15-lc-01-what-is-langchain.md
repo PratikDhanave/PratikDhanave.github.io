@@ -52,8 +52,6 @@ Like any framework, it fits some cases better (the [agent-framework comparison](
 - **Its standout value** is the standardization and integration breadth — if you value not being locked to one provider and not writing integration glue, that's LangChain's core benefit.
 - **Reach for LangGraph** (its own series) when you need stateful, cyclic, controllable agent orchestration; **consider Pydantic AI** (its own series) when type safety and structured outputs are paramount; **consider LlamaIndex** (its own series) when the app is fundamentally data/retrieval-centric. These aren't mutually exclusive — many apps mix them.
 
-The through-line: LangChain is the broad, standardizing toolkit that makes the fragmented LLM ecosystem uniform and swappable. The next post starts with its most basic building blocks — models, prompts, and output parsers.
-
 ## Key takeaways
 
 - LangChain is a broad framework for building LLM applications, providing standard building blocks (models, prompts, retrievers, tools, memory) and an enormous integration ecosystem — its breadth is both its strength and the source of its mixed reputation.

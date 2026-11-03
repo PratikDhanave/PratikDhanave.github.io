@@ -247,10 +247,6 @@ The YAML's `InvokeAzureAgent` action references `agent: { name: PoetAgent }`, wh
 | Block or cap a run | `MiddlewareTermination` in `AgentMiddleware` | Client-side, before/after the model |
 | Let non-developers edit the flow | `WorkflowFactory` + YAML (`agent-framework-declarative`) | Loaded from a file path |
 
-The through-line: a core workflow decides message *routing*; advanced workflows decide *concurrency, durability, composition, and control*. Every pattern here is offline to construct and only touches Foundry at `run()`, so you can build and test the shape of a system long before a single model call — then swap the `FoundryChatClient` for another chat client and the graph mechanics hold.
-
----
-
 ## Interactive diagrams
 
 Explore the concepts in this guide as self-contained, pan/zoom interactive diagrams (light/dark, no dependencies):

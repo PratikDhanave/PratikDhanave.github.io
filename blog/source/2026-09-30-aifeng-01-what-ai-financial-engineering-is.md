@@ -25,8 +25,6 @@ AI financial engineering spans a wider range of tasks than classic quant work, a
 - **Decision support and institutional memory** — capturing, structuring, and retrieving the judgment and precedent behind decisions (post 12), so an institution's accumulated reasoning becomes a durable, queryable asset rather than scattered in people's heads.
 - **Portfolio-level aggregation** — rolling individual analyses up into portfolio and firm-wide risk views (post 10).
 
-The through-line: AI financial engineering is less about one flashy model and more about *applying AI across the whole financial workflow* — from reading the first document to monitoring the position for years — and engineering those pieces into a coherent, governed system.
-
 ## Why finance makes this uniquely hard
 
 AI financial engineering isn't just "AI, applied to finance" — finance imposes constraints that make it genuinely distinct and genuinely hard, and these constraints shape every later post:

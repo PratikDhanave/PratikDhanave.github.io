@@ -40,10 +40,6 @@ Everything in the earlier posts converges here. The sources of tail latency in a
 
 **Allocation stalls.** Heavy allocation doesn't just create GC pressure — it can stall directly on the memory allocator's own locks and on page faults when the heap grows. The escape-analysis post was about keeping objects on the stack precisely so they never enter this path.
 
-The through-line: **none of these show up in average latency, and all of them show up at p99+.** That's why the whole series measured tails.
-
----
-
 ## Deadline budgets: context is your latency contract
 
 If the tail is what you're defending, the first line of defense is refusing to wait forever. In Go that means `context` deadlines — but the discipline that matters is treating the deadline as a *budget* that gets spent down as a request moves through your call graph, not a fixed timeout re-applied at every hop.

@@ -47,8 +47,6 @@ With that framing, the rest of the series builds the layered defense that a cont
 - **Guardrails in practice** — classifiers, moderation, and layered controls (post 7).
 - **Evaluating and operating** guardrails — red-teaming, monitoring, and the honest state of the art (post 8).
 
-The through-line: prompt injection is unsolved at the model level, so security lives in the system you build around the model. Defense is not a magic prompt or a filter — it's an architecture that stays safe even when the model is fooled. Everything else follows from taking that seriously.
-
 ## Key takeaways
 
 - **Prompt injection** — making a model follow attacker-supplied instructions — is the #1 LLM application risk (OWASP LLM Top 10) and, unlike SQL injection, has **no clean fix** with current models.

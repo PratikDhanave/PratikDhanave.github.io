@@ -22,8 +22,6 @@ State would be easy if the stream were small and nothing ever failed. On a real,
 - **It must be partitioned to scale.** To process a high-volume stream in parallel, you partition it across many nodes (usually **by key** — e.g. by user ID), and each node holds the state for *its* keys. This **keyed state** is how stateful processing scales horizontally: partition the stream by key, and each partition's state lives with its partition. Getting partitioning right (so related events and their state land together) is central to scalable stateful streaming.
 - **It must survive failure — the hard part (post 6).** Here's the crux: the state is the *accumulated result* of processing possibly billions of past events, so if a node crashes and loses its state, you can't just "reprocess from the start" of an infinite stream. Losing state means losing the computation's memory, which is often catastrophic. So state must be made **fault-tolerant** — durably checkpointed so it survives crashes — which is the central problem of post 6 and the reason stream processing fault tolerance is all about state.
 
-The through-line: state is what makes stream processing powerful *and* what makes it hard. Simple stateless streaming is easy; the moment you need to remember anything across events (which is almost always), you inherit the problems of bounding, speed, partitioning, and — above all — surviving failure.
-
 ## How stream processors manage state
 
 Modern stream engines (Flink especially) provide sophisticated **managed state** so you don't solve all this yourself, and understanding the shape of it clarifies how real streaming systems work:

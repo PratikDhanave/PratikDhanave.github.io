@@ -45,8 +45,6 @@ Like any framework, it fits some situations better (the comparison series covers
 - **Its philosophy shines** for agentic tasks where the model's own planning is an asset and pre-scripting the flow would only constrain it — exploratory, tool-using, reasoning-heavy tasks.
 - **Consider workflow-first frameworks** (LangGraph) when you need explicit, controllable, stateful orchestration with guaranteed structure; **Pydantic AI** when type safety and structured outputs dominate; **CrewAI** for the multi-agent-team metaphor. Strands is the model-driven, minimal-scaffolding choice.
 
-The through-line: Strands Agents is AWS's bet that the best agent framework gets *out of the model's way* — minimal definition, model drives, loop exposed. The next post goes deeper on that model-driven approach, which is the framework's soul.
-
 ## Key takeaways
 
 - Strands Agents is AWS's open-source agent SDK (Python/TypeScript) built around the model-driven approach: define an agent with a model, system prompt, and tools, and the SDK runs a loop where the *model* decides what to do — production-oriented, model-agnostic, with built-in MCP support.

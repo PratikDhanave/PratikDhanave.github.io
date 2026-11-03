@@ -18,8 +18,6 @@ The core tool for validating a change in production is the controlled experiment
 - **Canary / gradual rollout.** Release to 1%, then 5%, then more, watching metrics at each step and halting if anything degrades. This bounds the blast radius of a bad change — a poor variant reaches few users before you catch it.
 - **Shadow evaluation.** Run the new variant *alongside* production on the same live inputs without showing users its output, then compare. You get real-input behavior with zero user risk — useful for scoring a candidate before you dare route real traffic to it.
 
-The through-line: production is where you validate, but you validate *carefully*, limiting exposure until the evidence is in.
-
 ## What to measure in production
 
 Production metrics are broader than offline quality scores because you can observe consequences you can't simulate:

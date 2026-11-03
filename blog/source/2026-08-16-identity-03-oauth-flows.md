@@ -61,8 +61,6 @@ Modern OAuth security guidance (OAuth 2.1 consolidates it) **removed** two once-
 - **Implicit flow (deprecated).** It returned the access token *directly* in the browser redirect (the front channel), skipping the code exchange — exposing the token in the URL, browser history, and logs, where it could be stolen. It existed because SPAs historically couldn't do the code exchange securely; PKCE made the authorization code flow work for SPAs, so the implicit flow's risk is no longer justified. **Use authorization code + PKCE instead.**
 - **Resource owner password credentials (ROPC) flow (deprecated).** The client collected the user's *username and password directly* and sent them to the auth server. This resurrects the exact anti-pattern OAuth was built to kill — the client handling the user's password — defeating the purpose. **Never use it**; redirect the user to the auth server instead.
 
-The through-line: both deprecated flows compromised the core protections (don't expose tokens in the browser; never let the client touch the password), and modern OAuth removed them once the authorization code flow with PKCE could safely cover their use cases.
-
 ## Choosing a flow
 
 The decision is now refreshingly simple:

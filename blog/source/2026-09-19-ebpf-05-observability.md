@@ -32,8 +32,6 @@ The breadth is striking. With eBPF you can trace and profile:
 - **Performance profiling** — sampling stack traces to build CPU flame graphs, measuring where time actually goes, with low enough overhead to run in production.
 - **Latency and I/O** — measuring the latency distribution of operations (disk, network, locks) by timestamping entry and exit in the kernel.
 
-The through-line: **if the kernel sees it, eBPF can observe it** — and the kernel sees almost everything. This is why eBPF-based tools can answer questions traditional tools couldn't: "which process is making these mysterious network calls?", "why is this syscall slow?", "where is CPU actually going?", answered on a live production system without instrumenting anything.
-
 ## The tooling landscape
 
 You rarely write raw eBPF for observability; a rich toolset sits on top (previewed here, detailed in post 8):

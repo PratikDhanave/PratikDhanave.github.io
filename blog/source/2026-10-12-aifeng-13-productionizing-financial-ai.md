@@ -26,8 +26,6 @@ Running financial AI in production draws on the blog's broader production/LLMOps
 - **Human-in-the-loop operationally embedded.** The human-review and accountability requirements (posts 1, 8, 11) must be *built into the production workflow* — the system routes decisions to humans, captures their input, and enforces that high-stakes actions have human sign-off. Human-in-the-loop isn't a policy statement; it's an operational design that the production system implements and enforces.
 - **Incident response for financial AI.** When something breaks — a bad extraction propagates, a model drifts, a feed fails — there's a defined response: detect fast, contain (fall back, disable), investigate, remediate, and a blameless postmortem that feeds new validations and controls (LLMOps series). In finance, incident response also considers the *financial* impact and the *regulatory* obligations (what must be reported, what decisions must be reviewed).
 
-The through-line: productionizing financial AI is the blog's general production discipline (observability, drift monitoring, data reliability, incident response) plus finance's elevated stakes and specific requirements (correctness-focused observability, rigorous security/permissions, operationally-enforced human-in-the-loop, regulatory-aware incidents) — engineered so the system is *trustworthy and safe-failing* in an environment where failure costs money.
-
 ## The posture: trust is the product
 
 The deepest point about productionizing financial AI is that, in this domain, *trust is the actual product*. An institution won't use a financial AI system — however capable — unless it can trust it with capital and defend it to regulators, and that trust is built (or lost) in production:

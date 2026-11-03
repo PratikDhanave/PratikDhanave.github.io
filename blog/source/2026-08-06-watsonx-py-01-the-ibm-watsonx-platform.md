@@ -134,10 +134,6 @@ print(chat.invoke("Explain a foundation model in two sentences.").content)
 | Monitor a deployed model for drift and quality | watsonx.governance | evaluations, factsheets, monitors |
 | Build tool-using agents and automations | watsonx Orchestrate | agents / assistants |
 
-The through-line: as a Python engineer you spend most of your time in watsonx.ai via `ibm-watsonx-ai` (or `langchain-ibm`), and you reach into the other three products when the application grows up — data to retrieve over, governance to satisfy an auditor, agents to automate a workflow.
-
----
-
 ## Where this series goes
 
 This is the opener. The remaining posts build a working application, one capability at a time:

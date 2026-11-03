@@ -298,10 +298,6 @@ You can go the other direction with `hex()`, `oct()`, `bin()`, or with formatted
 - **Learn the falsy set** (`0`, `0.0`, `""`, `[]`, `{}`, `None`, …) and don't confuse "falsy" with "is `None`" — a `0` or `""` value is falsy but present.
 - **`None` is a singleton sentinel** — always test it with `is None`, never `== None`, and use it as the safe default for optional arguments.
 
-The through-line: Python's scalar types each make a promise — `int` promises exactness, `float` promises speed, `Decimal` promises decimal fidelity, `None` promises "nothing." Bugs come from asking a type to keep a promise it never made. Match the type to the promise you need and most of the surprises above disappear.
-
----
-
 ## Further reading
 
 - [Built-in Types](https://docs.python.org/3/library/stdtypes.html) — the numeric types, boolean operations, truth-value testing, and `None` in the official Python documentation.

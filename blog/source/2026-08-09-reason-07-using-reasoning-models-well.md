@@ -12,8 +12,6 @@ The biggest surprise for people coming from standard models: **the prompting tec
 - **Few-shot examples can hurt.** With standard models, few-shot examples (showing worked examples in the prompt) often improve performance. With reasoning models, extensive few-shot examples can actually *degrade* results — they can anchor the model to the examples' reasoning patterns rather than letting it reason freshly, and reasoning models generally do well *zero-shot* with just a clear problem statement. Prefer clear, direct instructions over many examples.
 - **Be clear about the goal, not the method.** The most effective prompting for reasoning models is to state the problem and desired outcome *clearly and completely* — give it the information and the objective — and let it figure out *how*. Specify constraints and what a good answer looks like; don't micromanage the reasoning steps. Clarity about *what* beats prescription about *how*.
 
-The through-line: reasoning models want **a clear problem, not a reasoning recipe.** The prompting shift is from "guide the model's thinking" (needed for standard models) to "state the problem well and get out of the way" (better for reasoning models). Unlearning the step-by-step reflex is one of the most common adjustments.
-
 ## When to use a reasoning model
 
 Reasoning models aren't a universal upgrade — they're the right tool for a *subset* of problems, and using them everywhere wastes cost and latency (the economics post). The decision:

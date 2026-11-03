@@ -25,8 +25,6 @@ AI stresses the inherited framework in specific ways that financial governance m
 - **Third-party/foundation-model risk.** Using an external LLM means you can't inspect its internals or training data, and the provider can change it under you — so model risk extends to *vendor risk*: what you can and can't validate, contractual assurances, your own wrapping evaluation, and a plan for when the model changes. This is a newer governance frontier finance is actively grappling with.
 - **Non-stationarity and the adversarial domain** (posts 5–6). Financial AI models can degrade fast as markets shift, so monitoring for drift and decay is *more* critical than in stable domains — a model validated last year may be dangerously stale now.
 
-The through-line: AI doesn't escape model risk, it *amplifies* it — adding opacity, hallucination, vendor dependence, and faster decay to the existing problem of models being wrong. So financial AI needs the inherited model-risk discipline *plus* AI-specific controls, applied with more rigor precisely because the failure modes are newer and the stakes are high.
-
 ## Validation, explainability, and auditability in practice
 
 Making financial AI governable means concrete practices, each tied to a finance requirement:

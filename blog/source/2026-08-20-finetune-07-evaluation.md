@@ -29,8 +29,6 @@ Evaluation methods depend on the task, and you usually combine several:
 - **Human evaluation** — the gold standard for quality and preference, especially for aligned models (does it actually feel better?). Expensive, so used on a sample or for the decisions that matter most — but nothing fully substitutes for humans on subjective quality.
 - **Pairwise comparison** — rather than absolute scores, compare fine-tuned vs. base (or vs. a previous version) head-to-head ("which response is better?"). Often more reliable than absolute scoring for judging whether the fine-tune is an improvement, and it directly answers the base-model-regression question.
 
-The through-line: pick metrics that match the task, always include a **comparison against the base model** (did fine-tuning help?), and don't rely on a single number — combine an automatic metric, a judge, and some human review for a rounded picture.
-
 ## The evaluation discipline
 
 Putting it together into a workflow that catches the failure modes:

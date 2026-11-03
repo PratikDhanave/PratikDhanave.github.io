@@ -26,8 +26,6 @@ Following the series' logic, the choice cascades by scale:
 - **Large and memory-constrained (many millions to billions): IVF-PQ.** When HNSW's memory overhead is too costly, IVF plus product quantization compresses the footprint to feasible while staying fast. Tune nprobe and PQ parameters, and rerank on full-precision vectors to recover recall.
 - **Any scale needing exact matches: add hybrid search**, and **any multi-tenant system: get filtering right** (pre-filter for correctness) — regardless of the base algorithm.
 
-The through-line: **escalate on evidence.** Begin with the simplest thing that could work (often brute force or pgvector), measure recall and latency at your real scale, and move to a more complex index or system only when a measurement says you must.
-
 ## Where to run it: library vs. database vs. Postgres
 
 The index is one decision; the *system* hosting it is another, and it follows the same escalate-on-evidence logic (the [pgvector-vs-dedicated](/blog/posts/ai-decisions-07-vector-storage.html) decision, now with mechanics):

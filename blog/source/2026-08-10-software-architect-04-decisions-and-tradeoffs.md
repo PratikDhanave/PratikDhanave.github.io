@@ -168,8 +168,6 @@ A healthy discipline is a lightweight periodic review of the significant ADRs: a
 - **Write ADRs, and keep them with the code.** Context, decision, alternatives rejected, and consequences — the *why* evaporates in six months without them.
 - **Revisit as context changes.** Supersede an ADR, never silently overwrite it; the history is part of the value.
 
-The through-line: decide deliberately for the irreversible calls, record the *why* including what you rejected, and be explicit about what you traded away. Do that, and the next person — often future-you — inherits a system they can reason about instead of one they're afraid to touch.
-
 ## Further reading
 
 - [Documenting Architecture Decisions](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions) — Michael Nygard's original 2011 post that introduced the ADR.

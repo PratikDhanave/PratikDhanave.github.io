@@ -41,14 +41,6 @@ So password storage is *not* the integrity use of hashing — it's a distinct pr
 
 ## Three jobs, three tools
 
-The through-line: hashing appears in three different jobs, and using the right variant matters:
-
-- **Integrity / fingerprinting** → a fast cryptographic hash (SHA-256): verify data is unchanged against a trusted digest. Fast is good here.
-- **Integrity + authenticity** → a keyed hash / MAC (HMAC-SHA256): prove data is unchanged *and* from someone with the shared secret. The key is what adds authenticity.
-- **Password storage** → a slow, salted password hash (Argon2/scrypt/bcrypt): make each guess expensive so stolen hashes resist cracking. Slow is the entire point.
-
-Confusing these is a classic failure: using SHA-256 for passwords (too fast, crackable), using a bare hash where you needed a MAC (no authenticity — attacker changes data and hash), or using a slow password hash for bulk integrity (needlessly slow). Match the job to the tool: fast hash for integrity, HMAC for authenticated integrity, deliberately-slow salted hash for passwords. Next: public-key cryptography, which solves the key-distribution problem that symmetric encryption and MACs both assume away.
-
 ## Key takeaways
 
 - A cryptographic hash (SHA-256, SHA-3, BLAKE2/3) maps any input to a fixed-size, deterministic, one-way, collision-resistant digest with an avalanche effect — giving *integrity* (detect any change) — and it's not encryption (no key, no reversal). Avoid broken MD5/SHA-1 for security.
