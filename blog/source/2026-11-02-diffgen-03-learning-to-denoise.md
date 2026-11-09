@@ -18,6 +18,8 @@ Why does noise prediction train better? At heavily-corrupted steps, the clean im
 
 ## The training loop, in full
 
+> **▸ [Open the interactive diagram](/blog/handbook-diagrams/diffusion-forward-reverse.html)** — forward and reverse diffusion side by side: the training path (corrupt → predict → MSE) and the sampling loop (static → denoise → repeat), with pan, zoom, and guided views (light/dark, self-contained).
+
 The entire training algorithm fits in four lines:
 
 1. Draw a real image from the dataset.

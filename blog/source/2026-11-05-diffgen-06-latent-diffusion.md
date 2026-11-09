@@ -16,6 +16,8 @@ So **latent diffusion models (LDM)** split the problem in two. First, train an *
 
 ## The three-piece architecture
 
+> **▸ [Open the interactive diagram](/blog/handbook-diagrams/latent-diffusion-architecture.html)** — the full latent diffusion system: text encoder → denoising loop inside the latent-space boundary → one-shot VAE decoder, plus the training-only encoder path (pan, zoom, guided views; light/dark, self-contained).
+
 Every Stable Diffusion-style system is this fixed sandwich:
 
 - **Encoder** (training only): compresses each training image to a latent once; diffusion trains entirely on latents.
