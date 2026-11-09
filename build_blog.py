@@ -6611,6 +6611,22 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     {series_nav}
   </div>"""
 
+    # BreadcrumbList JSON-LD mirroring the visible trail (Home → Blog → [Series] → post)
+    _crumbs = [("Home", f"{SITE_URL}/"), ("Blog", f"{SITE_URL}/blog/")]
+    if meta.get("series"):
+        _crumbs.append((meta["series"], f"{SITE_URL}/blog/series/{series_to_slug(meta['series'])}/"))
+    _crumbs.append((title, canonical))
+    _crumb_items = ",\n".join(
+        f'    {{"@type": "ListItem", "position": {i}, "name": {_json.dumps(name)}, "item": {_json.dumps(url)}}}'
+        for i, (name, url) in enumerate(_crumbs, start=1)
+    )
+    breadcrumb_ld = (
+        '<script type="application/ld+json">\n{\n'
+        '  "@context": "https://schema.org",\n'
+        '  "@type": "BreadcrumbList",\n'
+        '  "itemListElement": [\n' + _crumb_items + '\n  ]\n}\n</script>'
+    )
+
     # Render project back-link if present
     project_html = ""
     if "project" in meta and meta.get("project"):
@@ -6727,6 +6743,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
   }}
 }}
 </script>
+{breadcrumb_ld}
 </head>
 <body>
 

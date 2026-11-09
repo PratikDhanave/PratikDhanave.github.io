@@ -22,7 +22,26 @@ from xml.sax.saxutils import escape
 
 SITE_ROOT = Path(__file__).parent.resolve()
 
-from build_blog import SITE_URL
+from build_blog import SITE_URL, POST_META, tag_to_slug, series_to_slug
+
+# Content-derived lastmod dates. Git commit dates churn on every full rebuild
+# (CI re-commits every regenerated file), which collapses the whole sitemap's
+# lastmod onto one day and teaches crawlers to distrust it. Posts use their
+# POST_META publication date; tag/series pages use the newest post they list.
+POST_DATE_BY_SLUG = {meta["slug"]: meta["date"] for meta in POST_META.values()}
+
+TAG_LATEST_DATE = {}
+SERIES_LATEST_DATE = {}
+for _meta in POST_META.values():
+    for _tag in _meta.get("tags", []):
+        _ts = tag_to_slug(_tag)
+        if _meta["date"] > TAG_LATEST_DATE.get(_ts, ""):
+            TAG_LATEST_DATE[_ts] = _meta["date"]
+    _series = _meta.get("series")
+    if _series:
+        _ss = series_to_slug(_series)
+        if _meta["date"] > SERIES_LATEST_DATE.get(_ss, ""):
+            SERIES_LATEST_DATE[_ss] = _meta["date"]
 
 
 def git_last_modified(file_path):
@@ -154,7 +173,7 @@ def collect_blog_posts():
         except OSError:
             pass
         url = f"{SITE_URL}/blog/posts/{slug}.html"
-        lastmod = git_last_modified(html_file)
+        lastmod = POST_DATE_BY_SLUG.get(slug) or git_last_modified(html_file)
 
         # Assign priority based on year from lastmod
         year = int(lastmod[:4]) if lastmod else 2024
@@ -217,7 +236,7 @@ def collect_tag_pages(min_posts=3):
         if post_count >= min_posts:
             rel = tag_dir.relative_to(SITE_ROOT)
             url = f"{SITE_URL}/{rel.as_posix()}/"
-            lastmod = git_last_modified(index_html)
+            lastmod = TAG_LATEST_DATE.get(tag_dir.name) or git_last_modified(index_html)
             urls.append((url, lastmod, "weekly", "0.5"))
 
     return urls
@@ -231,7 +250,8 @@ def collect_series_pages():
         return urls
     hub = series_dir / "index.html"
     if hub.exists():
-        urls.append((f"{SITE_URL}/blog/series/", git_last_modified(hub), "weekly", "0.8"))
+        hub_lastmod = max(SERIES_LATEST_DATE.values()) if SERIES_LATEST_DATE else git_last_modified(hub)
+        urls.append((f"{SITE_URL}/blog/series/", hub_lastmod, "weekly", "0.8"))
     for sub in sorted(series_dir.iterdir()):
         if not sub.is_dir():
             continue
@@ -239,7 +259,8 @@ def collect_series_pages():
         if not index_html.exists():
             continue
         url = f"{SITE_URL}/blog/series/{sub.name}/"
-        urls.append((url, git_last_modified(index_html), "weekly", "0.75"))
+        lastmod = SERIES_LATEST_DATE.get(sub.name) or git_last_modified(index_html)
+        urls.append((url, lastmod, "weekly", "0.75"))
     return urls
 
 
