@@ -1,6 +1,6 @@
 # Pricing and Valuation Engines — Building the Core
 
-*At the heart of most financial systems is an engine that answers one question: what is this worth? Pricing and valuation engines turn the mathematics of the [first-principles series](/blog/series/financial-engineering-from-first-principles/) into production software — and AI is reshaping them, both by accelerating expensive computations and by valuing the illiquid instruments that have no market price. This post is about building the valuation core and where AI fits into it.*
+*At the heart of most financial systems is an engine that answers one question: what is this worth? Pricing and valuation engines turn the mathematics of the first-principles Financial Engineering series into production software — and AI is reshaping them, both by accelerating expensive computations and by valuing the illiquid instruments that have no market price. This post is about building the valuation core and where AI fits into it.*
 
 Post 2 built the data foundation; this post builds the first engine on top of it. Valuation is foundational because almost everything downstream — risk (post 4), portfolio views (post 10), monitoring (post 9) — depends on knowing what positions are worth. Understanding how valuation engines are built, and where AI accelerates or extends them, is understanding the computational core of financial systems. (Educational, not financial advice.)
 

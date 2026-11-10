@@ -6498,12 +6498,20 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     title_json = _json.dumps(title)[1:-1]   # strip outer quotes
     desc_json = _json.dumps(description)[1:-1]
 
-    # Smart title: only append site name if total stays under 60 chars
+    # Smart title: only append site name if total stays under 60 chars.
+    # Very short titles ("Indexes", "Tool Use") get the series name folded in
+    # so the <title> carries enough context for search — the H1 stays short.
     title_suffix = " — Pratik Dhanave"
-    if len(title) + len(title_suffix) <= 60:
-        page_title = f"{title_html}{_html_escape(title_suffix, quote=True)}"
+    seo_title = title
+    if len(title) <= 13 and meta.get("series"):
+        widened = f"{title} — {meta['series']}"
+        if len(widened) + len(title_suffix) <= 60:
+            seo_title = widened
+    seo_title_html = _html_escape(seo_title, quote=True)
+    if len(seo_title) + len(title_suffix) <= 60:
+        page_title = f"{seo_title_html}{_html_escape(title_suffix, quote=True)}"
     else:
-        page_title = title_html
+        page_title = seo_title_html
 
     # Truncate <title> and social meta titles to 60 chars max
     # (truncate at last word boundary before 57 chars and add "...")
@@ -6992,7 +7000,7 @@ def render_index_html(posts, tag_counts=None, popular_posts=None):
 <section class="blog-hero">
   <h1>Blog</h1>
   <p>Long-form writing on multi-agent AI, medical AI governance, HIPAA-aware architecture, and cloud-native systems. Most posts grow out of work on <a href="/projects/bodh/">Bodh</a> &mdash; an open-source Go implementation of Microsoft Agent Framework pattern tuned for medical sequential diagnosis.</p>
-  <p style="margin-top:12px;font-size:0.95rem;"><a href="/blog/series/">Course series</a> &middot; <a href="/featured/">Featured articles</a> &middot; <a href="/articles/">Browse by topic</a> &middot; <a href="/blog/archive/">Full archive</a> &middot; <a href="/blog/feed.xml">RSS feed</a></p>
+  <p style="margin-top:12px;font-size:0.95rem;"><a href="/blog/series/">Course series</a> &middot; <a href="/featured/">Featured articles</a> &middot; <a href="/articles/">Articles by topic</a> &middot; <a href="/blog/archive/">Full archive</a> &middot; <a href="/blog/feed.xml">RSS feed</a></p>
 </section>
 
 <div class="search-box">
@@ -7719,6 +7727,17 @@ def render_paginated_archive(page_posts, page_num, total_pages, total_posts):
 <script async src="https://www.googletagmanager.com/gtag/js?id={GA4_ID}"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','{GA4_ID}');</script>
 
+<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {{"@type": "ListItem", "position": 1, "name": "Home", "item": "{SITE_URL}"}},
+    {{"@type": "ListItem", "position": 2, "name": "Blog", "item": "{SITE_URL}/blog/"}},
+    {{"@type": "ListItem", "position": 3, "name": "Archive", "item": "{SITE_URL}/blog/archive/"}}
+  ]
+}}
+</script>
 <style>{page_css}</style>
 </head>
 <body>

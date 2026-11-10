@@ -216,7 +216,7 @@ func gate(cases []EvalCase, generate func(string) string, score Scorer, floor fl
 }
 ```
 
-Call it from a Go test so `go test ./...` runs it, wire that into CI, and every pull request now proves it didn't make the system worse before it merges. Commit the floor alongside the code; ratchet it up as you improve. (The companion [Evaluating Agents in Go](/blog/posts/eval-agents-go-07-ci-regression-gating.html) series covers this CI gating pattern in depth for agents.)
+Call it from a Go test so `go test ./...` runs it, wire that into CI, and every pull request now proves it didn't make the system worse before it merges. Commit the floor alongside the code; ratchet it up as you improve. (The companion series covers [this CI gating pattern for agents](/blog/posts/eval-agents-go-07-ci-regression-gating.html) in depth.)
 
 This is **offline eval** — a fixed dataset scored before shipping, the fast feedback that guides development. It is necessary but not sufficient, because a curated set never fully mirrors live traffic. **Online eval** closes the gap: sample real production responses, score them with the same judges and checks, and watch the trend. Ship changes behind an **A/B test** — route a fraction of traffic to the new version and compare scores on identical distributions — and collect **human feedback** (thumbs up/down, corrections), the ground truth you calibrate your automated judges against and the richest source of new eval cases.
 
