@@ -6505,7 +6505,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
     seo_title = title
     if len(title) <= 13 and meta.get("series"):
         widened = f"{title} — {meta['series']}"
-        if len(widened) + len(title_suffix) <= 60:
+        if len(widened) + len(title_suffix) <= 60 or len(widened) <= 60:
             seo_title = widened
     seo_title_html = _html_escape(seo_title, quote=True)
     if len(seo_title) + len(title_suffix) <= 60:

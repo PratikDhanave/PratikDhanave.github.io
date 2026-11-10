@@ -28,7 +28,7 @@ An API key is a long, opaque, high-entropy string a client sends on every reques
 ```http
 GET /v1/reports HTTP/1.1
 Host: api.example.com
-Authorization: Bearer ak_live_EXAMPLE_KEY_DO_NOT_USE
+Authorization: Bearer <your-api-key>
 ```
 
 Keys are simple and great for server-to-server calls where a full OAuth exchange is overkill. But they carry no notion of a user, no expiry, and no built-in scope. That puts the entire burden on you:
