@@ -6240,6 +6240,155 @@ POST_CSS = _minify_css(POST_CSS)
 # All vanilla + inline (CSP allows 'unsafe-inline' for script/style). No CDNs.
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Contextual consulting CTA — shown only on high-intent technical clusters.
+# Keyed by series SLUG (series_to_slug of the POST_META series name) so the
+# mapping survives series renames in display text. Posts with no series, or
+# in clusters with weak consulting intent (languages, CS foundations, career
+# essays), get no CTA. The consulting/FDE essay series already carry their
+# own soft invitations and are deliberately excluded to avoid doubling up.
+# ---------------------------------------------------------------------------
+
+CONSULTING_CTA_THEMES = {
+    # agents — building agentic systems on real data
+    "adk-to-microsoft-agent-framework-migration": "agents",
+    "agent-skills": "agents",
+    "agent2agent-protocol-from-scratch": "agents",
+    "agentic-commerce": "agents",
+    "agentic-rag": "agents",
+    "ai-agent-design-patterns": "agents",
+    "ai-engineering-in-go": "agents",
+    "ai-evaluation-and-benchmarking": "agents",
+    "amazon-bedrock-in-go": "agents",
+    "claude-code": "agents",
+    "coding-agents": "agents",
+    "computer-use-gui-agents": "agents",
+    "context-engineering": "agents",
+    "crewai-concept-by-concept": "agents",
+    "dspy-concept-by-concept": "agents",
+    "evaluating-agents-in-go": "agents",
+    "google-adk-concept-by-concept": "agents",
+    "harness-engineering-in-go": "agents",
+    "ibm-watsonx-in-python": "agents",
+    "langchain-concept-by-concept": "agents",
+    "langgraph-concept-by-concept": "agents",
+    "learning-the-microsoft-agent-framework-go": "agents",
+    "learning-the-microsoft-agent-framework-python": "agents",
+    "llamaindex-concept-by-concept": "agents",
+    "microsoft-agent-framework-go-every-lesson": "agents",
+    "model-context-protocol-from-scratch": "agents",
+    "nvidia-ai-stack-in-python": "agents",
+    "pydantic-ai-concept-by-concept": "agents",
+    "self-evolving-agents": "agents",
+    "self-evolving-agents-the-frontier": "agents",
+    "smolagents-concept-by-concept": "agents",
+    "strands-agents-concept-by-concept": "agents",
+    "voice-and-conversational-ai": "agents",
+    # production — shipping and serving AI systems
+    "ai-gateways-and-llm-infrastructure": "production",
+    "diffusion-models-from-first-principles": "production",
+    "fine-tuning-llms-concept-by-concept": "production",
+    "gpu-programming-for-ai-inference": "production",
+    "llm-inference-and-serving": "production",
+    "llmops-in-practice": "production",
+    "mixture-of-experts-and-modern-llm-architecture": "production",
+    "multimodal-ai": "production",
+    "on-device-ai-with-gemma-and-flutter": "production",
+    "reasoning-models-test-time-compute": "production",
+    "the-ai-production-roadmap": "production",
+    "vector-search-internals": "production",
+    # security — reviews, guardrails, governance
+    "ai-governance-for-engineers": "security",
+    "ai-governance-in-practice": "security",
+    "ai-red-teaming": "security",
+    "ai-security-engineering": "security",
+    "guardrails-and-prompt-injection-defense": "security",
+    "privacy-preserving-machine-learning": "security",
+    # cost — FinOps and AI spend
+    "ai-cost-optimization": "cost",
+    "the-ai-cost-optimization-playbook": "cost",
+}
+
+CONSULTING_CTA_LEADS = {
+    "agents": "If you're building agents that have to hold up on real data inside a real company — not just in a demo — that's exactly the work I do as a forward deployed engineer.",
+    "production": "If you're carrying an AI system toward production — real data, real cost at volume, a security review on the calendar — that's exactly the work I do as a forward deployed engineer.",
+    "security": "If your AI system is heading into a security or governance review, this is work I do hands-on — hardening agents and LLM systems until they pass.",
+    "cost": "If your AI bill is growing faster than the value it delivers, this is work I've done at enterprise scale — including a 57% BigQuery cost reduction at Tata.",
+}
+
+CONSULT_CTA_CSS = _minify_css("""
+.consult-cta {
+  margin: 44px 0 8px;
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  background: var(--bg-elev);
+}
+.consult-cta .cc-kicker {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+.consult-cta .cc-lead {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 0.97rem;
+  line-height: 1.6;
+}
+.consult-cta .cc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0 12px;
+}
+.consult-cta .cc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  min-height: 44px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  background: var(--accent);
+  color: #fff;
+}
+.consult-cta .cc-btn:hover { text-decoration: none; color: #fff; opacity: 0.92; }
+.consult-cta .cc-btn.cc-sec { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+.consult-cta .cc-small { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
+""")
+
+CONSULT_CTA_TOP = """
+<aside class="consult-cta" aria-label="Work with Pratik">
+  <p class="cc-kicker">Working on this for real?</p>
+  <p class="cc-lead">"""
+
+CONSULT_CTA_BOTTOM = """</p>
+  <div class="cc-actions">
+    <a class="cc-btn" href="https://calendar.app.google/x7W5bAdst4J6MT2u7" target="_blank" rel="noopener noreferrer">Book a discovery call</a>
+    <a class="cc-btn cc-sec" href="/services/">Ways to work together</a>
+  </div>
+  <p class="cc-small">Or start lighter: the free <a href="/playbook/">Forward-Deployed Playbook</a> explains my method, and the <a href="/ai-readiness/">two-minute readiness check</a> shows where you stand.</p>
+</aside>
+<script>(function(){function w(s,e){document.querySelectorAll(s).forEach(function(a){a.addEventListener("click",function(){try{gtag("event",e,{transport_type:"beacon"})}catch(x){}})})}w('.consult-cta a[href*="calendar.app.google"]',"book_discovery_call");w('.consult-cta a[href="/services/"]',"services_click");w('.consult-cta a[href="/playbook/"]',"playbook_click");w('.consult-cta a[href="/ai-readiness/"]',"readiness_check_click")})();</script>"""
+
+
+def render_consult_cta(meta):
+    """Return (html, css) for the contextual consulting CTA, or ('', '')."""
+    series = meta.get("series")
+    if not series:
+        return "", ""
+    theme = CONSULTING_CTA_THEMES.get(series_to_slug(series))
+    if not theme:
+        return "", ""
+    lead = _html_escape(CONSULTING_CTA_LEADS[theme])
+    return CONSULT_CTA_TOP + lead + CONSULT_CTA_BOTTOM, CONSULT_CTA_CSS
+
+
 READING_HUB_CSS = _minify_css("""
 #read-progress { position: fixed; top: 0; left: 0; height: 3px; width: 0;
   background: linear-gradient(90deg, var(--accent), var(--accent-hover)); z-index: 1000; transition: width .1s ease-out; }
@@ -6571,6 +6720,9 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
         '  "itemListElement": [\n' + _crumb_items + '\n  ]\n}\n</script>'
     )
 
+    # Contextual consulting CTA for high-intent technical clusters
+    consult_cta_html, consult_cta_css = render_consult_cta(meta)
+
     # Render project back-link if present
     project_html = ""
     if "project" in meta and meta.get("project"):
@@ -6650,7 +6802,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 <script async src="https://www.googletagmanager.com/gtag/js?id={GA4_ID}"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','{GA4_ID}');</script>
 
-<style>{POST_CSS}{READING_HUB_CSS}</style>
+<style>{POST_CSS}{READING_HUB_CSS}{consult_cta_css}</style>
 
 <script type="application/ld+json">
 {{
@@ -6713,6 +6865,8 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 {project_html}
 
   {body_html}
+
+{consult_cta_html}
 
 {related_html}
 
