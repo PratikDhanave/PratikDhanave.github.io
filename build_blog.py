@@ -6275,6 +6275,8 @@ READING_HUB_EARLY = ("<script>(function(){try{var t=localStorage.getItem('theme'
                      "if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>")
 
 # Body elements (progress bar, controls, TOC container) + the driver script.
+# The inline <script> below is pre-minified (terser); readable source lives in
+# tools/reading-hub.src.js — edit there and re-minify rather than editing inline.
 READING_HUB_BODY = """
 <div id="read-progress" aria-hidden="true"></div>
 <nav id="toc" aria-label="Table of contents"></nav>
@@ -6283,73 +6285,7 @@ READING_HUB_BODY = """
   <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top"><span aria-hidden="true">&uarr;</span></button>
 </div>
 <script>
-(function(){
-  var doc = document.documentElement;
-  function curTheme(){ return doc.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
-  var themeBtn = document.getElementById('rh-theme');
-  function setIcon(){ if (themeBtn) themeBtn.textContent = curTheme() === 'dark' ? '\\u2600\\uFE0E' : '\\u263D'; }
-  setIcon();
-  if (themeBtn) themeBtn.addEventListener('click', function(){
-    var t = curTheme() === 'dark' ? 'light' : 'dark';
-    doc.setAttribute('data-theme', t);
-    try { localStorage.setItem('theme', t); } catch(e){}
-    setIcon();
-  });
-  var article = document.querySelector('article');
-  var toc = document.getElementById('toc');
-  if (article && toc) {
-    var heads = article.querySelectorAll('h2, h3');
-    if (heads.length >= 3) {
-      var title = document.createElement('div');
-      title.className = 'toc-title'; title.textContent = 'On this page';
-      toc.appendChild(title);
-      var links = [];
-      heads.forEach(function(h, i){
-        if (!h.id) h.id = 'sec-' + i;
-        var a = document.createElement('a');
-        if (h.tagName === 'H3') a.className = 'h3';
-        a.href = '#' + h.id;
-        a.textContent = h.textContent;
-        toc.appendChild(a);
-        links.push(a);
-      });
-      var byId = {}; links.forEach(function(a){ byId[a.getAttribute('href').slice(1)] = a; });
-      var obs = new IntersectionObserver(function(entries){
-        entries.forEach(function(e){
-          if (e.isIntersecting) {
-            links.forEach(function(a){ a.classList.remove('active'); });
-            var a = byId[e.target.id]; if (a) a.classList.add('active');
-          }
-        });
-      }, { rootMargin: '-80px 0px -70% 0px' });
-      heads.forEach(function(h){ obs.observe(h); });
-    } else { toc.style.display = 'none'; }
-  }
-  document.querySelectorAll('article pre').forEach(function(pre){
-    var btn = document.createElement('button');
-    btn.className = 'copy-btn'; btn.type = 'button'; btn.textContent = 'Copy';
-    btn.addEventListener('click', function(){
-      var code = pre.querySelector('code');
-      var txt = code ? code.innerText : pre.innerText;
-      navigator.clipboard.writeText(txt).then(function(){
-        btn.textContent = 'Copied'; btn.classList.add('copied');
-        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
-      });
-    });
-    pre.appendChild(btn);
-  });
-  var bar = document.getElementById('read-progress');
-  var top = document.getElementById('rh-top');
-  function onScroll(){
-    var h = doc.scrollHeight - doc.clientHeight;
-    var p = h > 0 ? (doc.scrollTop / h) * 100 : 0;
-    if (bar) bar.style.width = p + '%';
-    if (top) { if (doc.scrollTop > 600) top.classList.add('show'); else top.classList.remove('show'); }
-  }
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
-  if (top) top.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); });
-})();
+!function(){var e=document.documentElement;function t(){return e.getAttribute("data-theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}var n=document.getElementById("rh-theme");function o(){n&&(n.textContent="dark"===t()?"\\u2600\\uFE0E":"\\u263D")}o(),n&&n.addEventListener("click",function(){var n="dark"===t()?"light":"dark";e.setAttribute("data-theme",n);try{localStorage.setItem("theme",n)}catch(e){}o()});var c=document.querySelector("article"),r=document.getElementById("toc");if(c&&r){var a=c.querySelectorAll("h2, h3");if(a.length>=3){var i=document.createElement("div");i.className="toc-title",i.textContent="On this page",r.appendChild(i);var d=[];a.forEach(function(e,t){e.id||(e.id="sec-"+t);var n=document.createElement("a");"H3"===e.tagName&&(n.className="h3"),n.href="#"+e.id,n.textContent=e.textContent,r.appendChild(n),d.push(n)});var s={};d.forEach(function(e){s[e.getAttribute("href").slice(1)]=e});var l=new IntersectionObserver(function(e){e.forEach(function(e){if(e.isIntersecting){d.forEach(function(e){e.classList.remove("active")});var t=s[e.target.id];t&&t.classList.add("active")}})},{rootMargin:"-80px 0px -70% 0px"});a.forEach(function(e){l.observe(e)})}else r.style.display="none"}document.querySelectorAll("article pre").forEach(function(e){var t=document.createElement("button");t.className="copy-btn",t.type="button",t.textContent="Copy",t.addEventListener("click",function(){var n=e.querySelector("code"),o=n?n.innerText:e.innerText;navigator.clipboard.writeText(o).then(function(){t.textContent="Copied",t.classList.add("copied"),setTimeout(function(){t.textContent="Copy",t.classList.remove("copied")},1500)})}),e.appendChild(t)});var u=document.getElementById("read-progress"),h=document.getElementById("rh-top");function m(){var t=e.scrollHeight-e.clientHeight,n=t>0?e.scrollTop/t*100:0;u&&(u.style.width=n+"%"),h&&(e.scrollTop>600?h.classList.add("show"):h.classList.remove("show"))}window.addEventListener("scroll",m,{passive:!0}),m(),h&&h.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"})})}();
 </script>"""
 
 # ---------------------------------------------------------------------------
@@ -6775,7 +6711,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
   <div class="post-footer">
     <div class="footer-row">
       <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
-      <a href="/blog/">← All posts</a>
+      <a href="/blog/">← Blog home</a>
     </div>
     <p style="margin-top: 10px; font-size: 13px;">Find me on
       <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
@@ -7337,7 +7273,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 <section class="blog-hero">
   <h1>#{_html_escape(tag_display(tag))}</h1>
   <p>{_html_escape(tag_desc)}</p>
-  <p>{post_count} post{"s" if post_count != 1 else ""} tagged with {_html_escape(tag_display(tag)).lower()}. <a href="/blog/">&larr; All posts</a></p>
+  <p>{post_count} post{"s" if post_count != 1 else ""} tagged with {_html_escape(tag_display(tag)).lower()}. <a href="/blog/">&larr; Blog home</a></p>
 {f'  <p style="margin-top:12px;"><a href="{TAG_TO_STATIC_PAGE[tag]}">See the dedicated {_html_escape(tag)} page &rarr;</a></p>' if tag in TAG_TO_STATIC_PAGE else ''}
 </section>
 
@@ -7350,7 +7286,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
 </section>
 
 <section class="blog-hero" style="padding-top: 32px; border-top: 1px solid var(--border); border-bottom: none; margin-top: 36px;">
-  <p>All posts on this site are written by Pratik Dhanave, an Agentic AI Architect with 7+ years building production distributed systems, multi-agent AI platforms, and cloud-native infrastructure. <a href="/about/">About the author →</a> Each article includes working code, architecture diagrams, and references to the specific frameworks and standards discussed. Browse <a href="/blog/">all posts</a> or explore related topics using the tag cloud above.</p>
+  <p>All posts on this site are written by Pratik Dhanave, an Agentic AI Architect with 7+ years building production distributed systems, multi-agent AI platforms, and cloud-native infrastructure. <a href="/about/">About the author →</a> Each article includes working code, architecture diagrams, and references to the specific frameworks and standards discussed. Browse <a href="/blog/">the blog</a> or explore related topics using the tag cloud above.</p>
 </section>
 
 </main>
@@ -7472,7 +7408,7 @@ def render_series_index(series_summaries):
 <section class="blog-hero">
   <h1>Course Series</h1>
   <p>Deep, structured series that take a topic from first principles to production — {total_series} series, {total_posts} lessons in total. Each one is a self-contained curriculum you can work through in order.</p>
-  <p style="margin-top:12px;font-size:0.95rem;"><a href="/blog/">&larr; All posts</a> &middot; <a href="/blog/tags/">Browse by topic</a> &middot; <a href="/blog/archive/">Full archive</a></p>
+  <p style="margin-top:12px;font-size:0.95rem;"><a href="/blog/">&larr; Blog home</a> &middot; <a href="/blog/tags/">Browse by topic</a> &middot; <a href="/blog/archive/">Full archive</a></p>
 </section>
 
 <section class="post-list">
@@ -7573,7 +7509,7 @@ def render_series_page(series_name, series_posts, series_slug):
   <h1>{_html_escape(series_name)}</h1>
   <p>{_html_escape(desc)}</p>
   <p class="series-intro-meta">{post_count} part{'s' if post_count != 1 else ''} · written by <a href="/about/">Pratik Dhanave</a>. {first_link}</p>
-  <p style="margin-top:12px;font-size:0.95rem;"><a href="/blog/series/">&larr; All series</a> &middot; <a href="/blog/">All posts</a></p>
+  <p style="margin-top:12px;font-size:0.95rem;"><a href="/blog/series/">&larr; All series</a> &middot; <a href="/blog/">Blog home</a></p>
 </section>
 
 <section class="post-list">
@@ -7685,7 +7621,7 @@ def render_archive_page(year, month=None, posts_with_date=None, all_years=None):
 
 <section class="blog-hero">
   <h1>{title}</h1>
-  <p>Blog posts from {title}. <a href="/blog/">← All posts</a></p>
+  <p>Blog posts from {title}. <a href="/blog/">← Blog home</a></p>
 </section>
 
 <section class="tag-cloud">
