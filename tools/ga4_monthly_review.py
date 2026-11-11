@@ -38,7 +38,7 @@ from datetime import date
 EVENTS = [
     "book_discovery_call", "services_click", "playbook_click",
     "readiness_check_click", "newsletter_submit", "topmate_booking",
-    "contact_click",
+    "contact_click", "consulting_click",
 ]
 REPORT_DIR = os.path.expanduser("~/Reports/pratikdhanave-ga4")
 PROPERTY_CACHE = os.path.join(REPORT_DIR, "property_id.txt")
