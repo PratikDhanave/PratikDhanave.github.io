@@ -1,6 +1,6 @@
 # Conditioning and Classifier-Free Guidance — How Text Steers the Image
 
-*Everything so far generates* an *image — any image the training distribution contains. A product needs the image you asked for. Conditioning is how a prompt gets wired into every denoising step, and classifier-free guidance — a two-line trick discovered almost apologetically — is the single knob that most determines whether the output actually obeys the prompt. The famous "CFG scale" slider in every image UI is this post.*
+*Everything so far generates an image — any image the training distribution contains. A product needs the image you asked for. Conditioning is how a prompt gets wired into every denoising step, and classifier-free guidance — a two-line trick discovered almost apologetically — is the single knob that most determines whether the output actually obeys the prompt. The famous "CFG scale" slider in every image UI is this post.*
 
 This is post 7 of [Diffusion Models from First Principles](/blog/series/diffusion-models-from-first-principles/). Post 6 built the space the denoiser runs in; this post wires the *prompt* into the denoiser that runs there. It connects naturally to the [Multimodal AI](/blog/series/multimodal-ai/) series — text-to-image is multimodality run in reverse, and the text encoders that steer diffusion are exactly the contrastively-trained models that series covers.
 

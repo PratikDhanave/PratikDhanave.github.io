@@ -1,6 +1,6 @@
 # Flow Matching — Straightening the Path from Noise to Image
 
-*Diffusion arrived at "follow a velocity field from noise to data" the hard way — through Markov chains, variational bounds, and reverse-time SDEs. Flow matching asks the question that framing begs: if generation is just transporting noise to data along a path, why inherit a curved path from a noising process you never actually cared about? Why not* choose *the path — and choose it straight? The answer now trains the frontier: Stable Diffusion 3, Flux, and much of the current video generation stack are flow-matching models.*
+*Diffusion arrived at "follow a velocity field from noise to data" the hard way — through Markov chains, variational bounds, and reverse-time SDEs. Flow matching asks the question that framing begs: if generation is just transporting noise to data along a path, why inherit a curved path from a noising process you never actually cared about? Why not simply choose the path — and choose it straight? The answer now trains the frontier: Stable Diffusion 3, Flux, and much of the current video generation stack are flow-matching models.*
 
 This is post 9 of [Diffusion Models from First Principles](/blog/series/diffusion-models-from-first-principles/). Post 4 ended with the probability flow ODE and a promise; post 5 hit a ~10-step floor caused by path curvature. This post cashes both in. The spirit is the one that recurs across this blog's systems series: when a derivation gets simpler the second time a field writes it, the simpler form wins — and gets adopted.
 
