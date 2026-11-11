@@ -1,0 +1,50 @@
+<!-- Markdown version for AI agents and readers. Canonical: https://pratikdhanave.com/blog/posts/diffgen-10-distillation-consistency-and-video.html -->
+
+# One Step and Sixty Frames — Distillation, Consistency Models, and Video Diffusion
+
+*The series opened with a trade: diffusion bought quality and stability by paying in steps. Every post since has haggled the price down — better solvers, smaller spaces, straighter paths. This closing post covers the two endgames: collapsing the walk to a single stride (distillation and consistency models), and spending the budget on the hardest canvas there is — video, where the pixel count explodes but the architecture barely changes. It ends with the mental model the whole series compresses into.*
+
+This is post 10, the close of [Diffusion Models from First Principles](/blog/series/diffusion-models-from-first-principles/). It assumes the full stack: samplers (post 5), latents (post 6), guidance (post 7), DiT (post 8), flow matching (post 9). For what it costs to *serve* these models, the companion is [GPU Programming for AI Inference](/blog/series/gpu-programming-for-ai-inference/).
+
+## Distillation: a student learns the destination
+
+Post 5 ended at a ~10-step floor: solvers cannot out-integrate genuinely curved paths. **Knowledge distillation** sidesteps integration entirely — don't follow the teacher's path, learn its *endpoint*. **Progressive distillation** makes this mechanical: train a student to match, in one step, where its teacher lands in two; the student then becomes the teacher and the process halves again — 1024 steps → 512 → … → 4. Each round is ordinary supervised regression onto teacher outputs. Guidance distills too: the student learns the *CFG-strengthened* output (post 7's two evaluations per step) as its plain output, folding the guidance scale into the weights and halving the per-step bill on the way down.
+
+Adversarial distillation closes the last gap. At one to four steps, regression targets alone leave students soft; adding a discriminator loss — the GAN, returning for the second time (post 6 used one to sharpen the autoencoder) in a supporting role — restores crispness. The SDXL-Turbo-style "adversarial diffusion distillation" recipe is exactly this: diffusion supplies coverage and the training signal, a discriminator supplies final-step sharpness, and real-time image generation stops being a contradiction.
+
+## Consistency models: every point on the path, same destination
+
+**Consistency models** reach one-step generation from a different, cleaner premise. Post 4's probability flow ODE assigns every noisy point a unique destination — the clean image its trajectory ends at. A consistency model learns that mapping directly: *any point on a trajectory → that trajectory's endpoint*. The defining property is **self-consistency** — two points on the same path must map to the same answer — and training enforces exactly that: take adjacent points along a path, require the model's outputs to agree (against a slowly-updated copy of itself for stability). Trained as distillation of an existing diffusion model or standalone, the result generates in **one step** by construction, with a quality dial nothing else here has: *re-noise the one-step output and map again* — iterative refinement recovered, two to four steps as a quality budget rather than a requirement. Latent consistency models (LCMs) apply the idea in post 6's space, which is how "Stable Diffusion in four steps" shipped on consumer hardware.
+
+Together with post 9's reflow, this completes the price-of-sampling story arc: solvers (50 steps, free), straighter paths (few steps, retrain), endpoint-learning (one step, distill or train for it). A thousand-fold cost collapse in roughly three years, achieved almost entirely with mathematics rather than hardware.
+
+## Video: the same machine, a bigger canvas
+
+Video generation is diffusion's stress test: a few seconds of footage is two orders of magnitude more raw data than an image, and errors that are invisible in a still — a shifting texture, a drifting object — become glaring as **temporal inconsistency**. Flicker is the blur of video: the telltale failure mode of treating frames independently.
+
+What is striking is how little *new theory* the solution required. The modern video stack is this series, re-dimensioned: a **spatiotemporal autoencoder** (post 6's move, now compressing across time as well as space — a few dozen frames into a short latent clip); **spacetime patches** feeding a **DiT** (post 8's architecture over a 3-D grid, where attention spans time as naturally as space — this is the structural reason temporal coherence improved so sharply with the transformer era: consistency between frame 3 and frame 40 is just attention between their tokens); **flow matching** as the training objective (post 9); **CFG** on text conditioning (post 7); and distillation (above) to make any of it affordable. Sora's spacetime-patch formulation made the recipe famous; the open and commercial systems that followed are variations on it. The frontier questions are economic and temporal — context length across minutes of footage, consistency of identity across cuts, and the eye-watering compute of attention over spacetime — which is to say: the same questions the LLM world is working, on a different modality.
+
+## The mental model, compressed
+
+One paragraph for the whole series. Generation is transport from a trivial distribution to the data distribution (post 1). Diffusion builds the bridge as gradual Gaussian corruption run backwards (posts 2–3), which is secretly gradient flow on log-probability (post 4). Everything after is engineering the bridge: cross it in fewer strides (post 5), build it over a compressed space (post 6), steer while crossing (post 7), build the walker from transformer parts so it scales (post 8), straighten the bridge (post 9), and finally learn to teleport across it (post 10). Each layer is independent — which is why the field could swap samplers, spaces, backbones, and even the core objective without ever discarding the stack. That decomposability, more than any single result, is why diffusion won the generative decade — and why, whatever replaces flow-matched DiTs, it will almost certainly still be built as *a learned map between distributions, factored into independently-improvable layers*.
+
+The takeaway: the step bill falls to one by **learning destinations instead of following paths** — progressive distillation halves step counts (folding CFG into the weights), adversarial losses restore one-step sharpness, and **consistency models** make point→endpoint the training objective itself, with re-noising as an optional quality dial. **Video** is the same stack over one more dimension — spatiotemporal latents, spacetime patches in a DiT, flow-matching training — with temporal consistency emerging from attention across time. The durable lesson: diffusion is a *factored* system, every layer swappable, and that is what let three years of mathematics collapse its costs a thousandfold.
+
+## Key takeaways
+
+- **Progressive distillation**: student matches in one step the teacher's two; halve repeatedly (1024 → 4). Guidance distills into the weights, erasing CFG's 2× tax; adversarial losses (the GAN's second supporting role) restore sharpness at 1–4 steps — the SDXL-Turbo recipe.
+- **Consistency models**: learn each ODE trajectory's *endpoint*; train by making adjacent path points agree (**self-consistency**). One-step by construction; re-noise-and-map-again turns 2–4 steps into a quality dial. LCMs = the same in latent space.
+- The speed arc completes: solvers (post 5) → straighter paths (post 9) → endpoint-learning (post 10): **~1000× cheaper sampling in ~3 years, from math, not silicon**.
+- **Video = the series re-dimensioned**: spatiotemporal autoencoder, **spacetime patches** + DiT (temporal coherence *is* attention across time), flow-matching objective, CFG, distillation. Frontier problems — long-range consistency, spacetime attention cost — mirror LLM context-length problems.
+- The series' compression: generation is **transport, factored into independent layers** (path, space, steering, backbone, stride) — decomposability is why every layer could be upgraded in place, and why the next formulation will keep the factoring even if it drops the diffusion.
+
+## Further reading
+
+- [Text-to-video model — the task, systems, and the spacetime formulation](https://en.wikipedia.org/wiki/Text-to-video_model)
+- [Knowledge distillation — teacher-to-student compression, here applied to sampling itself](https://en.wikipedia.org/wiki/Knowledge_distillation)
+
+---
+
+Author: Pratik Dhanave (https://pratikdhanave.com) | Published: 2026-11-09
+Canonical: https://pratikdhanave.com/blog/posts/diffgen-10-distillation-consistency-and-video.html
+Attribution: please link the canonical URL when citing or quoting this post.

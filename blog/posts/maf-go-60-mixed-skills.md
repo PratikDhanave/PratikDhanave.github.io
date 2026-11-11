@@ -1,0 +1,73 @@
+<!-- Markdown version for AI agents and readers. Canonical: https://pratikdhanave.com/blog/posts/maf-go-60-mixed-skills.html -->
+
+# step03 · Mixed Skills
+
+*Compose three kinds of Agent Skill — code-defined, struct-based, and file-based — into a single agent through one skills context provider.*
+
+---
+
+## What this lesson demonstrates
+
+The previous two lessons showed skills defined in code and skills discovered from files. This one wires **all three origins into the same agent** at once — and shows that a `skills.ContextProvider` doesn't care where a skill came from. The agent, `MultiConverterAgent`, sees one unified catalogue and one prompt asking for three conversions, then loads and runs only the skills each part needs.
+
+| # | Origin | Skill | How its script runs |
+|---|--------|-------|---------------------|
+| 1 | code-defined | `volume-converter` (a `*skills.Skill` literal) | pure Go (`convertVolume`) |
+| 2 | struct-based | `temperature-converter` (a value `skills.Skill`, passed by address) | pure Go (`convertTemperature`) |
+| 3 | file-based | `unit-converter` (the `./skills` dir, via `fsskills`) | `python scripts/convert.py` subprocess |
+
+## The wiring
+
+One provider composes all three origins — in-memory skills via `Skills`, the disk-based one via `Sources`:
+
+```go
+func buildSkillsProvider(skillsRoot *os.Root) agent.ContextProvider {
+	return skills.NewContextProvider(skills.ContextProviderOptions{
+		Skills: []*skills.Skill{volumeConverterSkill, &temperatureConverterSkill},
+		Sources: []skills.Source{
+			fsskills.NewSourceOptions(
+				fsskills.SourceOptions{ScriptRunner: runSubprocessScript},
+				skillsRoot.FS(),
+			),
+		},
+	})
+}
+```
+
+## What to notice
+
+- **One provider, three origins.** The agent sees a single skill catalogue and never knows (or cares) which skill came from code and which from disk. That is the composability payoff of routing skills through one `ContextProvider`.
+- **Code-defined vs. struct-based is a spelling difference.** `volumeConverterSkill` is a `&skills.Skill{…}` pointer literal; `temperatureConverterSkill` is a value `skills.Skill` handed to the provider by address (`&temperatureConverterSkill`). Both carry inline instructions, an inline resource, and a Go closure script — the two forms exist only to show the field-literal styles side by side.
+- **Only the file-based skill shells out.** Its `convert.py` runs via `runSubprocessScript`, which is why the live run needs `python` on PATH while the two Go skills need nothing.
+- **`os.OpenRoot` sandboxes discovery**, and the script bodies (`convertVolume` / `convertTemperature`) are plain functions — so the offline test unit-tests the conversion math (including error paths like an unsupported temperature pair) directly, while a wiring test confirms `a.Name() == "MultiConverterAgent"` and that the on-disk `unit-converter` still resolves.
+
+## How it maps to the Microsoft Agent Framework
+
+This is the capstone of the skills trio: it shows that `skills.ContextProviderOptions` accepts both pre-built `Skills` and discovery `Sources` in the *same* provider, so a real agent can blend a hand-authored in-code capability with a library of file-based skills shipped separately. Because the model only ever sees `load_skill` / `read_skill_resource` / `run_skill_script` over a merged `<available_skills>` list, mixing origins is transparent to the prompt — the Agent Framework Go SDK unifies them behind one tool surface.
+
+## Run it
+
+`go run ./tutorial/02-agents/skills/step03_mixed_skills` (needs `az login` + `FOUNDRY_PROJECT_ENDPOINT`, and `python` for the file-based skill). The offline tests cover wiring, file-based discovery, and both Go script bodies; the live model call is gated behind `AF_LIVE=1`.
+
+## Key takeaways
+
+- `skills.ContextProviderOptions` accepts both pre-built `Skills` and discovery `Sources` in the *same* provider, so one agent can blend in-code capabilities with a library of file-based skills.
+- The three origins here — code-defined (`*skills.Skill` literal), struct-based (a value `skills.Skill` passed by address), and file-based (a `./skills` dir via `fsskills`) — are transparent to the prompt; the model only ever sees the merged `<available_skills>` list.
+- Code-defined vs. struct-based is only a spelling difference: pointer literal versus value handed to the provider by address; both carry inline instructions, resources, and a Go closure script.
+- Only the file-based skill shells out (its `convert.py` via `runSubprocessScript`), so the two Go skills need nothing while the live run needs `python` on PATH.
+
+## Further reading
+
+- [step01 · File-Based Skills](/blog/posts/maf-go-58-file-based-skills.html) — the file origin in isolation
+- [02 · Code-Defined Skills](/blog/posts/maf-go-59-code-defined-skills.html) — the code origin in isolation
+- [01 · Streaming — your first workflow](/blog/posts/maf-go-61-01-streaming.html) — the start of the workflows track
+
+---
+
+Next: [01 · Streaming — your first workflow](/blog/posts/maf-go-61-01-streaming.html)
+
+---
+
+Author: Pratik Dhanave (https://pratikdhanave.com) | Published: 2026-06-17
+Canonical: https://pratikdhanave.com/blog/posts/maf-go-60-mixed-skills.html
+Attribution: please link the canonical URL when citing or quoting this post.

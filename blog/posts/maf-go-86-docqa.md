@@ -1,0 +1,77 @@
+<!-- Markdown version for AI agents and readers. Canonical: https://pratikdhanave.com/blog/posts/maf-go-86-docqa.html -->
+
+# Capstone · DocQA — answer questions about your own documents
+
+*The final lesson ties the whole Go tutorial into one small product: an assistant that answers questions about your docs — grounded, cited, and refusing to guess.*
+
+---
+
+## What this lesson demonstrates
+
+DocQA is the capstone. It's a real (if tiny) product: an assistant that answers questions about a set of Markdown documents — the fictional "Nimbus Notes" — and *only* from those docs. Every concept from the earlier lessons shows up in service of that one job: a `search_docs` function tool doing keyword retrieval (RAG), grounding instructions, conversation memory, audit middleware, and an optional DocQA → Reviewer sequential workflow. The Go SDK ships no upstream `06-capstone` sample, so this is a from-scratch port of the Python capstone.
+
+The CLI has three modes: a one-shot question (`docqa "..."`), an interactive chat that remembers context, and `--review`, which drafts an answer and runs a second agent over it before it reaches you.
+
+## The real code
+
+The whole agent is assembled in `newDocQAAgent` — the search tool, grounding instructions, an in-memory history provider, and the audit middleware, all on one Foundry agent:
+
+```go
+return foundryprovider.NewAgent(endpoint, cred,
+    foundryprovider.ModelDeployment(model),
+    foundryprovider.AgentConfig{
+        Instructions: instructions,
+        Config: agent.Config{
+            Name:            "DocQA",
+            Tools:           []tool.Tool{searchDocsTool},
+            HistoryProvider: agent.NewInMemoryHistoryProvider(agent.InMemoryHistoryProviderConfig{}),
+            Middlewares:     []agent.Middleware{audit(auditOut)},
+        },
+    },
+)
+```
+
+> **▸ [Open the interactive diagram](/blog/diagrams/maf-go-86-docqa.html)** — pan, zoom, and trace every step (light/dark, self-contained).
+
+The `instructions` string is what forces grounding: answer using ONLY `search_docs`, cite each source as `(file › section)`, and refuse when the docs don't contain the answer.
+
+## What to notice
+
+- **Grounding is a tool plus instructions, not magic.** `search_docs` returns cited passages; the instructions bind the model to them. When retrieval finds nothing, the tool returns a no-match sentinel and the model is told to refuse rather than guess.
+- **Retrieval is pure, deterministic Go.** `knowledge.go`'s `search()` is keyword overlap with a title boost, no network — which is exactly why its behavior can be asserted offline.
+- **`go:embed` replaces the filesystem read.** The `docs/*.md` files travel *inside* the binary, so retrieval works regardless of the working directory. Swap them for your own docs and rebuild.
+- **`--serve` (DevUI) is omitted on purpose.** The Python capstone launched a DevUI web chat; the Go SDK has no DevUI, so `--serve` just prints an explanation and exits.
+
+## How it maps to the Microsoft Agent Framework Go SDK
+
+DocQA is a survey of the SDK in one file tree: `functool.MustNew` for the tool, `agent.NewInMemoryHistoryProvider` for memory, an `agent.Middleware` for the audit seam, and — under `--review` — a two-node sequential graph run through `inproc.Default.RunStreaming`, watching `workflow.OutputEvent`s to stream each executor's output. It's the shape a grounded Azure AI Foundry assistant takes in production: retrieval in, cited answer out, everything but the model call testable offline.
+
+## Run it
+
+`go run ./tutorial/06-capstone/docqa "How much does Nimbus Pro cost?"` for one question, no args for interactive chat, or `--review "..."` for the reviewed path. Needs `az login` + `FOUNDRY_PROJECT_ENDPOINT`. `go test ./...` covers retrieval and all wiring offline; the live grounded answer is gated behind `AF_LIVE=1`.
+
+That closes the series — 86 lessons from `check_setup` to a shippable document-QA product.
+
+---
+
+Next: [AG-UI Getting Started — The Server](/blog/posts/maf-go-87-getting-started-server.html)
+
+## Key takeaways
+
+- DocQA is a from-scratch Go port of the Python capstone (the Go SDK ships no `06-capstone` sample): a grounded assistant that answers questions about the fictional "Nimbus Notes" docs and *only* from them, assembled entirely in `newDocQAAgent`.
+- Grounding is a tool plus instructions, not magic: `search_docs` returns cited passages, the instructions bind the model to them, and a no-match sentinel makes the model refuse rather than guess.
+- Retrieval (`knowledge.go`'s `search()`) is pure, deterministic keyword overlap with a title boost — no network — so its behavior is asserted offline; `go:embed` ships the docs inside the binary so retrieval is working-directory independent.
+- The one file surveys the SDK — `functool.MustNew`, `agent.NewInMemoryHistoryProvider`, an audit `agent.Middleware`, and under `--review` a two-node sequential graph via `inproc.Default.RunStreaming` watching `OutputEvent`s.
+- `--serve` (DevUI) is omitted on purpose because the Go SDK has no DevUI; everything but the live model call is testable offline, with the grounded answer gated behind `AF_LIVE=1`.
+
+## Further reading
+
+- [Capstone: Grounding & RAG in Google ADK](/blog/posts/adk-17-grounding-and-rag.html)
+- [A2A Client](/blog/posts/maf-go-84-a2a-client.html)
+- [agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)
+
+---
+
+Author: Pratik Dhanave (https://pratikdhanave.com) | Published: 2026-07-13
+Canonical: https://pratikdhanave.com/blog/posts/maf-go-86-docqa.html
+Attribution: please link the canonical URL when citing or quoting this post.

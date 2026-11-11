@@ -1,0 +1,77 @@
+<!-- Markdown version for AI agents and readers. Canonical: https://pratikdhanave.com/blog/posts/maf-go-39-basic.html -->
+
+# step01 · Basic Foundry Provider
+
+*How the Foundry provider snaps a project endpoint, a credential, and a model deployment name into a runnable agent.*
+
+---
+
+## What this lesson demonstrates
+
+This is the same one-shot `Joker` agent you meet in the very first tutorial, but viewed from the **provider** angle. The whole point is the three moving parts the Azure AI Foundry provider needs — a **project endpoint**, a **credential**, and a **model deployment name** — and how `foundryprovider.NewAgent` turns them into an `agent.Agent`. A tiny logging middleware rides along so you can watch each run print in the console.
+
+## The provider is three inputs
+
+The construction is deliberately factored out of `main` into a `newAgent` helper so the offline test can build the identical, middleware-wired agent with a fake credential:
+
+```go
+func newAgent(endpoint, model string, cred azcore.TokenCredential, mw agent.Middleware) *agent.Agent {
+	return foundryprovider.NewAgent(
+		endpoint,
+		cred,
+		foundryprovider.ModelDeployment(model),
+		foundryprovider.AgentConfig{
+			Instructions: "You are good at telling jokes.",
+			Config: agent.Config{
+				Name:        "Joker",
+				Middlewares: []agent.Middleware{mw}, // wraps every run
+			},
+		},
+	)
+}
+```
+
+The `target` argument here is `foundryprovider.ModelDeployment(model)`. That selects **project Responses API mode**: you address a deployed model by its name against a Foundry *project* endpoint (`…services.ai.azure.com`). The other target, `ServerAgent`, points at an existing server-side agent instead, and with that one the service owns the instructions.
+
+## What to notice
+
+`AgentConfig` **embeds** `agent.Config`. Provider-specific fields — `Instructions`, `DisableStoreOutput`, `OpenAIOptions` — sit alongside the embedded config, which carries the cross-provider bits like `Name` and `Middlewares`. That split is the mental model for the whole provider family: provider knobs on the outer struct, portable knobs on the embedded one.
+
+The gotcha worth internalizing: **the credential is lazy**. The demo's `DefaultAzureCredential` doesn't contact Azure until the first request, so building the agent never touches the network. That is exactly what makes the structural test possible — it constructs the agent with a dummy endpoint and a fake credential and asserts `a.Name() == "Joker"` with no `az login`.
+
+In `main`, `RunText(...).Collect()` runs to completion and drains the `ResponseStream` into a single `Response` before printing.
+
+## How it maps to Foundry
+
+Under the hood `ModelDeployment` mode issues `POST {endpoint}/openai/v1/responses` with a bearer token from your `az login` session — the OpenAI-compatible **Responses API** that Foundry projects expose. Every later lesson in this provider family (sessions, tools, structured output, observability) layers on top of this same three-input wiring, so it pays to have it cold.
+
+## Run it
+
+```bash
+go run ./tutorial/02-agents/providers/foundry/step01_basic
+```
+
+The tests build and pass offline; the live model call is gated behind `AF_LIVE=1` (which needs `az login` and `FOUNDRY_PROJECT_ENDPOINT`).
+
+## Key takeaways
+
+- **The Foundry provider is three inputs**: a project endpoint, a credential, and a model deployment name, which `foundryprovider.NewAgent` turns into an `agent.Agent`.
+- **The `target` argument selects the mode.** `foundryprovider.ModelDeployment(model)` means project Responses API mode (address a deployed model by name against a `…services.ai.azure.com` project endpoint); the alternative, `ServerAgent`, points at an existing server-side agent that owns its own instructions.
+- **`AgentConfig` embeds `agent.Config`.** Provider-specific knobs (`Instructions`, `DisableStoreOutput`, `OpenAIOptions`) sit on the outer struct; portable ones (`Name`, `Middlewares`) on the embedded one — the mental model for the whole provider family.
+- **The credential is lazy** — `DefaultAzureCredential` doesn't contact Azure until the first request — so the structural test builds the agent with a dummy endpoint and no `az login`. Under the hood, `ModelDeployment` issues `POST {endpoint}/openai/v1/responses`.
+
+## Further reading
+
+- [02 · Multi-turn (sessions)](/blog/posts/maf-go-40-1-multiturn.html) — thread a session through this same wiring.
+- [step03 · Function Tools (Foundry)](/blog/posts/maf-go-42-function-tools.html) — add a tool to the basic agent.
+- [providers/azure · Azure AI Project](/blog/posts/maf-go-35-ai-project.html) — a closer look at what project mode changes about the endpoint.
+
+---
+
+Next: [02 · Multi-turn (sessions)](/blog/posts/maf-go-40-1-multiturn.html)
+
+---
+
+Author: Pratik Dhanave (https://pratikdhanave.com) | Published: 2026-05-27
+Canonical: https://pratikdhanave.com/blog/posts/maf-go-39-basic.html
+Attribution: please link the canonical URL when citing or quoting this post.

@@ -1,0 +1,70 @@
+<!-- Markdown version for AI agents and readers. Canonical: https://pratikdhanave.com/blog/posts/maf-go-80-loop.html -->
+
+# loop · A Cyclic Workflow (guess-the-number)
+
+*How a workflow graph forms a cycle: two executors feed each other until one yields an output — the workflow analogue of a while-loop.*
+
+---
+
+## What this lesson demonstrates
+
+A workflow graph is not a DAG — edges may form a **cycle**. Here two executors, `GuessNumber` and `Judge`, are wired to feed each other: `GuessNumber → Judge → GuessNumber`. Judge compares each guess against a hidden target and sends `Above`/`Below` back; GuessNumber binary-searches the range in response. The loop runs until Judge finds the target and yields an output, which ends the run.
+
+Where `human_in_the_loop_basic` closed its cycle through a human at a RequestPort, this lesson closes the cycle between two pure executors — the state and the exit condition both live in code.
+
+## The real code
+
+The cycle is just two edges; the second one closes the loop:
+
+```go
+return workflow.NewBuilder(guess).
+    AddEdge(guess, judge). // a guess flows forward to the judge
+    AddEdge(judge, guess). // the judge's verdict flows back — this edge closes the loop
+    WithOutputFrom(judge). // the run ends when Judge yields its output
+    Build()
+```
+
+`GuessNumber` keeps a mutable `[lower, upper]` range in its closure and sends the midpoint each turn; `Judge` counts tries and either `ctx.YieldOutput(...)` (exit) or `ctx.SendMessage("", Below/Above)` (keep looping).
+
+## What to notice
+
+- **Convergence is the only exit.** Nothing bounds the loop except Judge yielding an output. A buggy predicate or a guess that never narrows would spin forever — this is the workflow you must reason about for termination, not just wiring.
+- **State lives in the executor closure.** `lower, upper := low, high` and `var tries int` are captured per node. That's why each executor also declares a `ResetFunc` in its `Extend` block — so the range and counter can be restored if the workflow is reset or reused.
+- **Protocol is declared, not inferred.** Each executor's `Extend` block calls `ConfigureProtocol` — `rb.SendsMessageType(...)`, `rb.YieldsOutputType(...)` — so the builder knows `GuessNumber` sends an `int` and `Judge` sends a `NumberSignal` and yields a `string`.
+- **`RunStreaming` seeds the cycle.** The initial `Init` message kicks `GuessNumber`; from then on the two trade messages until Judge exits.
+
+## How it maps to the Agent Framework
+
+In the Microsoft Agent Framework Go SDK, cyclic workflows are how you build iterative refinement — a writer/critic loop, a plan/execute/replan agent, retry-until-valid. The framework doesn't forbid cycles the way a strict DAG engine would; it relies on an executor eventually calling `YieldOutput`. This binary-search game is the smallest self-contained cycle, so it's the right place to internalize "the loop ends when someone yields" before you wrap agents in it. No model or credentials required.
+
+## Run it
+
+```bash
+go run ./tutorial/03-workflows/loop
+```
+
+Fully offline — no model, no provider, pure in-process orchestration. The test both asserts the two-edge cycle and runs it end-to-end.
+
+## Key takeaways
+
+- A workflow graph is not a DAG — a back-edge (`AddEdge(judge, guess)`) closes a cycle, making it the workflow analogue of a while-loop where `GuessNumber` and `Judge` feed each other.
+- **Convergence is the only exit**: nothing bounds the loop except an executor calling `ctx.YieldOutput`. Termination is a property you have to reason about, not something the wiring guarantees — a predicate that never narrows spins forever.
+- State lives in the executor closure (`lower, upper` and `tries`), which is why each executor also declares a `ResetFunc` in its `Extend` block so it can be restored on reset or reuse.
+- Protocol is declared, not inferred: each executor's `Extend`/`ConfigureProtocol` block tells the builder what it sends and yields, and the initial `Init` message from `RunStreaming` seeds the cycle.
+- This smallest self-contained cycle is the pattern behind real iterative refinement — writer/critic loops, plan/execute/replan, retry-until-valid — before you wrap agents inside it.
+
+## Further reading
+
+- [human_in_the_loop_basic · A workflow that asks a human](/blog/posts/maf-go-79-human-in-the-loop-basic.html)
+- [Writer–critic workflow — Microsoft Agent Framework in Go](/blog/posts/maf-go-67-07-writer-critic-workflow.html)
+- [microsoft/agent-framework-go on GitHub](https://github.com/microsoft/agent-framework-go)
+
+---
+
+Next: [observability · Workflow as an Agent](/blog/posts/maf-go-81-workflow-as-an-agent.html)
+
+---
+
+Author: Pratik Dhanave (https://pratikdhanave.com) | Published: 2026-07-07
+Canonical: https://pratikdhanave.com/blog/posts/maf-go-80-loop.html
+Attribution: please link the canonical URL when citing or quoting this post.

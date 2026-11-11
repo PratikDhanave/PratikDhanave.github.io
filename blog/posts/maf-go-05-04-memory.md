@@ -1,0 +1,72 @@
+<!-- Markdown version for AI agents and readers. Canonical: https://pratikdhanave.com/blog/posts/maf-go-05-04-memory.html -->
+
+# 04 · Memory
+
+*A custom ContextProvider gives the agent memory: it reads stored facts before a run and learns new ones after — all through the Session.*
+
+---
+
+## What this lesson demonstrates
+
+Sessions carry the transcript; memory carries *facts*. A **ContextProvider** adds two hooks around every run so the agent can carry structured memory forward. **Provide** runs before the model call and injects what it knows as instructions ("The user's name is Ruaidhrí."). **Store** runs after a successful run, scans the user's message, parses out a name and age, and writes them back into the Session. Because the state lives in the `agent.Session`, it serializes to JSON and can be copied into a brand-new session — so the agent "remembers" a user it never spoke to in that session.
+
+## The code
+
+A provider is just two functions registered under one source ID:
+
+```go
+func newUserMemoryProvider() agent.ContextProvider {
+    return agent.NewContextProvider(agent.ContextProviderConfig{
+        SourceID: userMemorySourceID,
+        Provide:  provideUserMemory,
+        Store:    storeUserMemory,
+    })
+}
+```
+
+`Provide` returns no messages — only an instructions option, the additive contract of a provider:
+
+```go
+return nil, []agent.Option{agent.WithInstructions(instructions.String())}, nil
+```
+
+## What to notice
+
+- **Memory is additive, not magic.** `Provide` returns `nil` messages plus one `agent.WithInstructions(...)`. The SDK appends it to the run — it never rewrites the message you sent. `Store` only *fills gaps*; it won't overwrite a name or age it already knows.
+- **The Session is the store.** `session.Set(sourceID, state)` and `session.Get(sourceID, &state)` are the entire persistence layer. Because the session marshals to JSON, memory survives a save/restore round-trip, and `newSession.Set(...)` seeds a fresh session with saved facts.
+- **The parsing is pure.** `extractName` and `extractAge` take strings and return values — no model, no session. That purity is exactly what makes memory testable offline, and the gotcha they guard against: "I am 20 minutes late" must *not* register an age (only "20 years" does).
+
+## How it maps to Azure AI Foundry
+
+The provider runs entirely client-side around the Foundry call. Before the request, `Provide` folds remembered facts into the instructions Foundry receives; after the response, `Store` mines the turn for new facts. Foundry itself stays stateless — the framework's ContextProvider lifecycle is what layers durable, structured memory on top of the model.
+
+## Run it
+
+```bash
+go run ./tutorial/01-get-started/04_memory
+```
+
+Expected: the agent refuses and asks for your name/age, then — once told — recalls both, including across a deserialized session and a fresh session seeded with the saved memory. Offline tests cover wiring, the pure parsers, and a real `Store`→`Provide` round-trip through an `*agent.Session` — no network. `TestMemory_Live` is gated behind `AF_LIVE=1`.
+
+## Key takeaways
+
+- **Sessions carry the transcript; a ContextProvider carries facts.** `Provide` runs before each model call and injects known facts as instructions; `Store` runs after a successful run and mines the turn for new ones.
+- **Memory is additive, not magic.** `Provide` returns `nil` messages plus one `agent.WithInstructions(...)` — the SDK appends it, never rewriting your message — and `Store` only fills gaps, never overwriting a name or age it already has.
+- **The Session is the store.** `session.Set/Get` under a `SourceID` is the whole persistence layer; because a session marshals to JSON, memory survives a save/restore round-trip and can seed a brand-new session.
+- **Keep the parsers pure.** `extractName`/`extractAge` take strings and return values with no model or session, which is what makes memory testable offline — and lets them guard gotchas like "20 minutes late" not registering an age.
+
+## Further reading
+
+- [step22 · Foundry Memory](/blog/posts/maf-go-26-foundry-memory.html) — the productionized version, backed by an Azure AI Foundry memory store that persists across sessions.
+- [step07 · Third-Party Session Storage](/blog/posts/maf-go-17-3rdparty-session-storage.html) — a history provider that owns message bodies in your own store.
+- [step18 · Compaction Pipeline](/blog/posts/maf-go-24-compaction-pipeline.html) — a context provider that rewrites history rather than appending to it.
+
+---
+
+Next: [05 · First Workflow](/blog/posts/maf-go-06-05-first-workflow.html)
+
+---
+
+Author: Pratik Dhanave (https://pratikdhanave.com) | Published: 2026-04-23
+Canonical: https://pratikdhanave.com/blog/posts/maf-go-05-04-memory.html
+Attribution: please link the canonical URL when citing or quoting this post.

@@ -1,0 +1,72 @@
+<!-- Markdown version for AI agents and readers. Canonical: https://pratikdhanave.com/blog/posts/maf-go-15-structured-output.html -->
+
+# Structured Output: Typed Agent Results
+
+*How to make the agent return a typed Go struct instead of free-form prose, via a JSON schema derived from your type.*
+
+---
+
+## What this lesson demonstrates
+
+Everything so far returned text. Real applications want *data*: a `PersonInfo`, not a paragraph about a person. This lesson asks the model to fill in a Go struct and shows the **two ways** the SDK exposes structured output:
+
+1. **`agent.WithStructuredOutput(&v)`** — a *per-run* option. Hand it a pointer; when the run finishes the SDK has decoded the model's JSON into your value.
+2. **`agent.WithResponseFormat(jsonformat.MustFor[T]())`** — wired once into `Config.RunOptions`, so *every* run is constrained to `T`'s JSON schema. The model streams raw JSON you unmarshal yourself.
+
+## The core code
+
+The struct *is* the schema — `json` tags become the field names the model must return. A generic helper decodes it per run:
+
+```go
+func runFor[T any](ctx context.Context, a *agent.Agent, message string, opts ...agent.Option) (T, error) {
+	var v T
+	opts = append(opts, agent.WithStructuredOutput(&v), agent.Stream(false))
+	for _, err := range a.RunText(ctx, message, opts...) {
+		if err != nil {
+			return v, err
+		}
+	}
+	return v, nil // decoded value is ready once the run is drained
+}
+```
+
+## What to notice
+
+- **Two altitudes for the same idea.** `WithStructuredOutput(&v)` is convenient at a single call site and decodes *for* you. `WithResponseFormat(...)` in `Config.RunOptions` bakes the constraint into the agent so every run returns JSON — but then *you* own the decoding, which is why `main` collects the streamed bytes and calls `json.Unmarshal`.
+- **`RunOptions` are prepended to every run.** Anything you put there applies without repeating it at the call site — that is how the second agent gets its response format for free while still passing `Stream(true)` per call. The gotcha: you must still drain (range) the run before reading the decoded value.
+- **Generics keep it reusable.** `runFor[T]` works for any output type — swap `PersonInfo` for a slice-bearing struct and nothing about the helper changes.
+
+## How it maps to Azure AI Foundry
+
+`jsonformat.MustFor[PersonInfo]()` reflects over the struct's `json` tags to build a JSON schema, which the SDK sends to Foundry as a `response_format = json_schema` constraint on the `/responses` call. The model is *told* to return exactly that shape — no prompt-engineering the format. The offline test `TestPersonInfoSchema` exercises `jsonformat.MustFor[PersonInfo]()` directly (asserting `Kind == "json"`, `Name == "PersonInfo"`, and a derived schema) — the exact call the response-format agent uses at runtime.
+
+## Run it
+
+```bash
+go run ./tutorial/02-agents/agents/step05_structured_output
+```
+
+The same person prints twice — once decoded via `WithStructuredOutput`, once from streamed JSON you unmarshal. The program needs Foundry; the schema and decoding helpers are tested offline, and the live call is gated behind `AF_LIVE=1`.
+
+## Key takeaways
+
+- **Two altitudes for the same idea.** `agent.WithStructuredOutput(&v)` is a per-run option that decodes the model's JSON *for* you; `agent.WithResponseFormat(jsonformat.MustFor[T]())` in `Config.RunOptions` constrains *every* run to `T`'s schema but leaves you to unmarshal the streamed bytes.
+- **The struct is the schema.** `jsonformat.MustFor[PersonInfo]()` reflects over the `json` tags to build a JSON schema sent to Foundry as a `response_format = json_schema` constraint — no prompt-engineering the format.
+- **`RunOptions` are prepended to every run**, so a baked-in response format applies without repeating it at the call site — but you must still drain (range) the run before reading the decoded value.
+- Generics keep it reusable: `runFor[T]` works for any output type unchanged.
+
+## Further reading
+
+- [Structured Output on Azure AI Foundry](/blog/posts/maf-go-44-structured-output.html) — the provider-family take, with the pointer-and-`Stream(false)` gotcha spelled out.
+- [02 · step03 — Using Function Tools](/blog/posts/maf-go-13-using-function-tools.html) — the tool-schema mechanism that structured output complements.
+- [step06 · Persisted Conversation](/blog/posts/maf-go-16-persisted-conversation.html) — serialize the session that carries these runs.
+
+---
+
+Next: [step06 · Persisted Conversation](/blog/posts/maf-go-16-persisted-conversation.html)
+
+---
+
+Author: Pratik Dhanave (https://pratikdhanave.com) | Published: 2026-05-03
+Canonical: https://pratikdhanave.com/blog/posts/maf-go-15-structured-output.html
+Attribution: please link the canonical URL when citing or quoting this post.
