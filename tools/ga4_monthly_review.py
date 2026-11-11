@@ -8,23 +8,29 @@ compares against the previous report, and writes a markdown report to
 ~/Reports/pratikdhanave-ga4/YYYY-MM.md. Run by a monthly launchd job
 (com.pratikdhanave.ga4review); safe to run by hand any time.
 
-Auth: Google Application Default Credentials via gcloud. One-time setup:
+Auth (preferred): a Google Cloud SERVICE ACCOUNT key at
+~/.config/pratikdhanave/ga4-sa.json (override with env GA4_SA_KEY), whose
+email has been granted Viewer access on the GA4 property (GA4 Admin ->
+Property access management). The token is minted locally (stdlib + openssl),
+no gcloud involved. This avoids Google's "app is blocked" refusal, which
+hits `gcloud auth application-default login` when it requests the sensitive
+Analytics scope through Google's shared OAuth client.
 
-  gcloud auth application-default login \
-    --scopes=https://www.googleapis.com/auth/analytics.readonly,https://www.googleapis.com/auth/cloud-platform
-  gcloud auth application-default set-quota-project <any-gcp-project-you-own>
-  gcloud services enable analyticsdata.googleapis.com analyticsadmin.googleapis.com \
-    --project <same-project>
+Fallback: user ADC via gcloud, if it ever exists with the right scope.
 
 If credentials are missing the script still writes a report explaining
 exactly what to do, and posts a macOS notification either way.
 """
 
+import base64
 import json
 import os
 import re
 import subprocess
 import sys
+import tempfile
+import time
+import urllib.parse
 import urllib.request
 import urllib.error
 from datetime import date
@@ -56,11 +62,55 @@ def write_report(name, text):
     return path
 
 
+SA_KEY_PATH = os.environ.get(
+    "GA4_SA_KEY", os.path.expanduser("~/.config/pratikdhanave/ga4-sa.json"))
+SCOPE = "https://www.googleapis.com/auth/analytics.readonly"
+
+
+def _b64url(data):
+    return base64.urlsafe_b64encode(data).rstrip(b"=")
+
+
+def sa_token():
+    """Mint an access token from a service-account key: RS256 JWT via openssl."""
+    if not os.path.exists(SA_KEY_PATH):
+        return None, f"no service-account key at {SA_KEY_PATH}"
+    try:
+        key = json.load(open(SA_KEY_PATH))
+        now = int(time.time())
+        header = _b64url(json.dumps({"alg": "RS256", "typ": "JWT"}).encode())
+        claims = _b64url(json.dumps({
+            "iss": key["client_email"], "scope": SCOPE,
+            "aud": key["token_uri"], "iat": now, "exp": now + 3600,
+        }).encode())
+        signing_input = header + b"." + claims
+        with tempfile.NamedTemporaryFile("w", suffix=".pem") as pem:
+            pem.write(key["private_key"]); pem.flush()
+            p = subprocess.run(["openssl", "dgst", "-sha256", "-sign", pem.name],
+                               input=signing_input, capture_output=True)
+        if p.returncode != 0:
+            return None, "openssl signing failed: " + p.stderr.decode()[:200]
+        jwt = (signing_input + b"." + _b64url(p.stdout)).decode()
+        body = urllib.parse.urlencode({
+            "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+            "assertion": jwt}).encode()
+        req = urllib.request.Request(key["token_uri"], data=body, headers={
+            "Content-Type": "application/x-www-form-urlencoded"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read())["access_token"], None
+    except Exception as e:  # noqa: BLE001 — report any auth failure in the output
+        detail = e.read().decode()[:300] if hasattr(e, "read") else str(e)
+        return None, f"service-account auth failed: {detail}"
+
+
 def adc_token():
+    token, sa_err = sa_token()
+    if token:
+        return token, None
     p = subprocess.run(["gcloud", "auth", "application-default",
                         "print-access-token"], capture_output=True, text=True)
     if p.returncode != 0:
-        return None, p.stderr.strip()
+        return None, f"{sa_err}; gcloud ADC also unavailable: {p.stderr.strip()[:200]}"
     return p.stdout.strip(), None
 
 
@@ -134,14 +184,23 @@ def main():
     token, err = adc_token()
     if not token:
         text = (f"# GA4 conversion review — {today:%Y-%m} — SETUP NEEDED\n\n"
-                "No Google Application Default Credentials. Run (interactive):\n\n"
+                "No usable Google credentials. One-time setup (service account — the\n"
+                "user-login path gets blocked by Google for the Analytics scope):\n\n"
                 "```\n"
-                "gcloud auth application-default login \\\n"
-                "  --scopes=https://www.googleapis.com/auth/analytics.readonly,https://www.googleapis.com/auth/cloud-platform\n"
-                "gcloud auth application-default set-quota-project <your-gcp-project>\n"
-                "gcloud services enable analyticsdata.googleapis.com analyticsadmin.googleapis.com --project <your-gcp-project>\n"
-                "```\n\nThen re-run: python3 tools/ga4_monthly_review.py\n\n"
-                f"gcloud said: {err}\n")
+                "gcloud auth login                               # plain login, not blocked\n"
+                "gcloud projects create pratikdhanave-ga4 2>/dev/null || true\n"
+                "gcloud config set project pratikdhanave-ga4\n"
+                "gcloud services enable analyticsdata.googleapis.com analyticsadmin.googleapis.com\n"
+                "gcloud iam service-accounts create ga4-reader --display-name='GA4 monthly review'\n"
+                "mkdir -p ~/.config/pratikdhanave\n"
+                "gcloud iam service-accounts keys create ~/.config/pratikdhanave/ga4-sa.json \\\n"
+                "  --iam-account=ga4-reader@pratikdhanave-ga4.iam.gserviceaccount.com\n"
+                "chmod 600 ~/.config/pratikdhanave/ga4-sa.json\n"
+                "```\n\n"
+                "Then in GA4 (analytics.google.com): Admin -> Property access management ->\n"
+                "add `ga4-reader@pratikdhanave-ga4.iam.gserviceaccount.com` as **Viewer**.\n\n"
+                "Then re-run: python3 tools/ga4_monthly_review.py\n\n"
+                f"Details: {err}\n")
         path = write_report(report_name, text)
         notify("GA4 review: setup needed", "No Google credentials — see report for the one-time login command")
         print(path)
