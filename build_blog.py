@@ -7378,6 +7378,18 @@ def parse_post(md_path):
     if sub_match:
         subtitle = sub_match.group(1).strip()
         body = body[sub_match.end():]
+    else:
+        # HARD ERROR: a line that starts with '*' was intended as a subtitle but
+        # failed to parse — almost always inner *emphasis* inside the italics,
+        # which silently rendered subtitles EMPTY on 8 posts across 3 waves.
+        # Rule: the subtitle line carries exactly one asterisk pair, no inner
+        # emphasis. Rephrase instead of nesting.
+        probe = re.match(r"\s*(\*\S.*)\n", body)
+        if probe:
+            raise ValueError(
+                f"{md_path.name}: subtitle line failed to parse "
+                f"(inner emphasis or malformed italics — exactly one asterisk "
+                f"pair allowed): {probe.group(1)[:90]!r}")
 
     # Skip a leading horizontal rule (most posts start with "---\n" after subtitle).
     body = re.sub(r"^\s*---\s*\n", "", body, count=1)
