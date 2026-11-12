@@ -1,0 +1,39 @@
+<!-- Markdown version for AI agents and readers. Canonical: https://pratikdhanave.com/blog/posts/tscale-07-ci-at-monorepo-scale.html -->
+
+# CI at Monorepo Scale — Caching, Sharding, and the Merge Queue
+
+*At sufficient scale, CI stops being a pipeline and becomes a distributed system: tens of thousands of test targets, hundreds of concurrent changes, a compute bill with its own line item, and a main branch whose greenness is contested by every merge. The architecture that holds it together rests on three load-bearing pieces — content-addressed caching so nothing provably-unchanged ever reruns, sharding so wall-clock stays flat as suites grow, and merge queues so main stays green under concurrent landing. This closing post assembles them.*
+
+Post [2](/blog/posts/tscale-02-selective-test-execution.html) gave the formula's first term — select what could break; this post supplies the rest, and the operational frame that makes CI someone's *product*.
+
+## Caching: never rerun what provably didn't change
+
+Selection prunes by dependency; caching prunes by **content**: if a test target's complete inputs — sources, dependencies, toolchain, environment spec, the test's own definition — hash to a value already executed, replay the recorded result. The requirements are exactly the hermeticity disciplines this series kept demanding: inputs must be *fully declared* (undeclared inputs make caching unsound the same way invisible edges made selection unsound — the two failure modes are siblings and share a cure: close the graph), and tests must be *deterministic* (post 3's flake work is also cache-enablement — a flaky test's cached "pass" is a lie at memoized speed). Done right, remote caching makes the typical change's CI cost proportional to its blast radius: the 50-million-line repo reruns thousands of targets, not millions, and a no-op refactor of docs reruns almost nothing. The cache is shared infrastructure — remote, content-addressed, access-controlled (cache poisoning is a supply-chain attack surface; write access follows the same provenance discipline as artifact stores) — and its hit rate is a top-line CI metric: falling hit rate means hermeticity is eroding somewhere.
+
+## Sharding: wall-clock as a choice
+
+With selection and caching bounding *what* runs, sharding bounds *how long*: split the surviving work across machines so suite duration is a parallelism dial, not a destiny. The engineering that separates naive from good: **shard by measured duration, not target count** (durations are heavy-tailed; uniform-count shards finish whenever the unluckiest one does — duration-balanced binpacking from historical timings keeps the fleet finishing together), **isolate per shard** what tests share (database-per-shard, port ranges, temp roots — post 3's isolation at fleet granularity), and **retry at shard granularity with flake-awareness** (a shard failing on an known-flaky test re-runs the test, not the shard; infrastructure failures re-run the shard, and *counting the difference* keeps infra noise out of the flake ledger). The slowest-shard tail, not average load, is the number to engineer against.
+
+## The merge queue: keeping main green under concurrency
+
+The last problem is concurrency's: two changes, each green against main, can be red *together* — and at hundreds of merges a day, testing each against stale main guarantees semantic conflicts land. The **merge queue** closes the gap: changes enter a queue; each is tested against *main plus the changes queued ahead of it* (optimistically batched); passes merge in order, failures eject without blocking the line. The design space that matters at scale: **batching versus isolation** (testing changes in groups amortizes CI cost; a failing batch bisects to find the culprit — the familiar trade between throughput and attribution), **selection inside the queue** (post 2's machinery applies: queue runs test the union of the batch's blast radii, keeping queue latency proportional to what's landing), and **priority lanes** (reverts and incident fixes jump the queue — the queue is infrastructure for the org's change flow, and change flow has emergencies). The queue's health metrics — time-in-queue, batch failure rate, ejection reasons — join cache hit rate and shard tail latency on the dashboard of CI-as-product: an owned platform with SLOs (merge-gate latency, queue time, escape rate from post 2, flake budget from post 3), a cost model, and a roadmap — because at this scale, developer-facing build-and-test is a product whether anyone staffs it or not, and the unstaffed version is the collapse post 1 opened with.
+
+The takeaway: monorepo CI stands on three mechanisms — **content-addressed caching** (hermetic, declared inputs; deterministic tests; hit rate as the health metric and poisoning as the threat model), **duration-balanced sharding** (engineer the slowest-shard tail, isolate per shard, flake-aware retries), and the **merge queue** (test against main-plus-queue, batch with bisection, select within batches, priority-lane the emergencies) — composed with post 2's selection into CI whose cost tracks change size at any codebase size. Run it as a product with SLOs and owners, and the collapse curves of post 1 stay curves someone is bending.
+
+## Key takeaways
+
+- **Caching = memoized execution**: full input declaration (undeclared inputs : caching :: invisible edges : selection — same disease, same cure) + determinism (flake work is cache-enablement); remote, content-addressed, access-controlled; **hit rate** tracks hermeticity health.
+- **Shard by measured duration** (heavy tails make count-based shards finish with the unluckiest), isolate per shard, retry flake-aware at the right granularity — the slowest-shard tail is the engineering target.
+- **Merge queues** test each change against main *plus what's ahead*: optimistic batching with bisection on failure, selection applied within batches, priority lanes for reverts — keeping main green at hundreds of merges/day.
+- The composition: **select + cache + shard + queue**, operated as a **product** — SLOs (gate latency, queue time, escape rate, flake budget), cost model, owner — because unowned CI at scale is just collapse on a schedule.
+
+## Further reading
+
+- [Monorepo — the scale regime that forces this architecture](https://en.wikipedia.org/wiki/Monorepo)
+- [Memoization — the caching principle applied to test execution](https://en.wikipedia.org/wiki/Memoization)
+
+---
+
+Author: Pratik Dhanave (https://pratikdhanave.com) | Published: 2026-11-08
+Canonical: https://pratikdhanave.com/blog/posts/tscale-07-ci-at-monorepo-scale.html
+Attribution: please link the canonical URL when citing or quoting this post.

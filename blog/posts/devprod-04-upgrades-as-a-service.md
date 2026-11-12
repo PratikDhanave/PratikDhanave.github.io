@@ -1,0 +1,40 @@
+<!-- Markdown version for AI agents and readers. Canonical: https://pratikdhanave.com/blog/posts/devprod-04-upgrades-as-a-service.html -->
+
+# Upgrades as a Service — Centralizing the Toil Every Team Duplicates
+
+*Somewhere in your organization, right now, five teams are independently upgrading the same framework version, each rediscovering the same breaking changes, each writing the same fixes, each a little differently wrong. Language versions, frameworks, core libraries, security patches — upgrade toil is the most duplicated work in software, and the organizations that escaped it all made the same move: upgrades stopped being every team's chore and became one team's product.*
+
+This post applies posts [2](/blog/posts/devprod-02-codemods-at-scale.html)–[3](/blog/posts/devprod-03-gradual-typing-migrations.html)'s machinery to the org's most recurring campaign — and it's where DevProd most directly pays a security dividend, because the gap between "patch exists" and "patch deployed everywhere" is the exposure window [supply-chain security](/blog/series/software-supply-chain-security/) worries about.
+
+## Why decentralized upgrades fail everyone
+
+The default model — each team owns its dependencies' currency — produces the worst of all outcomes: **duplicated discovery** (every team hits the same migration guide, the same subtle breakage, the same workaround — N times the cost of learning it once); **version sprawl** (teams upgrade on different schedules, so the codebase runs four versions of everything, multiplying CI matrices, security surface, and "works in their service, not ours" mysteries); **deferral by rationality** (upgrades are pure cost to a feature team's quarter — each deferral is locally sensible and collectively catastrophic, because upgrade difficulty compounds with distance: version N to N+1 is a chore, N to N+5 is a project); and **security lag** (the patched version exists; the fleet adopts it over months; the window is the attacker's). The structural insight: upgrade work is **high-commonality, low-context** — 90% identical across teams, requiring little knowledge of any team's domain — which is precisely the profile of work that centralizes well.
+
+## The service model
+
+The central-upgrade product, assembled from this series' parts: **one version policy** — the monorepo (or version-catalog) stance that the organization runs *one* version of each major dependency, with upgrades landing atomically everywhere (tscale-02/07's selection and merge queue making the fleet-wide verification tractable) — trading "teams choose freely" for the end of sprawl, a trade mature orgs make consciously; **the upgrade pipeline** — new version arrives → central team (or its automation) reads the changelog once, writes the compatibility codemod once (post 2), runs it fleet-wide, and ships ownership-sharded PRs where residue needs hands — the N-team cost collapsed to 1 + residue; **continuous small steps** — the service upgrades *eagerly* (every minor, every patch, on cadence), because the compounding works in reverse too: a fleet that's always one step behind takes small steps forever and never meets the N-to-N+5 project; automated-dependency-update bots handle the trivial tier (lockfile bumps with passing CI auto-merge), the central team the interesting tier; and **deprecation shims as bridges** — for breaking changes too large for one motion, the central team ships the compatibility layer (old API implemented on new internals — apiver-03's gates, pointed inward), migrates consumers by codemod over weeks, then deletes the shim: expand/contract (zdm-02) as the in-code upgrade pattern, with the same dated-contraction discipline.
+
+## The hard cases, and the accounting
+
+What resists the model — and what the service does about it: **behavioral breakage** (the upgrade compiles everywhere but changes runtime behavior: a default flipped, an ordering changed — caught by the test fleet if coverage is honest, which makes the upgrade service tscale's most demanding customer and a chief beneficiary of its flake discipline: a flaky fleet makes every upgrade ambiguous); **the long-tail services** (the unowned, the frozen, the about-to-be-decommissioned — the service maintains an explicit exception registry with owners and expiry, because an invisible unupgraded service is a security finding, while a registered one is a managed risk); and **framework-scale jumps** (the migrations too architectural for codemods — these become declared campaigns on the post 3 model, with the upgrade service as logistics core). The accounting that sustains the investment (devprod-01's discipline): fleet version-lag distribution (p95 staleness by dependency), time-from-upstream-release-to-fleet-adoption (the security window, measured), and duplicated-effort avoided (upgrade cost × teams, versus the service's run cost) — numbers that reliably show the service paying for itself on security exposure alone, before counting the person-years.
+
+The takeaway: upgrade toil is **high-commonality, low-context** work that decentralization multiplies — duplicated discovery, version sprawl, rational deferral compounding into projects, and a measured security window. The service model collapses it: **one version policy**, a pipeline of read-once/codemod-once/shard-the-residue, **eager continuous small steps** (bots for the trivial tier), inward-facing compatibility shims with dated deletion for the big breaks, an exception registry for the long tail, and campaign logistics for the architectural jumps. Measured by version-lag and release-to-adoption windows, it's the DevProd product whose ROI argument is usually over before it starts.
+
+## Key takeaways
+
+- Decentralized upgrades fail structurally: **N× duplicated discovery, version sprawl, locally-rational deferral** (difficulty compounds with distance), and a security window measured in months.
+- The work profile — **high-commonality, low-context** — is exactly what centralizes well; the service = changelog read once, codemod written once, PRs sharded to owners for residue only.
+- **Eager beats careful**: continuous small steps (bot-tier auto-merges + central interesting-tier) prevent the N-to-N+5 project from ever forming.
+- Big breaks ride **inward compatibility shims** (expand/contract in code, dated deletion); the long tail lives in an **exception registry** (managed risk, not invisible exposure); framework jumps become post-3-style campaigns.
+- The accounting: **p95 version lag** and **release-to-adoption time** — the security window alone usually funds the service.
+
+## Further reading
+
+- [Technical debt — what deferred upgrades compound into](https://en.wikipedia.org/wiki/Technical_debt)
+- [Software maintenance — the discipline being industrialized here](https://en.wikipedia.org/wiki/Software_maintenance)
+
+---
+
+Author: Pratik Dhanave (https://pratikdhanave.com) | Published: 2026-11-02
+Canonical: https://pratikdhanave.com/blog/posts/devprod-04-upgrades-as-a-service.html
+Attribution: please link the canonical URL when citing or quoting this post.
