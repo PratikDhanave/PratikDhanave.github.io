@@ -103,6 +103,6 @@ In the next post, we'll dive into **Context Engineering** — the foundation tha
 
 ---
 
-Author: Pratik Dhanave (https://pratikdhanave.com) | Published: 2026-11-14
+Author: Pratik Dhanave (https://pratikdhanave.com) | Published: 2026-11-02
 Canonical: https://pratikdhanave.com/blog/posts/agentic-software-engineering-intro.html
 Attribution: please link the canonical URL when citing or quoting this post.
