@@ -1,0 +1,41 @@
+<!-- Markdown version for AI agents and readers. Canonical: https://pratikdhanave.com/blog/posts/setax-08-closing-the-loops.html -->
+
+# Closing the Loops: Composition, Governance, and What Self-Evolution Is For
+
+*The series mapped three loci and a feedback axis as if systems politely stayed in one square of the grid. They don't — the direction of the field is composition: artifact loops whose lessons distill into the harness, harness accumulation that consolidates into weights, each locus covering the others' weaknesses. This closing post adds the final axis — where the loop closes — then assembles the full map, reads off the governance that composition demands, and ends on the only success metric that resists gaming: what the system actually delivers.*
+
+## The third axis: loop closure
+
+*What evolves* (posts 1–6) and *what feedback* (post 7) leave one question: **where is the improvement applied, and how long does it persist?** Four closure points, in increasing blast radius: **within-task** (test-time training, per-task candidate search — persists minutes, risk ends with the task), **between-task** (memory writes, skill saves, prompt updates — persists indefinitely, scoped to what retrieval touches), **offline-batch** (scheduled distillation, searches, fine-tunes — persists in an artifact or checkpoint, gated by deliberate deployment), and **online-continuous** (weights or harness updating in production from live signal — maximum power, maximum blast radius, the closure mode that gives safety reviewers insomnia). The engineering rule the axis makes visible: **power and gating must rise together.** Within-task closure can run wild; online-continuous closure earns its keep only wrapped in the full anchor-and-cascade discipline of posts 5 and 7. Most production incidents in self-evolving systems are, in taxonomy terms, a loop running at one closure level with the gating appropriate to a weaker one.
+
+## Composition: the actual frontier
+
+With three axes in hand, the field's trajectory reads cleanly: not deeper single loops but **stacked ones, each feeding the next at a slower timescale**. The canonical stack — visible in embryo across posts 2–6 — runs: an *artifact loop* solves concrete problems under strong verification; a *harness loop* mines those solutions between tasks, distilling what worked into memory, skills, and sharper prompts (the two-timescale pattern from post 6, with the harness as the fast system); and rarely, behind offline-batch gates, a *weight loop* consolidates mature, verified harness knowledge into the model — the capability finally crossing post 4's ceiling, trained on data the stack itself generated and *vetted through every layer above it*. Each handoff downward trades reversibility for permanence, which is why the stack's integrity depends on feedback strength being monotone across handoffs (post 7's cascade rule, applied between loops rather than within one): nothing consolidates into weights that wasn't verified at a stronger level than the loop that proposed it. Composition is also where **recursion** — the [recursive self-improvement](https://en.wikipedia.org/wiki/Recursive_self-improvement) of the theoretical literature — stops being abstract: a stack whose weight loop improves the model that powers its own harness and artifact loops is formally a self-amplifying system, and the practical bounds on it today are the ones this series kept meeting: verifier strength, anchor integrity, and the stubborn fact that strong feedback is scarce and slow.
+
+## Governance, read off the map
+
+The taxonomy was built to locate systems; locating them is also how to govern them, and the posture reads directly off the three axes. By **locus**: artifact changes need provenance and review like any supply-chain input; harness changes need versioning, diffs, and rollback (they're code); weight changes need deploy-grade ceremony — staged rollout, frozen-baseline comparison, held-out regression suites. By **feedback**: the weaker the signal driving a change, the stronger the human and monitoring presence it owes — judge-driven loops are audited, verifier-driven loops are spot-checked. By **closure**: blast radius sets review depth, and online-continuous anything is treated as a system that *will* drift and is instrumented for the inter-stage divergence alarms of post 7. One table, three lookups — that's the operational payoff of the whole map.
+
+## What it's for
+
+End where post 1's three questions point: a self-evolving system is justified by neither its elegance nor its autonomy but by its **artifacts** — the kernel that ships, the proof that checks, the agent that resolves this quarter's tickets measurably better than last quarter's. Artifact-anchored measurement is the only success metric on offer that resists the gaming this series catalogued, because it sits at the top of every cascade: external, consequential, slow, and real. Systems that improve by their own metrics while their delivered artifacts stagnate are the field's cautionary tale, instances of self-reinforcement wearing self-improvement's name — and the three questions are how you tell the difference early. What evolves, what feeds it, where it closes: ask them of every system that claims the label, and the answers tell you what it costs, what it risks, what it owes in governance, and whether its improvement is real.
+
+The takeaway: the completed taxonomy is three axes — **locus** (artifact / harness / model), **feedback** (the post-7 strength ladder), **closure** (within-task → between-task → offline-batch → online-continuous, with gating rising to match) — and the frontier is **composed stacks**: artifact loops feeding harness distillation feeding rare, heavily-gated weight consolidation, integrity guaranteed by monotone feedback strength across handoffs. Governance reads off the same three lookups, and success is measured where gaming can't reach: in delivered, externally-verified artifacts. That's the map — and the standing question for any system you meet wearing the label: what evolves, what feeds it, where does the loop close?
+
+## Key takeaways
+
+- The closure axis: **within-task / between-task / offline-batch / online-continuous** — blast radius and required gating rise together, and most incidents are power at one level with gating from a weaker one.
+- The frontier stack: **artifact loop → harness distillation → gated weight consolidation**, two-timescale by design, with post 7's monotone-feedback rule applied *between* loops at every handoff.
+- Governance is a three-axis lookup: locus sets the change-management class, feedback strength sets the audit intensity, closure sets the review depth.
+- The ungameable metric is **delivered artifacts** — external, consequential, cascade-topping; self-metrics rising while artifacts stagnate is the signature of self-reinforcement masquerading as self-improvement.
+
+## Further reading
+
+- [Recursive self-improvement — the theoretical limit composition approaches](https://en.wikipedia.org/wiki/Recursive_self-improvement)
+- [Scientific method — the original generate-evaluate-refine loop, anchored in external reality](https://en.wikipedia.org/wiki/Scientific_method)
+
+---
+
+Author: Pratik Dhanave (https://pratikdhanave.com) | Published: 2026-11-13
+Canonical: https://pratikdhanave.com/blog/posts/setax-08-closing-the-loops.html
+Attribution: please link the canonical URL when citing or quoting this post.
