@@ -6,137 +6,118 @@
 
 ## The Problem: Unconstrained Agent Behavior
 
-When an LLM generates code without constraints, it operates on its statistical baseline — the most probable output given its training distribution. This produces code that:
+An LLM with no constraints generates its statistical baseline — the most probable code given its training distribution. That baseline is almost never your code: it logs with `fmt.Println`, skips the health endpoint, ignores graceful shutdown, and has never heard of your team's conventions, because they weren't in the prompt.
 
-- Uses `console.log` instead of structured logging
-- Omits error handling for "happy path" scenarios
-- Hardcodes values that should be configurable
-- Ignores organizational standards and architectural decisions
+**Context engineering** is the discipline of deliberately designing what the agent knows. The claim this post makes — constrained agents produce operable code, unconstrained agents produce tutorials — is testable, so instead of asserting it, let's run it.
 
-The result? **Technical debt compounding from day one**. Every agent-generated artifact becomes a maintenance burden because there were no boundaries.
+## The Experiment, For Real
 
-## The Solution: Context Engineering
+Same model (qwen3.6 via Ollama), same system prompt, same request: *"Write a basic HTTP server in Go that listens on port 8080 and returns Hello, World! for the root path."* The only variable: the closed-loop run appends one ADR, formatted exactly as the factory's context engine renders context.
 
-**Context Engineering** is the discipline of deliberately designing the information architecture that an agent operates within. It answers: *What does the agent know, and how is that knowledge constrained?*
-
-### Two Modes of Agent Execution
-
-| Mode | Description | Outcome |
-|------|-------------|---------|
-| **Open-Loop** | Prompt the agent with no context constraints | Agent generates statistically probable output. Issues: No structured logging, no health endpoints, no graceful shutdown |
-| **Closed-Loop** | Inject ADR constraints and organizational standards | Agent output is rigidly constrained. Benefits: Structured logging, health endpoints, graceful shutdown, observability |
-
-### The Architecture Decision Record (ADR) Pattern
-
-ADRs are the primary mechanism for context engineering. They are formal markdown documents that record:
-
-1. **Context** — Why this decision needs to be made, what problem is being solved
-2. **Decision** — What was decided
-3. **The Absolute Constraint** — Machine-readable rules the agent MUST follow (using MUST/MUST NOT language)
-4. **Consequences** — Trade-offs of the decision
-
-### Go Example: ADR-Driven Context Loading
+**Open-loop output** (16.7s, 549 tokens) — verbatim, and it compiles:
 
 ```go
-// pkg/context/context.go — Load ADRs and specs into agent context
-engine := context.NewContextEngine(workingDir)
-items, err := engine.LoadContext(ctx)
+package main
 
-fmt.Printf("Loaded %d context items\n\n", len(items))
+import (
+	"fmt"
+	"net/http"
+)
 
-// Categories by priority
-// ADRs (priority: 100) — absolute constraints
-// Specs (priority: 90) — machine-readable specifications  
-// Code (priority: 50) — source code patterns and examples
+func handler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Hello, World!")
+}
+
+func main() {
+	http.HandleFunc("/", handler)
+	fmt.Println("Server running on :8080")
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		fmt.Printf("Server failed to start: %v\n", err)
+	}
+}
 ```
 
-### Open-Loop vs Closed-Loop Demonstration
+Perfectly correct, and operationally useless: `fmt.Println` logging no aggregator can parse, no health endpoint for a load balancer to probe, and a server that dies mid-request on every deploy.
+
+**The ADR** injected for the closed-loop run:
+
+```markdown
+# ADR-002: HTTP Service Standards - APPROVED
+
+## The Absolute Constraint
+- Services MUST log with log/slog in JSON (slog.NewJSONHandler), never
+  fmt.Println or log.Printf
+- Services MUST expose GET /health returning 200 and {"status":"ok"} as JSON
+- Services MUST shut down gracefully on SIGINT/SIGTERM via
+  http.Server.Shutdown with a timeout
+- Handlers MUST log method, path, and remote address for every request
+```
+
+**Closed-loop output** (59.4s, 3,958 tokens) — excerpted from the verbatim artifact, which also compiles:
 
 ```go
-// Open-Loop: Agent with no context
-fmt.Println("=== OPEN-LOOP BEHAVIOR (No Context) ===")
-fmt.Println("Prompt: 'Build a basic HTTP server in Go that listens on port 8080'")
-fmt.Println()
-fmt.Println("Expected agent output (statistical baseline):")
-fmt.Println(`  http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "Hello, World!")
-  })
-  http.ListenAndServe(":8080", nil)`)
-fmt.Println()
-fmt.Println("Issues: No structured logging, no health endpoint, no graceful shutdown")
-fmt.Println()
+logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+slog.SetDefault(logger)
 
-// Closed-Loop: Agent with ADR context
-fmt.Println("=== CLOSED-LOOP BEHAVIOR (With ADR Context) ===")
-fmt.Println("Prompt: 'Build a basic HTTP server in Go that listens on port 8080'")
-fmt.Println("Context: ADR-001-Logging.md requires structured JSON logging with zap")
-fmt.Println()
-fmt.Println("Expected agent output (constrained by ADR):")
-fmt.Println(`  logger, _ := zap.NewProduction()
-  defer logger.Sync()
+// Health check endpoint as per ADR-002
+mux.HandleFunc("/health", healthHandler)
 
-  http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-    w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
-  })
+loggingMiddleware := func(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slog.InfoContext(r.Context(), "Request received",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"remote_addr", r.RemoteAddr,
+		)
+		next.ServeHTTP(w, r)
+	})
+}
 
-  http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-    logger.Info("request received",
-      zap.String("method", r.Method),
-      zap.String("path", r.URL.Path),
-      zap.String("remote", r.RemoteAddr),
-    )
-    fmt.Fprintf(w, "Hello, World!")
-  })
+// ... server started in a goroutine, then:
+sigChan := make(chan os.Signal, 1)
+signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+<-sigChan
 
-  server := &http.Server{Addr: ":8080"}
-  go func() { server.ListenAndServe() }()
-  // Graceful shutdown handling...`)
-fmt.Println()
-fmt.Println("Benefits: Structured logging, health endpoint, graceful shutdown, observability")
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+if err := server.Shutdown(ctx); err != nil { ... }
 ```
 
-### The Context Pipeline
+Every constraint satisfied — JSON logging, `/health`, signal-driven graceful shutdown, per-request logging via middleware. The model even wrote `// Health check endpoint as per ADR-002` in its comments: the ADR didn't just constrain the output, it entered the artifact's *reasoning trail*.
 
-```mermaid
-flowchart TD
-    repo[Repository] -->|Read Files| context_engine[Context Engine]
-    context_engine -->|Load ADRs| adr_loader[ADR Loader (priority: 100)]
-    context_engine -->|Load Specs| spec_loader[Spec Loader (priority: 90)]
-    context_engine -->|Load Code| code_loader[Code Loader (priority: 50)]
-    adr_loader -->|Inject Constraints| agent_context[Agent Context Window]
-    spec_loader -->|Inject Intent| agent_context
-    code_loader -->|Inject Patterns| agent_context
+Two honest observations the tidy version of this story omits. The closed-loop run took 3.5× longer and 7× the tokens — context buys compliance with latency and budget, which is why the factory caps context per provider rather than shoveling everything in. And one run is a demonstration, not a benchmark; the direction of the effect is unmistakable here, but the magnitude varies run to run.
+
+## The ADR Pattern
+
+ADRs work as agent context because they're already the right shape: a decision, the reasoning, and — the part that does the work — an **Absolute Constraint** section written in MUST/MUST NOT language that survives being pasted into a prompt. Write the constraint section as if a very literal junior engineer will follow it exactly, because that is precisely what will happen.
+
+## The Context Engine
+
+`pkg/context` turns the repository into the agent's working set. Three loaders walk the tree and tag what they find with a priority — ADRs outrank specs, specs outrank code patterns:
+
+```text
+$ ./asf context
+Loaded 37 context items:
+
+=== docs/ADR-001-Example.md [adr] (priority: 100, ~98 tokens) ===
+# ADR-001: Example Decision - APPROVED
+...
+=== docs/ARCHITECTURE.md [adr] (priority: 100, ~2082 tokens) ===
+...
 ```
 
-### Why Context Engineering Matters
+That's real output, and it shows a real wart worth learning from: the ADR loader globs all of `docs/*.md`, so `ARCHITECTURE.md` and `API.md` are riding along as priority-100 "ADRs." Harmless here, but it illustrates the failure mode of context engineering — **unintentional context**. What the agent reads, it obeys; a stale doc in the context path is an instruction you didn't mean to give. Curate the directories the engine walks as deliberately as you curate the ADRs themselves.
 
-| Metric | Open-Loop | Closed-Loop |
-|--------|-----------|-------------|
-| Structured logging | ❌ No | ✅ Yes |
-| Health endpoint | ❌ No | ✅ Yes |
-| Graceful shutdown | ❌ No | ✅ Yes |
-| Observability | ❌ No | ✅ Yes |
-| Technical debt | Compounds silently | Prevented at source |
+`FormatForAgent` renders the items into the prompt block the harness appends to every spec (the `=== path [category] (priority: N) ===` headers above are its format), and the factory enforces a provider-aware budget — about 24K characters for local models, 400K for large-context cloud models — so a small context window gets the highest-priority items rather than a truncated dump of everything.
 
-### Quick Start
+The budget creates the discipline's central trade-off: context you include crowds out context you can't. The [case study](/blog/posts/agentic-software-engineering-case-study.html) hits this exactly — the model hallucinated a `jwt/v5` API that two lines of dependency documentation in context would have prevented, but those lines were never written, and at a 24K budget the library's real docs don't fit incidentally. When generation fails on a knowable fact, the cheapest fix in the whole system is usually a few lines of context.
 
-```bash
-# Initialize a project with ADR context
-asf init
+## Open Loop vs. Closed Loop, Summarized
 
-# Load and display context
-asf context
+The experiment above is the whole argument: same model, same ask, and the difference between a tutorial artifact and an operable service was one well-written constraint document. Context is also the discipline with the best cost profile — ADRs are written once and constrain every future generation, while prompt fixes are paid per attempt.
 
-# See how many context items are loaded
-# Configure ADRs in docs/ directory
-# Re-run to see closed-loop behavior
-```
-
-### Next: Specification Engineering
-
-In the next post, we'll explore **Specification Engineering** — how to replace vague English prompts with precise, machine-readable specifications using the Plan-Build-Verify cycle. We'll introduce the `pkg/spec` package and demonstrate how specifications serve as the single source of truth for agent generation.
+The [next post](/blog/posts/agentic-software-engineering-specs.html) covers the second input to every generation: replacing the English ask itself with a machine-readable specification.
 
 ---
 
-*All code examples are in Go 1.23+. Diagrams use white-background Archify for presentation-ready architecture visualizations.*
+*Both generated artifacts in this post are verbatim, compiled outputs from a single real session (qwen3.6 via Ollama); timings and token counts are measured. Engine output is from the companion factory codebase (Go 1.23+).*

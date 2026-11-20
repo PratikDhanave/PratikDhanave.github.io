@@ -4,384 +4,97 @@
 
 ---
 
-## The Problem: The Team-Agent Gap
+## The Problem: The Private Superpower
 
-Most organizations treat agentic workflows as individual tools rather than team infrastructure. This creates several gaps:
+In most organizations, agentic development arrives as a personal tool: one developer gets dramatically faster, their prompts and hard-won context live in a private chat history, and when they go on holiday the capability goes with them. Nothing about the previous seven posts' machinery — specs, context, verification, the factory — automatically makes any of it a *team* asset.
 
-| Gap | Description | Impact |
-|-----|-------------|--------|
-| **PR Review** | No automated agent-assisted code review | Manual review bottlenecks, inconsistent quality |
-| **Shared Context** | No team-level context repository | Context silos, duplicated effort, inconsistent standards |
-| **Git Integration** | No agent-assisted git hooks | Missed verification, forgotten checks |
-| **Metrics** | No team-level analytics | No visibility into agent effectiveness |
-| **Onboarding** | New developers learn agent workflows ad hoc | Slow ramp-up, inconsistent onboarding |
+The team operating model is the set of decisions that turn it into one. Most of them are not new infrastructure; they're about where existing artifacts live and which existing chokepoints run the machinery. This post is concrete about which parts the companion codebase implements today and which parts are team practice you build with ordinary git and CI.
 
-**The reality**: Teams using agents report:
-- 30% faster cycle times when agents are integrated into CI
-- But 45% report inconsistent review quality without standardized processes
-- And 55% report difficulty onboarding new developers to agent workflows
+## The Shared Context Is the Repository
 
-## The Team Operating Model
+The single most consequential decision is also the simplest: **the agent's context lives in the repo, not in anyone's head.** The context engine ([post 2](/blog/posts/agentic-software-engineering-context.html)) walks `docs/` and `specs/` in the working tree — which means the "shared context repository" isn't a new system to stand up. It's a convention about the one you have:
 
-**The Team Operating Model** integrates agentic workflows into existing team software development processes. It treats the factory as team infrastructure, not individual tools.
-
-### The Model Dimensions
-
-| Dimension | Description | Team Impact |
-|-----------|-------------|-------------|
-| **Git Integration** | Agent-assisted git hooks and PR workflows | Automated verification before merge |
-| **Shared Context** | Team-level ADRs, specs, patterns | Consistent context across all developers |
-| **Code Review** | Agent-generated review comments and summaries | Faster reviews, consistent quality |
-| **Metrics** | Team-level analytics and KPIs | Data-driven improvement decisions |
-| **Onboarding** | Structured onboarding with agent guidance | Faster ramp-up, consistent onboarding |
-| **Deployment** | Agent-supervised deployments | Reduced deployment risk |
-
-### Git Hook Integration
-
-```go
-// pkg/team/git_hooks.go — Agent-assisted git hooks
-func PreCommitHook(workingDir string) error {
-    // Run ASF verification before commit
-    verifier := verify.NewVerificationEngine(workingDir)
-    ctx := context.Background()
-    result, err := verifier.RunVerification(ctx, "")
-    
-    if err != nil {
-        return fmt.Errorf("verification failed: %w", err)
-    }
-    
-    if !result.Success {
-        // Generate feedback for agent revision
-        fixPrompt := verify.GenerateFixPrompt(result, "")
-        // In real implementation, send to agent for revision
-        fmt.Println("Pre-commit verification failed:")
-        fmt.Println(fixPrompt)
-        return fmt.Errorf("pre-commit verification failed")
-    }
-    
-    fmt.Println("✓ Pre-commit verification passed")
-    return nil
-}
+```text
+docs/        ADR-001-Example.md, ...     # constraints, priority 100
+specs/       auth-service.yaml, ...      # machine-readable intent, priority 90
+pkg/, cmd/   source code                 # patterns, priority 50
 ```
+
+This has a compounding property that private prompting can't match: when one developer writes an ADR to fix an agent failure (the case study's jwt/v5 hallucination is the canonical example — two lines of dependency notes would have prevented it), *every teammate's* future generations inherit the fix. Context improvements are commits; they're reviewed, versioned, and they never leave with an employee. The practical rule that follows: **ADRs and specs go through pull requests like code**, because they now *are* code — they program the agents.
+
+The same logic makes spec review the team's highest-leverage review activity. A flawed function fails once; a flawed spec generates flawed artifacts for everyone until someone notices.
+
+## Verification at the Chokepoints
+
+The verification pipeline ([post 4](/blog/posts/agentic-software-engineering-verification.html)) becomes a team property the moment it runs where the team already converges: commits and PRs. The pre-commit hook is three honest lines — `asf verify` is a single static binary, so there's no toolchain ceremony:
 
 ```bash
-# .git/hooks/pre-commit (example)
-#!/bin/bash
-asf verify || { echo "Pre-commit verification failed"; exit 1; }
-echo "✓ Verification passed"
+#!/bin/sh
+# .git/hooks/pre-commit
+exec ./asf verify
 ```
 
-### PR Review Automation
-
-```go
-// pkg/team/pr_review.go — Agent-assisted PR review
-func GeneratePRReview(prID string, diffContent string) *ReviewResult {
-    // Parse the PR diff
-    // Generate agent analysis
-    // Run verification on changed code
-    // Format review comments
-    
-    return &ReviewResult{
-        Summary:        "Overall assessment",
-        Positives:      []string{"Good use of idioms", "Proper error handling"},
-        Improvements:   []string{"Add more tests", "Refactor nested functions"},
-        Approve:        false,
-        RequestChanges: true,
-    }
-}
-```
+And CI runs the same gate on every PR with a perfectly ordinary workflow:
 
 ```yaml
-# .github/workflows/asf-review.yml — GitHub Actions for ASF review
-name: ASF Code Review
+# .github/workflows/verify.yml
+name: verify
 on: [pull_request]
-
 jobs:
-  review:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version: '1.23' }
-      - run: go install github.com/PratikDhanave/agentic-software-factory-go/cmd/asf@latest
-      - run: asf harness run "${{ github.event.pull_request.title }}"
-      - run: asf factory submit review "${{ github.event.pull_request.title }}"
-      - comment: "ASF review completed"
+        with: { go-version: "1.23" }
+      - run: go build -o asf ./cmd/asf
+      - run: ./asf verify
 ```
 
-### Shared Context Repository
+Nothing clever — deliberately. The point is *which* check runs at the chokepoint, not the plumbing around it. One field note from dogfooding: the first time a team wires this up, expect the gate to fail on the existing codebase (the factory's own repo surfaced 50 standing lint findings when its parser started working). Budget for that cleanup; a gate the team routinely bypasses is worse than no gate.
+
+## Agent-Assisted Review: What Exists
+
+The factory implements a `review` task type today. It assembles the same spec + context prompt as generation, with a review instruction whose design is worth copying — it explicitly tells the model *not* to self-censor:
 
 ```go
-// pkg/team/shared_context.go — Team-level context management
-type TeamContext struct {
-    ADRs       []ADR       `json:"adrs"`
-    Specs      []SpecSummary `json:"specs"`
-    Patterns   []PatternSummary `json:"patterns"`
-    Conventions Conventions `json:"conventions"`
-    RecentChanges []RecentChange `json:"recent_changes"`
-}
-
-func (tc *TeamContext) LoadFromDisk(workingDir string) error {
-    // Load ADRs from docs/
-    // Load specs from specs/
-    // Load patterns from patterns/
-    // Load conventions from conventions.md
-    // Load recent changes from git log
-    return nil
-}
-
-func (tc *TeamContext) UpdateADR(adr *ADR) error {
-    // Add new ADR to the repository
-    // Update the context index
-    return nil
-}
-
-func (tc *TeamContext) AddSpec(s *SpecSummary) error {
-    // Add new specification
-    // Update the context index
-    return nil
-}
+instruction := "## Task: Code Review\nReview the project context below against " +
+	"the specification. Report every issue you find, including ones you are " +
+	"uncertain about or consider low-severity — a downstream step filters by " +
+	"importance. For each finding include file, severity, and a concrete fix.\n\n"
 ```
 
-### Team Context Repository Structure
+That one sentence encodes a real lesson about LLM reviewers: models filter aggressively toward confident findings unless told otherwise, and you want the filtering to happen downstream where a human sets the threshold, not inside the model where nobody sees what was dropped.
 
-```
-shared-context/
-  adrs/
-    ADR-001-Architecture-Decision-Record.md
-    ADR-002-Database-Selection.md
-    ...
-  specs/
-    user-crud.yaml
-    authentication.yaml
-    ...
-    patterns/
-      repository-pattern.yaml
-      authentication-pattern.yaml
-      ...
-  conventions/
-    coding-conventions.md
-    git-convention.md
-    commit-convention.md
-    pull-request-convention.md
-  recent-changes/
-    git log --since="7 days" --oneline
-    changed_files.json
-    review_metrics.json
-```
+Review tasks launch like any factory task (`POST /api/factory/launch/review`, or the dashboard) and their findings land on the task record. What does **not** exist yet: automatic posting of findings as PR comments. Today the wiring from "review task result" to "comment on GitHub PR" is a human or a script you write; the `pkg/integration` adapters for GitHub, Slack, Teams, and Linear model webhooks and connection state and compile, but are not wired to live credentials — the honest status (`asf integration list` currently prints an empty registry). Treat agent review as a *pre-reviewer* that drafts findings for the human reviewer, which — given the case study's judge-approved-but-uncompilable artifact — is where it belongs on the autonomy ladder ([post 6](/blog/posts/agentic-software-engineering-autonomy.html)) anyway.
 
-### Agent-Assisted Code Review
+## Onboarding: The Spec Directory Is the Curriculum
 
-```go
-// Review result structure
-type ReviewResult struct {
-    Summary         string   `json:"summary"`
-    Positives       []string `json:"positives"`
-    Improvements    []string `json:"improvements"`
-    Approve         bool     `json:"approve"`
-    RequestChanges  bool     `json:"request_changes"`
-    SuggestedReviewers []string `json:"suggested_reviewers,omitempty"`
-    AutonomyLevel   string   `json:"autonomy_level,omitempty"`
-    VerificationResult *VerificationResult `json:"verification_result,omitempty"`
-}
+A side effect of spec-driven work: the onboarding path writes itself, out of artifacts that are maintained *because the factory needs them*, not as documentation homework.
 
-func (r *ReviewResult) GetApproveStatus() string {
-    if r.Approve {
-        return "APPROVE"
-    } else if r.RequestChanges {
-        return "REQUEST_CHANGES"
-    }
-    return "COMMENT"
-}
-```
+1. **Read `docs/` and `specs/`** — the ADRs say how we build and why; the specs say what the system is supposed to do. Unlike a wiki, these can't rot silently: the machinery executes them daily.
+2. **Run `./asf verify`** — see the team's quality gate pass on a fresh clone (and learn the project builds green on day one).
+3. **Run `./asf spec generate <some-spec>`** — read exactly what an agent gets told; this teaches the house style of constraints faster than any style guide.
+4. **Author a small spec, run it through the factory, review the artifact** — the full loop, supervised, on something low-risk.
 
-### Agent-Generated PR Comments
+A new developer who has done those four things understands the team's actual operating model — not a stale onboarding doc's description of it.
 
-```go
-// Generate individual review comments
-func GenerateReviewComments(diffHunk *DiffHunk) []ReviewComment {
-    comments := []ReviewComment{}
-    
-    // Check for lint issues
-    if hasLintIssues(diffHunk) {
-        comments = append(comments, ReviewComment{
-            Path:        diffHunk.NewFilePath,
-            Line:        diffHunk.NewStartLine,
-            Side:        "RIGHT",
-            Path:        diffHunk.NewFilePath,
-            Body:        "// TODO: Fix lint issue - run `asf verify`",
-            Path:        diffHunk.NewFilePath,
-        })
-    }
-    
-    // Check for constraint violations
-    if hasConstraintViolations(diffHunk) {
-        comments = append(comments, ReviewComment{
-            Path:        diffHunk.NewFilePath,
-            Line:        diffHunk.NewStartLine,
-            Side:        "RIGHT",
-            Body:        "// TODO: Fix constraint violation - check specification",
-        })
-    }
-    
-    // Check for best practices
-    if !followsIdioms(diffHunk) {
-        comments = append(comments, ReviewComment{
-            Path:        diffHunk.NewFilePath,
-            Line:        diffHunk.NewStartLine,
-            Side:        "RIGHT",
-            Body:        "// TODO: Follow Go idioms - see coding-conventions.md",
-        })
-    }
-    
-    // Positive feedback
-    if isWellWritten(diffHunk) {
-        comments = append(comments, ReviewComment{
-            Path:        diffHunk.NewFilePath,
-            Line:        diffHunk.NewStartLine,
-            Side:        "RIGHT",
-            Body:        "// Well written - follows team conventions",
-            Path:        diffHunk.NewFilePath,
-        })
-    }
-    
-    return comments
-}
-```
+## What to Measure (From Data You Already Have)
 
-### Onboarding New Developers
+Skip the KPI wall. The factory's task store ([post 11](/blog/posts/agentic-software-engineering-ops.html)) already records per task: type, attempts, judge score, verification outcome, duration. Three questions it can answer honestly, team-wide:
 
-```go
-// pkg/team/onboarding.go — Developer onboarding with agent guidance
-func OnboardNewDeveloper(workingDir string, developerExperience string) (*OnboardingResult, error) {
-    // 1. Load team context
-    teamCtx := loadTeamContext(workingDir)
-    
-    // 2. Generate personalized onboarding spec
-    onboardingSpec := generateOnboardingSpec(teamCtx, developerExperience)
-    
-    // 3. Run initial verification
-    verifier := verify.NewVerificationEngine(workingDir)
-    ctx := context.Background()
-    initialResult, err := verifier.RunVerification(ctx, "")
-    
-    // 4. Create onboarding task plan
-    taskPlan := createOnboardingTaskPlan(initialResult, onboardingSpec)
-    
-    return &OnboardingResult{
-        PersonalizedSpec: onboardingSpec,
-        InitialVerification: initialResult,
-        TaskPlan:         taskPlan,
-    }
-}
-```
+- **Is quality drifting?** Judge-score trend per spec family.
+- **Where does the loop thrash?** Attempt counts by spec — persistent 2+-attempt specs are context or spec problems with a name attached, which converts "the agent is flaky" arguments into "this spec needs work" tickets.
+- **Is the gate holding?** Verification pass rate at the PR chokepoint over time.
 
-```markdown
-# Onboarding Checklist
+Resist inventing targets for these on day one; collect a month of baseline first. (The temptation to publish a dashboard of invented targets is exactly the failure mode this series keeps warning about — numbers nobody measured, driving decisions nobody can defend.)
 
-## Week 1: Foundation
-- [ ] Read team ADRs (ADR-001 through ADR-010)
-- [ ] Understand team specifications (specs/user-crud.yaml, specs/authentication.yaml)
-- [ ] Run `asf verify` on existing codebase
-- [ ] Successfully pass verification on first attempt
-- [ ] Clone the shared context repository
+## The Operating Model in One Paragraph
 
-## Week 2: Agent Workflows
-- [ ] Set up ASF CLI: `asf init`
-- [ ] Learn the ASF commands: `asf verify`, `asf harness`, `asf factory`
-- [ ] Run your first harness: `asf harness run user-crud`
-- [ ] Review the harness results and fix any issues
-- [ ] Run `asf factory submit generate user-crud`
+Context and specs live in the repo and go through PR review, because they program the agents. Verification runs at the chokepoints the team already has. Agent review drafts findings; humans decide. Onboarding is reading and running the artifacts the system already maintains. And the factory's task history — not anecdotes — is the evidence base for tuning any of it. None of this requires new infrastructure beyond the factory itself; it requires the team agreeing that these artifacts are now load-bearing.
 
-## Week 3: Integration
-- [ ] Set up git hooks: `asf install-hooks`
-- [ ] Configure PR review: `asf factory submit review feature-x`
-- [ ] Learn the onboarding spec
-- [ ] Complete 3 successful harness runs
-- [ ] Provide feedback on the onboarding experience
-
-## Week 4: Productivity
-- [ ] Configure personalized autonomy settings
-- [ ] Run 5 successful harness runs independently
-- [ ] Provide feedback on the onboarding program
-- [ ] Begin contributing with agent assistance
-- [ ] Complete the onboarding program and become a full team member
-```
-
-### Metrics and KPIs
-
-| Metric | Target | Calculation |
-|--------|--------|------------|
-| PR Merge Time | ≤ 24 hours | (merged_at - created_at) average |
-| Verification Pass Rate | ≥ 95% | (successful verifications / total verifications) × 100 |
-| Agent-Assisted PRs | ≥ 50% | (PRs with agent review / total PRs) × 100 |
-| Onboarding Time | ≤ 2 weeks | Days from start to first successful harness run |
-| Context Coverage | ≥ 90% | (ADRs + specs loaded / total ADRs + specs) × 100 |
-| Defect Escape Rate | ≤ 2% | (defects found in production / total defects) × 100 |
-| Developer Satisfaction | ≥ 4/5 | Survey score |
-
-### The Team Operating Model in Practice
-
-```mermaid
-flowchart LR
-    A[Developer] -->|Creates PR| B[Git Platform]
-    B -->|Triggers| C[ASF Harness]
-    C -->|Loads Context| D[Team Context Repository]
-    C -->|Runs Verification| E[Verification Engine]
-    C -->|Generates Feedback| F[Agent Feedback]
-    D -->|Updates Context| G[Team Knowledge Base]
-    E -->|Passes| H[Merge Decision]
-    E -->|Fails| I[Agent Feedback]
-    F -->|Agent Revises| C[Code Revision]
-    H -->|Merge| I[Production]
-    I -->|Deploy| J[Production Monitoring]
-    G -->|Feeds Back| D[Team Context]
-```
-
-### Why the Team Operating Model Matters
-
-| Concern | Without Model | With Model |
-|---------|--------------|------------|
-| **PR Quality** | Inconsistent, manual | Consistent, automated |
-| **Onboarding** | 2-4 weeks, variable | 1 week, structured |
-| **Context Silos** | Context scattered | Centralized, shared |
-| **Review Speed** | Days per PR | Hours per PR |
-| **Team Scaling** | Hard to scale beyond 5 developers | Scales to any team size |
-| **Knowledge Retention** | Lost when developers leave | Preserved in context repo |
-| **Continuous Improvement** | Ad hoc, reactive | Data-driven, iterative |
-
-### Quick Start
-
-```bash
-# Initialize team operating model
-asf init
-
-# Install git hooks
-asf install-hooks
-
-# Run first harness
-asf harness run user-crud
-
-# Configure team context
-# Add ADRs to docs/
-# Add specs to specs/
-# Run `asf context` to verify context loads
-
-# Monitor metrics
-asf factory status
-
-# The team will automatically:
-# 1. Run verification on all PRs
-# 2. Provide agent-assisted code review
-# 3. Maintain shared context repository
-# 3. Track team-level metrics
-# 4. Enable faster onboarding
-```
-
-### Next: Developer Workflow
-
-In the next post, we'll explore **Developer Workflow** — the daily loop for developers working with agents, including spec authoring, the daily development loop, and prompt engineering patterns.
+The [next post](/blog/posts/agentic-software-engineering-workflow.html) zooms back in to the individual: what the daily developer loop looks like when this model is in place.
 
 ---
 
-*All code examples are in Go 1.23+. Diagrams use white-background Archify for presentation-ready architecture visualizations.*
+*All code, command output, and prompts in this post are from the companion factory codebase (Go 1.23+); the CI workflow and pre-commit hook are the straightforward wiring shown, not product features.*

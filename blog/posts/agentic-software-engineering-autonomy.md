@@ -8,301 +8,89 @@
 
 ## The Problem: Fixed Autonomy Levels
 
-Most agentic systems use a **fixed autonomy model**:
+Discussions of coding agents usually assume a fixed autonomy ladder:
 
-- **Level 0**: Developer writes all code (no agent involvement)
-- **Level 1**: Agent suggests completions, developer approves
-- **Level 2**: Agent generates functions, developer reviews
-- **Level 3**: Agent implements features, developer validates
-- **Level 4**: Agent owns features end-to-end, human on exception
+- **Level 0** — developer writes all code
+- **Level 1** — agent suggests, developer approves each piece
+- **Level 2** — agent generates functions, developer reviews
+- **Level 3** — agent implements features, developer validates the result
+- **Level 4** — agent owns work end-to-end, human on exception
 
-**The problem**: Fixed levels ignore critical variables:
+Teams pick a rung and stay there. That's wrong in both directions at once: level 2 everywhere means a senior team hand-reviews logging utilities forever, and level 4 everywhere means the payment path gets the same oversight as the README generator. The autonomy a task deserves depends on variables that differ *per task* — how risky it is, how good the context is, and what the track record says — so the level should be computed, not configured.
 
-| Variable | Why It Matters |
-|----------|----------------|
-| **Task Risk** | High-risk tasks (financial, healthcare) need more oversight |
-| **Context Quality** | Poor context → less autonomy needed |
-| **Agent Confidence** | Low-confidence outputs need more review |
-| **Historical Success** | Teams with good track records can have higher autonomy |
-| **Domain Criticality** | Core business logic needs more oversight than utility code |
+Before the framework, a transparency note: this post is the series' most design-forward. The factory implements autonomy as a handful of concrete gates (shown below with real values); the full scoring model is a framework for reasoning and a roadmap, not shipped code. The post is explicit about which is which.
 
-**The result**: Either too much autonomy (risking errors in critical systems) or too little (stifling productivity in low-risk areas).
+## AEMM: Autonomy as a Computed Property
 
-## The Solution: AEMM Maturity Model
+The **Autonomous Engineering Maturity Model** scores four dimensions per task, each 0–100:
 
-**AEMM** (Autonomous Engineering Maturity Model) dynamically adjusts autonomy based on measurable factors, not fixed levels.
+| Dimension | What it measures | What moves it |
+|-----------|------------------|---------------|
+| **Risk** | Blast radius if the agent is wrong | Auth/payment surfaces, data sensitivity, novelty of the stack |
+| **Context quality** | How well-specified the operating environment is | ADR coverage, spec completeness, established code patterns |
+| **Agent confidence** | How reliable generation is for this kind of task | Historical judge scores, verification pass rates for similar specs |
+| **History** | The track record of this team + factory configuration | Verified-success rate over recent tasks |
 
-### The Four AEMM Dimensions
-
-| Dimension | Scale | What It Measures |
-|-----------|-------|------------------|
-| **Risk Score** | 0-100 | Task criticality, data sensitivity, business impact |
-| **Context Quality** | 0-100 | ADR coverage, spec completeness, code pattern maturity |
-| **Agent Confidence** | 0-100 | Model confidence scores, historical accuracy |
-| **History Success Rate** | 0-100 | Team's past verification success rate |
-
-### The Elastic Loop Formula
-
-```
-Autonomy Score = (Context Quality + Agent Confidence + History Success Rate - Risk Score) / 3
-```
-
-```
-Autonomy Level = f(Autonomy Score)
-```
-
-```
-Autonomy Level Mapping:
-  80-100: Level 4 (Autonomous - with monitoring)
-  60-79:  Level 3 (Managed - validation required)
-  40-59:  Level 2 (Supervised - review required)
-  20-39:  Level 1 (Assisted - approval required)
-  0-19:   Level 0 (Manual - developer writes all code)
-```
-
-### Risk Scoring Matrix
-
-| Risk Factor | Score Contribution | Example |
-|-------------|-------------------|---------|
-| Financial data | +30 | Payment processing, personal data |
-| Healthcare data | +40 | HIPAA-regulated, patient records |
-| Core business logic | +20 | Core revenue features |
-| Utility code | +5 | Logging, metrics, reporting |
-| External API integration | +15 | Third-party services |
-| New technology | +25 | Unproven Go version, new library |
-| Critical security surface | +35 | Authentication, authorization |
-| Simple CRUD operations | +5 | Create/Read/Update/Delete |
-
-### Context Quality Scoring
-
-| Factor | Score Contribution | Example |
-|--------|-------------------|---------|
-| ADRs present | +25 | Full ADR set documented |
-| Specifications complete | +20 | Full spec with all fields |
-| Code patterns mature | +15 | Established Go idioms |
-| Tests existing | +15 | Verification suite in place |
-| Documentation complete | +10 | All docs written |
-| No critical gaps | +15 | No missing information |
-
-### Agent Confidence Scoring
-
-| Source | Score Contribution | Example |
-|--------|-------------------|---------|
-| Model confidence | +20 | Model's internal probability |
-| Historical accuracy | +25 | Team's past success rate |
-| Test coverage | +20 | Verification suite coverage |
-| Lint compliance | +15 | Code passes all lint checks |
-| Specification compliance | +20 | Code follows all specs |
-
-### History Success Rate
-
-```
-History Success Rate = (Successful Deployments / Total Deployments) × 100
-
-Example: 27/30 deployments successful = 90% success rate
-```
-
-### Autonomy Calibration in Practice
+The **Elastic Loop** collapses them into a score and a level — elastic because the inputs are re-measured as evidence accumulates, so autonomy drifts up as context and track record improve, and snaps down when failures arrive:
 
 ```go
-// pkg/autonomy/calibration.go — Dynamic autonomy calculation
-func CalculateAutonomy(risk, contextQuality, confidence, history float64) (score float64, level string) {
-    // Calculate autonomy score
-    score = (contextQuality + confidence + history - risk) / 3
-    
-    // Clamp to valid range
-    if score < 0 {
-        score = 0
-    }
-    if score > 100 {
-        score = 100
-    }
-    
-    // Determine autonomy level
-    switch {
-    case score >= 80:
-        level = "Level 4: Autonomous (with monitoring)"
-    case score >= 60:
-        level = "Level 3: Managed (validation required)"
-    case score >= 40:
-        level = "Level 2: Supervised (review required)"
-    case score >= 20:
-        level = "Level 1: Assisted (approval required)"
-    default:
-        level = "Level 0: Manual (developer writes all code)"
-    }
-    
-    return score, level
+// Design sketch — the scoring model as code. The factory does not ship
+// this function yet; its current gates are the concrete knobs below.
+func CalculateAutonomy(risk, contextQuality, confidence, history float64) (float64, int) {
+	score := (contextQuality + confidence + history - risk) / 3
+	score = math.Max(0, math.Min(100, score))
+
+	switch {
+	case score >= 80:
+		return score, 4 // autonomous, monitored
+	case score >= 60:
+		return score, 3 // managed: human validates results
+	case score >= 40:
+		return score, 2 // supervised: human reviews code
+	case score >= 20:
+		return score, 1 // assisted: human approves each step
+	default:
+		return score, 0 // manual
+	}
 }
 ```
 
-### Dynamic Autonomy Adjustment
+The formula's exact weights matter less than its structure: **context quality and track record buy autonomy; risk spends it.** A high-risk task on a well-specified, well-tracked codebase can earn more freedom than a trivial task in an undocumented one — which matches engineering intuition and is exactly what fixed levels can't express.
 
-```go
-// pkg/autonomy/elastic_loop.go — Elastic Loop framework
-type ElasticLoop struct {
-    riskScore          float64
-    contextQuality     float64
-    agentConfidence    float64
-    historySuccess     float64
-    autonomyLevel      string
-    lastCalculated     time.Time
-    calibrationInterval time.Duration
-}
+## The Autonomy Knobs That Exist Today
 
-// Recalibrate autonomy based on current metrics
-func (el *ElasticLoop) Recalibrate(risk, contextQuality, confidence, history float64) {
-    el.riskScore = risk
-    el.contextQuality = contextQuality
-    el.agentConfidence = confidence
-    el.historySuccess = history
-    
-    score, level := CalculateAutonomy(risk, contextQuality, confidence, history)
-    el.autonomyLevel = level
-    el.lastCalculated = time.Now()
-    
-    // Log calibration
-    logAutonomyCalibration(el)
-    
-    // Trigger autonomy adjustment
-    el.adjustAutonomy()
-}
+The factory's implemented autonomy surface is small, concrete, and real — these are the actual defaults from the running system:
 
-// Adjust autonomy based on new level
-func (el *ElasticLoop) adjustAutonomy() {
-    switch el.autonomyLevel {
-    case "Level 4: Autonomous (with monitoring)":
-        el.enableFullAgentAutonomy()
-    case "Level 3: Managed (validation required)":
-        el.enableManagedAutonomy()
-    case "Level 2: Supervised (review required)":
-        el.enableSupervisedAutonomy()
-    case "Level 1: Assisted (approval required)":
-        el.enableAssistedAutonomy()
-    case "Level 0: Manual (developer writes all code)":
-        el.disableAgentAutonomy()
-    }
-}
-```
+- **Judge threshold (0.75).** Every LLM generate task is scored by an LLM judge ([post 11](/blog/posts/agentic-software-engineering-ops.html)); output below threshold is regenerated with the judge's feedback. Raising the threshold is reducing autonomy: more output gets sent back before a human ever sees it.
+- **Judged attempts (`ASF_EVAL_MAX_ATTEMPTS`, default 2)** and **harness retries (default 3).** Bounded loops are an autonomy decision: how long the system may thrash unattended before a human must look.
+- **Per-agent capabilities in `factory.yaml`.** The factories-as-code definition ([post 10](/blog/posts/agentic-software-engineering-factory.html)) assigns each agent a role, a model, and a capability list (`["generate", "refactor"]` vs `["verify"]`) — coarse-grained autonomy by construction: an agent can't do what it was never wired to do.
+- **RBAC tool allowlists.** `pkg/security` ([next post](/blog/posts/agentic-software-engineering-security.html)) gives the `agent` role `write_file` but not `spawn_agent`; the `validator` role gets neither. Tool access *is* autonomy, enforced at the lowest level.
 
-### Autonomy Calibration Workflow
+Mapping these onto AEMM: today's factory runs a fixed policy equivalent to level 3 for generation (agent produces, judge validates, human reviews the artifact) with level-controlling knobs set globally rather than per task. The designed next step — computing risk from spec metadata and feeding judge-score history into per-task gating — has an obvious home: the task record already persists attempts, scores, and outcomes to SQLite, so the `history` input is being collected every run.
 
-```mermaid
-flowchart TD
-    A[Start Loop] --> B[Collect Metrics]
-    B --> C[Calculate Autonomy Score]
-    C --> D{Is score stable?}
-    D -->|Yes| D[Adjust Autonomy Level]
-    D -->|No| E[Wait for More Data]
-    E --> B
-    D --> F[Trigger Autonomy Adjustment]
-    F --> G[Update Agent Configuration]
-    G --> F
-    F --> H[Monitor Next N Tasks]
-    H --> I{Outcomes Stable?}
-    I -->|Yes| J[Lock Autonomy Level]
-    I -->|No| K[Re-calibrate]
-    K --> B
-```
+## What the Case Study Says About Where Gates Belong
 
-### Autonomy Calibration in the Factory
+The framework is theory; the series' [case study](/blog/posts/agentic-software-engineering-case-study.html) produced data, and it bears directly on calibration:
 
-```go
-// factory/autonomy.go — Factory integration
-func (fo *FactoryOrchestrator) CalculateTaskAutonomy(task *Task) string {
-    // Gather metrics for this task
-    risk := fo.calculateTaskRisk(task)
-    contextQuality := fo.calculateContextQuality(task.SpecID)
-    confidence := fo.calculateAgentConfidence(task)
-    history := fo.getTeamHistorySuccessRate()
-    
-    score, level := CalculateAutonomy(risk, contextQuality, confidence, history)
-    
-    // Store autonomy metadata in task
-    task.AutonomyLevel = level
-    task.AutonomyScore = score
-    
-    // Persist autonomy metadata
-    _ = fo.persistence.SaveTask(ctx, &persistence.TaskRecord{
-        ID:        task.ID,
-        Type:      task.Type,
-        SpecID:    task.SpecID,
-        Priority:  task.Priority,
-        Status:    task.Status,
-        AssignedTo: task.AssignedTo,
-        CreatedAt: task.CreatedAt,
-        Retries:   task.Retries,
-    })
-    
-    return level
-}
-```
+- The LLM judge passed an artifact at 0.91 that failed `go build` — the generating model and the judging model shared the same blind spot (a hallucinated API, specifically *praised* by the judge). **Judge approval alone cannot anchor high autonomy**; the toolchain gate is non-negotiable at every level above 0.
+- The converged artifact's tests all passed — and omitted the expired-token and reuse cases, the two highest-value scenarios in an auth package. Tests written by the generating model inherit its blind spots, so **"tests pass" earns less autonomy credit than it appears to.**
+- Convergence took four rounds, and only landed when a human put the exact correct API into the feedback. On a task where the model's training knowledge was stale, **effective autonomy was level 2 regardless of policy** — the system's real autonomy is capped by the weakest of its feedback loops, not by its configuration.
 
-### Autonomy Gates
+That last point is the practical heart of calibration: autonomy settings don't *create* capability, they *acknowledge* it. The way to raise a task's sustainable autonomy level is to improve the inputs AEMM scores — better context (the jwt/v5 cheat-sheet that would have prevented the hallucination), better specs, accumulated verified history — and let the score follow.
 
-The harness includes autonomy gates that prevent code generation beyond the calibrated level:
+## Calibration as Operating Practice
 
-```go
-// autonomy/gates.go — Autonomy gates
-func CheckAutonomyGate(task *Task, autonomyLevel string) bool {
-    // Current agent's maximum allowed level
-    maxAllowed := fo.GetMaxAutonomyLevel()
-    
-    // Parse the requested level
-    requestedLevel := ParseAutonomyLevel(autonomyLevel)
-    
-    // Check if requested level exceeds maximum allowed
-    return requestedLevel <= maxAllowed
-}
-```
+Until per-task scoring is wired, AEMM still earns its keep as the team's shared vocabulary for three recurring decisions:
 
-### Autonomy Calibration Dashboard
+1. **Which specs may run unattended in the factory?** Score them mentally on the four dimensions; anything touching auth, money, or data deletion stays human-validated (risk dominates) no matter how good the track record.
+2. **When does a knob move?** Change autonomy settings on evidence, not sentiment: a month of ≥0.85 judge scores on a spec family justifies raising `ASF_EVAL_MAX_ATTEMPTS`; a hallucination incident justifies a context fix *and* a temporary gate tightening on that dependency's surface.
+3. **Where does review attention go?** Reviewer minutes are the scarce resource autonomy allocates. Spend them where risk is high and history is thin; stop spending them where the pipeline has been green for months on low-risk surfaces.
 
-| Metric | Current | Target | Action |
-|--------|---------|--------|--------|
-| Average Autonomy Level | Level 2 (Supervised) | Level 3 (Managed) | Increase context quality |
-| Context Quality Score | 65/100 | 80/100 | Add more ADRs and specs |
-| Agent Confidence Score | 70/100 | 85/100 | Improve model selection |
-| History Success Rate | 80% | 95% | Improve verification practices |
-| Risk Distribution | See chart | N/A | Review high-risk tasks |
-
-### Why Autonomy Calibration Matters
-
-| Concern | Fixed Autonomy | Dynamic AEMM |
-|---------|---------------|----------------|
-| **Risk Management** | Fixed, regardless of task | Adaptive based on risk score |
-| **Productivity** | Too restrictive for low-risk tasks | Optimized per-task |
-| **Quality** | Inconsistent enforcement | Consistent via metrics |
-| **Team Growth** | Stagnates at current level | Gradual progression possible |
-| **Security** | Over-cautious or reckless | Balanced based on data |
-| **Team Scaling** | Hard to scale managers | System scales automatically |
-
-### Quick Start
-
-```bash
-# Initialize project with autonomy support
-asf init
-
-# The factory will automatically:
-# 1. Calculate autonomy for each task
-# 2. Apply autonomy gates during harness execution
-# 3. Adjust based on success/failure feedback
-# 4. Provide calibration dashboard
-
-# Monitor autonomy metrics
-asf factory status
-
-# Adjust autonomy settings
-# Configure in specs/autonomy.yaml or via MCP API
-```
-
-### Next: Security & Safety
-
-In the next post, we'll explore **Security & Safety** — prompt injection defense, sandbox execution, RBAC, and other production-grade safety mechanisms. We'll introduce `pkg/security` and demonstrate how to protect the factory from common agentic attack vectors.
+The [next post](/blog/posts/agentic-software-engineering-security.html) covers the floor under all of this — the security layer that holds whatever the autonomy level says, because an agent with `write_file` and a shell is an attack surface regardless of how well-calibrated its freedom is.
 
 ---
 
-*All code examples are in Go 1.23+. Diagrams use white-background Archify for presentation-ready architecture visualizations.*
+*Factory defaults and case-study data in this post are from real sessions with the companion codebase (Go 1.23+); the AEMM scoring function is presented explicitly as design, not shipped code.*
 
 ---
 

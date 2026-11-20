@@ -143,257 +143,93 @@
 
 
   <h2 id="the-problem-the-english-prompt-trap">The Problem: The English Prompt Trap</h2>
-<p>Most agentic workflows start with: <em>&ldquo;Build a REST API for user management with authentication, validation, and error handling.&rdquo;</em></p>
-<p><strong>The problem</strong>: This single sentence contains at least 7 ambiguities:
-1. What format for authentication? JWT? Session? OAuth2?
-2. What validation library? Go&rsquo;s native, validator, or custom?
-3. What error format? HTTP status codes? Problem details?
-4. Database schema? SQL? NoSQL? ORM?
-5. API style? REST? gRPC? GraphQL?
-6. Test coverage expectations?
-7. Documentation requirements?</p>
-<p><strong>The result</strong>: Every agent produces different code. No two implementations are alike. Debugging becomes impossible. Handoffs between developers require re-reading and re-understanding the original intent.</p>
-<h2 id="the-solution-specification-engineering">The Solution: Specification Engineering</h2>
-<p><strong>Specification Engineering</strong> replaces ambiguous English prompts with precise, machine-readable specifications. A good specification defines:</p>
-<ol>
-<li><strong>Intent</strong> — What the agent should accomplish</li>
-<li><strong>Constraints</strong> — Hard boundaries the agent MUST follow</li>
-<li><strong>Inputs</strong> — Required and optional parameters</li>
-<li><strong>Outputs</strong> — Expected return values and formats</li>
-<li><strong>Steps</strong> — Executable plan the agent should follow</li>
-<li><strong>Success Criteria</strong> — How to verify correctness</li>
-</ol>
-<h3 id="the-specification-lifecycle">The Specification Lifecycle</h3>
-<pre><code class="language-mermaid">flowchart LR
-    A[Vague Prompt] --&gt;|Spec Engine| B[Machine-Readable Spec]
-    B --&gt;|Agent Execution| C[Generated Code]
-    C --&gt;|Verification Loop| D[Test Results]
-    D --&gt;|Pass| E[Merge]
-    D --&gt;|Fail| F[Feedback → Spec Engine]
-    F --&gt;|Revise| B
-</code></pre>
-<h3 id="go-specification-format-yaml">Go Specification Format (YAML)</h3>
-<pre><code class="language-yaml"># specs/example.yaml
-id: &quot;spec-001&quot;
+<p>Most agentic workflows start with something like: <em>&ldquo;Build a REST API for user management with authentication, validation, and error handling.&rdquo;</em></p>
+<p>That one sentence hides at least seven open decisions — auth format, validation approach, error shape, storage, API style, test expectations, documentation — and the agent will make all seven for you, differently each time. The deeper problem isn&rsquo;t that the agent chooses badly; it&rsquo;s that the choices are <em>invisible</em>. Nothing records what was asked, so nothing can check what was delivered, and a teammate picking up the work has to reverse-engineer intent from the code.</p>
+<h2 id="specs-are-the-checkable-form-of-intent">Specs Are the Checkable Form of Intent</h2>
+<p><strong>Specification engineering</strong> moves the request from prose to a machine-readable document with six load-bearing parts: intent (goal, success criteria, anti-goals), constraints, typed inputs, typed outputs, a dependency-ordered step plan, and — through the <code>validator</code> notes on constraints — a pointer to how each promise gets checked.</p>
+<p>Here is the real spec format, from the authentication spec the <a href="/blog/posts/agentic-software-engineering-case-study.html">case study</a> later executes:</p>
+<pre><code class="language-yaml">id: &quot;auth-service-001&quot;
 version: &quot;1.0&quot;
-title: &quot;User CRUD API&quot;
-description: &quot;Implement a complete user CRUD API with authentication&quot;
+title: &quot;Authentication token package&quot;
 intent:
-  goal: &quot;Implement user creation, retrieval, update, and deletion with JWT authentication&quot;
-  context: &quot;Using PostgreSQL, JWT for auth, Go 1.23+&quot;
+  goal: &quot;Implement a Go package `auth` with password hashing (bcrypt),
+         HS256 JWT access-token issue/validate, and single-use rotating
+         refresh tokens&quot;
   success_criteria:
-    - &quot;All CRUD operations work correctly&quot;
-    - &quot;JWT tokens validate against secret key&quot;
-    - &quot;Input validation rejects invalid data&quot;
+    - &quot;HashPassword/CheckPassword wrap bcrypt with a work factor of at least 12&quot;
+    - &quot;ValidateAccessToken rejects expired tokens, bad signatures, and
+       tokens signed with none/other algorithms&quot;
   anti_goals:
-    - &quot;No plain text password storage&quot;
-    - &quot;No SQL injection vulnerabilities&quot;
-    - &quot;No unrestricted API access&quot;
+    - &quot;No plaintext storage of passwords or refresh tokens&quot;
+    - &quot;No global mutable state&quot;
 constraints:
-  - id: &quot;c1&quot;
-    type: &quot;must&quot;
-    description: &quot;All passwords MUST be hashed with bcrypt&quot;
-    validator: &quot;code to validate bcrypt usage&quot;
   - id: &quot;c2&quot;
-    type: &quot;must_not&quot;
-    description: &quot;API MUST reject requests without Authorization header&quot;
-    validator: &quot;middleware validation&quot;
+    type: &quot;must&quot;
+    description: &quot;JWTs use github.com/golang-jwt/jwt/v5 with
+                  SigningMethodHS256, and validation pins the algorithm&quot;
+    validator: &quot;jwt.Parse must use WithValidMethods or an explicit method check&quot;
 inputs:
-  user_creation:
-    type: &quot;object&quot;
-    description: &quot;User creation payload&quot;
-    required: [&quot;email&quot;, &quot;password&quot;, &quot;name&quot;]
-    properties:
-      email:
-        type: &quot;string&quot;
-        format: &quot;email&quot;
-        description: &quot;User's email address&quot;
-      password:
-        type: &quot;string&quot;
-        minLength: 8
-        description: &quot;User's password&quot;
-      name:
-        type: &quot;string&quot;
-        description: &quot;User's full name&quot;
+  secret:
+    type: &quot;[]byte&quot;
+    description: &quot;HMAC signing key for access tokens&quot;
+    required: true
 steps:
-  - id: &quot;s1&quot;
-    name: &quot;Create User Repository&quot;
-    description: &quot;Implement user repository with database operations&quot;
-    tool: &quot;go build&quot;
-    depends_on: []
-    validation: &quot;Repository compiles and passes go vet&quot;
-  - id: &quot;s2&quot;
-    name: &quot;Implement Authentication Middleware&quot;
-    description: &quot;Add JWT validation to all routes&quot;
-    tool: &quot;go build&quot;
-    depends_on: [&quot;s1&quot;]
-    validation: &quot;Middleware returns 401 for invalid tokens&quot;
   - id: &quot;s3&quot;
-    name: &quot;Create API Handlers&quot;
-    description: &quot;Implement CRUD handlers for user resource&quot;
-    tool: &quot;go build&quot;
-    depends_on: [&quot;s2&quot;]
-    validation: &quot;All handlers return correct HTTP status codes&quot;
-generated_prompt: |
-  You are a Go agent tasked with implementing a user CRUD API.
-  Follow the specification constraints above.
-  Generate code step by step, validating each step before proceeding.
+    name: &quot;Access tokens&quot;
+    depends_on: [&quot;s1&quot;]
+    validation: &quot;expired and tampered tokens rejected in tests&quot;
 </code></pre>
-<h3 id="specification-driven-vs-english-prompt-driven">Specification-Driven vs English-Prompt-Driven</h3>
-<table><caption class="sr-only">Specification-Driven vs English-Prompt-Driven</caption>
-<thead>
-<tr>
-<th>Aspect</th>
-<th>English Prompt</th>
-<th>Specification</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Ambiguity</td>
-<td>High (multiple interpretations)</td>
-<td>Low (explicit constraints)</td>
-</tr>
-<tr>
-<td>Reproducibility</td>
-<td>❌ Different code each time</td>
-<td>✅ Same code every time</td>
-</tr>
-<tr>
-<td>Testability</td>
-<td>❌ Hard to verify</td>
-<td>✅ Clear success criteria</td>
-</tr>
-<tr>
-<td>Handoff</td>
-<td>❌ Requires re-reading</td>
-<td>✅ Exact specification transferred</td>
-</tr>
-<tr>
-<td>Maintenance</td>
-<td>❌ Drifts over time</td>
-<td>✅ Version-controlled, explicit</td>
-</tr>
-<tr>
-<td>Agent consistency</td>
-<td>❌ Variable output</td>
-<td>✅ Predictable output</td>
-</tr>
-</tbody>
-</table>
-<h3 id="specification-driven-workflow">Specification-Driven Workflow</h3>
-<pre><code class="language-go">// pkg/spec/spec.go — Load and validate specifications
-specEngine := spec.NewSpecEngine(&quot;specs/&quot;)
+<p>Notice what the format forces. Success criteria must be phrased so something could check them. Anti-goals make the implicit explicit — &ldquo;no global mutable state&rdquo; is exactly the kind of standard an agent violates when it&rsquo;s merely unstated. And each constraint&rsquo;s <code>validator</code> names the proof, which keeps you from writing constraints that <em>sound</em> rigorous but can&rsquo;t be tested.</p>
+<h2 id="the-engine">The Engine</h2>
+<p><code>pkg/spec</code> is deliberately small: parse YAML into typed structs, validate structure, render a prompt. The structural validation catches real authoring mistakes before any model runs — a missing goal, or a step graph referencing steps that don&rsquo;t exist:</p>
+<pre><code class="language-go">func (e *SpecEngine) ValidateSpec(spec *Specification) []string {
+    var errors []string
 
-// Load all specifications
-specs, _ := specEngine.LoadAllSpecs()
-for id, s := range specs {
-    // Validate spec completeness
-    errors := specEngine.ValidateSpec(s)
-    if len(errors) &gt; 0 {
-        fmt.Printf(&quot;Spec %s has errors: %v\n&quot;, id, errors)
-    } else {
-        fmt.Printf(&quot;Spec %s is valid ✓\n&quot;, id)
+    if spec.ID == &quot;&quot; {
+        errors = append(errors, &quot;spec ID is required&quot;)
     }
-
-    // Generate agent prompt
-    prompt := specEngine.GeneratePrompt(s)
-    fmt.Println(&quot;--- Agent Prompt ---&quot;)
-    fmt.Println(prompt)
-    fmt.Println()
+    if spec.Intent.Goal == &quot;&quot; {
+        errors = append(errors, &quot;intent.goal is required&quot;)
+    }
+    // ... plus: every steps[].depends_on entry must name an existing step
+    return errors
 }
 </code></pre>
-<h3 id="code-generation-from-spec">Code Generation from Spec</h3>
-<pre><code class="language-go">// After specification is loaded and validated, the agent receives:
-prompt := specEngine.GeneratePrompt(s)
-
-// The agent then generates code step by step:
-// 1. Repository layer (database operations)
-// 2. Service layer (business logic)
-// 3. Handler layer (HTTP endpoints)
-// 4. Tests (verification)
-
-// After each step, the verification engine checks:
-result := verifier.RunVerification(ctx, &quot;&quot;)
-if result.Success {
-    // Proceed to next step
-} else {
-    // Feed errors back to agent for revision
-    fixPrompt := verify.GenerateFixPrompt(result, prompt)
-    // Agent revises code
-}
+<pre><code class="language-text">$ ./asf spec validate auth-service-001
+Spec auth-service-001 is valid!
 </code></pre>
-<h3 id="specification-versioning">Specification Versioning</h3>
-<p>Specifications, like code, evolve. The <code>spec</code> package supports:</p>
-<pre><code class="language-yaml"># Versioning in specs/factory.yaml
-factory:
-  version: &quot;1.0&quot;
-  agents:
-    - id: &quot;gen-agent&quot;
-      model: &quot;claude-sonnet-5&quot;
-  workflows:
-    - id: &quot;code-improvement&quot;
-      steps: [...]
+<p><code>GeneratePrompt</code> then renders the spec into exactly what the agent will read — constraints in MUST/MUST_NOT form, the numbered execution plan, the success criteria:</p>
+<pre><code class="language-text">## Constraints (MUST FOLLOW)
+MUST: Passwords are hashed with golang.org/x/crypto/bcrypt at cost &gt;= 12
+MUST: JWTs use github.com/golang-jwt/jwt/v5 with SigningMethodHS256, and
+      validation pins the algorithm
+...
+## Execution Plan
+1. **Define types and errors**
+2. **Password hashing** [depends on: s1]
+3. **Access tokens** [depends on: s1]
 </code></pre>
-<p>When specifications change:
-1. New version is tagged (e.g., <code>v1.1</code>)
-2. Old versions are preserved for regression testing
-3. Migration path is documented
-4. Backward compatibility is verified</p>
-<h3 id="why-specification-engineering-matters">Why Specification Engineering Matters</h3>
-<table><caption class="sr-only">Why Specification Engineering Matters</caption>
-<thead>
-<tr>
-<th>Benefit</th>
-<th>Impact</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Predictability</strong></td>
-<td>Same spec → Same code every time</td>
-</tr>
-<tr>
-<td><strong>Reproducibility</strong></td>
-<td>Exact specification enables exact reproduction</td>
-</tr>
-<tr>
-<td><strong>Handoff</strong></td>
-<td>Specification is the single source of truth</td>
-</tr>
-<tr>
-<td><strong>Maintenance</strong></td>
-<td>Version-controlled, explicit constraints</td>
-</tr>
-<tr>
-<td><strong>Agent Consistency</strong></td>
-<td>Predictable output from same input</td>
-</tr>
-<tr>
-<td><strong>Audit Trail</strong></td>
-<td>Change history tracked via spec versions</td>
-</tr>
-</tbody>
-</table>
-<h3 id="quick-start">Quick Start</h3>
-<pre><code class="language-bash"># Initialize project with spec support
-asf init
-
-# Create a new specification
-asf spec template specs/user-crud.yaml
-
-# Edit the specification
-# asf spec generate user-crud  # Generate agent prompt
-# asf spec validate user-crud  # Validate the spec
-# asf verify                    # Run verification
-
-# The specification is now the single source of truth
-# for all agent-generated code
+<p>The renderer is worth your attention because <strong>prompts are code</strong>. While dogfooding this engine I found that it printed every step with the same number — <code>len(spec.Steps)</code> where the loop index belonged — so every prompt it had ever produced listed the plan as &ldquo;6. 6. 6. 6. 6. 6.&rdquo; A trivial bug, invisible forever, because nobody reads assembled prompts unless the system makes them inspectable. (<code>asf spec generate &lt;id&gt;</code> exists precisely for that; so does the factory&rsquo;s prompt-only mode, which completes tasks by returning the fully assembled prompt instead of calling a model.)</p>
+<h2 id="what-specs-buy-stated-honestly">What Specs Buy — Stated Honestly</h2>
+<p>Earlier drafts of this post claimed &ldquo;same spec → same code every time.&rdquo; That&rsquo;s false, and the case study proves it: the same spec through the same model produced meaningfully different artifacts across retry rounds. LLMs are stochastic; a spec doesn&rsquo;t make generation deterministic.</p>
+<p>What a spec actually buys is narrower and more valuable:</p>
+<ul>
+<li><strong>It narrows the distribution.</strong> Constraints eliminate whole families of wrong output (plaintext passwords, unpinned JWT algorithms) regardless of sampling.</li>
+<li><strong>It makes output checkable.</strong> &ldquo;Did the agent comply?&rdquo; becomes a question the verification pipeline (<a href="/blog/posts/agentic-software-engineering-verification.html">next post</a>) and the LLM judge can answer per criterion — in the case study&rsquo;s real run, the judge scored spec-compliance lowest (0.85) and named the violated step.</li>
+<li><strong>It&rsquo;s the handoff artifact.</strong> The spec is version-controlled next to the code. Disagreements about what to build become diffs, not recollections.</li>
+<li><strong>It survives the agent.</strong> When a better model ships, you re-run specs; prompts trapped in chat histories die with them.</li>
+</ul>
+<p>One claim the format does <em>not</em> yet cash: the <code>validator</code> fields on constraints are prose notes, not executable checks — the pipeline&rsquo;s constraint-verification phase is a stub as of this writing (<a href="/blog/posts/agentic-software-engineering-verification.html">post 4</a> covers what is real). The honest status is: constraints are enforced today by the judge reading them and the human reviewing; mechanical enforcement is the designed next step.</p>
+<h2 id="authoring-workflow">Authoring Workflow</h2>
+<pre><code class="language-bash">./asf spec template specs/my-feature.yaml   # scaffold the format
+$EDITOR specs/my-feature.yaml               # fill in intent, constraints, steps
+./asf spec validate my-feature              # structural check
+./asf spec generate my-feature              # read what the agent will read
 </code></pre>
-<h3 id="next-ai-tdd-verification-loops">Next: AI-TDD Verification Loops</h3>
-<p>In the next post, we&rsquo;ll explore <strong>AI-TDD Verification Loops</strong> — how to automate build, test, lint, and constraint validation to prove agent-generated code is correct before merging. We&rsquo;ll introduce <code>pkg/verify</code> and demonstrate closed-loop feedback to the agent.</p>
+<p>Two field notes from using this daily. First, when generation goes wrong repeatedly, the fix is usually in the spec — a criterion that can&rsquo;t be checked, or a constraint the steps contradict. Treat spec revision as the normal response to agent failure, not an admission of defeat. Second, keep specs scoped to one reviewable artifact; the case-study spec deliberately asks for a single Go package with tests, not a deployed service, because a spec whose output you can&rsquo;t review in one sitting is a spec you can&rsquo;t verify.</p>
+<p>The <a href="/blog/posts/agentic-software-engineering-verification.html">next post</a> builds the machinery that holds generated code to what the spec promised: the AI-TDD verification pipeline.</p>
 <hr>
-<p><em>All code examples are in Go 1.23+. Diagrams use white-background Archify for presentation-ready architecture visualizations.</em></p>
+<p><em>All code and command output in this post is from the companion factory codebase (Go 1.23+) and real sessions against it.</em></p>
 
 
 <aside class="consult-cta" aria-label="Work with Pratik">

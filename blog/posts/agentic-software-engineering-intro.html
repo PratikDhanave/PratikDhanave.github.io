@@ -127,7 +127,7 @@
       <span>·</span>
       <time datetime="2026-11-02">November 02, 2026</time>
       <span>·</span>
-      <span>3 min read</span>
+      <span>4 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/agentic-engineering/" class="tag-link"><span class="tag">#Agentic Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-engineering/" class="tag-link"><span class="tag">#AI Engineering</span></a><a href="/blog/tags/context-engineering/" class="tag-link"><span class="tag">#Context Engineering</span></a><a href="/blog/tags/coding-agents/" class="tag-link"><span class="tag">#Coding Agents</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -141,157 +141,94 @@
 
 
   <h2 id="the-problem-vibe-coding-doesnt-scale">The Problem: Vibe Coding Doesn&rsquo;t Scale</h2>
-<p>We&rsquo;ve all seen it. An LLM generates impressive code in seconds. It compiles. It even runs. But three weeks later:</p>
-<ul>
-<li>The &ldquo;quick prototype&rdquo; is in production</li>
-<li>No tests exist for the generated paths</li>
-<li>The original prompt is lost to history</li>
-<li>No one knows <em>why</em> certain decisions were made</li>
-<li>Technical debt compounds silently</li>
-</ul>
-<p>This is <strong>vibe coding</strong> — treating AI as a magic code generator rather than an engineering tool. It works for throwaway scripts. It fails catastrophically for production systems.</p>
-<h2 id="the-solution-agentic-software-engineering">The Solution: Agentic Software Engineering</h2>
-<p><strong>Agentic Software Engineering</strong> applies rigorous engineering discipline to AI-assisted development:</p>
-<table><caption class="sr-only">The Solution: Agentic Software Engineering</caption>
+<p>We&rsquo;ve all seen it. An LLM generates impressive code in seconds. It compiles. It even runs. Three weeks later the &ldquo;quick prototype&rdquo; is in production, no tests exist for the generated paths, the original prompt is lost to a chat history, nobody can say why certain decisions were made, and the technical debt is compounding silently.</p>
+<p>This is <strong>vibe coding</strong> — treating AI as a magic code generator rather than an engineering tool. It works for throwaway scripts. It fails for production systems, and it fails in a specific way: not at generation time, when everything looks great, but weeks later, when the absence of specs, verification, and auditability comes due.</p>
+<p>The alternative this series builds is <strong>agentic software engineering</strong>: the same request flows through specification → context → generation → verification instead of prompt → code, every artifact is checked by machinery rather than vibes, and the whole process leaves an audit trail a teammate can pick up.</p>
+<p>A disclosure up front, because this series will demand the same honesty from its own claims: every pattern here is implemented in a real companion codebase (a Go project with a CLI, an HTTP API, an MCP server, and a web dashboard), and the series&rsquo; final post runs the whole stack end to end on a live local model and reports exactly what happened — including a judge-approved artifact that didn&rsquo;t compile. Where something in the codebase is scaffolding rather than production-ready, the post that covers it says so.</p>
+<h2 id="the-five-disciplines">The Five Disciplines</h2>
+<p><strong>Context engineering.</strong> An unconstrained agent produces its statistical baseline — the most probable code given its training data, which is almost never <em>your</em> code. Context engineering makes architectural decision records, conventions, and specs the agent&rsquo;s operating environment, so output lands inside your standards instead of near them. <a href="/blog/posts/agentic-software-engineering-context.html">Post 2</a> demonstrates this with a controlled experiment: the same prompt run with and without an ADR, on a real model, outputs compared.</p>
+<p><strong>Specification engineering.</strong> English prompts are ambiguous; specifications are checkable. A machine-readable spec defines intent, hard constraints (<code>must</code> / <code>must_not</code>), typed inputs and outputs, and a dependency-ordered plan — and is validated before any model runs. <a href="/blog/posts/agentic-software-engineering-specs.html">Post 3</a>.</p>
+<p><strong>Verification loops (AI-TDD).</strong> Every generated artifact passes build, test, and lint; failures come back as structured <code>file:line</code> findings that feed a bounded fix-retry loop. <a href="/blog/posts/agentic-software-engineering-verification.html">Post 4</a> — including the real bugs found in the verification engine itself.</p>
+<p><strong>Autonomy calibration.</strong> Not every task deserves the same agent freedom. Risk, context quality, and track record should set how much runs unattended and where the human gates sit. <a href="/blog/posts/agentic-software-engineering-autonomy.html">Post 6</a> presents the framework and is candid about how much of it is implemented versus design.</p>
+<p><strong>Security by design.</strong> An agent is an untrusted-input processor with execution privileges. Input validation, command allowlists, sandboxing, and API guarding belong in the harness, not in a hardening sprint afterward. <a href="/blog/posts/agentic-software-engineering-security.html">Post 7</a>.</p>
+<h2 id="why-go">Why Go</h2>
+<p>The patterns are language-agnostic; the implementation benefits concretely from Go. The worker pool at the factory&rsquo;s core is a buffered channel and a <code>select</code> loop — orchestration maps directly onto goroutines without a framework. The whole system (CLI, API server, MCP server) deploys as static binaries. And the verification pipeline leans on the toolchain&rsquo;s uniformity: <code>go build ./...</code>, <code>go test ./...</code>, and <code>golangci-lint</code> behave identically everywhere, which matters when they&rsquo;re the arbiter of whether agent output is accepted.</p>
+<h2 id="the-series">The Series</h2>
+<p>The twelve posts build the system in dependency order — each discipline, then their integration, then operating the result:</p>
+<table><caption class="sr-only">The Series</caption>
 <thead>
 <tr>
-<th>Vibe Coding</th>
-<th>Agentic Engineering</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Prompt → Code</td>
-<td>Spec → Context → Plan → Code → Verify</td>
-</tr>
-<tr>
-<td>Hope it works</td>
-<td>Prove it works</td>
-</tr>
-<tr>
-<td>No memory</td>
-<td>Persistent context &amp; constraints</td>
-</tr>
-<tr>
-<td>Single shot</td>
-<td>Verification loops with feedback</td>
-</tr>
-<tr>
-<td>Black box</td>
-<td>Auditable, reproducible process</td>
-</tr>
-</tbody>
-</table>
-<h2 id="core-principles">Core Principles</h2>
-<h3 id="1-context-engineering">1. Context Engineering</h3>
-<p>The agent&rsquo;s output quality is determined by the quality of context you provide. Architectural Decision Records (ADRs), specifications, and code patterns become first-class engineering artifacts that constrain the agent to your standards.</p>
-<h3 id="2-specification-engineering">2. Specification Engineering</h3>
-<p>Replace ambiguous English prompts with precise, machine-readable specifications. Define intent, constraints, inputs, outputs, and executable steps — then validate the spec before the agent ever runs.</p>
-<h3 id="3-verification-loops-ai-tdd">3. Verification Loops (AI-TDD)</h3>
-<p>Every agent-generated artifact passes through automated verification: build, test, lint, and constraint validation. Failures feed back to the agent for correction — automatically, up to a retry limit.</p>
-<h3 id="4-autonomy-calibration">4. Autonomy Calibration</h3>
-<p>Not all tasks deserve the same autonomy. Calibrate agent freedom based on risk, context quality, and historical success using the AEMM maturity model and Elastic Loop framework.</p>
-<h3 id="5-security-by-design">5. Security by Design</h3>
-<p>Prompt injection defense, sandboxed execution, and role-based access control are not afterthoughts — they&rsquo;re built into the harness.</p>
-<h2 id="the-go-advantage">The Go Advantage</h2>
-<p>These patterns are <strong>technology-agnostic</strong>. But implementing them in Go provides:</p>
-<ul>
-<li><strong>Static guarantees</strong>: Types catch errors before the agent even runs</li>
-<li><strong>Native concurrency</strong>: Worker pools and orchestration map naturally to goroutines</li>
-<li><strong>Production readiness</strong>: Single binary deployment, no runtime dependencies</li>
-<li><strong>Ecosystem integration</strong>: Works with your existing Go tooling and CI/CD</li>
-</ul>
-<h2 id="this-series">This Series</h2>
-<p>Over 12 posts, we&rsquo;ll build a complete <strong>Agentic Software Factory</strong> in Go:</p>
-<table><caption class="sr-only">This Series</caption>
-<thead>
-<tr>
+<th>#</th>
 <th>Post</th>
-<th>Topic</th>
-<th>Code</th>
+<th>Grounded in</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>1</td>
-<td><strong>Context Engineering</strong> — ADRs, context curation, open vs closed loop</td>
-<td><code>pkg/context</code></td>
+<td>Introduction (this post)</td>
+<td>—</td>
 </tr>
 <tr>
 <td>2</td>
-<td><strong>Specification Engineering</strong> — Machine-readable specs, Plan-Build-Verify</td>
-<td><code>pkg/spec</code></td>
+<td><a href="/blog/posts/agentic-software-engineering-context.html">Context Engineering</a></td>
+<td><code>pkg/context</code> + a live A/B experiment</td>
 </tr>
 <tr>
 <td>3</td>
-<td><strong>AI-TDD Verification Loops</strong> — Build, test, lint, constraint validation</td>
-<td><code>pkg/verify</code></td>
+<td><a href="/blog/posts/agentic-software-engineering-specs.html">Specification Engineering</a></td>
+<td><code>pkg/spec</code></td>
 </tr>
 <tr>
 <td>4</td>
-<td><strong>Complete Harness</strong> — Integrated context + specs + verification</td>
-<td><code>pkg/harness</code></td>
+<td><a href="/blog/posts/agentic-software-engineering-verification.html">AI-TDD Verification Loops</a></td>
+<td><code>pkg/verify</code></td>
 </tr>
 <tr>
 <td>5</td>
-<td><strong>Autonomy Calibration</strong> — AEMM, Elastic Loop, decision gates</td>
-<td><code>examples/chapter7</code></td>
+<td><a href="/blog/posts/agentic-software-engineering-harness.html">The Complete Harness</a></td>
+<td><code>pkg/harness</code></td>
 </tr>
 <tr>
 <td>6</td>
-<td><strong>Security &amp; Safety</strong> — Prompt injection, sandboxing, RBAC</td>
-<td><code>pkg/security</code></td>
+<td><a href="/blog/posts/agentic-software-engineering-autonomy.html">Autonomy Calibration</a></td>
+<td>framework + the factory&rsquo;s real knobs</td>
 </tr>
 <tr>
 <td>7</td>
-<td><strong>Team Integration</strong> — Git hooks, PR review, shared context</td>
-<td><code>examples/chapter9</code></td>
+<td><a href="/blog/posts/agentic-software-engineering-security.html">Security &amp; Safety</a></td>
+<td><code>pkg/security</code>, <code>pkg/webguard</code></td>
 </tr>
 <tr>
 <td>8</td>
-<td><strong>Developer Workflow</strong> — Spec authoring, daily loop, prompt patterns</td>
-<td><code>examples/chapter10</code></td>
+<td><a href="/blog/posts/agentic-software-engineering-team.html">Team Operating Model</a></td>
+<td>git hooks, CI, <code>pkg/integration</code></td>
 </tr>
 <tr>
 <td>9</td>
-<td><strong>Software Factory Orchestration</strong> — Orchestrator-Worker-Validator</td>
-<td><code>pkg/factory</code></td>
+<td><a href="/blog/posts/agentic-software-engineering-workflow.html">Developer Workflow</a></td>
+<td>the <code>asf</code> CLI</td>
 </tr>
 <tr>
 <td>10</td>
-<td><strong>Production Operations</strong> — Observability, metrics, improvement</td>
-<td><code>cmd/asf</code></td>
+<td><a href="/blog/posts/agentic-software-engineering-factory.html">Software Factory Orchestration</a></td>
+<td><code>pkg/factory</code>, SQLite durability</td>
 </tr>
 <tr>
 <td>11</td>
-<td><strong>Case Study</strong> — End-to-end feature from spec to production</td>
-<td><code>examples/</code></td>
+<td><a href="/blog/posts/agentic-software-engineering-ops.html">Production Operations</a></td>
+<td><code>pkg/eval</code>, status API, benchmarks</td>
 </tr>
 <tr>
 <td>12</td>
-<td><strong>Future Directions</strong> — Self-improving factories, model routing</td>
-<td>—</td>
+<td><a href="/blog/posts/agentic-software-engineering-case-study.html">Case Study</a></td>
+<td>one feature, end to end, live</td>
 </tr>
 </tbody>
 </table>
-<h2 id="repository">Repository</h2>
-<p>All code lives in <strong><a href="https://github.com/PratikDhanave/agentic-software-factory-go">agentic-software-factory-go</a></strong> — a private repository with:</p>
-<pre><code>agentic-software-factory-go/
-├── pkg/
-│   ├── context/      # Context curation engine
-│   ├── spec/         # Specification parser &amp; validator
-│   ├── verify/       # AI-TDD verification engine
-│   ├── harness/      # Complete integrated harness
-│   ├── security/     # Sandbox, RBAC, injection defense
-│   └── factory/      # Orchestrator-Worker-Validator
-├── cmd/asf/          # CLI for daily workflow
-├── examples/         # Runnable chapter demos
-└── diagrams/         # White-background Archify diagrams
-</code></pre>
-<h2 id="next-context-engineering">Next: Context Engineering</h2>
-<p>In the next post, we&rsquo;ll dive into <strong>Context Engineering</strong> — the foundation that makes everything else work. You&rsquo;ll see how a simple HTTP server prompt produces dramatically different output when constrained by an ADR requiring structured JSON logging.</p>
+<p>Start with post 2 — context engineering is the foundation the rest assumes — or jump straight to the <a href="/blog/posts/agentic-software-engineering-case-study.html">case study</a> to see the whole machine run before reading how each part works.</p>
 <hr>
-<p><em>All code examples are in Go 1.23+. Diagrams use white-background Archify for presentation-ready architecture visualizations.</em></p>
+<p><em>All code in this series is Go 1.23+ from the companion factory codebase; command output and timings in later posts come from real sessions against it.</em></p>
 
 
 <aside class="consult-cta" aria-label="Work with Pratik">

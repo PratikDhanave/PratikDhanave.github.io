@@ -6,12 +6,12 @@
 <script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com; form-action 'self' https://buttondown.com; frame-ancestors 'none';">
 <title>Agentic Software Engineering in Go: AI-TDD Verification...</title>
-<meta name="description" content="AI-TDD: every agent-generated change runs a verification pipeline — compile, test, lint, spec-conformance — with structured failure feedback driving...">
+<meta name="description" content="AI-TDD: every agent artifact runs a verification pipeline — build, test, lint — with structured findings driving bounded fix-retry loops. The real Go...">
 <meta name="author" content="Pratik Dhanave">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 
 <meta property="og:title" content="Agentic Software Engineering in Go: AI-TDD Verification...">
-<meta property="og:description" content="AI-TDD: every agent-generated change runs a verification pipeline — compile, test, lint, spec-conformance — with structured failure feedback driving bounded fix-retry loops. The Go verification engine, retry limits and statistics, and the metrics dashboard that makes agent reliability a number instead of a feeling.">
+<meta property="og:description" content="AI-TDD: every agent artifact runs a verification pipeline — build, test, lint — with structured findings driving bounded fix-retry loops. The real Go verification engine, plus the three bugs dogfooding found in the verifier itself: toolchain skew, a parser that reported &#x27;0 errors&#x27; while failing, and findings treated as crashes instead of verdicts.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://pratikdhanave.com/blog/posts/agentic-software-engineering-verification.html">
 <meta property="og:site_name" content="Pratik Dhanave">
@@ -27,7 +27,7 @@
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Agentic Software Engineering in Go: AI-TDD Verification...">
-<meta name="twitter:description" content="AI-TDD: every agent-generated change runs a verification pipeline — compile, test, lint, spec-conformance — with structured failure feedback driving bounded fix-retry loops. The Go verification engine, retry limits and statistics, and the metrics dashboard that makes agent reliability a number instead of a feeling.">
+<meta name="twitter:description" content="AI-TDD: every agent artifact runs a verification pipeline — build, test, lint — with structured findings driving bounded fix-retry loops. The real Go verification engine, plus the three bugs dogfooding found in the verifier itself: toolchain skew, a parser that reported &#x27;0 errors&#x27; while failing, and findings treated as crashes instead of verdicts.">
 <meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
 
 <link rel="canonical" href="https://pratikdhanave.com/blog/posts/agentic-software-engineering-verification.html">
@@ -46,7 +46,7 @@
   "@context": "https://schema.org",
   "@type": "BlogPosting",
   "headline": "Agentic Software Engineering in Go: AI-TDD Verification Loops",
-  "description": "AI-TDD: every agent-generated change runs a verification pipeline \u2014 compile, test, lint, spec-conformance \u2014 with structured failure feedback driving bounded fix-retry loops. The Go verification engine, retry limits and statistics, and the metrics dashboard that makes agent reliability a number instead of a feeling.",
+  "description": "AI-TDD: every agent artifact runs a verification pipeline \u2014 build, test, lint \u2014 with structured findings driving bounded fix-retry loops. The real Go verification engine, plus the three bugs dogfooding found in the verifier itself: toolchain skew, a parser that reported '0 errors' while failing, and findings treated as crashes instead of verdicts.",
   "image": "https://pratikdhanave.com/og-default.png",
   "datePublished": "2026-11-05",
   "dateModified": "2026-11-05",
@@ -127,7 +127,7 @@
       <span>·</span>
       <time datetime="2026-11-05">November 05, 2026</time>
       <span>·</span>
-      <span>5 min read</span>
+      <span>6 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/agentic-engineering/" class="tag-link"><span class="tag">#Agentic Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/testing/" class="tag-link"><span class="tag">#Testing</span></a><a href="/blog/tags/evaluation/" class="tag-link"><span class="tag">#Evaluation</span></a><a href="/blog/tags/coding-agents/" class="tag-link"><span class="tag">#Coding Agents</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
   </header>
@@ -142,134 +142,79 @@
 
 
   <h2 id="the-problem-unverified-agent-output">The Problem: Unverified Agent Output</h2>
-<p>When an agent generates code, the default assumption is &ldquo;it works unless told otherwise.&rdquo; This is dangerous in production systems.</p>
-<p><strong>The reality</strong>: Agent-generated code frequently has:</p>
-<ul>
-<li><strong>Build errors</strong>: Missing imports, incorrect syntax, version incompatibilities</li>
-<li><strong>Test failures</strong>: Tests that don&rsquo;t compile, incorrect assertions, missing edge cases</li>
-<li><strong>Lint violations</strong>: Style issues, unused variables, inefficient patterns</li>
-<li><strong>Security vulnerabilities</strong>: Hardcoded secrets, inadequate input validation, unsafe operations</li>
-<li><strong>Constraint violations</strong>: Specification breaches, missing required fields, wrong return types</li>
-</ul>
-<p><strong>The cost</strong>: Every unchecked agent output becomes technical debt. In production, these errors compound — a missing test becomes a bug, a linter violation becomes a code review burden, a security vulnerability becomes a breach.</p>
-<h2 id="the-solution-ai-tdd-verification-loops">The Solution: AI-TDD Verification Loops</h2>
-<p><strong>AI-TDD</strong> (Agentic Test-Driven Development) applies the same principles as traditional TDD, but for agent-generated code. Every agent artifact passes through automated verification: build, test, lint, and constraint validation. Failures feed back to the agent for correction — automatically, up to a retry limit.</p>
-<h3 id="the-verification-pipeline">The Verification Pipeline</h3>
-<pre><code class="language-mermaid">flowchart TD
-    A[Agent Generates Code] --&gt; B[Build Verification]
-    B --&gt;|Pass| C[Test Verification]
-    B --&gt;|Fail| F[Feedback to Agent]
-    C --&gt;|Pass| D[Lint Verification]
-    C --&gt;|Fail| F[Feedback to Agent]
-    D --&gt;|Pass| E[Constraint Verification]
-    D --&gt;|Fail| F[Feedback to Agent]
-    E --&gt;|Pass| F[Verification Complete ✓]
-    E --&gt;|Fail| F[Feedback to Agent]
-    F --&gt;|Max Retries| G[Agent Aborts ✗]
-    E --&gt;|Pass| G[Verification Complete ✓]
+<p>When an agent generates code, the default human posture is &ldquo;looks right, probably works.&rdquo; The <a href="/blog/posts/agentic-software-engineering-case-study.html">case study</a> at the end of this series provides the canonical counterexample from a real run: an artifact that an LLM judge scored 0.91 — with specific praise for its security design — failed <code>go build</code> on an API the model had hallucinated. Plausibility and correctness are different properties, and only a toolchain can tell them apart.</p>
+<p><strong>AI-TDD</strong> is the discipline of putting every agent artifact through the same gate human code faces — build, test, lint — and feeding failures back as structured input for revision, automatically, up to a bounded retry limit.</p>
+<h2 id="the-pipeline-is-a-state-machine">The Pipeline Is a State Machine</h2>
+<p>The verification pipeline in <code>pkg/verify</code> advances phase by phase and stops at the first failure. Rather than scattering phase names through string comparisons, the lifecycle is a declared state machine — the same pattern every lifecycle in the factory uses:</p>
+<pre><code class="language-go">// Verification pipeline phases. The pipeline advances phase by phase and
+// stops at the first failing phase.
+const (
+    PhaseBuild       state.State = &quot;build&quot;
+    PhaseTest        state.State = &quot;test&quot;
+    PhaseLint        state.State = &quot;lint&quot;
+    PhaseConstraints state.State = &quot;constraints&quot;
+    PhasePassed      state.State = &quot;passed&quot;
+    PhaseFailed      state.State = &quot;failed&quot;
+)
+
+var PhaseMachine = state.NewMachine(&quot;verification&quot;, PhaseBuild, map[state.State][]state.State{
+    PhaseBuild:       {PhaseTest, PhaseFailed},
+    PhaseTest:        {PhaseLint, PhaseFailed},
+    PhaseLint:        {PhaseConstraints, PhasePassed, PhaseFailed},
+    PhaseConstraints: {PhasePassed, PhaseFailed},
+})
 </code></pre>
-<h3 id="the-verification-phases">The Verification Phases</h3>
-<table><caption class="sr-only">The Verification Phases</caption>
-<thead>
-<tr>
-<th>Phase</th>
-<th>Command</th>
-<th>Purpose</th>
-<th>Pass Criteria</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Build</strong></td>
-<td><code>go build ./...</code></td>
-<td>Compile succeeds</td>
-<td>No compilation errors</td>
-</tr>
-<tr>
-<td><strong>Test</strong></td>
-<td><code>go test -v ./...</code></td>
-<td>All tests pass</td>
-<td>100% test success rate</td>
-</tr>
-<tr>
-<td><strong>Lint</strong></td>
-<td><code>golangci-lint run ./...</code></td>
-<td>Code style compliance</td>
-<td>Zero lint issues</td>
-</tr>
-<tr>
-<td><strong>Constraints</strong></td>
-<td>Spec validation</td>
-<td>Constraint adherence</td>
-<td>Zero constraint violations</td>
-</tr>
-</tbody>
-</table>
-<h3 id="go-verification-engine">Go Verification Engine</h3>
-<pre><code class="language-go">// pkg/verify/verify.go — AI-TDD verification engine
-engine := verify.NewVerificationEngine(&quot;.&quot;)
-
-ctx := context.Background()
-result, err := engine.RunVerification(ctx, &quot;&quot;)
-
-if result.Success {
-    fmt.Println(&quot;✓ All verification passed!&quot;)
-    fmt.Println(&quot;Build output:&quot;, result.BuildOutput)
-    fmt.Println(&quot;Test output:&quot;, result.TestOutput)
-    fmt.Println(&quot;Lint output:&quot;, result.LintOutput)
-} else {
-    fmt.Printf(&quot;✗ Verification failed with %d errors:\n&quot;, len(result.Errors))
-    for _, err := range result.Errors {
-        fmt.Printf(&quot;  [%s] %s:%d - %s\n&quot;, strings.ToUpper(err.Type), err.File, err.Line, err.Message)
-    }
-
-    // Generate fix prompt for agent
-    fixPrompt := verify.GenerateFixPrompt(result, originalSpec)
-    // Agent revises code and re-runs verification
+<p>The phases run <code>go build ./...</code>, <code>go test -v ./...</code>, and <code>golangci-lint run ./...</code> with per-phase timeouts, each parsing its tool&rsquo;s output into a shared finding type:</p>
+<pre><code class="language-go">type VerificationError struct {
+    Type       string // &quot;build&quot;, &quot;test&quot;, &quot;lint&quot;, &quot;constraint&quot;
+    File       string
+    Line       int
+    Message    string
+    Suggestion string
+    Severity   string
 }
 </code></pre>
-<h3 id="verification-results-example">Verification Results Example</h3>
-<pre><code class="language-text">Running verification pipeline...
-Phase 1: Build verification (go build ./...)
-✓ Build successful
-Phase 2: Test verification (go test -v ./...)
-✓ All 42 tests passed
-Phase 3: Lint verification (golangci-lint run ./...)
-✓ Lint clean (0 issues)
-Phase 4: Constraint verification (spec validation)
-✓ All constraints met
-
-Duration: 12.5s
-Retries: 0
-
---- Verification passed! Agent may proceed ---
+<p>That struct is the whole point of the pipeline. Raw tool output is for humans; <code>[]VerificationError</code> is for machines — it can be counted, trended, and above all <em>rendered back into a prompt</em>.</p>
+<p>Honest inventory before going further: the <code>constraints</code> phase is currently a stub — spec constraints are enforced by the LLM judge and human review today, not mechanically (<a href="/blog/posts/agentic-software-engineering-specs.html">post 3</a> discusses this gap). Build, test, and lint are real and are the gate everything below runs through.</p>
+<h2 id="what-dogfooding-the-engine-taught">What Dogfooding the Engine Taught</h2>
+<p>Running this engine for real — against the factory&rsquo;s own repository, preparing the case study — surfaced three bugs <em>in the verification machinery itself</em>, and each one teaches a design principle.</p>
+<p><strong>Your pipeline has its own dependencies, and they skew.</strong> The first real run died inside golangci-lint: the installed linter was built with an older Go than the toolchain compiling the repo, and failed with <code>cannot decode "internal/goarch", export data version 5 is greater than maximum supported version 2</code>. A verification pipeline is software with a supply chain; version-pin the linter alongside the toolchain.</p>
+<p><strong>Parse structure, not keywords.</strong> With the linter fixed, the next run printed the most dangerous output a verifier can produce:</p>
+<pre><code class="language-text">✗ Verification failed with 0 errors:
 </code></pre>
-<h3 id="verification-failure-example">Verification Failure Example</h3>
-<pre><code class="language-text">Running verification pipeline...
-Phase 1: Build verification (go build ./...)
-✗ Build failed with 3 errors:
-  1. [build] models/user.go:10: undefined: UserRole
-  2. [build] models/user.go:15: undefined: RoleType
-  3. [build] handlers/handler.go:5: undefined: db
-
-Phase 2: Test verification (go test -v ./...)
---- Skipped (build failed first) ---
-
-Phase 3: Lint verification (golangci-lint run ./...)
---- Skipped (build failed first) ---
-
-Phase 4: Constraint verification (spec validation)
---- Skipped (build failed first) ---
-
-Duration: 8.2s
-Retries: 1
-
---- Fix prompt generated for agent ---
+<p>The lint parser recognized findings by searching for the lowercase words &ldquo;error&rdquo; or &ldquo;warning&rdquo; — and golangci-lint v2 findings (<code>Error return value of 'json.Unmarshal' is not checked (errcheck)</code>) contain neither. Fifty real findings, zero parsed. The fix matches the structural shape every finding shares instead of sniffing vocabulary:</p>
+<pre><code class="language-go">// lintFindingRe matches a golangci-lint finding line: path/file.go:line:col: message (linter).
+// Findings are identified by shape, not by keywords — golangci-lint v2 findings
+// (&quot;Error return value ... (errcheck)&quot;) contain neither &quot;error&quot; nor &quot;warning&quot;
+// in lowercase, and source-echo/caret lines never match the shape.
+var lintFindingRe = regexp.MustCompile(`^(\S+\.go):(\d+):(\d+):\s+(.+)$`)
 </code></pre>
-<h3 id="the-fix-prompt">The Fix Prompt</h3>
-<p>When verification fails, <code>pkg/verify</code> generates a structured prompt for the agent:</p>
-<pre><code class="language-go">// pkg/verify/verify.go — GenerateFixPrompt creates agent feedback
-func GenerateFixPrompt(result *VerificationResult, specContent string) string {
+<p>After which the same run reports honestly:</p>
+<pre><code class="language-text">✗ Verification failed with 50 errors:
+  [LINT] pkg/conversation/store.go:334 - Error return value of
+         `json.Unmarshal` is not checked (errcheck)
+  [LINT] pkg/integration/teams.go:26 - type teamsSigVerifier is unused (unused)
+  ...
+</code></pre>
+<p><strong>A failed verdict is not an error.</strong> The subtlest bug: phases originally returned a Go <code>error</code> when their tool found problems, so callers treated &ldquo;lint found 50 issues&rdquo; the same as &ldquo;lint isn&rsquo;t installed&rdquo; — and aborted. The retry loop that makes AI-TDD a <em>loop</em> was unreachable code. The fix is one distinction, now explicit in <code>RunVerification</code>:</p>
+<pre><code class="language-go">if err := step.run(ctx, result); err != nil {
+    result.FailedPhase = step.phase
+    result.Phase = PhaseFailed
+    if len(result.Errors) == 0 {
+        // Nothing parseable came back: the phase could not run at
+        // all (missing tool, exec failure). That is an
+        // infrastructure error, not a verification verdict.
+        return result, fmt.Errorf(&quot;%s verification failed: %w&quot;, step.phase, err)
+    }
+    // The phase ran and found failures — a verdict, not an error.
+    // Callers feed result.Errors into the fix-prompt retry loop.
+    return result, nil
+}
+</code></pre>
+<p>If your own pipeline conflates &ldquo;the check failed&rdquo; with &ldquo;the check couldn&rsquo;t run,&rdquo; every downstream consumer inherits the confusion.</p>
+<h2 id="closing-the-loop-the-fix-prompt">Closing the Loop: The Fix Prompt</h2>
+<p>When verification fails, the findings render into the prompt for the next generation attempt — this is the actual production code, not a sketch:</p>
+<pre><code class="language-go">func GenerateFixPrompt(result *VerificationResult, specContent string) string {
     var sb strings.Builder
 
     sb.WriteString(&quot;# Verification Failed - Please Fix\n\n&quot;)
@@ -284,203 +229,33 @@ func GenerateFixPrompt(result *VerificationResult, specContent string) string {
             }
             sb.WriteString(&quot;\n&quot;)
         }
-        if err.Suggestion != &quot;&quot; {
-            sb.WriteString(fmt.Sprintf(&quot;**Suggestion**: %s\n&quot;, err.Suggestion))
-        }
-        sb.WriteString(&quot;\n&quot;)
+        ...
     }
 
     sb.WriteString(&quot;## Original Specification\n\n&quot;)
     sb.WriteString(specContent)
     sb.WriteString(&quot;\n\nPlease fix the code and ensure all verification passes.\n&quot;)
-
     return sb.String()
 }
 </code></pre>
-<h3 id="verification-with-retry-limits">Verification with Retry Limits</h3>
-<pre><code class="language-go">// Main verification loop with retry logic
-func (h *CompleteHarness) Execute(ctx context.Context, specID string) (*HarnessResult, error) {
-    for attempt := 0; attempt &lt;= h.maxRetries; attempt++ {
-        result, err := h.verifier.RunVerification(ctx, &quot;&quot;)
-        if err != nil {
-            return nil, fmt.Errorf(&quot;verification error: %w&quot;, err)
-        }
-
-        if result.Success {
-            return &amp;HarnessResult{
-                SpecID:       specID,
-                Success:      true,
-                TotalDuration: time.Since(start),
-                RetryCount:   attempt,
-                FinalOutput:  &quot;All verification passed&quot;,
-            }, nil
-        }
-
-        // Generate feedback for agent retry
-        if attempt &lt; h.maxRetries {
-            result.AgentFeedback = verify.GenerateFixPrompt(result, fullPrompt)
-            // In real implementation, send feedback to agent and regenerate code
-        }
-    }
-
-    return &amp;HarnessResult{
-        SpecID:    specID,
-        Success:   false,
-        FinalOutput: fmt.Sprintf(&quot;Verification failed after %d retries&quot;, h.maxRetries),
-    }, nil
-}
+<p>With the verdict fix in place, the harness runs the real bounded loop. Against a repo with 50 standing lint findings and no agent wired to fix them, it does exactly what it should — four verification rounds, then an honest failure:</p>
+<pre><code class="language-text">$ ./asf harness run auth-service-001
+✗ Harness failed for auth-service-001
+  Duration: 19.46s
+  Retries: 3
+  Final: Verification failed after 3 retries
 </code></pre>
-<h3 id="retry-statistics">Retry Statistics</h3>
-<table><caption class="sr-only">Retry Statistics</caption>
-<thead>
-<tr>
-<th>Max Retries</th>
-<th>Success Rate</th>
-<th>Agent Aborts</th>
-<th>Human Intervention Required</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>0</td>
-<td>45%</td>
-<td>55%</td>
-<td>Always</td>
-</tr>
-<tr>
-<td>1</td>
-<td>65%</td>
-<td>35%</td>
-<td>Usually</td>
-</tr>
-<tr>
-<td>2</td>
-<td>78%</td>
-<td>22%</td>
-<td>Rarely</td>
-</tr>
-<tr>
-<td>3</td>
-<td>85%</td>
-<td>15%</td>
-<td>Seldom</td>
-</tr>
-<tr>
-<td>5</td>
-<td>92%</td>
-<td>8%</td>
-<td>Very Rarely</td>
-</tr>
-</tbody>
-</table>
-<h3 id="verification-metrics-dashboard">Verification Metrics Dashboard</h3>
-<table><caption class="sr-only">Verification Metrics Dashboard</caption>
-<thead>
-<tr>
-<th>Metric</th>
-<th>Target</th>
-<th>Current</th>
-<th>Trend</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Build Pass Rate</td>
-<td>≥ 95%</td>
-<td>92%</td>
-<td>↗ Improving</td>
-</tr>
-<tr>
-<td>Test Pass Rate</td>
-<td>≥ 98%</td>
-<td>94%</td>
-<td>↗ Improving</td>
-</tr>
-<tr>
-<td>Lint Clean Rate</td>
-<td>≥ 97%</td>
-<td>91%</td>
-<td>↗ Improving</td>
-</tr>
-<tr>
-<td>Constraint Violations</td>
-<td>≤ 5%</td>
-<td>3%</td>
-<td>↘ Declining</td>
-</tr>
-<tr>
-<td>Verification Duration</td>
-<td>≤ 30s</td>
-<td>12.5s</td>
-<td>↘ Improving</td>
-</tr>
-<tr>
-<td>Human Intervention Rate</td>
-<td>≤ 10%</td>
-<td>15%</td>
-<td>↘ Declining</td>
-</tr>
-</tbody>
-</table>
-<h3 id="why-ai-tdd-matters">Why AI-TDD Matters</h3>
-<table><caption class="sr-only">Why AI-TDD Matters</caption>
-<thead>
-<tr>
-<th>Concern</th>
-<th>Without Verification</th>
-<th>With AI-TDD</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Build errors</td>
-<td>Deploy broken code</td>
-<td>Caught before deployment</td>
-</tr>
-<tr>
-<td>Test gaps</td>
-<td>Production bugs</td>
-<td>Verified behavior</td>
-</tr>
-<tr>
-<td>Lint violations</td>
-<td>Code review burden</td>
-<td>Automatic style enforcement</td>
-</tr>
-<tr>
-<td>Security holes</td>
-<td>Potential breaches</td>
-<td>Proactive constraint checking</td>
-</tr>
-<tr>
-<td>Constraint drift</td>
-<td>Specification erosion</td>
-<td>Explicit enforcement</td>
-</tr>
-<tr>
-<td>Human workload</td>
-<td>Manual code review</td>
-<td>Automated feedback loops</td>
-</tr>
-</tbody>
-</table>
-<h3 id="quick-start">Quick Start</h3>
-<pre><code class="language-bash"># Initialize project with verification support
-asf init
-
-# Run verification on current code
-asf verify
-
-# Run complete harness for a specification
-asf harness run spec-001
-
-# See results and retry if needed
-# Agent automatically revises code based on verification feedback
-</code></pre>
-<h3 id="next-the-complete-harness">Next: The Complete Harness</h3>
-<p>In the next post, we&rsquo;ll explore <strong>The Complete Harness</strong> — how context engineering, specification engineering, and verification loops integrate into a single self-reinforcing system. We&rsquo;ll introduce <code>pkg/harness</code> and demonstrate end-to-end harness execution.</p>
+<p>One finding from the case study belongs in this post&rsquo;s conclusions, because it&rsquo;s about feedback quality rather than feedback plumbing: the fix loop converges only as fast as its feedback is precise. <code>undefined: jwt.WithAlgorithms</code> was a true statement that let the model guess a <em>second</em> wrong name for the same imaginary API; the loop converged the round the feedback contained the actual correct call. When a retry oscillates, the move is to enrich the feedback (or the context), not to raise the retry limit.</p>
+<h2 id="where-the-loops-edges-are">Where the Loop&rsquo;s Edges Are</h2>
+<p>Worth stating plainly, because verification is where overclaiming hurts most:</p>
+<ul>
+<li><strong>Green tests from the generating model are weak evidence.</strong> In the case study&rsquo;s converged round, all 7 generated tests passed — and none exercised an expired token or a reused refresh token. The same blind spots that shape the code shape its tests. Verification bounds <em>regressions</em>; it doesn&rsquo;t certify <em>coverage</em>.</li>
+<li><strong>Retry limits are a cost control, not a quality strategy.</strong> The default is 3. If artifacts routinely need more, the spec or context is underspecified — fix the input, not the loop count.</li>
+<li><strong>Lint findings are a backlog signal.</strong> The 50 findings above are real debt in the factory&rsquo;s own repo (22 <code>unused</code>, 21 <code>errcheck</code>, 7 <code>staticcheck</code>), surfaced the first time the pipeline&rsquo;s parser worked. A verifier that has never embarrassed its own codebase hasn&rsquo;t been run honestly yet.</li>
+</ul>
+<p>The <a href="/blog/posts/agentic-software-engineering-harness.html">next post</a> wires this engine together with context loading and spec rendering into the single entry point the rest of the series builds on: the complete harness.</p>
 <hr>
-<p><em>All code examples are in Go 1.23+. Diagrams use white-background Archify for presentation-ready architecture visualizations.</em></p>
+<p><em>All code and command output in this post is from the companion factory codebase (Go 1.23+) and real sessions against it; the three bugs described are fixed there as of this writing.</em></p>
 
 
 <aside class="consult-cta" aria-label="Work with Pratik">
