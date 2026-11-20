@@ -1,6 +1,6 @@
 <!-- Markdown version for AI agents and readers. Canonical: https://pratikdhanave.com/blog/posts/maf-go-66-06-mixed-workflow-agents-and-executors.html -->
 
-# 06 · Mixed Workflow — Agents *and* Executors in One Graph
+# 06 · Mixed Workflow — Agents and Executors in One Graph
 
 *This lesson teaches how deterministic function executors and agent-backed executors compose in one graph with the same `AddEdge` wiring.*
 

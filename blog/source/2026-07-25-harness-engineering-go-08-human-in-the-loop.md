@@ -4,7 +4,7 @@
 
 ---
 
-This is the finale of the [Harness Engineering in Go](/blog/posts/harness-engineering-go-01-the-seam/) series. Seven lessons in, the pattern I keep coming back to is that the interesting mechanics live *around* the model, never inside it. The last one is the most human of the seven: some actions are too consequential to run on the model's say-so. Issue a refund. Delete a table. Deploy to prod. Before those, the workflow should stop and ask a person.
+This is the finale of the [Harness Engineering in Go](/blog/posts/harness-engineering-go-01-the-seam.html) series. Seven lessons in, the pattern I keep coming back to is that the interesting mechanics live *around* the model, never inside it. The last one is the most human of the seven: some actions are too consequential to run on the model's say-so. Issue a refund. Delete a table. Deploy to prod. Before those, the workflow should stop and ask a person.
 
 The Microsoft Agent Framework calls this the **request/response executor** — an executor that *suspends* a workflow, emits a request to an external approver, and resumes when the reply arrives. My local `hitl` package is a stand-in for exactly that. And the thing that makes it click is that I didn't build a new durability mechanism for the "paused" state. The pause **is** a [Lesson 2](/blog/posts/harness-engineering-go-03-durable-execution.html) checkpoint. That's why Lesson 2 was the spine.
 

@@ -6,7 +6,7 @@
 
 ---
 
-This is Lesson 6 in the [Harness Engineering in Go](/blog/posts/harness-engineering-go-01-the-seam/) series. Every lesson so far has been one model call wrapped in some piece of infrastructure — a guardrail, a durable workflow, a sandbox, memory. This one is different: it's about running *many* model calls at once and getting a clean, ordered answer back even when one of them explodes.
+This is Lesson 6 in the [Harness Engineering in Go](/blog/posts/harness-engineering-go-01-the-seam.html) series. Every lesson so far has been one model call wrapped in some piece of infrastructure — a guardrail, a durable workflow, a sandbox, memory. This one is different: it's about running *many* model calls at once and getting a clean, ordered answer back even when one of them explodes.
 
 ## The pattern: decompose, fan out, fan in
 

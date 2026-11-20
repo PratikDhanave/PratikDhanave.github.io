@@ -2867,7 +2867,7 @@ POST_META = {
     "excerpt": "Threading an SDK client through a checkpointed workflow crashed with maximum recursion depth exceeded. The checkpoint boundary is a serialization boundary: JSON only, values and keys, and anything non-serializable gets injected out-of-band at the composition root.",
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Durable @workflow / @step orchestration and checkpointing"},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "Checkpoint codec and workflow message serialization"},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Checkpoint codec and workflow message serialization"},
     ],
 },
 "2026-07-22-exhausted-is-not-failure-bounded-agent-runs.md": {
@@ -3008,7 +3008,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 1, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Building a basic agent from a chat client and instructions"},
         ],
     },
@@ -3021,7 +3021,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 2, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Defining function tools the model can call"},
         ],
     },
@@ -3034,7 +3034,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 3, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Maintaining conversation history with sessions"},
         ],
     },
@@ -3047,7 +3047,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 4, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Cross-conversation memory with context providers"},
         ],
     },
@@ -3060,7 +3060,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 5, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Composing agents with the functional workflow API"},
         ],
     },
@@ -3073,7 +3073,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 6, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The functional workflow engine: steps and outputs"},
         ],
     },
@@ -3086,7 +3086,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 7, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Graph workflows with executors and edges"},
         ],
     },
@@ -3099,7 +3099,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 8, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Hosting an agent locally with DevUI"},
         ],
     },
@@ -3112,7 +3112,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 9, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Agent middleware for observing, modifying, and short-circuiting runs"},
         ],
     },
@@ -3125,7 +3125,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 10, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Model Context Protocol tools and transports"},
         ],
     },
@@ -3138,7 +3138,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 11, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Context providers and persistent history"},
         ],
     },
@@ -3151,7 +3151,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 12, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "OpenTelemetry observability for agent runs"},
         ],
     },
@@ -3164,7 +3164,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 13, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Information-flow control and prompt-injection defense"},
         ],
     },
@@ -3177,7 +3177,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 14, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Running agents: streaming, sessions, and run options"},
         ],
     },
@@ -3190,7 +3190,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 15, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The agent run pipeline and its layers"},
         ],
     },
@@ -3203,7 +3203,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 16, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Multimodal input with mixed content parts"},
         ],
     },
@@ -3216,7 +3216,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 17, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Structured outputs"},
         ],
     },
@@ -3229,7 +3229,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 18, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Background responses and continuation tokens"},
         ],
     },
@@ -3242,7 +3242,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 19, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Retrieval-augmented generation"},
         ],
     },
@@ -3255,7 +3255,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 20, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Declarative agents from YAML"},
         ],
     },
@@ -3268,7 +3268,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 21, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Evaluating agent outputs"},
         ],
     },
@@ -3281,7 +3281,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 22, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Agent skills and progressive disclosure"},
         ],
     },
@@ -3294,7 +3294,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 23, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Agent harnesses"},
         ],
     },
@@ -3307,7 +3307,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 24, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "CodeAct and the Hyperlight connector"},
         ],
     },
@@ -3320,7 +3320,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 25, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Multi-turn conversation state with AgentSession"},
         ],
     },
@@ -3333,7 +3333,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 26, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Where conversation history is stored"},
         ],
     },
@@ -3346,7 +3346,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 27, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "History compaction under a token budget"},
         ],
     },
@@ -3359,7 +3359,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 28, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Chat middleware wrapping model calls"},
         ],
     },
@@ -3372,7 +3372,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 29, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Agent-scope vs run-scope middleware"},
         ],
     },
@@ -3385,7 +3385,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 30, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Middleware termination and guardrails"},
         ],
     },
@@ -3398,7 +3398,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 31, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Overriding agent results in middleware"},
         ],
     },
@@ -3411,7 +3411,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 32, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Exception handling in function middleware"},
         ],
     },
@@ -3424,7 +3424,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 33, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Sharing state across function middleware"},
         ],
     },
@@ -3437,7 +3437,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 34, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Runtime context in middleware and tools"},
         ],
     },
@@ -3450,7 +3450,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 35, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Microsoft Foundry provider"},
         ],
     },
@@ -3463,7 +3463,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 36, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Custom agent providers with BaseAgent"},
         ],
     },
@@ -3476,7 +3476,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 37, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Function tools with @tool and Annotated"},
         ],
     },
@@ -3489,7 +3489,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 38, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Controlling tool availability per run"},
         ],
     },
@@ -3502,7 +3502,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 39, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Human-in-the-loop tool approval"},
         ],
     },
@@ -3515,7 +3515,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 40, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The hosted code interpreter tool"},
         ],
     },
@@ -3528,7 +3528,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 41, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Hosted file search tool and vector stores"},
         ],
     },
@@ -3541,7 +3541,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 42, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Hosted web search tool and citations"},
         ],
     },
@@ -3554,7 +3554,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 43, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Hosted MCP tools and approval modes"},
         ],
     },
@@ -3567,7 +3567,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 44, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Workflow switch-case control flow"},
         ],
     },
@@ -3580,7 +3580,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 45, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Workflow fan-out and fan-in edges"},
         ],
     },
@@ -3593,7 +3593,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 46, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Workflow checkpointing and durable state"},
         ],
     },
@@ -3606,7 +3606,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 47, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Human-in-the-loop request_info and resume"},
         ],
     },
@@ -3619,7 +3619,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 48, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Packaging workflows as agents"},
         ],
     },
@@ -3632,7 +3632,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 49, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Workflow events and streaming observability"},
         ],
     },
@@ -3645,7 +3645,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 50, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Building graph workflows with WorkflowBuilder"},
         ],
     },
@@ -3658,7 +3658,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 51, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Agents as executors inside workflows"},
         ],
     },
@@ -3671,7 +3671,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 52, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Shared workflow state with set_state and get_state"},
         ],
     },
@@ -3684,7 +3684,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 53, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Declarative YAML workflows via WorkflowFactory"},
         ],
     },
@@ -3697,7 +3697,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 54, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Workflow observability with OpenTelemetry"},
         ],
     },
@@ -3710,7 +3710,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 55, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Visualizing workflow graphs with WorkflowViz"},
         ],
     },
@@ -3723,7 +3723,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 56, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Wrapping agents as AgentExecutors in workflows"},
         ],
     },
@@ -3736,7 +3736,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 57, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Streaming vs non-streaming workflow execution"},
         ],
     },
@@ -3749,7 +3749,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 58, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Resettable executors and workflow state isolation"},
         ],
     },
@@ -3762,7 +3762,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 59, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Nesting sub-workflows with WorkflowExecutor"},
         ],
     },
@@ -3775,7 +3775,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 60, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Sequential orchestration with SequentialBuilder"},
         ],
     },
@@ -3788,7 +3788,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 61, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Concurrent fan-out/fan-in orchestration"},
         ],
     },
@@ -3801,7 +3801,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 62, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Handoff orchestration with HandoffBuilder"},
         ],
     },
@@ -3814,7 +3814,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 63, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Group chat orchestration with GroupChatBuilder"},
         ],
     },
@@ -3827,7 +3827,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 64, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Magentic manager-directed orchestration"},
         ],
     },
@@ -3840,7 +3840,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 65, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "DevUI local hosting and the call inspector"},
         ],
     },
@@ -3853,7 +3853,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 66, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Agent-to-Agent (A2A) protocol for cross-process agent calls"},
         ],
     },
@@ -3866,7 +3866,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 67, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The durable extension and AgentFunctionApp hosting on Durable Task"},
         ],
     },
@@ -3879,7 +3879,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 68, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "OpenAI-compatible Chat Completions and Responses endpoints"},
         ],
     },
@@ -3892,7 +3892,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 69, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Foundry-hosted agents and the Responses host server"},
         ],
     },
@@ -3905,7 +3905,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 70, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "DevUI directory discovery conventions"},
         ],
     },
@@ -3918,7 +3918,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 71, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "DevUI OpenTelemetry tracing and the debug panel"},
         ],
     },
@@ -3931,7 +3931,7 @@ POST_META = {
         "series": "Microsoft Agent Framework Python — Every Lesson",
         "series_position": 72, "series_total": 72,
         "citations": [
-            {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The Python SDK this lesson exercises"},
+            {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The Python SDK this lesson exercises"},
             {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The AG-UI HTTP + Server-Sent-Events integration"},
         ],
     },
@@ -4227,7 +4227,7 @@ POST_META = {
     "featured": True,
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Official overview of agents vs workflows and the framework's core concepts"},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "Upstream Python SDK that each lesson is verified against"},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Upstream Python SDK that each lesson is verified against"},
     ],
 },
 "2026-07-05-maf-go-01-learning-by-building.md": {
@@ -4257,7 +4257,7 @@ POST_META = {
     "series_total": 12,
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Agent primitive, chat clients, and running agents"},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "FoundryChatClient and Agent APIs used in the hello-agent sample"},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "FoundryChatClient and Agent APIs used in the hello-agent sample"},
     ],
 },
 "2026-07-06-maf-go-02-your-first-agent.md": {
@@ -4286,7 +4286,7 @@ POST_META = {
     "series_total": 12,
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Structured outputs, streaming runs, and multimodal message content in the agent APIs."},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "Python SDK: response_format option, ResponseStream, and Content/Message parts for image input."},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Python SDK: response_format option, ResponseStream, and Content/Message parts for image input."},
     ],
 },
 "2026-07-09-maf-go-05-shaping-a-run.md": {
@@ -4315,7 +4315,7 @@ POST_META = {
     "series_total": 12,
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Overview of agents, tools, and the tool-calling loop in the Microsoft Agent Framework."},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "Upstream Python SDK; the 01-get-started/02_add_tools sample this lesson is derived from."},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Upstream Python SDK; the 01-get-started/02_add_tools sample this lesson is derived from."},
     ],
 },
 "2026-07-07-maf-go-03-giving-agents-tools.md": {
@@ -4344,7 +4344,7 @@ POST_META = {
     "series_total": 12,
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Overview of agents, sessions, and context providers in the Microsoft Agent Framework"},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "Upstream Python SDK: AgentSession, ContextProvider hooks, and FileHistoryProvider"},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Upstream Python SDK: AgentSession, ContextProvider hooks, and FileHistoryProvider"},
     ],
 },
 "2026-07-08-maf-go-04-conversation-and-memory.md": {
@@ -4373,7 +4373,7 @@ POST_META = {
     "series_total": 12,
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Workflows as graphs of executors wired by edges"},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "WorkflowBuilder, switch-case edge groups, and fan-out/fan-in APIs in the Python SDK"},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "WorkflowBuilder, switch-case edge groups, and fan-out/fan-in APIs in the Python SDK"},
     ],
 },
 "2026-07-13-maf-go-09-workflows-with-agents.md": {
@@ -4402,7 +4402,7 @@ POST_META = {
     "series_total": 12,
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Hosting, DevUI, A2A, and AG-UI integration guidance"},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "Upstream Python SDK samples for hosting and the end-to-end capstone"},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Upstream Python SDK samples for hosting and the end-to-end capstone"},
     ],
 },
 "2026-07-16-maf-go-12-hosting-and-capstone.md": {
@@ -4431,7 +4431,7 @@ POST_META = {
     "series_total": 12,
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Observability, security, and provider concepts for the Agent Framework"},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "configure_otel_providers, SecureAgentConfig, and the provider chat clients used in the lessons"},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "configure_otel_providers, SecureAgentConfig, and the provider chat clients used in the lessons"},
     ],
 },
 "2026-07-11-maf-go-07-observability-safety-providers.md": {
@@ -4460,7 +4460,7 @@ POST_META = {
     "series_total": 12,
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Workflow concepts: executors, edges, and workflow events"},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "WorkflowBuilder, add_switch_case_edge_group, and streaming run events in the Python SDK"},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "WorkflowBuilder, add_switch_case_edge_group, and streaming run events in the Python SDK"},
     ],
 },
 "2026-07-12-maf-go-08-workflow-mechanics.md": {
@@ -4489,7 +4489,7 @@ POST_META = {
     "series_total": 12,
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Concept overview of agent, chat, and function middleware in the Agent Framework."},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "Upstream Python SDK — the agent_middleware / function_middleware decorators and MiddlewareTermination this lesson is built on."},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Upstream Python SDK — the agent_middleware / function_middleware decorators and MiddlewareTermination this lesson is built on."},
     ],
 },
 "2026-07-10-maf-go-06-middleware.md": {
@@ -4518,7 +4518,7 @@ POST_META = {
     "series_total": 12,
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Workflow checkpointing, human-in-the-loop, and sub-workflow concepts in the Agent Framework."},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "Upstream Python SDK: CheckpointStorage, RunContext.request_info, and workflow.as_agent()."},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Upstream Python SDK: CheckpointStorage, RunContext.request_info, and workflow.as_agent()."},
     ],
 },
 "2026-07-15-maf-go-11-advanced-workflows.md": {
@@ -4547,7 +4547,7 @@ POST_META = {
     "series_total": 12,
     "citations": [
         {"title": "Microsoft Agent Framework docs", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "Overview of the multi-agent orchestration patterns exposed by the framework"},
-        {"title": "microsoft/agent-framework", "url": "https://github.com/microsoft/agent-framework", "context": "The agent_framework.orchestrations builders (Sequential, Concurrent, GroupChat, Handoff, Magentic)"},
+        {"title": "microsoft/agent-framework", "url": "https://learn.microsoft.com/en-us/agent-framework/overview/", "context": "The agent_framework.orchestrations builders (Sequential, Concurrent, GroupChat, Handoff, Magentic)"},
     ],
 },
 "2026-07-14-maf-go-10-orchestrations.md": {
@@ -6852,6 +6852,31 @@ SITE_FOOTER = """<footer class="site-footer">
 </footer>""".format(year=datetime.now().year)
 
 
+# Client-side mermaid rendering for posts containing ```mermaid fences.
+# Self-hosted (CSP allows 'self' only); light theme on a white card regardless
+# of site theme, matching the archify-diagram convention. Injected only into
+# posts whose body actually contains a language-mermaid block.
+MERMAID_BODY = """
+<script src="/assets/mermaid.min.js" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof mermaid === 'undefined') return;
+  var blocks = document.querySelectorAll('pre > code.language-mermaid');
+  if (!blocks.length) return;
+  blocks.forEach(function (code) {
+    var div = document.createElement('div');
+    div.className = 'mermaid';
+    div.style.cssText = 'background:#fff;border-radius:8px;padding:14px;overflow-x:auto;margin:1.2em 0;';
+    div.textContent = code.textContent;
+    code.parentElement.replaceWith(div);
+  });
+  mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'strict' });
+  mermaid.run({ querySelector: '.mermaid' });
+});
+</script>
+"""
+
+
 def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index=None):
     """Wrap rendered markdown body in the post template."""
     tags_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" class="tag-link"><span class="tag">#{tag_display(t)}</span></a>' for t in meta["tags"])
@@ -7013,6 +7038,50 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 {chr(10).join(citations_items)}
   </section>"""
 
+    mermaid_html = MERMAID_BODY if 'language-mermaid' in (body_html or "") else ""
+
+    # Rich schema only on indexable posts: emitting BlogPosting/BreadcrumbList on
+    # a noindexed thin post is a schema/noindex conflict search tools flag.
+    if "noindex" in robots_meta:
+        post_ld_html = ""
+    else:
+        post_ld_html = f"""<script type="application/ld+json">
+{{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "{title_json}",
+  "description": "{desc_json}",
+  "image": "{SITE_URL}/{OG_IMAGE}",
+  "datePublished": "{date_iso}",
+  "dateModified": "{date_iso}",
+  "inLanguage": "en",
+  "author": {{
+    "@type": "Person",
+    "@id": "{SITE_URL}/#pratik",
+    "name": "Pratik Dhanave",
+    "url": "{SITE_URL}",
+    "image": "{SITE_URL}/pratik.png"
+  }},
+  "publisher": {{
+    "@type": "Organization",
+    "@id": "{SITE_URL}/#org",
+    "name": "Pratik Dhanave",
+    "url": "{SITE_URL}",
+    "logo": {{
+      "@type": "ImageObject",
+      "url": "{SITE_URL}/pratik.png"
+    }}
+  }},
+  "keywords": "{_json.dumps(', '.join(meta['tags']))[1:-1]}",
+  "url": "{canonical}",
+  "mainEntityOfPage": {{
+    "@type": "WebPage",
+    "@id": "{canonical}"
+  }}
+}}
+</script>
+{breadcrumb_ld}"""
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7050,42 +7119,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 
 <style>{POST_CSS}{READING_HUB_CSS}{consult_cta_css}</style>
 
-<script type="application/ld+json">
-{{
-  "@context": "https://schema.org",
-  "@type": "BlogPosting",
-  "headline": "{title_json}",
-  "description": "{desc_json}",
-  "image": "{SITE_URL}/{OG_IMAGE}",
-  "datePublished": "{date_iso}",
-  "dateModified": "{date_iso}",
-  "inLanguage": "en",
-  "author": {{
-    "@type": "Person",
-    "@id": "{SITE_URL}/#pratik",
-    "name": "Pratik Dhanave",
-    "url": "{SITE_URL}",
-    "image": "{SITE_URL}/pratik.png"
-  }},
-  "publisher": {{
-    "@type": "Organization",
-    "@id": "{SITE_URL}/#org",
-    "name": "Pratik Dhanave",
-    "url": "{SITE_URL}",
-    "logo": {{
-      "@type": "ImageObject",
-      "url": "{SITE_URL}/pratik.png"
-    }}
-  }},
-  "keywords": "{_json.dumps(', '.join(meta['tags']))[1:-1]}",
-  "url": "{canonical}",
-  "mainEntityOfPage": {{
-    "@type": "WebPage",
-    "@id": "{canonical}"
-  }}
-}}
-</script>
-{breadcrumb_ld}
+{post_ld_html}
 </head>
 <body>
 
@@ -7132,6 +7166,7 @@ def render_post_html(meta, title, subtitle, body_html, all_posts=None, tag_index
 
 {SITE_FOOTER}
 {READING_HUB_BODY}
+{mermaid_html}
 </body>
 </html>
 """
@@ -7639,7 +7674,7 @@ def render_tag_page(tag, posts_with_tag, all_tags, post_count=None, tag_counts=N
         cloud_tags = sorted(top_tags_set)
     else:
         cloud_tags = sorted(all_tags)
-    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/" aria-label="{tag_display(t)} ({tag_counts.get(t, 0)}) posts"><span class="tag-cloud-item">#{tag_display(t)} ({tag_counts.get(t, 0)})</span></a>' for t in cloud_tags)
+    tag_cloud_html = "".join(f'<a href="/blog/tags/{tag_to_slug(t)}/"><span class="tag-cloud-item">#{tag_display(t)} ({tag_counts.get(t, 0)})</span></a>' for t in cloud_tags)
 
     tag_page_css = POST_CSS + TAG_CLOUD_CSS + BLOG_LAYOUT_CSS + CARD_CSS
 
@@ -7866,8 +7901,8 @@ def render_series_page(series_name, series_posts, series_slug):
   "name": "{name_json}",
   "description": "{desc_json}",
   "url": "{canonical}",
-  "provider": {{"@type": "Person", "name": "Pratik Dhanave", "url": "{SITE_URL}/about/"}},
-  "author": {{"@type": "Person", "name": "Pratik Dhanave"}}
+  "provider": {{"@type": "Person", "@id": "{SITE_URL}/#pratik", "name": "Pratik Dhanave", "url": "{SITE_URL}"}},
+  "author": {{"@type": "Person", "@id": "{SITE_URL}/#pratik", "name": "Pratik Dhanave", "url": "{SITE_URL}"}}
 }}
 </script>
 <script type="application/ld+json">

@@ -4,7 +4,7 @@
 
 ---
 
-This is Lesson 5 of the [Harness Engineering in Go](/blog/posts/harness-engineering-go-01-the-seam/) series. The earlier lessons built one agent's harness — a guardrail on the door, durable execution behind it, memory and retrieval feeding it context. That's a single agent doing a single job. Real systems have *several* specialists, and a request that lands at the front door has to be sent to the right one. That first decision — **triage** — is what this lesson wires up.
+This is Lesson 5 of the [Harness Engineering in Go](/blog/posts/harness-engineering-go-01-the-seam.html) series. The earlier lessons built one agent's harness — a guardrail on the door, durable execution behind it, memory and retrieval feeding it context. That's a single agent doing a single job. Real systems have *several* specialists, and a request that lands at the front door has to be sent to the right one. That first decision — **triage** — is what this lesson wires up.
 
 The pattern is small on purpose: a `Router` that reads a request, scans a table of trigger keywords, and returns the first specialist whose keyword appears in the message. Billing, Code, Research, or a Fallback when nothing matches. It's a pure function, it runs offline, and every routing decision is a table-driven test. That's exactly what you want while you're building the *wiring* — and, as always, I'll be honest about where the local stand-in stops short of what the managed service does.
 

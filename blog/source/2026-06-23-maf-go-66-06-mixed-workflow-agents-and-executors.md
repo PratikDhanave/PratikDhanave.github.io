@@ -1,4 +1,4 @@
-# 06 · Mixed Workflow — Agents *and* Executors in One Graph
+# 06 · Mixed Workflow — Agents and Executors in One Graph
 
 *This lesson teaches how deterministic function executors and agent-backed executors compose in one graph with the same `AddEdge` wiring.*
 

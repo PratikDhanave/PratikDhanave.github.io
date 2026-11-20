@@ -4,7 +4,7 @@
 
 ---
 
-This is the second pattern in the [Harness Engineering in Go](/blog/posts/harness-engineering-go-01-the-seam/) series. [Lesson 1](/blog/posts/harness-engineering-go-02-agent-harness-guardrails/) wrapped the model call in a guardrail and left the agent as a stub. That stub was fine while the agent did one thing. But real agent work is *multi-step* — retrieve, call a tool, summarize, write a result — and any of those steps can crash, time out, or get OOM-killed halfway. If a crash means starting over, you re-pay for every completed step, including the expensive model calls. Durable execution is the fix, and it's the **spine** of this series: the human-in-the-loop gate in Lesson 7 reuses this exact store.
+This is the second pattern in the [Harness Engineering in Go](/blog/posts/harness-engineering-go-01-the-seam.html) series. [Lesson 1](/blog/posts/harness-engineering-go-02-agent-harness-guardrails.html) wrapped the model call in a guardrail and left the agent as a stub. That stub was fine while the agent did one thing. But real agent work is *multi-step* — retrieve, call a tool, summarize, write a result — and any of those steps can crash, time out, or get OOM-killed halfway. If a crash means starting over, you re-pay for every completed step, including the expensive model calls. Durable execution is the fix, and it's the **spine** of this series: the human-in-the-loop gate in Lesson 7 reuses this exact store.
 
 ## The pattern: named steps, checkpointed after each
 

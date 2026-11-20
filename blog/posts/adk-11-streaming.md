@@ -21,7 +21,7 @@ sequenceDiagram
     M-->>C: partial "of France is "
     M-->>C: partial "Paris."
     M-->>C: FINAL "The capital of France is Paris."
-    Note over C: render partials live; the final confirms the whole
+    Note over C: render partials live — the final confirms the whole
 ```
 
 `is_final_response()` is `False` for every partial and `True` only for the terminating event. That's your signal that the message is complete — you never have to guess.

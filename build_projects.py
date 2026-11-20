@@ -10,7 +10,7 @@ Architecture:
 """
 
 import re
-from html import escape as _html_escape
+from html import escape as _html_escape, unescape as _html_unescape
 from pathlib import Path
 from datetime import datetime
 from build_blog import (
@@ -927,6 +927,7 @@ def render_project_gallery_html(all_projects):
   "url": "{SITE_URL}/projects/",
   "author": {{
     "@type": "Person",
+    "@id": "https://pratikdhanave.com/#pratik",
     "name": "Pratik Dhanave",
     "url": "{SITE_URL}",
     "image": "{SITE_URL}/pratik.png"
@@ -983,7 +984,7 @@ def render_project_detail_html(project_slug, tag_index):
                 path_slug = post_path.rsplit("/", 1)[-1].removesuffix(".html")
                 for meta in POST_META.values():
                     if meta.get("slug") == path_slug:
-                        related_posts_html += f'<div style="margin-bottom: 12px;"><a href="{post_path}">{_html_escape(meta.get("title", "Untitled"))}</a></div>'
+                        related_posts_html += f'<div style="margin-bottom: 12px;"><a href="{post_path}">{_html_escape(_html_unescape(meta.get("title", "Untitled")))}</a></div>'
                         pinned_slugs.add(meta.get("slug"))
                         break
 
@@ -996,7 +997,7 @@ def render_project_detail_html(project_slug, tag_index):
                     post_slug = post["meta"]["slug"]
                     if post_slug in pinned_slugs:
                         continue
-                    related_posts_html += f'<div style="margin-bottom: 12px;"><a href="/blog/posts/{post_slug}.html">{_html_escape(post["meta"].get("title", "Untitled"))}</a> <span style="color: var(--text-muted); font-size: 0.9rem;">({post_date})</span></div>'
+                    related_posts_html += f'<div style="margin-bottom: 12px;"><a href="/blog/posts/{post_slug}.html">{_html_escape(_html_unescape(post["meta"].get("title", "Untitled")))}</a> <span style="color: var(--text-muted); font-size: 0.9rem;">({post_date})</span></div>'
 
             related_posts_html += '</section>'
 
@@ -1064,6 +1065,7 @@ def render_project_detail_html(project_slug, tag_index):
   "url": "{SITE_URL}/projects/{project_slug}/",
   "author": {{
     "@type": "Person",
+    "@id": "https://pratikdhanave.com/#pratik",
     "name": "Pratik Dhanave"
   }},
   {code_repo_field}"programmingLanguage": "{project.get('language', 'Go')}"
@@ -1125,7 +1127,7 @@ def _wrap_page_html(page_title, body_html, schema_html="", slug="", meta_descrip
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; frame-ancestors 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com; frame-ancestors 'none';">
 <title>{full_title}</title>
 <meta name="description" content="{meta_description}">
 <meta name="author" content="Pratik Dhanave">

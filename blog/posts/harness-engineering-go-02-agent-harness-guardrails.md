@@ -6,7 +6,7 @@
 
 ---
 
-This is the first pattern in the [Harness Engineering in Go](/blog/posts/harness-engineering-go-01-the-seam/) series. The [overview](/blog/posts/harness-engineering-go-01-the-seam/) explained the *seam* — every Azure dependency behind a Go interface, with a local stand-in that honestly states where it's weaker. Now we build the harness those patterns hang on.
+This is the first pattern in the [Harness Engineering in Go](/blog/posts/harness-engineering-go-01-the-seam.html) series. The [overview](/blog/posts/harness-engineering-go-01-the-seam.html) explained the *seam* — every Azure dependency behind a Go interface, with a local stand-in that honestly states where it's weaker. Now we build the harness those patterns hang on.
 
 ## The pattern: middleware around the model
 

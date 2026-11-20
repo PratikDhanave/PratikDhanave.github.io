@@ -4,7 +4,7 @@
 
 ---
 
-This is Lesson 4 in the [Harness Engineering in Go](/blog/posts/harness-engineering-go-01-the-seam/) series. By now the pattern is familiar: every Azure dependency is a Go interface (the *seam*), a local struct sits behind it for offline dev and tests, and each lesson ends by naming exactly where the stand-in is weaker than the managed service. Memory is where that discipline pays off most, because "memory" is not one thing — it's three, and each maps to a different Azure primitive.
+This is Lesson 4 in the [Harness Engineering in Go](/blog/posts/harness-engineering-go-01-the-seam.html) series. By now the pattern is familiar: every Azure dependency is a Go interface (the *seam*), a local struct sits behind it for offline dev and tests, and each lesson ends by naming exactly where the stand-in is weaker than the managed service. Memory is where that discipline pays off most, because "memory" is not one thing — it's three, and each maps to a different Azure primitive.
 
 ## Memory is three stores, not one
 

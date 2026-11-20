@@ -145,7 +145,7 @@ The hardest part is behind you. The rest is engineering.
 
 - 18 Agent Migration Case Study *(repository unavailable)*
 - CONVERSION_GUIDE.md *(repository unavailable)*
-- [Microsoft Agent Framework Reference Architecture](https://github.com/microsoft/agent-framework)
+- [Microsoft Agent Framework Reference Architecture](https://learn.microsoft.com/en-us/agent-framework/overview/)
 - [Agent Governance Toolkit (AGT)](https://github.com/microsoft/agent-governance-toolkit)
 
 ## Further reading
