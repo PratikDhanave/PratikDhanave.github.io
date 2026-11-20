@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com; form-action 'self' https://buttondown.com; frame-ancestors 'none';">
+<title>Escape Analysis and Allocation Discipline — Pratik Dhanave</title>
+<meta name="description" content="How the compiler decides stack versus heap, how to read -gcflags=-m, and a ledger-posting function taken through three measured versions: 2,056...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Escape Analysis and Allocation Discipline — Pratik Dhanave">
+<meta property="og:description" content="How the compiler decides stack versus heap, how to read -gcflags=-m, and a ledger-posting function taken through three measured versions: 2,056 allocations per batch down to 513 — exactly the values the contract requires to survive — for a 3.9x speedup.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-37-escape-analysis-allocations.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-01T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Performance">
+<meta property="article:tag" content="Memory">
+<meta property="article:tag" content="Compiler">
+<meta property="article:tag" content="Backend Engineering">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Escape Analysis and Allocation Discipline — Pratik Dhanave">
+<meta name="twitter:description" content="How the compiler decides stack versus heap, how to read -gcflags=-m, and a ledger-posting function taken through three measured versions: 2,056 allocations per batch down to 513 — exactly the values the contract requires to survive — for a 3.9x speedup.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-37-escape-analysis-allocations.html">
+<link rel="alternate" type="text/markdown" title="Markdown version" href="/blog/posts/production-go-37-escape-analysis-allocations.md">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}:root[data-theme="dark"]{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav{background:rgba(13,17,23,0.85)}}:root[data-theme="dark"] nav{background:rgba(13,17,23,0.85)}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}#read-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-hover));z-index:1000;transition:width .1s ease-out}.rh-controls{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:900}.rh-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;box-shadow:var(--shadow);transition:transform .15s,color .15s,opacity .2s}.rh-btn:hover{transform:translateY(-2px);color:var(--accent)}#rh-top{opacity:0;pointer-events:none}#rh-top.show{opacity:1;pointer-events:auto}#toc{position:fixed;top:118px;right:24px;width:224px;max-height:72vh;overflow-y:auto;font-size:13px;padding:4px 0 4px 16px;border-left:2px solid var(--border);z-index:800}#toc .toc-title{font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;color:var(--text-muted);margin-bottom:10px}#toc a{display:block;color:var(--text-muted);padding:4px 0 4px 14px;line-height:1.35;border-left:2px solid transparent;margin-left:-16px;transition:color .15s,border-color .15s}#toc a.h3{padding-left:26px;font-size:12px}#toc a:hover{color:var(--accent);text-decoration:none}#toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}article pre{position:relative}.copy-btn{position:absolute;top:8px;right:8px;padding:3px 10px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-muted);cursor:pointer;opacity:0;transition:opacity .15s,color .15s,border-color .15s}article pre:hover .copy-btn,.copy-btn:focus-visible{opacity:1}.copy-btn:hover{color:var(--accent);border-color:var(--accent)}.copy-btn.copied{color:#2ea043;border-color:#2ea043}@media (max-width:1240px){#toc{display:none}}@media print{#read-progress,.rh-controls,#toc,.copy-btn{display:none !important}}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Escape Analysis and Allocation Discipline",
+  "description": "How the compiler decides stack versus heap, how to read -gcflags=-m, and a ledger-posting function taken through three measured versions: 2,056 allocations per batch down to 513 \u2014 exactly the values the contract requires to survive \u2014 for a 3.9x speedup.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-01",
+  "dateModified": "2026-08-01",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "@id": "https://pratikdhanave.com/#pratik",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "@id": "https://pratikdhanave.com/#org",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Performance, Memory, Compiler, Backend Engineering",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-37-escape-analysis-allocations.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-37-escape-analysis-allocations.html"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://pratikdhanave.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pratikdhanave.com/blog/"},
+    {"@type": "ListItem", "position": 3, "name": "Road Go Ever On", "item": "https://pratikdhanave.com/blog/series/road-go-ever-on/"},
+    {"@type": "ListItem", "position": 4, "name": "Escape Analysis and Allocation Discipline", "item": "https://pratikdhanave.com/blog/posts/production-go-37-escape-analysis-allocations.html"}
+  ]
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/consulting/">Consulting</a></li><li><a href="/case-studies/">Case Studies</a></li><li><a href="/playbook/">Playbook</a></li><li><a href="/start-here/">Start Here</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Escape Analysis and Allocation Discipline</h1>
+    <p class="post-subtitle">How a ledger-posting path that looks innocent quietly mints garbage on every transaction — reading the compiler&#x27;s escape-analysis output, and a measured 4× win from allocating only what you keep.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-01">August 01, 2026</time>
+      <span>·</span>
+      <span>14 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/performance/" class="tag-link"><span class="tag">#Performance</span></a><a href="/blog/tags/memory/" class="tag-link"><span class="tag">#Memory</span></a><a href="/blog/tags/compiler/" class="tag-link"><span class="tag">#Compiler</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 37 of 45</span>
+    <a class="series-title" href="/blog/series/road-go-ever-on/">Road Go Ever On</a>
+    <div class="series-nav"><a href="/blog/posts/production-go-36-gomaxprocs-kubernetes.html" class="series-prev">&larr; Part 36: CPU Limits and GOMAXPROCS in Kubernetes</a>
+<a href="/blog/posts/production-go-38-reading-gc-traces.html" class="series-next">Part 38: Reading GC Traces Under Load &rarr;</a></div>
+  </div>
+
+
+
+  <p>A latency profile that scales with volume — double the transactions per second, double the tail — is a tell. It&rsquo;s rarely a slow dependency; it&rsquo;s almost always something the code does <em>per request</em>. And when the CPU flame graph of such a service is dominated by <code>runtime.mallocgc</code> and <code>runtime.scanobject</code>, the work isn&rsquo;t slow — the <em>garbage the work produces</em> is.</p>
+<p>This post is about allocation discipline: how Go decides whether a value lives on the stack or the heap, how to read <code>-gcflags="-m"</code>, and how to treat allocations on a hot path as a budget. The claims are measured, not asserted — a ledger-posting function is taken through three versions below, with real benchmark output for each (Apple M1 Max, Go 1.27; <code>-benchmem</code>, 256-posting batches). The runtime concept underneath it all is <strong>escape analysis</strong> — the compiler pass that decides who cleans up after each value you create.</p>
+<hr>
+<h2 id="stack-is-free-heap-has-a-bill">Stack is free; heap has a bill</h2>
+<p>A value on the stack costs nothing to reclaim. When the function returns, the stack pointer moves and the memory is gone — no bookkeeping, no collector, no scan. A value on the heap is the opposite: the garbage collector has to track it, mark it as reachable on every cycle, and eventually sweep it. On a path that runs a few thousand times a second, the difference between &ldquo;this struct lives on the stack&rdquo; and &ldquo;this struct escapes to the heap&rdquo; is the difference between a rounding error and a GC-pressure incident.</p>
+<p>The critical thing to internalize: <strong>you do not choose stack or heap in Go.</strong> There is no <code>alloca</code>, no placement control. The compiler chooses, and its rule is a safety rule, not a performance one. If the compiler can prove a value does not outlive the function that created it, the value stays on the stack. If it <em>cannot</em> prove that, the value &ldquo;escapes&rdquo; to the heap, where it&rsquo;s safe. Escape analysis is that proof engine. Every heap allocation on your hot path is the compiler telling you &ldquo;I couldn&rsquo;t prove this was safe on the stack.&rdquo; The job isn&rsquo;t to fight the compiler — it&rsquo;s to write code whose lifetimes the compiler can actually reason about.</p>
+<hr>
+<h2 id="the-offending-path">The offending path</h2>
+<p>Here&rsquo;s the version every codebase starts with. It takes a batch of postings, formats a per-entry key, and appends normalized rows to an audit buffer. Read it with allocation in mind.</p>
+<pre><code class="language-go">type Posting struct {
+    Account  string
+    Amount   int64 // minor units
+    Currency string
+    Ref      string
+}
+
+type AuditRow struct {
+    Key   string
+    Line  string
+    Delta int64
+}
+
+// Logger is satisfied by our structured logger.
+type Logger interface {
+    Debug(msg string)
+}
+
+func PostBatch(entries []Posting, log Logger) []AuditRow {
+    var rows []AuditRow // grows via append, no capacity hint
+    for _, e := range entries {
+        key := fmt.Sprintf(&quot;%s:%s&quot;, e.Account, e.Currency)
+        line := fmt.Sprintf(&quot;post %s %d %s ref=%s&quot;, e.Account, e.Amount, e.Currency, e.Ref)
+        log.Debug(line) // interface call in the hot loop
+        rows = append(rows, AuditRow{Key: key, Line: line, Delta: e.Amount})
+    }
+    return rows
+}
+</code></pre>
+<p>It&rsquo;s clean, readable, and it allocates on nearly every line. <code>fmt.Sprintf</code> allocates. The <code>append</code> onto a nil slice reallocates repeatedly as it grows. <code>log.Debug(line)</code> passes a <code>string</code> through an <code>interface</code>. And the whole <code>rows</code> slice is returned, so it has to escape. Four independent allocation sources, all inside a loop that runs once per posting.</p>
+<hr>
+<h2 id="reading-gcflags-m">Reading <code>-gcflags="-m"</code></h2>
+<p>You don&rsquo;t have to guess which lines escape. The compiler will tell you. Build (or vet, or test) with <code>-gcflags="-m"</code> and it prints escape-analysis decisions. Add a second <code>-m</code> for more detail; it gets noisy, so start with one.</p>
+<pre><code>go build -gcflags=&quot;-m&quot; ./ledger 2&gt;&amp;1 | grep -E 'escapes|moved to heap|does not escape'
+</code></pre>
+<p>Real output for the code above (trimmed to the instructive lines):</p>
+<pre><code>./post.go:35:32: e.Account escapes to heap
+./post.go:35:43: e.Currency escapes to heap
+./post.go:36:48: e.Account escapes to heap
+./post.go:36:59: e.Amount escapes to heap
+./post.go:36:69: e.Currency escapes to heap
+./post.go:36:81: e.Ref escapes to heap
+./post.go:38:16: append escapes to heap
+</code></pre>
+<p>Lines 35–36 are the two <code>fmt.Sprintf</code> calls: every operand — including <code>e.Amount</code>, a plain <code>int64</code> — is reported escaping, because each is boxed into an <code>interface{}</code> to ride through <code>fmt</code>&rsquo;s variadic parameter. Line 38 is the growing slice.</p>
+<p>Three phrases carry all the meaning:</p>
+<ul>
+<li><strong><code>escapes to heap</code></strong> — this value could not be proven stack-safe. It&rsquo;s a heap allocation.</li>
+<li><strong><code>moved to heap</code></strong> — a specific named variable was promoted from stack to heap for the same reason. Same cost, different phrasing.</li>
+<li><strong><code>does not escape</code></strong> — the good outcome. The value stayed on the stack. This is what you want to see for transient locals.</li>
+</ul>
+<p><strong>The gotcha:</strong> <code>-m</code> output is per <em>compilation</em>, and it reflects what the compiler could prove <em>given how the value is used</em>, not some fixed property of the type. The same struct can escape in one function and stay on the stack in another. Don&rsquo;t read escape analysis as &ldquo;this type is heap-y&rdquo; — read it as &ldquo;the compiler couldn&rsquo;t prove <em>this use</em> was safe.&rdquo; Change the use, change the verdict.</p>
+<p>The two escapes worth studying here are the interface call and the returned slice, because they&rsquo;re the ones people misread.</p>
+<hr>
+<h2 id="escape-trigger-1-interface-boxing">Escape trigger 1: interface boxing</h2>
+<p><code>log.Debug(line)</code> looks free. It isn&rsquo;t. To pass a concrete <code>string</code> (or any value) through an interface parameter, the runtime needs an interface value — a type pointer plus a data pointer. For anything that isn&rsquo;t already a pointer, that data pointer has to point <em>somewhere stable</em>, so the compiler frequently moves the boxed value to the heap. That&rsquo;s why you&rsquo;ll see the argument to a variadic <code>interface{}</code> — the classic being <code>fmt.Println(x)</code> — reported as escaping even when <code>x</code> itself was a happy stack local a line earlier.</p>
+<p>This is the sneakiest one on a hot path because it hides inside logging and <code>fmt</code>. Every <code>fmt.Sprintf</code> argument is passed as <code>...interface{}</code>, and every one is a candidate to escape. A single debug log inside a per-transaction loop can own a surprising share of your allocation profile.</p>
+<p><strong>The gotcha:</strong> the escape isn&rsquo;t the interface <em>call</em> — it&rsquo;s the <em>boxing of the operands</em>. Passing an already-pointer type, or not calling into the interface at all on the hot path, avoids it. Guarding the log with a level check that the compiler can see (or dropping it from the hot path entirely) removes both the call and the boxing. &ldquo;Just leave the debug log, it&rsquo;s cheap&rdquo; is exactly the intuition escape analysis is there to correct.</p>
+<hr>
+<h2 id="escape-trigger-2-returning-a-pointer-and-slices-that-grow">Escape trigger 2: returning a pointer, and slices that grow</h2>
+<p><code>return rows</code> forces <code>rows</code> to escape — the caller outlives <code>PostBatch</code>, so its backing array can&rsquo;t live on this stack frame. That one is unavoidable <em>by design</em>: we genuinely need the data to survive the call. But two things make it worse than it has to be.</p>
+<p>First, <code>rows</code> starts as <code>nil</code> and grows by <code>append</code>. Each growth allocates a new, larger backing array and copies the old one. A batch of N postings can trigger several reallocations as the slice doubles its way up. Second, because we never told the compiler how big the result would be, it can&rsquo;t pre-size anything.</p>
+<p>The fix for the growth is a capacity hint — we know exactly how many rows we&rsquo;ll produce:</p>
+<pre><code class="language-go">rows := make([]AuditRow, 0, len(entries)) // one allocation, sized once
+</code></pre>
+<p>That single change collapses log-N reallocations into one. The slice still escapes (we return it — that&rsquo;s correct), but it escapes <em>once</em>, at the right size, instead of repeatedly.</p>
+<p>There&rsquo;s a companion trap worth naming: returning a pointer to a local. <code>func newPosting() *Posting { p := Posting{...}; return &amp;p }</code> forces <code>p</code> onto the heap — <code>moved to heap: p</code> in the <code>-m</code> output — because the pointer outlives the frame. That&rsquo;s often fine and idiomatic. It becomes a problem only when it&rsquo;s on a hot path and the pointer wasn&rsquo;t actually necessary; returning the value instead of <code>*Posting</code> lets small structs ride the stack.</p>
+<hr>
+<h2 id="escape-trigger-3-closures-that-capture">Escape trigger 3: closures that capture</h2>
+<p>Not in the snippet above, but a classic on hot paths: a closure that captures a variable by reference forces that variable to the heap if the closure itself escapes (stored in a struct, passed to a goroutine, returned). The canonical offender is a retry helper that captures a whole request struct in a closure handed to a worker pool — every request boxes its payload onto the heap purely to satisfy the closure&rsquo;s lifetime. Passing the needed fields as explicit arguments, instead of capturing them, lets them stay on the stack.</p>
+<p><strong>The gotcha:</strong> a closure passed to something that runs it <em>synchronously and doesn&rsquo;t retain it</em> (like <code>sort.Slice</code>) usually does <strong>not</strong> escape — the compiler can see the closure dies with the call. The same closure handed to <code>go func()</code> or stored in a channel <em>does</em> escape. It&rsquo;s the closure&rsquo;s lifetime that decides, not the fact that it&rsquo;s a closure. Check <code>-m</code>; don&rsquo;t assume.</p>
+<hr>
+<h2 id="the-disciplined-version">The disciplined version</h2>
+<p>Putting the fixes together — pre-sized slice, no per-iteration <code>fmt</code>, no interface boxing on the hot path — the loop stops generating garbage per posting:</p>
+<pre><code class="language-go">func PostBatch(entries []Posting) []AuditRow {
+    rows := make([]AuditRow, 0, len(entries)) // sized once; the only intended alloc
+
+    // Reuse one builder across iterations instead of fmt.Sprintf per row.
+    var b strings.Builder
+    for _, e := range entries {
+        // key: &quot;account:currency&quot; without fmt's interface boxing.
+        key := e.Account + &quot;:&quot; + e.Currency
+
+        b.Reset()
+        b.WriteString(&quot;post &quot;)
+        b.WriteString(e.Account)
+        b.WriteByte(' ')
+        b.WriteString(strconv.FormatInt(e.Amount, 10))
+        b.WriteByte(' ')
+        b.WriteString(e.Currency)
+        b.WriteString(&quot; ref=&quot;)
+        b.WriteString(e.Ref)
+
+        rows = append(rows, AuditRow{Key: key, Line: b.String(), Delta: e.Amount})
+    }
+    return rows
+}
+</code></pre>
+<p>The per-row debug log moves behind a sampled, level-checked logger outside the loop. Both the <code>+</code> concatenation for the key and the <code>strings.Builder</code> earn their place the same way: they avoid <code>fmt</code>&rsquo;s variadic <code>interface{}</code> boxing. Measured against the naive version (256-posting batches, median of 10 runs):</p>
+<pre><code class="language-text">BenchmarkPostBatchNaive-10          60116 ns/op   63156 B/op   2056 allocs/op
+BenchmarkPostBatchDisciplined-10    31366 ns/op   47736 B/op   1536 allocs/op
+</code></pre>
+<p>Twice as fast — but look harder at <code>allocs/op</code>, because it teaches the honest lesson: 2,056 only fell to 1,536, which is still six allocations per posting. Why? Because <code>strings.Builder</code> does <strong>not</strong> buy buffer reuse here. Each <code>b.String()</code> is retained inside a returned row, so the loop must <code>b.Reset()</code> (which drops the builder&rsquo;s backing array) before the next iteration — every row&rsquo;s line still allocates, and the builder <em>re-grows from nil</em> every row, several allocations at a time. The speedup came almost entirely from killing <code>fmt</code>&rsquo;s boxing, not from killing allocations.</p>
+<p>The real discipline is sharper: <strong>allocate only what you keep.</strong> Each row legitimately keeps exactly two strings — the key and the line. So build the line in one reusable byte scratch and pay for just the final <code>string(scratch)</code> copy:</p>
+<pre><code class="language-go">func PostBatchTight(entries []Posting) []AuditRow {
+    rows := make([]AuditRow, 0, len(entries))
+    scratch := make([]byte, 0, 64) // reused across every row
+    for _, e := range entries {
+        key := e.Account + &quot;:&quot; + e.Currency
+        scratch = scratch[:0]
+        scratch = append(scratch, &quot;post &quot;...)
+        scratch = append(scratch, e.Account...)
+        scratch = append(scratch, ' ')
+        scratch = strconv.AppendInt(scratch, e.Amount, 10)
+        scratch = append(scratch, ' ')
+        scratch = append(scratch, e.Currency...)
+        scratch = append(scratch, &quot; ref=&quot;...)
+        scratch = append(scratch, e.Ref...)
+        rows = append(rows, AuditRow{Key: key, Line: string(scratch), Delta: e.Amount})
+    }
+    return rows
+}
+</code></pre>
+<pre><code class="language-text">BenchmarkPostBatchTight-10          15542 ns/op   27264 B/op    513 allocs/op
+</code></pre>
+<p><strong>513 allocations for 256 postings</strong> — 256 keys + 256 lines + 1 pre-sized slice. The allocation count now <em>equals</em> the number of values the function&rsquo;s contract requires to survive it, which is the end state this whole discipline aims at: every remaining allocation is one you can point to and justify. Net result versus the naive version: <strong>3.9× faster, 4× fewer allocations, 57% less allocated memory</strong> — and, on a GC-bound service, correspondingly less future scan work per batch.</p>
+<hr>
+<h2 id="syncpool-for-transient-buffers-and-its-sharp-edges">sync.Pool for transient buffers — and its sharp edges</h2>
+<p>Sometimes a per-call buffer genuinely can&rsquo;t be avoided — you need a scratch buffer to serialize each posting into a wire format, and it can&rsquo;t live on the stack because it&rsquo;s handed to an <code>io.Writer</code>. That&rsquo;s the case <code>sync.Pool</code> is built for: amortizing the allocation of transient objects across calls.</p>
+<pre><code class="language-go">var bufPool = sync.Pool{
+    New: func() any { return new(bytes.Buffer) },
+}
+
+func serialize(p Posting, w io.Writer) error {
+    buf := bufPool.Get().(*bytes.Buffer)
+    buf.Reset()             // Get can hand back a dirty buffer
+    defer bufPool.Put(buf)  // always return it
+
+    // ... write p into buf ...
+    _, err := w.Write(buf.Bytes())
+    return err
+}
+</code></pre>
+<p><code>sync.Pool</code> is powerful and easy to misuse. The caveats that matter in production:</p>
+<ul>
+<li><strong>Always <code>Reset</code> on <code>Get</code>.</strong> The pool hands back whatever was last <code>Put</code>, contents and all. Forgetting <code>Reset</code> is a data-leak bug, not just a correctness nit — in a ledger, a stale buffer means one transaction&rsquo;s bytes bleeding into another&rsquo;s.</li>
+<li><strong>Never retain what you <code>Put</code>.</strong> Once returned, the object may be handed to another goroutine immediately. Keeping a reference to <code>buf.Bytes()</code> after <code>Put</code> is a use-after-free-shaped race.</li>
+<li><strong>The pool is emptied by GC.</strong> <code>sync.Pool</code> is a cache, not a free list with guarantees — objects can be reclaimed on any GC cycle, so it only pays off under sustained churn where <code>Get</code> hits a warm pool. For rare or bursty allocations it buys little.</li>
+<li><strong>Pooling small values is a net loss.</strong> If the object is cheap to allocate and stack-friendly, a pool adds interface boxing (<code>any</code>), a type assertion, and synchronization for no benefit. Measure before you pool.</li>
+</ul>
+<p><strong>The gotcha:</strong> <code>sync.Pool</code> doesn&rsquo;t reduce your allocation <em>rate</em> to zero — it reduces the number that reach the allocator. If your <code>-benchmem</code> numbers don&rsquo;t move after pooling, the objects were probably being reclaimed between calls, or they weren&rsquo;t the ones on your hot path. Pool because a benchmark told you to, not because pooling feels fast.</p>
+<hr>
+<h2 id="measuring-benchmarks-benchmem-and-benchstat">Measuring: benchmarks, <code>-benchmem</code>, and benchstat</h2>
+<p>None of the above is worth doing without numbers, and &ldquo;numbers&rdquo; means a benchmark, not a stopwatch on production. Write a benchmark that exercises the real batch shape:</p>
+<pre><code class="language-go">func BenchmarkPostBatch(b *testing.B) {
+    entries := makeEntries(256) // representative batch size
+    b.ReportAllocs()
+    b.ResetTimer()
+    for i := 0; i &lt; b.N; i++ {
+        _ = PostBatch(entries)
+    }
+}
+</code></pre>
+<p>Run it capturing allocations, several times so <code>benchstat</code> can reason about variance:</p>
+<pre><code>go test -run=^$ -bench=BenchmarkPostBatch -benchmem -count=10 ./ledger | tee old.txt
+# apply the fixes, then:
+go test -run=^$ -bench=BenchmarkPostBatch -benchmem -count=10 ./ledger | tee new.txt
+benchstat old.txt new.txt
+</code></pre>
+<p><code>-benchmem</code> adds two columns you should learn to read before <code>ns/op</code>: <strong><code>B/op</code></strong> (bytes allocated per operation) and <strong><code>allocs/op</code></strong> (number of distinct allocations per operation). On a GC-bound service, <code>allocs/op</code> is often the number that predicts your tail latency, because each allocation is potential future scan work. The three versions from this post, measured on the same machine with the commands above:</p>
+<table><caption class="sr-only">Measuring: benchmarks, -benchmem, and benchstat</caption>
+<thead>
+<tr>
+<th>Metric (256-posting batch)</th>
+<th>Naive</th>
+<th>Disciplined</th>
+<th>Tight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>allocs/op</code></td>
+<td>2,056</td>
+<td>1,536</td>
+<td><strong>513</strong></td>
+</tr>
+<tr>
+<td><code>B/op</code></td>
+<td>63,156</td>
+<td>47,736</td>
+<td><strong>27,264</strong></td>
+</tr>
+<tr>
+<td><code>ns/op</code></td>
+<td>60,116</td>
+<td>31,366</td>
+<td><strong>15,542</strong></td>
+</tr>
+<tr>
+<td>allocs per posting</td>
+<td>8.0</td>
+<td>6.0</td>
+<td><strong>2.0</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>benchstat</code> rather than eyeballing two runs: it reports the delta <em>with a confidence interval</em>, so you don&rsquo;t celebrate a 3% &ldquo;improvement&rdquo; that&rsquo;s within noise. If it prints <code>~</code> for the delta, the change was statistically indistinguishable — treat that as &ldquo;no effect&rdquo; no matter how good the diff looks.</p>
+<p><strong>The gotcha:</strong> always benchmark with <code>-run=^$</code> so no unit tests run alongside, and pin <code>b.ReportAllocs()</code> (or <code>-benchmem</code>) or you&rsquo;re flying blind on the exact metric this entire exercise is about. And benchmark the <em>batch</em>, not a single posting — allocation behavior like slice growth only shows up at realistic sizes.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>The compiler chooses stack vs heap; escape analysis is the proof.</strong> &ldquo;Escapes to heap&rdquo; means the compiler couldn&rsquo;t prove the value dies with its frame — not that the type is inherently heap-y. Change the usage, change the verdict.</li>
+<li><strong>Read <code>-gcflags="-m"</code> on hot paths.</strong> <code>escapes to heap</code> / <code>moved to heap</code> are allocations; <code>does not escape</code> is the win. It&rsquo;s the ground truth, not a guess.</li>
+<li><strong>Know the common triggers.</strong> Interface boxing (including every <code>fmt</code>/<code>log</code> argument), returning pointers, growing an unsized slice, and captured closures are the usual suspects on a payment path.</li>
+<li><strong>Fix with lifetime, not tricks.</strong> Pre-size slices you&rsquo;ll return, keep <code>fmt</code> and interface calls out of tight loops, pass fields instead of capturing them, and return values instead of pointers for small structs.</li>
+<li><strong><code>sync.Pool</code> is a scalpel.</strong> Great for genuinely transient, churny buffers; a liability for small stack-friendly values. Always <code>Reset</code> on <code>Get</code>, never retain after <code>Put</code>, and only reach for it when a benchmark demands it.</li>
+<li><strong>Prove it with <code>-benchmem</code> + <code>benchstat</code>.</strong> Optimize <code>allocs/op</code> first on a GC-bound service, and trust the confidence interval over the diff.</li>
+</ul>
+<p>Allocation discipline isn&rsquo;t premature optimization when the allocations are per-transaction. It&rsquo;s knowing what the machine does with the code you wrote — and both the compiler (<code>-m</code>) and the benchmark (<code>-benchmem</code>) will tell you exactly, if you ask.</p>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li>Ardan Labs, &ldquo;Garbage Collection In Go&rdquo; (Parts I–III) — a clear model of how the Go collector, the allocator, and pacing interact, and why reducing allocations reduces the collector&rsquo;s work. https://www.ardanlabs.com/blog</li>
+</ul>
+
+
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-14-inference-optimization.html">Inference Optimization</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/ai-eng-go-12-agent-memory-and-planning.html">Agent Memory and Planning</a>
+      <span class="related-date">Aug 08</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-42-tail-latency-slos.html">Tail Latency and SLOs</a>
+      <span class="related-date">Aug 06</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← Blog home</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+<div id="read-progress" aria-hidden="true"></div>
+<nav id="toc" aria-label="Table of contents"></nav>
+<div class="rh-controls">
+  <button id="rh-theme" class="rh-btn" type="button" aria-label="Toggle light and dark theme" title="Toggle theme"></button>
+  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top"><span aria-hidden="true">&uarr;</span></button>
+</div>
+<script>
+!function(){var e=document.documentElement;function t(){return e.getAttribute("data-theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}var n=document.getElementById("rh-theme");function o(){n&&(n.textContent="dark"===t()?"\u2600\uFE0E":"\u263D")}o(),n&&n.addEventListener("click",function(){var n="dark"===t()?"light":"dark";e.setAttribute("data-theme",n);try{localStorage.setItem("theme",n)}catch(e){}o()});var c=document.querySelector("article"),r=document.getElementById("toc");if(c&&r){var a=c.querySelectorAll("h2, h3");if(a.length>=3){var i=document.createElement("div");i.className="toc-title",i.textContent="On this page",r.appendChild(i);var d=[];a.forEach(function(e,t){e.id||(e.id="sec-"+t);var n=document.createElement("a");"H3"===e.tagName&&(n.className="h3"),n.href="#"+e.id,n.textContent=e.textContent,r.appendChild(n),d.push(n)});var s={};d.forEach(function(e){s[e.getAttribute("href").slice(1)]=e});var l=new IntersectionObserver(function(e){e.forEach(function(e){if(e.isIntersecting){d.forEach(function(e){e.classList.remove("active")});var t=s[e.target.id];t&&t.classList.add("active")}})},{rootMargin:"-80px 0px -70% 0px"});a.forEach(function(e){l.observe(e)})}else r.style.display="none"}document.querySelectorAll("article pre").forEach(function(e){var t=document.createElement("button");t.className="copy-btn",t.type="button",t.textContent="Copy",t.addEventListener("click",function(){var n=e.querySelector("code"),o=n?n.innerText:e.innerText;navigator.clipboard.writeText(o).then(function(){t.textContent="Copied",t.classList.add("copied"),setTimeout(function(){t.textContent="Copy",t.classList.remove("copied")},1500)})}),e.appendChild(t)});var u=document.getElementById("read-progress"),h=document.getElementById("rh-top");function m(){var t=e.scrollHeight-e.clientHeight,n=t>0?e.scrollTop/t*100:0;u&&(u.style.width=n+"%"),h&&(e.scrollTop>600?h.classList.add("show"):h.classList.remove("show"))}window.addEventListener("scroll",m,{passive:!0}),m(),h&&h.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"})})}();
+</script>
+</body>
+</html>

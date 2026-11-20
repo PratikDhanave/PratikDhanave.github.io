@@ -4,9 +4,9 @@
 
 ---
 
-Every post in this series has been a story about a single service getting slower than it had any right to be, and a single runtime knob that explained it. `GOMAXPROCS` fighting CFS throttling. GC pacing that stalled allocators mid-request. A scheduler parking goroutines behind a saturated P. Escape analysis quietly moving a hot struct onto the heap. Each was diagnosed the same way — not by watching the average, but by watching the *tail*.
+Every post in this series has been about a single runtime mechanism that makes a service slower than it has any right to be — and every one of them was *measured* showing up in the same place. The [scheduler post](/blog/posts/production-go-22-scheduler-under-contention.html) measured p50 410ms / p99 894ms for work that costs 2.2ms, purely from unbounded queueing. The [GOMAXPROCS post](/blog/posts/production-go-36-gomaxprocs-kubernetes.html) measured a cgroup frozen in 60 of 60 CFS periods while the CPU dashboard looked calm. The [GC post](/blog/posts/production-go-38-reading-gc-traces.html) measured the collector taking 7.1% of every core and drafting allocating goroutines into mark assist. None of those showed up in an average. All of them lived in the *tail*.
 
-That's not a coincidence. In a payments system the average latency is a vanity metric. Nobody feels the average. What a merchant feels is the one authorization in a thousand that takes **`TODO: real number`** ms and trips their terminal timeout, or the settlement batch that misses its window because a handful of requests tailed out and the whole job blocked on them. The tail is where money and trust are actually lost.
+That's not a coincidence. In a payments system the average latency is a vanity metric. Nobody feels the average. What a merchant feels is the one authorization in a thousand that eats a 400ms stall and trips their terminal timeout, or the settlement batch that misses its window because a handful of requests tailed out and the whole job blocked on them. The tail is where money and trust are actually lost.
 
 So this final post ties the series together around the thing all of it was really about: **tail latency, and the service-level objectives you build on top of it.** The earlier posts were the mechanics — GOMAXPROCS, GC, the scheduler, profiling. This one is the discipline that makes those mechanics matter.
 
@@ -30,11 +30,11 @@ That last point is the one that surprises people. If a single service has a 1-in
 
 ## Where the tail comes from in a Go service
 
-Everything in the earlier posts converges here. The sources of tail latency in a Go service are, roughly in order of how often they've bitten me:
+Everything in the earlier posts converges here. The sources of tail latency in a Go service, roughly in order of how often they bite — each with its measured exhibit from this series:
 
-**GC pauses and assists.** The stop-the-world portions of Go's collector are short now — sub-millisecond in most services — but they land on *some* request, and that request wears the whole pause in its tail. Worse is the *assist*: when allocation outruns the background collector, the allocating goroutine is drafted into doing GC work itself. That's not a pause you see in `GODEBUG=gctrace`; it's latency charged directly to whichever request happened to allocate at the wrong moment. The GC post covered pacing; the tail is where you feel getting it wrong.
+**GC pauses and assists.** The stop-the-world portions of Go's collector are short now — the [GC-trace post](/blog/posts/production-go-38-reading-gc-traces.html) measured sub-0.2ms STW phases even under a 1.7 GB/s allocation firehose — but they land on *some* request, and that request wears the whole pause in its tail. Worse is the *assist*: when allocation outruns the background collector, the allocating goroutine is drafted into doing GC work itself, latency charged directly to whichever request allocated at the wrong moment. (Same post, measured: freeing workers from GC taxation via `GOGC=400` bought back 82% more useful work.)
 
-**Scheduler queueing.** With `GOMAXPROCS` P's and more runnable goroutines than P's, someone waits in a run queue. Under load that wait is invisible to CPU dashboards (the CPU is busy, not idle) but very visible in the tail. This is the same phenomenon the GOMAXPROCS and scheduler posts described, now expressed as a percentile.
+**Scheduler queueing.** With `GOMAXPROCS` P's and more runnable goroutines than P's, someone waits in a run queue. Under load that wait is invisible to CPU dashboards (the CPU is busy, not idle) but dominant in the tail — the [scheduler post](/blog/posts/production-go-22-scheduler-under-contention.html) measured 2.2ms of work costing 894ms at p99 under 1.5× overload, and its bounded-pool fix cutting that to 4ms at the price of explicit sheds. Add the container dimension and it gets worse: the [GOMAXPROCS post](/blog/posts/production-go-36-gomaxprocs-kubernetes.html) measured 15.6 seconds of kernel-frozen thread time in a 6-second run from one width/quota mismatch.
 
 **Lock contention.** A `sync.Mutex` around a hot ledger cache or a shared rate-limiter is fine at p50 and catastrophic at p99, because contention is bursty — it's exactly when traffic spikes that the lock serializes everyone. `go test -bench` with `-blockprofile`, or the runtime's mutex profile, is how you find these; the tail is how you notice you should look.
 
@@ -44,7 +44,7 @@ Everything in the earlier posts converges here. The sources of tail latency in a
 
 If the tail is what you're defending, the first line of defense is refusing to wait forever. In Go that means `context` deadlines — but the discipline that matters is treating the deadline as a *budget* that gets spent down as a request moves through your call graph, not a fixed timeout re-applied at every hop.
 
-The mistake I see constantly: every downstream call gets `context.WithTimeout(ctx, 500*time.Millisecond)`, independently. Three sequential calls can now legally take 1.5 seconds even though your SLO is 500 ms, because each hop reset the clock. A budget is derived from the *inbound* deadline and shared:
+The classic mistake: every downstream call gets `context.WithTimeout(ctx, 500*time.Millisecond)`, independently. Three sequential calls can now legally take 1.5 seconds even though your SLO is 500 ms, because each hop reset the clock. A budget is derived from the *inbound* deadline and shared:
 
 ```go
 // ErrBudgetExhausted signals we ran out of time before even attempting a call —

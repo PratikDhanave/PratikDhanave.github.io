@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com; form-action 'self' https://buttondown.com; frame-ancestors 'none';">
+<title>Reading GC Traces Under Load — Pratik Dhanave</title>
+<meta name="description" content="GODEBUG=gctrace=1 read like an EKG: a real trace line decoded field by field, real churn and leak traces side by side (flat live heap vs. a climbing...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Reading GC Traces Under Load — Pratik Dhanave">
+<meta property="og:description" content="GODEBUG=gctrace=1 read like an EKG: a real trace line decoded field by field, real churn and leak traces side by side (flat live heap vs. a climbing one), and GOGC=400 measured — 67% fewer cycles, GC CPU 7.1%→2.4%, and 82% more useful work for 12 MB of heap.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-38-reading-gc-traces.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-02T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Performance">
+<meta property="article:tag" content="Garbage Collection">
+<meta property="article:tag" content="Backend Engineering">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Reading GC Traces Under Load — Pratik Dhanave">
+<meta name="twitter:description" content="GODEBUG=gctrace=1 read like an EKG: a real trace line decoded field by field, real churn and leak traces side by side (flat live heap vs. a climbing one), and GOGC=400 measured — 67% fewer cycles, GC CPU 7.1%→2.4%, and 82% more useful work for 12 MB of heap.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-38-reading-gc-traces.html">
+<link rel="alternate" type="text/markdown" title="Markdown version" href="/blog/posts/production-go-38-reading-gc-traces.md">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}:root[data-theme="dark"]{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav{background:rgba(13,17,23,0.85)}}:root[data-theme="dark"] nav{background:rgba(13,17,23,0.85)}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}#read-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-hover));z-index:1000;transition:width .1s ease-out}.rh-controls{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:900}.rh-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;box-shadow:var(--shadow);transition:transform .15s,color .15s,opacity .2s}.rh-btn:hover{transform:translateY(-2px);color:var(--accent)}#rh-top{opacity:0;pointer-events:none}#rh-top.show{opacity:1;pointer-events:auto}#toc{position:fixed;top:118px;right:24px;width:224px;max-height:72vh;overflow-y:auto;font-size:13px;padding:4px 0 4px 16px;border-left:2px solid var(--border);z-index:800}#toc .toc-title{font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;color:var(--text-muted);margin-bottom:10px}#toc a{display:block;color:var(--text-muted);padding:4px 0 4px 14px;line-height:1.35;border-left:2px solid transparent;margin-left:-16px;transition:color .15s,border-color .15s}#toc a.h3{padding-left:26px;font-size:12px}#toc a:hover{color:var(--accent);text-decoration:none}#toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}article pre{position:relative}.copy-btn{position:absolute;top:8px;right:8px;padding:3px 10px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-muted);cursor:pointer;opacity:0;transition:opacity .15s,color .15s,border-color .15s}article pre:hover .copy-btn,.copy-btn:focus-visible{opacity:1}.copy-btn:hover{color:var(--accent);border-color:var(--accent)}.copy-btn.copied{color:#2ea043;border-color:#2ea043}@media (max-width:1240px){#toc{display:none}}@media print{#read-progress,.rh-controls,#toc,.copy-btn{display:none !important}}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Reading GC Traces Under Load",
+  "description": "GODEBUG=gctrace=1 read like an EKG: a real trace line decoded field by field, real churn and leak traces side by side (flat live heap vs. a climbing one), and GOGC=400 measured \u2014 67% fewer cycles, GC CPU 7.1%\u21922.4%, and 82% more useful work for 12 MB of heap.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-02",
+  "dateModified": "2026-08-02",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "@id": "https://pratikdhanave.com/#pratik",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "@id": "https://pratikdhanave.com/#org",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Performance, Garbage Collection, Backend Engineering",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-38-reading-gc-traces.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-38-reading-gc-traces.html"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://pratikdhanave.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pratikdhanave.com/blog/"},
+    {"@type": "ListItem", "position": 3, "name": "Road Go Ever On", "item": "https://pratikdhanave.com/blog/series/road-go-ever-on/"},
+    {"@type": "ListItem", "position": 4, "name": "Reading GC Traces Under Load", "item": "https://pratikdhanave.com/blog/posts/production-go-38-reading-gc-traces.html"}
+  ]
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/consulting/">Consulting</a></li><li><a href="/case-studies/">Case Studies</a></li><li><a href="/playbook/">Playbook</a></li><li><a href="/start-here/">Start Here</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Reading GC Traces Under Load</h1>
+    <p class="post-subtitle">Diagnosing garbage-collection pressure with `GODEBUG=gctrace=1` — a trace line decoded field by field, real healthy and pathological traces side by side, and what `GOGC` measurably buys.</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-02">August 02, 2026</time>
+      <span>·</span>
+      <span>9 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/performance/" class="tag-link"><span class="tag">#Performance</span></a><a href="/blog/tags/garbage-collection/" class="tag-link"><span class="tag">#Garbage Collection</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 38 of 45</span>
+    <a class="series-title" href="/blog/series/road-go-ever-on/">Road Go Ever On</a>
+    <div class="series-nav"><a href="/blog/posts/production-go-37-escape-analysis-allocations.html" class="series-prev">&larr; Part 37: Escape Analysis and Allocation Discipline</a>
+<a href="/blog/posts/production-go-39-cpu-caches-data-oriented.html" class="series-next">Part 39: Data-Oriented Design and CPU Caches &rarr;</a></div>
+  </div>
+
+
+
+  <p>There&rsquo;s a latency signature that points inside the runtime rather than in front of it: p99 doubles, the graph goes sawtoothed, and everything that usually causes latency is innocent — CPU isn&rsquo;t pegged, throughput holds, the database is bored. On an allocation-heavy service (every request builds structs, decodes fields, stages entries), that pressure lands on Go&rsquo;s garbage collector, and when the GC runs more often or steals more CPU from your goroutines, latency moves in exactly that sawtooth shape.</p>
+<p>The fastest way to confirm the hunch ships with every Go binary and costs almost nothing: the GC trace. This post is about <em>reading</em> it — and every trace line in it is real output from a workload you can run yourself: a request-shaped allocator (per &ldquo;request&rdquo;: a grown <code>[]byte</code> plus a 24-entry field map) run in three modes on an Apple M1 Max, Go 1.27, 10 P&rsquo;s. Not escape analysis (that&rsquo;s <a href="/blog/posts/production-go-37-escape-analysis-allocations.html">the previous post</a> — it decides whether an allocation happens at all), and not <code>GOMEMLIMIT</code> pacing. Just: turn on <code>gctrace</code>, one line prints per GC cycle, learn to read it like an EKG.</p>
+<hr>
+<h2 id="turning-it-on-without-redeploying-the-world">Turning it on without redeploying the world</h2>
+<p><code>gctrace</code> is a <code>GODEBUG</code> setting — no recompile, no imports:</p>
+<pre><code class="language-bash">GODEBUG=gctrace=1 ./authsvc
+</code></pre>
+<p>In a containerized deployment you rarely restart the fleet on a whim, so the practical options are a <strong>canary</strong> pod with the env var baked in and a slice of traffic routed to it, or a <strong>load-test</strong> instance replaying captured traffic.</p>
+<p><strong>The gotcha:</strong> <code>gctrace</code> writes to <strong>stderr</strong>, one line per GC cycle, unbuffered and unstructured. Under load that&rsquo;s a lot of lines (the churn workload below produced ~690 per <em>second</em>). Make sure stderr is captured by your log pipeline, and be ready to <code>grep '^gc '</code> because other <code>GODEBUG</code> output interleaves on the same stream. It also can&rsquo;t be toggled at runtime — it&rsquo;s read once at startup — so treat it as a deploy-time decision, not an incident knob.</p>
+<hr>
+<h2 id="anatomy-of-one-trace-line">Anatomy of one trace line</h2>
+<p>A real line from the steady-churn workload:</p>
+<pre><code class="language-text">gc 25 @0.036s 6%: 0.18+0.62+0.059 ms clock, 1.8+0.076/0.069/0.001+0.59 ms cpu,
+      3-&gt;4-&gt;0 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 10 P
+</code></pre>
+<p>Field by field:</p>
+<ul>
+<li><strong><code>gc 25</code></strong> — cycle number since process start. On its own, just a counter; its <em>rate of increase</em> is the first thing to look at.</li>
+<li><strong><code>@0.036s</code></strong> — wall-clock seconds since start. Diff two consecutive lines and you have the interval between collections — the single most diagnostic number in the trace. (25 cycles in 36ms: this workload collects every ~1.4ms.)</li>
+<li><strong><code>6%</code></strong> — cumulative share of CPU spent in GC since startup. It drifts slowly; a climb over a window is the alarm.</li>
+<li><strong><code>0.18+0.62+0.059 ms clock</code></strong> — the three phases as wall-clock: <strong>sweep-termination + mark/scan + mark-termination</strong>. The outer two are stop-the-world; the middle is the big concurrent mark. STW here: 0.18ms and 0.059ms — tiny, as the modern collector promises. If the outer numbers grow, that&rsquo;s direct tail latency.</li>
+<li><strong><code>1.8+0.076/0.069/0.001+0.59 ms cpu</code></strong> — the same work as CPU time across all P&rsquo;s: what the collector <em>stole</em> from your goroutines. The middle triple is <strong>mark-assist / background-mark / idle-mark</strong> — assist is the one to watch (more below).</li>
+<li><strong><code>3-&gt;4-&gt;0 MB</code></strong> — heap at GC start, heap when marking finished, <strong>live</strong> heap at cycle end. <code>3-&gt;4-&gt;0</code> says: the heap grew to 3–4 MB of almost pure garbage, and <em>nothing</em> survived. That zero is the signature of healthy short-lived allocation.</li>
+<li><strong><code>4 MB goal</code></strong> — the pacer&rsquo;s heap-size target for triggering the <em>next</em> cycle, derived from live heap and <code>GOGC</code>. Watching <code>goal</code> move tells you whether the working set is stable or creeping.</li>
+<li><strong><code>0 MB stacks, 0 MB globals</code></strong> — scan work for goroutine stacks and package globals; stable unless goroutine count grows.</li>
+<li><strong><code>10 P</code></strong> — <code>GOMAXPROCS</code> the collector had to work with.</li>
+</ul>
+<p>Two derived quantities aren&rsquo;t printed — you compute them:</p>
+<ul>
+<li><strong>GC frequency</strong> = <code>1 / Δ@Ts</code> between lines.</li>
+<li><strong>Allocation rate</strong> ≈ heap growth between cycles ÷ interval. For the workload above, <code>MemStats.TotalAlloc</code> confirms it directly: <strong>13.9 GB allocated in 8 seconds — ~1.7 GB/s</strong> of short-lived garbage. That number is the root cause behind almost every GC problem.</li>
+</ul>
+<hr>
+<h2 id="what-healthy-but-churning-looks-like">What healthy-but-churning looks like</h2>
+<p>The steady workload (8 goroutines allocating request-shaped garbage flat out, retaining nothing) produces a trace that is <em>regular</em> — and regularity is most of what &ldquo;healthy&rdquo; means:</p>
+<pre><code class="language-text">gc 20 @0.029s 6%: ... 3-&gt;3-&gt;0 MB, 4 MB goal, ... 10 P
+gc 25 @0.036s 6%: ... 3-&gt;4-&gt;0 MB, 4 MB goal, ... 10 P
+    ...8 seconds later...
+done: numgc=5514  gc_cpu_frac=0.071
+</code></pre>
+<p>The tells, each visible above:</p>
+<ul>
+<li><strong>Stable interval</strong> — cycles fire on a constant ~1.4ms cadence, not in bursts.</li>
+<li><strong>Flat live heap</strong> — <code>H2</code> pinned at 0 MB cycle after cycle: everything allocated dies young, which Go&rsquo;s collector handles cheaply.</li>
+<li><strong>Stable goal</strong> — 4 MB forever; the pacer isn&rsquo;t chasing anything.</li>
+<li><strong>Tiny STW</strong> — sub-0.2ms outer phases throughout.</li>
+</ul>
+<p>But one number says this service still has a problem: <strong>5,514 collections in 8 seconds, costing 7.1% of all CPU.</strong> Nothing is leaking — the GC is simply sprinting to keep up with a 1.7 GB/s allocation firehose against a 4 MB heap. That&rsquo;s the <em>frequent-but-cheap</em> disease: no single cycle hurts, and the collector quietly taxes every core. Remember the shape; the fix comparison below is measured against it.</p>
+<hr>
+<h2 id="what-a-leak-looks-like">What a leak looks like</h2>
+<p>Same workload, one change: each request also appends its buffer to a global slice — an unbounded &ldquo;audit log.&rdquo; Real trace, sampled:</p>
+<pre><code class="language-text">gc 10 @0.042s 1%: ...   6-&gt;7-&gt;3 MB,   7 MB goal, ... 10 P
+gc 20 @0.162s 0%: ...  25-&gt;25-&gt;14 MB,  25 MB goal, ... 10 P
+gc 30 @0.582s 0%: ...  90-&gt;90-&gt;52 MB,  92 MB goal, ... 10 P
+gc 40 @2.098s 0%: ... 328-&gt;328-&gt;189 MB, 332 MB goal, ... 10 P
+</code></pre>
+<p>Every healthy tell inverts, and you can read the disease straight off the columns: <strong>live heap (<code>H2</code>) climbing</strong> 3 → 14 → 52 → 189 MB under steady traffic — something is accumulating. <strong><code>goal</code> chasing it</strong> upward, 7 → 25 → 92 → 332 MB, because the pacer always targets a multiple of live. <strong>Intervals <em>stretching</em></strong> (0.04s → 0.16s → 0.58s → 2.1s between samples) as the growing goal gives each cycle more runway — which is why &ldquo;GC is running less often&rdquo; is <em>not</em> reassuring on its own. And the mark CPU numbers growing with the live set, because every surviving megabyte is future scan work for every future cycle.</p>
+<p>A steadily rising <code>H2</code> under steady load is the classic shape of a leak or an unbounded cache, and no GC tuning fixes it — the next step is the heap profiler (<code>go tool pprof -alloc_space</code>, or <code>-inuse_space</code> for what&rsquo;s retained), which names the call site doing the accumulating.</p>
+<p><strong>The gotcha:</strong> high GC <em>frequency</em> and high GC <em>CPU</em> are different diseases, and the two traces above let you tell them apart at a glance. Frequent-but-cheap with a flat live heap = allocation churn — fix by allocating less, or give the heap room with <code>GOGC</code>. Climbing live heap = retention — fix the leak; more heap room just delays the wall. And when allocation outruns the background collector entirely, the runtime drafts <em>your</em> goroutines into <strong>mark assist</strong> (the <code>x</code> in the <code>x/y/z</code> CPU triple) — that cost lands on individual unlucky requests, which is precisely why GC pain shows up at p99 before it shows up in the mean.</p>
+<hr>
+<h2 id="what-gogc-measurably-buys">What <code>GOGC</code> measurably buys</h2>
+<p><code>GOGC</code> is the pacer&rsquo;s setpoint: at the default <code>100</code>, the next GC triggers when the heap is 100% larger than the live set. Raise it and GC runs less often at the cost of a bigger heap:</p>
+<pre><code class="language-go">import &quot;runtime/debug&quot;
+
+// Programmatic — the honest place to put it, next to a comment explaining why.
+debug.SetGCPercent(400) // trade heap for fewer GC cycles on this service
+</code></pre>
+<pre><code class="language-bash"># Or via env, no recompile:
+GOGC=400 ./authsvc
+</code></pre>
+<p>Here&rsquo;s the same steady-churn workload at both settings — same machine, same 8 seconds:</p>
+<table><caption class="sr-only">What GOGC measurably buys</caption>
+<thead>
+<tr>
+<th></th>
+<th><code>GOGC=100</code></th>
+<th><code>GOGC=400</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GC cycles</td>
+<td>5,499</td>
+<td>1,793 (−67%)</td>
+</tr>
+<tr>
+<td>GC share of CPU</td>
+<td>7.1%</td>
+<td>2.4%</td>
+</tr>
+<tr>
+<td>Heap goal</td>
+<td>4 MB</td>
+<td>16 MB</td>
+</tr>
+<tr>
+<td>Work done (bytes allocated)</td>
+<td>13.9 GB</td>
+<td><strong>25.3 GB (+82%)</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The last row is the one worth staring at. Freeing the workers from GC taxation — fewer cycles, less mark assist — meant they got <strong>82% more actual work done</strong> in the same wall-clock time, for the price of 12 MB of heap. When the diagnosis is frequent-but-cheap churn, <code>GOGC</code> is a spectacular lever.</p>
+<p><strong>The gotcha:</strong> don&rsquo;t tune <code>GOGC</code> blind and call it fixed. You&rsquo;ve traded memory for CPU, and pushed closer to the container&rsquo;s memory limit — check the trade is affordable, and confirm the <em>trace</em> after the change: frequency down, GC CPU down, assist near zero, live heap still flat. If live heap is rising, you have the other disease, and no pacer setting will save you. (For bounding total memory against a cgroup limit, <code>GOMEMLIMIT</code> — a ceiling, not a ratio — is its own topic and its own post.)</p>
+<p>The priority order stands regardless: <strong>allocate less first</strong> (pool churny buffers, presize maps and slices, keep <code>fmt</code> boxing off hot paths — the <a href="/blog/posts/production-go-37-escape-analysis-allocations.html">escape-analysis post</a> measures those fixes), <em>then</em> tune the pacer with what remains.</p>
+<hr>
+<h2 id="a-reading-checklist">A reading checklist</h2>
+<table><caption class="sr-only">A reading checklist</caption>
+<thead>
+<tr>
+<th>Symptom in the trace</th>
+<th>Likely cause</th>
+<th>First action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@Ts</code> deltas tiny and constant, <code>H2</code> flat</td>
+<td>Allocation churn vs. small heap</td>
+<td>Reduce allocs; consider raising <code>GOGC</code></td>
+</tr>
+<tr>
+<td>Cumulative <code>%</code> climbing over a window</td>
+<td>Collector stealing CPU</td>
+<td>Cut allocation rate; profile <code>-alloc_space</code></td>
+</tr>
+<tr>
+<td>Mark-assist (<code>x</code>) non-trivial</td>
+<td>Allocating faster than background mark</td>
+<td>Reduce allocs — more heap won&rsquo;t fix it</td>
+</tr>
+<tr>
+<td><code>H2</code> rising steadily</td>
+<td>Leak or unbounded cache</td>
+<td>Heap profile; find the retained objects</td>
+</tr>
+<tr>
+<td><code>goal</code> far above live, GC still frequent</td>
+<td><code>GOGC</code> too low for the workload</td>
+<td>Raise <code>GOGC</code> (if memory allows)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong><code>gctrace</code> is free and always available.</strong> One env var, one line per cycle to stderr, no recompile — the first thing to reach for when latency looks runtime-shaped.</li>
+<li><strong>Read the derived numbers, not just the printed ones.</strong> GC frequency (Δ<code>@Ts</code>) and allocation rate aren&rsquo;t in the line; you compute them, and the diagnosis lives there. The demo workload&rsquo;s 1.7 GB/s allocation rate explains every other number it produced.</li>
+<li><strong>Churn and retention are different diseases with opposite trace shapes.</strong> Flat <code>H2</code> + 1.4ms intervals = churn; climbing <code>H2</code> + stretching intervals + chasing goal = leak. The same trace distinguishes them in ten lines.</li>
+<li><strong>Mark-assist is the tail-latency villain.</strong> When your goroutines get drafted to mark, the cost lands on individual requests — the p99 shape with a calm mean.</li>
+<li><strong><code>GOGC</code> is a real lever with a measurable price.</strong> On the churn workload: −67% cycles, GC CPU 7.1%→2.4%, +82% useful work, for 12 MB of heap. Allocate less first; tune second; re-read the trace to confirm — and never invent the numbers, measure them.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><strong>&ldquo;Garbage Collection In Go: Part II - GC Traces&rdquo;</strong> — Ardan Labs, https://www.ardanlabs.com/blog</li>
+</ul>
+<hr>
+<p><em>All trace lines and numbers: a request-shaped allocation workload (8 worker goroutines; per request a grown <code>[]byte</code> + 24-entry map) on an Apple M1 Max, Go 1.27, 8-second runs. Machine-specific in absolute terms; the shapes are universal.</em></p>
+
+
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-14-inference-optimization.html">Inference Optimization</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-42-tail-latency-slos.html">Tail Latency and SLOs</a>
+      <span class="related-date">Aug 06</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-40-profiling-pgo.html">Profiling and PGO in Production</a>
+      <span class="related-date">Aug 04</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← Blog home</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+<div id="read-progress" aria-hidden="true"></div>
+<nav id="toc" aria-label="Table of contents"></nav>
+<div class="rh-controls">
+  <button id="rh-theme" class="rh-btn" type="button" aria-label="Toggle light and dark theme" title="Toggle theme"></button>
+  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top"><span aria-hidden="true">&uarr;</span></button>
+</div>
+<script>
+!function(){var e=document.documentElement;function t(){return e.getAttribute("data-theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}var n=document.getElementById("rh-theme");function o(){n&&(n.textContent="dark"===t()?"\u2600\uFE0E":"\u263D")}o(),n&&n.addEventListener("click",function(){var n="dark"===t()?"light":"dark";e.setAttribute("data-theme",n);try{localStorage.setItem("theme",n)}catch(e){}o()});var c=document.querySelector("article"),r=document.getElementById("toc");if(c&&r){var a=c.querySelectorAll("h2, h3");if(a.length>=3){var i=document.createElement("div");i.className="toc-title",i.textContent="On this page",r.appendChild(i);var d=[];a.forEach(function(e,t){e.id||(e.id="sec-"+t);var n=document.createElement("a");"H3"===e.tagName&&(n.className="h3"),n.href="#"+e.id,n.textContent=e.textContent,r.appendChild(n),d.push(n)});var s={};d.forEach(function(e){s[e.getAttribute("href").slice(1)]=e});var l=new IntersectionObserver(function(e){e.forEach(function(e){if(e.isIntersecting){d.forEach(function(e){e.classList.remove("active")});var t=s[e.target.id];t&&t.classList.add("active")}})},{rootMargin:"-80px 0px -70% 0px"});a.forEach(function(e){l.observe(e)})}else r.style.display="none"}document.querySelectorAll("article pre").forEach(function(e){var t=document.createElement("button");t.className="copy-btn",t.type="button",t.textContent="Copy",t.addEventListener("click",function(){var n=e.querySelector("code"),o=n?n.innerText:e.innerText;navigator.clipboard.writeText(o).then(function(){t.textContent="Copied",t.classList.add("copied"),setTimeout(function(){t.textContent="Copy",t.classList.remove("copied")},1500)})}),e.appendChild(t)});var u=document.getElementById("read-progress"),h=document.getElementById("rh-top");function m(){var t=e.scrollHeight-e.clientHeight,n=t>0?e.scrollTop/t*100:0;u&&(u.style.width=n+"%"),h&&(e.scrollTop>600?h.classList.add("show"):h.classList.remove("show"))}window.addEventListener("scroll",m,{passive:!0}),m(),h&&h.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"})})}();
+</script>
+</body>
+</html>

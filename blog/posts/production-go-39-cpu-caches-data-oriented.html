@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>(function(){try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com; form-action 'self' https://buttondown.com; frame-ancestors 'none';">
+<title>Data-Oriented Design and CPU Caches — Pratik Dhanave</title>
+<meta name="description" content="Memory-bound masquerading as CPU-bound: struct field ordering (measured 40→24 bytes), array-of-structs vs struct-of-arrays on a 2M-record scan, and...">
+<meta name="author" content="Pratik Dhanave">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:title" content="Data-Oriented Design and CPU Caches — Pratik Dhanave">
+<meta property="og:description" content="Memory-bound masquerading as CPU-bound: struct field ordering (measured 40→24 bytes), array-of-structs vs struct-of-arrays on a 2M-record scan, and false sharing — where padding to the textbook 64 bytes left half the win on the table because Apple Silicon&#x27;s cache lines are 128.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pratikdhanave.com/blog/posts/production-go-39-cpu-caches-data-oriented.html">
+<meta property="og:site_name" content="Pratik Dhanave">
+<meta property="og:image" content="https://pratikdhanave.com/og-default.png">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-08-03T00:00:00Z">
+<meta property="article:tag" content="Go">
+<meta property="article:tag" content="Performance">
+<meta property="article:tag" content="CPU Caches">
+<meta property="article:tag" content="Data-Oriented Design">
+<meta property="article:tag" content="Backend Engineering">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Data-Oriented Design and CPU Caches — Pratik Dhanave">
+<meta name="twitter:description" content="Memory-bound masquerading as CPU-bound: struct field ordering (measured 40→24 bytes), array-of-structs vs struct-of-arrays on a 2M-record scan, and false sharing — where padding to the textbook 64 bytes left half the win on the table because Apple Silicon&#x27;s cache lines are 128.">
+<meta name="twitter:image" content="https://pratikdhanave.com/og-default.png">
+
+<link rel="canonical" href="https://pratikdhanave.com/blog/posts/production-go-39-cpu-caches-data-oriented.html">
+<link rel="alternate" type="text/markdown" title="Markdown version" href="/blog/posts/production-go-39-cpu-caches-data-oriented.md">
+<link rel="alternate" type="application/rss+xml" title="Pratik Dhanave — Blog" href="https://pratikdhanave.com/blog/feed.xml">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a73e8'/><text x='50' y='65' font-size='52' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='700'>P</text></svg>">
+
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3BZ8MDPHE1"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-3BZ8MDPHE1');</script>
+
+<style>:root{--bg:#ffffff;--bg-elev:#f7f8fa;--bg-card:#ffffff;--text:#1a1a1a;--text-dim:#444;--text-muted:#595959;--border:#e5e7eb;--accent:#1a73e8;--accent-hover:#1557b0;--tag-bg:#eef3fb;--tag-text:#1557b0;--code-bg:#f3f4f6;--code-border:#e1e4e8;--shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}}:root[data-theme="dark"]{--bg:#0d1117;--bg-elev:#161b22;--bg-card:#161b22;--text:#e6edf3;--text-dim:#c4ccd5;--text-muted:#8b949e;--border:#30363d;--accent:#58a6ff;--accent-hover:#79b8ff;--tag-bg:#1e2d4a;--tag-text:#79b8ff;--code-bg:#1e242c;--code-border:#2d333b;--shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2)}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;font-size:16px}a{color:var(--accent);text-decoration:none;transition:color 0.15s}a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}a:hover{color:var(--accent-hover);text-decoration:underline}nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--border)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav{background:rgba(13,17,23,0.85)}}:root[data-theme="dark"] nav{background:rgba(13,17,23,0.85)}.nav-container{max-width:1320px;margin:0 auto;padding:12px 22px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}.nav-brand{font-weight:700;font-size:16px;color:var(--text);letter-spacing:-0.01em;margin-right:auto}.nav-brand:hover{text-decoration:none;color:var(--text)}.nav-links{display:flex;flex-wrap:wrap;flex-basis:100%;gap:8px 14px;list-style:none;font-size:12px;font-weight:500;justify-content:flex-end}.nav-links a{color:var(--text-dim);min-height:44px;display:inline-flex;align-items:center}.nav-links a:hover{color:var(--accent);text-decoration:none}.nav-links a.active{color:var(--accent)}@media (max-width:640px){.nav-container{padding:12px 18px}.nav-links{gap:14px}}.nav-toggle{display:none}.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:36px;height:36px;padding:6px;cursor:pointer;margin-left:auto;border-radius:6px}.nav-burger span{display:block;height:2px;width:22px;background:var(--text);border-radius:2px;transition:0.2s}@media (max-width:768px){.nav-container{flex-wrap:wrap}.nav-burger{display:flex}.nav-links{display:none !important;width:100%;flex-direction:column;align-items:stretch;gap:0;padding:6px 0 2px}.nav-toggle:checked~.nav-links{display:flex !important}.nav-links li{display:block !important;width:100%}.nav-links a{display:flex;align-items:center;min-height:44px;padding:10px 4px}}main{max-width:760px;margin:0 auto;padding:0 24px}article header{padding:64px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}article h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin-bottom:14px}.post-subtitle{font-size:1.05rem;color:var(--text-dim);font-style:italic;margin-bottom:20px}.post-meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--text-muted);margin-bottom:14px}.post-meta time{font-weight:500}.post-tags{display:flex;flex-wrap:wrap;gap:8px}.tag{font-size:12px;font-weight:500;padding:6px 12px;border-radius:12px;background:var(--tag-bg);color:var(--tag-text);min-height:44px;display:inline-flex;align-items:center}.tag-link{text-decoration:none;color:inherit}.tag-link:hover{text-decoration:none}.tag-link:hover .tag{background:var(--accent);color:var(--bg)}.author-link{color:inherit;text-decoration:none}.author-link:hover{color:var(--accent)}article h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin-top:48px;margin-bottom:16px;color:var(--text)}article h3{font-size:1.18rem;font-weight:700;margin-top:32px;margin-bottom:10px;color:var(--text)}article h4{font-size:1rem;font-weight:700;margin-top:24px;margin-bottom:8px;color:var(--text)}article p{margin:0 0 18px;color:var(--text-dim)}article strong{color:var(--text);font-weight:600}article em{font-style:italic}article ul,article ol{margin:0 0 20px;padding-left:24px;color:var(--text-dim)}article li{margin-bottom:6px}article blockquote{border-left:3px solid var(--accent);background:var(--bg-elev);padding:12px 18px;margin:0 0 20px;color:var(--text-dim);font-style:italic;border-radius:0 6px 6px 0}article blockquote p:last-child{margin-bottom:0}article hr{border:none;border-top:1px solid var(--border);margin:36px 0}article code{font-family:"SF Mono",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:0.88em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:1px 6px;color:var(--text)}article pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:0 0 20px;line-height:1.55;font-size:13.5px}article pre code{background:none;border:none;padding:0;font-size:inherit;color:var(--text)}article table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:0.93rem}article th,article td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}article th{background:var(--bg-elev);font-weight:700;color:var(--text)}article td{color:var(--text-dim)}article tr:hover td{background:var(--bg-elev)}article img{max-width:100%;height:auto;border-radius:8px}.post-footer{padding:36px 0;border-top:1px solid var(--border);margin-top:48px;color:var(--text-muted);font-size:14px}.post-footer a{color:var(--accent)}.post-footer .footer-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;margin-bottom:14px}footer.site-footer{text-align:center;padding:32px 24px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:48px}footer.site-footer a{color:var(--text-muted);min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}.post-citations{margin:56px 0 0;padding:28px 0;border-top:2px solid var(--accent);border-bottom:1px solid var(--border)}.post-citations h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.citation-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}.citation-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.citation-title{font-weight:600;margin-bottom:4px}.citation-title a{color:var(--accent)}.citation-title a:hover{color:var(--accent-hover)}.citation-context{font-size:0.9rem;color:var(--text-muted);font-style:italic}.series-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.series-label{font-weight:600;color:var(--accent);display:block;margin-bottom:4px}.series-title{color:var(--text-dim);font-size:0.95rem}.series-nav{display:flex;justify-content:space-between;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}.series-nav a{font-size:0.85rem;font-weight:500;color:var(--accent)}.series-nav a:hover{color:var(--accent-hover)}.series-prev{text-align:left}.series-next{text-align:right;margin-left:auto}.project-breadcrumb{background:var(--bg-elev);border-left:3px solid var(--accent);padding:12px 16px;margin:0 0 20px;border-radius:0 4px 4px 0;font-size:0.9rem}.project-breadcrumb a{color:var(--accent);text-decoration:none;font-weight:600}.project-breadcrumb a:hover{text-decoration:underline}.related-posts{margin:40px 0;padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.related-posts h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text)}.related-posts ul{list-style:none;margin:0;padding:0}.related-posts li{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px}.related-posts li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}.related-posts a{color:var(--accent);flex:1}.related-posts a:hover{color:var(--accent-hover);text-decoration:underline}.related-date{font-size:0.85rem;color:var(--text-muted);white-space:nowrap}::selection{background:var(--accent);color:var(--bg)}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}#read-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-hover));z-index:1000;transition:width .1s ease-out}.rh-controls{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:900}.rh-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;box-shadow:var(--shadow);transition:transform .15s,color .15s,opacity .2s}.rh-btn:hover{transform:translateY(-2px);color:var(--accent)}#rh-top{opacity:0;pointer-events:none}#rh-top.show{opacity:1;pointer-events:auto}#toc{position:fixed;top:118px;right:24px;width:224px;max-height:72vh;overflow-y:auto;font-size:13px;padding:4px 0 4px 16px;border-left:2px solid var(--border);z-index:800}#toc .toc-title{font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:11px;color:var(--text-muted);margin-bottom:10px}#toc a{display:block;color:var(--text-muted);padding:4px 0 4px 14px;line-height:1.35;border-left:2px solid transparent;margin-left:-16px;transition:color .15s,border-color .15s}#toc a.h3{padding-left:26px;font-size:12px}#toc a:hover{color:var(--accent);text-decoration:none}#toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}article pre{position:relative}.copy-btn{position:absolute;top:8px;right:8px;padding:3px 10px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);color:var(--text-muted);cursor:pointer;opacity:0;transition:opacity .15s,color .15s,border-color .15s}article pre:hover .copy-btn,.copy-btn:focus-visible{opacity:1}.copy-btn:hover{color:var(--accent);border-color:var(--accent)}.copy-btn.copied{color:#2ea043;border-color:#2ea043}@media (max-width:1240px){#toc{display:none}}@media print{#read-progress,.rh-controls,#toc,.copy-btn{display:none !important}}</style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Data-Oriented Design and CPU Caches",
+  "description": "Memory-bound masquerading as CPU-bound: struct field ordering (measured 40\u219224 bytes), array-of-structs vs struct-of-arrays on a 2M-record scan, and false sharing \u2014 where padding to the textbook 64 bytes left half the win on the table because Apple Silicon's cache lines are 128.",
+  "image": "https://pratikdhanave.com/og-default.png",
+  "datePublished": "2026-08-03",
+  "dateModified": "2026-08-03",
+  "inLanguage": "en",
+  "author": {
+    "@type": "Person",
+    "@id": "https://pratikdhanave.com/#pratik",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "image": "https://pratikdhanave.com/pratik.png"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "@id": "https://pratikdhanave.com/#org",
+    "name": "Pratik Dhanave",
+    "url": "https://pratikdhanave.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pratikdhanave.com/pratik.png"
+    }
+  },
+  "keywords": "Go, Performance, CPU Caches, Data-Oriented Design, Backend Engineering",
+  "url": "https://pratikdhanave.com/blog/posts/production-go-39-cpu-caches-data-oriented.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pratikdhanave.com/blog/posts/production-go-39-cpu-caches-data-oriented.html"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://pratikdhanave.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://pratikdhanave.com/blog/"},
+    {"@type": "ListItem", "position": 3, "name": "Road Go Ever On", "item": "https://pratikdhanave.com/blog/series/road-go-ever-on/"},
+    {"@type": "ListItem", "position": 4, "name": "Data-Oriented Design and CPU Caches", "item": "https://pratikdhanave.com/blog/posts/production-go-39-cpu-caches-data-oriented.html"}
+  ]
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="nav-container">
+    <a href="/" class="nav-brand" aria-label="Pratik Dhanave — Home">Pratik Dhanave</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle navigation">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+    <ul class="nav-links">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/projects/">Projects</a></li>
+      <li><a href="/architecture/">Architecture</a></li>
+      <li><a href="/consulting/">Consulting</a></li><li><a href="/case-studies/">Case Studies</a></li><li><a href="/playbook/">Playbook</a></li><li><a href="/start-here/">Start Here</a></li>
+      <li><a href="/open-source/">Open Source</a></li>
+      <li><a href="/agent-framework/">Microsoft Agent Framework Go</a></li>
+      <li><a href="/recommendations/">Recommendations</a></li>
+      <li><a href="/google-cloud-next/">Google Cloud Next Speaker</a></li>
+      <li><a href="/mentoring/">Mentoring</a></li>
+      <li><a href="/gsoc/">GSoC</a></li>
+      <li><a href="/resume/">Resume</a></li>
+      <li><a href="/certifications/">Certifications</a></li>
+      <li><a href="/gallery/">Gallery</a></li>
+      <li><a href="/featured/">Featured</a></li>
+      <li><a href="/blog/" class="active">Blog</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+<article>
+  <header>
+    <h1>Data-Oriented Design and CPU Caches</h1>
+    <p class="post-subtitle">Why a loop that profiles as CPU-bound can really be memory-bound — struct layout, array-of-structs vs struct-of-arrays, and false sharing, all measured on real hardware (including a 128-byte-cache-line surprise).</p>
+    <div class="post-meta">
+      <span class="post-author">By <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <span>·</span>
+      <time datetime="2026-08-03">August 03, 2026</time>
+      <span>·</span>
+      <span>10 min read</span>
+    </div>
+    <div class="post-tags"><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/performance/" class="tag-link"><span class="tag">#Performance</span></a><a href="/blog/tags/cpu-caches/" class="tag-link"><span class="tag">#CPU Caches</span></a><a href="/blog/tags/data-oriented-design/" class="tag-link"><span class="tag">#Data-Oriented Design</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a></div>
+  </header>
+
+  <div class="series-breadcrumb">
+    <span class="series-label">Part 39 of 45</span>
+    <a class="series-title" href="/blog/series/road-go-ever-on/">Road Go Ever On</a>
+    <div class="series-nav"><a href="/blog/posts/production-go-38-reading-gc-traces.html" class="series-prev">&larr; Part 38: Reading GC Traces Under Load</a>
+<a href="/blog/posts/production-go-40-profiling-pgo.html" class="series-next">Part 40: Profiling and PGO in Production &rarr;</a></div>
+  </div>
+
+
+
+  <p>A profile saying &ldquo;we spend all our time in this loop&rdquo; is not the same as &ldquo;this loop is doing useful arithmetic.&rdquo; A loop can be CPU-bound the way a car stuck in traffic is engine-bound: the engine&rsquo;s running, but that&rsquo;s not the bottleneck. Hot loops over large data routinely stall on memory — waiting for cache lines to arrive from RAM — and the CPU idles through those stalls without anything in a standard profile saying so.</p>
+<p>This post works through the three data-layout levers that fix it — field ordering, hot/cold separation, and false-sharing padding — and <strong>measures every claim</strong> on a settlement-matching workload: a linear scan over 2 million position records. Numbers are from an Apple M1 Max (10 cores, Go 1.27), which turns out to be a usefully <em>awkward</em> machine for this topic, in ways flagged honestly below.</p>
+<hr>
+<h2 id="the-memory-hierarchy-your-algorithm-forgot-about">The memory hierarchy your algorithm forgot about</h2>
+<p>The mental model most of us carry — memory is a flat array you index in O(1) — hasn&rsquo;t been true since roughly the 1990s. What&rsquo;s actually underneath a Go program is a hierarchy, and each step down is an order of magnitude slower:</p>
+<table><caption class="sr-only">The memory hierarchy your algorithm forgot about</caption>
+<thead>
+<tr>
+<th>Level</th>
+<th>Rough latency</th>
+<th>Rough size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L1 cache</td>
+<td>~1 ns</td>
+<td>32–192 KB per core</td>
+</tr>
+<tr>
+<td>L2 cache</td>
+<td>~4 ns</td>
+<td>256 KB–12 MB</td>
+</tr>
+<tr>
+<td>L3 / SLC</td>
+<td>~15 ns</td>
+<td>tens of MB, shared</td>
+</tr>
+<tr>
+<td>Main memory (RAM)</td>
+<td>~100 ns</td>
+<td>gigabytes</td>
+</tr>
+</tbody>
+</table>
+<p>A load from L1 versus a load from RAM is the difference between reaching into your pocket and walking to another building, and the CPU can&rsquo;t do useful work while it waits.</p>
+<p>The unit of transfer matters as much as the latency. The CPU never fetches one byte — it fetches a <strong>cache line</strong>: 64 bytes on amd64 and most server arm64 (Graviton, Ampere), but <strong>128 bytes on Apple&rsquo;s M-series</strong>. Everything in the line comes along for free; everything outside it is another trip. And the <strong>hardware prefetcher</strong> watches your access pattern — when it detects a predictable stride, it fetches upcoming lines before you ask, hiding the latency entirely. It rewards linear, dense access and gives up when you chase pointers.</p>
+<p>So the real performance question for a hot loop isn&rsquo;t &ldquo;how many operations?&rdquo; It&rsquo;s &ldquo;how many cache lines does this loop touch, and can the prefetcher see them coming?&rdquo;</p>
+<hr>
+<h2 id="array-of-structs-the-layout-that-looks-reasonable">Array of structs: the layout that looks reasonable</h2>
+<p>Here&rsquo;s a position record that reads like clean, obvious domain code — which is why layouts like it survive review for years:</p>
+<pre><code class="language-go">type Position struct {
+    Notes        string    // 16 bytes — rarely read in the hot loop
+    CreatedAt    time.Time // 24 bytes — audit only
+    Counterparty string    // 16 bytes — matched on, but rarely
+    AccountID    uint64    // 8 bytes
+    Amount       int64     // 8 bytes  — the hot field (minor units)
+    Currency     uint16    // 2 bytes  — the hot field
+    Status       uint8     // 1 byte   — the hot field
+    Matched      bool      // 1 byte   — written in the hot loop
+}
+
+book := make([]Position, 2_000_000) // array of structs
+</code></pre>
+<p>The matcher walks the whole book looking for open positions in a currency that can absorb an incoming leg:</p>
+<pre><code class="language-go">func matchLeg(book []Position, ccy uint16, want int64) int {
+    for i := range book {
+        p := &amp;book[i]
+        if p.Status == statusOpen &amp;&amp; p.Currency == ccy &amp;&amp; !p.Matched &amp;&amp; p.Amount &gt;= want {
+            return i
+        }
+    }
+    return -1
+}
+</code></pre>
+<p>Look at what the CPU does per iteration. The hot path reads <code>Status</code>, <code>Currency</code>, <code>Matched</code>, <code>Amount</code> — 12 bytes of the record. But <code>unsafe.Sizeof(Position{})</code> is <strong>80 bytes</strong>, measured. The loop uses 15% of every record it hauls out of memory; the cold <code>Notes</code>, <code>CreatedAt</code>, and <code>Counterparty</code> ride along in the same cache lines, evicting useful data and multiplying fetches.</p>
+<p><strong>The gotcha:</strong> an array of structs (AoS) co-locates <em>all</em> of a record&rsquo;s fields. Great when you use most fields together; actively harmful in a loop that reads a few. The profiler blames the loop because that&rsquo;s where the stalls surface — but the cost was decided at <code>struct</code> definition time.</p>
+<hr>
+<h2 id="field-ordering-and-padding-the-free-win">Field ordering and padding: the free win</h2>
+<p>Go lays out fields in declaration order, aligning each to its natural boundary with padding. Interleave small and large fields and the padding scatters through the struct. Measured at the extreme:</p>
+<pre><code class="language-go">type BadLayout struct {
+    A bool  // offset 0
+    B int64 // offset 8  (7 bytes padding after A)
+    C bool  // offset 16
+    D int64 // offset 24 (7 bytes padding after C)
+    E bool  // offset 32
+} // unsafe.Sizeof == 40 (measured): 19 real bytes, 21 of padding
+
+type GoodLayout struct {
+    B int64 // offset 0
+    D int64 // offset 8
+    A bool  // offset 16
+    C bool  // offset 17
+    E bool  // offset 18
+} // unsafe.Sizeof == 24 (measured): bools pack into the tail word
+</code></pre>
+<p>Same fields, same data — <strong>40 bytes down to 24</strong> for a mechanical reorder. The rule of thumb: <strong>largest fields first.</strong> And you don&rsquo;t have to eyeball it; <code>go vet</code>&rsquo;s <code>fieldalignment</code> analyzer finds and even rewrites it:</p>
+<pre><code>go run golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment@latest -fix ./...
+</code></pre>
+<p>More records per cache line, fewer fetches per pass — the cheapest performance work in Go.</p>
+<p><strong>The gotcha:</strong> <code>fieldalignment</code> optimizes for <em>size</em>, not <em>access locality</em>. It will happily produce a smaller struct that still interleaves hot and cold fields. For a hot loop over millions of records you want the hot fields not just packed but <em>separated</em> — the next move.</p>
+<hr>
+<h2 id="struct-of-arrays-separate-hot-from-cold">Struct of arrays: separate hot from cold</h2>
+<p>Stop storing records as records. Split the bloated <code>[]Position</code> into parallel arrays — struct of arrays (SoA) — so each field is its own contiguous slice:</p>
+<pre><code class="language-go">type Book struct {
+    // hot columns — everything the matcher touches, densely packed
+    Amount   []int64
+    Currency []uint16
+    Status   []uint8
+    Matched  []bool
+
+    // cold columns — audit/reporting only, never touched in the hot loop
+    AccountID    []uint64
+    Counterparty []string
+    CreatedAt    []time.Time
+    Notes        []string
+}
+
+func matchLeg(b *Book, ccy uint16, want int64) int {
+    for i := range b.Status {
+        if b.Status[i] == statusOpen &amp;&amp; b.Currency[i] == ccy &amp;&amp; !b.Matched[i] &amp;&amp; b.Amount[i] &gt;= want {
+            return i
+        }
+    }
+    return -1
+}
+</code></pre>
+<p>Reading <code>b.Status[i]</code> now pulls a line of <em>consecutive status bytes</em> — the next 128 records&rsquo; worth on this machine. The cold columns live in different memory regions and are never fetched. Each hot column is a dense linear stride the prefetcher locks onto immediately.</p>
+<p>Measured — full worst-case scan of 2 million positions, median of 6 runs:</p>
+<pre><code class="language-text">BenchmarkMatchAoS-10    3,029,653 ns/op
+BenchmarkMatchSoA-10    2,318,272 ns/op     (1.31x faster)
+</code></pre>
+<p>Now the honesty section, because this is where lesser posts reach for a fabricated &ldquo;2×&rdquo;. <strong>The win here is 1.31×, and the reasons it isn&rsquo;t bigger are themselves the lesson.</strong> The M1 Max is close to a best case for the <em>bad</em> layout: an 80-byte record is a short, perfectly regular stride that its prefetcher predicts flawlessly, and its caches are enormous (the 2M-record hot columns nearly fit in cache as SoA). The same comparison widens as conditions worsen — bigger structs, more cold payload per record, smaller caches (a modest cloud instance), or random access patterns that defeat the prefetcher. Data-oriented design is insurance whose payout scales with how hostile the memory system is; on friendly hardware the premium looks small. Measure on hardware that resembles production before deciding it&rsquo;s not worth it — and before deciding it is.</p>
+<p><strong>The gotcha:</strong> SoA costs ergonomics. There&rsquo;s no <code>Position</code> value to pass around; a &ldquo;record&rdquo; is an index into parallel slices you must keep the same length. Reach for it only where it pays — large collections, tight loops, few fields touched. Don&rsquo;t SoA your codebase; SoA the hot loop.</p>
+<hr>
+<h2 id="false-sharing-when-padding-is-the-fix-not-the-problem">False sharing: when padding is the fix, not the problem</h2>
+<p>Parallelize the matcher — one worker per core, each accumulating matches into its own slot of a shared slice:</p>
+<pre><code class="language-go">type Counter struct {
+    Matched uint64
+}
+
+counters := make([]Counter, numWorkers)
+// worker w, in its hot loop:
+counters[w].Matched++
+</code></pre>
+<p>Every worker writes only its own slot; <code>-race</code> is clean; the logic is correct. But the slots are 8 bytes apart, so many of them share a cache line — and cache <em>coherency</em> operates at line granularity. When worker 0 writes its slot, the protocol invalidates the whole line in every other core&rsquo;s cache; worker 1, writing its own independent slot, must re-fetch the line worker 0 just dirtied. The cores ping-pong the line. Independent data, false dependency — <strong>false sharing</strong>.</p>
+<p>The fix is padding each slot to a full line. And here the M1 Max teaches the sharpest lesson in the post. Measured: 8 workers, 100k increments each, three layouts:</p>
+<pre><code class="language-text">BenchmarkCounterPlain-10     500,404 ns/op   // 8-byte slots, heavily shared lines
+BenchmarkCounterPad64-10     431,192 ns/op   // padded to 64B: the &quot;standard&quot; fix
+BenchmarkCounterPad128-10    387,740 ns/op   // padded to this CPU's actual 128B line
+</code></pre>
+<p>Padding to 64 bytes — the number every blog post hard-codes — recovered about half the available win, because <strong>on Apple Silicon two 64-byte-padded counters still share each 128-byte line.</strong> Padding to the real line size took the full ~23% improvement. The portable way to not care is the standard library&rsquo;s <code>cpu.CacheLinePad</code>, or in a pinch, pad generously:</p>
+<pre><code class="language-go">type Counter struct {
+    Matched uint64
+    _       [120]byte // pad to 128 — covers both 64B and 128B line sizes
+}
+</code></pre>
+<p><strong>The gotcha:</strong> false sharing is invisible to <code>-race</code> and to a normal CPU profile — the time disappears into coherency traffic. Suspect it whenever adding goroutines fails to scale a loop that writes nearby slots. On Linux, <code>perf c2c</code> points at the contended line (macOS has no equivalent, which is why the benchmark deltas above are the evidence). And don&rsquo;t pad reflexively — a full line per element across a large array wastes real cache; pad only slots that goroutines actually hammer concurrently.</p>
+<hr>
+<h2 id="benchmark-it-because-intuition-lies">Benchmark it, because intuition lies</h2>
+<p>Every number above came from benchmarks shaped like this — note the package-level <code>sink</code>, without which the compiler may delete the loop you&rsquo;re measuring:</p>
+<pre><code class="language-go">var sink int
+
+func BenchmarkMatchSoA(b *testing.B) {
+    book := makeSoA(2_000_000)
+    b.ResetTimer()
+    for i := 0; i &lt; b.N; i++ {
+        sink = matchLeg(book, usd, 99_000)
+    }
+}
+</code></pre>
+<pre><code>go test -bench=Match -benchmem -count=6 | tee bench.txt
+benchstat bench.txt
+
+# Linux: confirm the mechanism, not just the symptom —
+perf stat -e cache-references,cache-misses,L1-dcache-load-misses \
+    go test -bench=Match -benchtime=5x
+</code></pre>
+<p><strong>The gotcha:</strong> benchmark on hardware resembling production. Cache sizes, line size (64 vs 128 — measured above to matter), and prefetcher behavior differ across CPUs; a layout that barely wins on a laptop&rsquo;s giant caches can win big on a small cloud instance, and vice versa.</p>
+<hr>
+<h2 id="key-takeaways">Key takeaways</h2>
+<ul>
+<li><strong>Memory-bound masquerades as CPU-bound.</strong> A loop pinned at 100% CPU may be stalling on RAM. When throughput is far below what the arithmetic allows, suspect data layout before algorithm.</li>
+<li><strong>The cache line is the unit of cost — and it isn&rsquo;t always 64 bytes.</strong> Apple M-series uses 128; measured, padding to 64 left half the false-sharing win on the table.</li>
+<li><strong>Order struct fields largest-to-smallest and run <code>fieldalignment</code>.</strong> Measured: 40 → 24 bytes for the same data, mechanically.</li>
+<li><strong>Split hot from cold with SoA in your hottest loops only.</strong> Measured: 1.31× on cache-rich hardware with a prefetch-friendly stride — and the gap widens as structs grow, caches shrink, or access randomizes. It costs ergonomics; spend it where the loop earns it.</li>
+<li><strong>Pad concurrently-hammered slots to a full line.</strong> Measured: −23% on an 8-worker counter array; <code>-race</code> and the profiler will never name this bug for you.</li>
+<li><strong>Measure, don&rsquo;t reason.</strong> Cache behavior is the most hardware-specific thing in this series — which is exactly why this post reports its machine, and why your numbers will differ in the details while the ordering of the lessons holds.</li>
+</ul>
+<hr>
+<h2 id="further-reading">Further reading</h2>
+<ul>
+<li><a href="https://www.ardanlabs.com/blog">&ldquo;Getting Friendly With CPU Caches&rdquo;</a> — Ardan Labs. The canonical Go-centric walk through cache lines, prefetching, and why data layout beats clever algorithms for memory-bound work.</li>
+</ul>
+<hr>
+<p><em>All measurements: Apple M1 Max (10 cores, 128-byte cache lines), Go 1.27, 2M-record scans and 8-worker counter benchmarks as described. The absolute numbers are machine-specific; the mechanisms and their ordering are not.</em></p>
+
+
+
+
+  <aside class="related-posts">
+    <h3>Related Reading</h3>
+    <ul>
+    <li>
+      <a href="/blog/posts/ai-eng-go-14-inference-optimization.html">Inference Optimization</a>
+      <span class="related-date">Aug 10</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-42-tail-latency-slos.html">Tail Latency and SLOs</a>
+      <span class="related-date">Aug 06</span>
+    </li>
+    <li>
+      <a href="/blog/posts/production-go-40-profiling-pgo.html">Profiling and PGO in Production</a>
+      <span class="related-date">Aug 04</span>
+    </li>
+    </ul>
+  </aside>
+
+  <div class="post-footer">
+    <div class="footer-row">
+      <span>Written by <a href="/about/" class="author-link" aria-label="Pratik Dhanave, about the author"><strong>Pratik Dhanave</strong></a></span>
+      <a href="/blog/">← Blog home</a>
+    </div>
+    <p style="margin-top: 10px; font-size: 13px;">Find me on
+      <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (author bio)">LinkedIn</a> ·
+      <a href="/thank-you/">Acknowledgments</a></p>
+  </div>
+
+</article>
+</main>
+
+<footer class="site-footer">
+  <p>© 2026 Pratik Dhanave · <a href="https://github.com/PratikDhanave" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (footer)">GitHub</a> · <a href="https://www.linkedin.com/in/pratikdhanave/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (footer)">LinkedIn</a> · <a href="tel:+917276469649">+91 7276469649</a> · <a href="/contact/" aria-label="Contact page (footer)">Contact</a> · <a href="/privacy/">Privacy</a> · <a href="/privacy/#subprocessors">Sub-processors</a> · <a href="/thank-you/">Acknowledgments</a></p>
+</footer>
+
+<div id="read-progress" aria-hidden="true"></div>
+<nav id="toc" aria-label="Table of contents"></nav>
+<div class="rh-controls">
+  <button id="rh-theme" class="rh-btn" type="button" aria-label="Toggle light and dark theme" title="Toggle theme"></button>
+  <button id="rh-top" class="rh-btn" type="button" aria-label="Back to top" title="Back to top"><span aria-hidden="true">&uarr;</span></button>
+</div>
+<script>
+!function(){var e=document.documentElement;function t(){return e.getAttribute("data-theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}var n=document.getElementById("rh-theme");function o(){n&&(n.textContent="dark"===t()?"\u2600\uFE0E":"\u263D")}o(),n&&n.addEventListener("click",function(){var n="dark"===t()?"light":"dark";e.setAttribute("data-theme",n);try{localStorage.setItem("theme",n)}catch(e){}o()});var c=document.querySelector("article"),r=document.getElementById("toc");if(c&&r){var a=c.querySelectorAll("h2, h3");if(a.length>=3){var i=document.createElement("div");i.className="toc-title",i.textContent="On this page",r.appendChild(i);var d=[];a.forEach(function(e,t){e.id||(e.id="sec-"+t);var n=document.createElement("a");"H3"===e.tagName&&(n.className="h3"),n.href="#"+e.id,n.textContent=e.textContent,r.appendChild(n),d.push(n)});var s={};d.forEach(function(e){s[e.getAttribute("href").slice(1)]=e});var l=new IntersectionObserver(function(e){e.forEach(function(e){if(e.isIntersecting){d.forEach(function(e){e.classList.remove("active")});var t=s[e.target.id];t&&t.classList.add("active")}})},{rootMargin:"-80px 0px -70% 0px"});a.forEach(function(e){l.observe(e)})}else r.style.display="none"}document.querySelectorAll("article pre").forEach(function(e){var t=document.createElement("button");t.className="copy-btn",t.type="button",t.textContent="Copy",t.addEventListener("click",function(){var n=e.querySelector("code"),o=n?n.innerText:e.innerText;navigator.clipboard.writeText(o).then(function(){t.textContent="Copied",t.classList.add("copied"),setTimeout(function(){t.textContent="Copy",t.classList.remove("copied")},1500)})}),e.appendChild(t)});var u=document.getElementById("read-progress"),h=document.getElementById("rh-top");function m(){var t=e.scrollHeight-e.clientHeight,n=t>0?e.scrollTop/t*100:0;u&&(u.style.width=n+"%"),h&&(e.scrollTop>600?h.classList.add("show"):h.classList.remove("show"))}window.addEventListener("scroll",m,{passive:!0}),m(),h&&h.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"})})}();
+</script>
+</body>
+</html>

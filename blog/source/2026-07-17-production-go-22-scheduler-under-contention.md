@@ -1,20 +1,23 @@
 # The Go Scheduler Under Contention
 
-*How an unbounded goroutine-per-request design quietly collapsed a high-TPS payment authorization service — and how understanding the G-M-P model, then capping concurrency with worker pools, semaphores, and backpressure, brought p99 latency back under control.*
+*How an unbounded goroutine-per-request design turns overload into a latency collapse — the G-M-P model at a working level, a measured reproduction of the failure, and the fix: worker pools, semaphores, and load-shedding.*
 
 ---
 
-The pager went off at 02:14 on a Saturday. Our card-authorization service — the thing in the hot path of every tap, swipe, and online checkout — was timing out. Not down, not erroring, just *slow*. p99 authorization latency had climbed from its usual single-digit milliseconds to **`TODO: real number`ms**, and the upstream payment gateway was starting to cut us off for breaching its response SLA. Traffic wasn't even at an all-time peak — a busy Saturday night, but nothing we hadn't served before.
-
-The root cause was a design decision that had sat in the code for two years looking completely idiomatic: `go handleAuth(conn)`. One goroutine per request, unbounded. It's the first thing everyone learns about Go concurrency, and for two years it was fine. This post is about the night it stopped being fine, what the Go scheduler was actually doing under that load, and the three-part fix that made the service predictable again.
+"Goroutine per request" is the first pattern everyone learns in Go, and for most services it's fine for years. Then one day offered load exceeds what some bottleneck can serve, and the service doesn't crash — it just gets slower and slower while staying "up" and "busy." This post explains why, at the level of the Go scheduler, and then **reproduces the collapse with a measured demo you can run yourself** rather than asking you to take the story on faith. All numbers in this post come from running the demo harness on an Apple M1 Max (10 cores, Go 1.27, `GOMAXPROCS=10`); your numbers will differ, but the shape won't.
 
 ---
 
 ## "Goroutines are cheap" is true until it isn't
 
-The reason the goroutine-per-request pattern feels safe is that the sales pitch is accurate. A goroutine starts with a tiny stack (a couple of KB) that grows and shrinks on demand, and the runtime multiplexes thousands of them onto a small number of OS threads. Spawning one is cheap. Blocking one is cheap. You can have hundreds of thousands of them.
+The sales pitch is accurate: a goroutine starts with a tiny stack that grows on demand, and the runtime multiplexes enormous numbers of them onto a few OS threads. Measured, not asserted — parking 100,000 goroutines on a channel receive:
 
-Here's the handler that had been in production, lightly cleaned up:
+```text
+demo1: 100000 parked goroutines: runtime memory 5 MB -> 270 MB
+       (+265 MB, ~2.7 KB/goroutine)
+```
+
+2.7 KB each. Genuinely cheap — which is exactly the trap, because *nothing pushes back at creation time*. Here's the idiomatic-looking server shape this post is about:
 
 ```go
 func (s *AuthServer) Serve(l net.Listener) {
@@ -37,67 +40,72 @@ func (s *AuthServer) handleAuth(conn net.Conn) {
 		return
 	}
 
-	// Each of these can block: fraud model, ledger balance check,
-	// network round-trip to the card network.
-	score := s.fraud.Score(req)             // ~a few ms, CPU + a cache call
-	bal := s.ledger.Reserve(req.Account)    // DB round-trip, holds a row lock
-	resp := s.network.Authorize(req, score) // external network call, slowest
-
-	_ = encodeAuthResponse(conn, combine(bal, resp))
+	// Each of these can block: a scoring model, a database row,
+	// a slow external dependency.
+	score := s.fraud.Score(req)             // CPU work
+	bal := s.ledger.Reserve(req.Account)    // DB round-trip, pool-limited
+	resp := s.network.Authorize(req, score) // external call, slowest, capacity-limited
 }
 ```
 
-Nothing here is *wrong* in isolation. The problem is that "cheap" hides a cost that doesn't surface until you cross a threshold. Each goroutine's stack is small but not free — at **`TODO: real number`** in-flight requests, stacks alone consumed **`TODO: real number`GB** of RSS. Worse, every one of those goroutines wanted to *run*, and the thing that decides who runs is where the real story is.
+Nothing here is *wrong* in isolation. The problem surfaces only when arrivals outpace the slowest dependency — and to see it clearly you need a working model of the thing deciding who runs.
 
 ---
 
 ## The G-M-P model at a working level
 
-To understand what went wrong you need a working mental model of the Go scheduler. It has three moving parts, and Go people call them G, M, and P.
+The Go scheduler has three moving parts:
 
-- **G — goroutine.** A unit of work: your function plus its stack and its state. Cheap to create, and there can be an enormous number of them.
-- **M — machine.** An OS thread. This is the thing the operating system actually schedules onto a CPU core. Ms are expensive; the runtime tries to keep the count modest.
-- **P — processor.** A *logical* processor, a scheduling context that holds a run queue of runnable Gs. The number of Ps is fixed at `GOMAXPROCS`, which defaults to the number of CPU cores. **A G can only run when an M is holding a P.** P is the permission slip.
+- **G — goroutine.** A unit of work: your function plus its stack and state. Cheap; there can be an enormous number.
+- **M — machine.** An OS thread — the thing the OS schedules onto a core. The runtime keeps the count modest.
+- **P — processor.** A *logical* processor holding a run queue of runnable Gs. There are exactly `GOMAXPROCS` of them (default: core count). **A G runs only while an M holds a P.** P is the permission slip.
 
-So the shape is: many Gs, a small fixed number of Ps (say 8 on an 8-core box), and roughly one M per P doing useful work at any instant. Each P has a **local run queue** of ready goroutines, with a **global run queue** for overflow. When a P's local queue empties, its M goes **work-stealing** — grabbing half the runnable Gs from another P's queue. That's why Go scales across cores for free: the runtime keeps the Ps fed.
-
-The critical rule for our incident: **runnable goroutines are not running goroutines.** You can have 50,000 Gs all ready to execute, but only `GOMAXPROCS` of them touch a CPU at any moment. The other 49,992 sit in run queues waiting their turn.
-
-```
-        G G G G G G G G ...  (tens of thousands, all "runnable")
+```text
+        G G G G G G G G ...   (thousands, all "runnable")
          \  |  /
-   ┌──────┴──┴──────┐
-   │  P0   P1  ...  P7   │   GOMAXPROCS = 8 logical processors
-   │  each holds a local │   local run queues; overflow → global queue
-   │  run queue of Gs    │   idle P steals half of a busy P's queue
-   └──┬───┬─────────┬────┘
-      M   M   ...   M         OS threads, ~one per P doing work
+   ┌──────┴──┴──────────┐
+   │  P0   P1  ...  P9  │   GOMAXPROCS logical processors
+   │  each: local run   │   overflow -> global queue
+   │  queue of Gs       │   idle P steals half of a busy P's queue
+   └──┬───┬─────────┬───┘
+      M   M   ...   M        OS threads, ~one per P doing work
       │   │         │
-     CPU CPU  ...  CPU         actual cores
+     CPU CPU  ...  CPU
 ```
 
-When a goroutine makes a **blocking syscall**, the runtime hands its P off to another M so the rest of that P's goroutines keep running — the handoff that makes blocking I/O feel free. But a subtler kind of blocking — waiting on a channel, a mutex, a `sync.WaitGroup` — parks the goroutine in the scheduler's own structures. That's where contention lives.
+Each P has a **local run queue**, with a **global queue** for overflow; an idle P **work-steals** half of a busy P's queue, which is why Go scales across cores for free. When a goroutine blocks in a syscall, its P is handed to another M so the rest keep running. When it blocks on a channel, mutex, or `WaitGroup`, it's parked in the scheduler's own structures.
+
+The critical rule: **runnable is not running.** 50,000 Gs can be ready while only `GOMAXPROCS` of them touch a CPU at any instant — everyone else waits in a queue.
+
+One honest nuance my own measurements forced me to state carefully: raw scheduling *dispatch* stays fast even under absurd load. With 50,000 CPU-spinning goroutines running, the time for a *newly created* goroutine to first execute only doubled (856ns → 1.6µs in my run) — the scheduler places fresh goroutines in a preferential "run next" slot. The latency damage under contention doesn't come from the scheduler being slow. It comes from *your work* queueing behind other work for the actual bottleneck — which is the next section.
 
 ---
 
-## What actually happens under contention
+## The collapse, reproduced and measured
 
-Here's the sequence that took us down, in scheduler terms.
+The demo harness models the handler above honestly: each request burns 200µs of CPU (the scoring step), then calls a downstream that takes 2ms and allows **32 concurrent calls** (a semaphore inside the "database/card network"). That caps downstream capacity at 32 slots ÷ 2ms = **~16,000 requests/second** — on purpose, because real systems are capacity-limited by their slowest dependency, not by Go.
 
-Saturday-night traffic pushed inbound connections up, and every connection spawned a goroutine. Each ran a fraud score (CPU-bound — it *wants* a P), then hit `ledger.Reserve`, which takes a **row lock** in the database and, on our side, sits behind a `sync.Mutex` guarding a connection-pool structure. So we had tens of thousands of goroutines all needing to:
+Offer it **24,000 requests/second — 1.5× capacity — for 1.5 seconds**, first with goroutine-per-request, then with a bounded pool (48 workers, queue of 64) that sheds when full. Real output, same machine, same load:
 
-1. Get scheduled onto a P to do CPU work (fraud scoring), and
-2. Contend for a mutex (the ledger pool) and a downstream DB lock.
+```text
+paced unbounded:    36000 accepted,     0 shed, peak goroutines 12710,
+                    p50 409.948ms, p99 894.48ms
+paced bounded+shed: 22737 accepted, 13263 shed, peak goroutines    49,
+                    p50   3.157ms, p99   4.023ms
+```
 
-Two things compounded. First, **scheduler churn**: with tens of thousands of runnable Gs and 8 Ps, the runtime is constantly moving goroutines on and off Ps, and every mutex contention event parks one goroutine and wakes another — more scheduling work. The CPU was busy, but a growing fraction of that "busy" was the runtime managing the stampede rather than scoring transactions. Second, **latency inversion**: because the run queues were enormous, a brand-new request's goroutine landed at the back of a very long line. A request whose fraud score would take a fraction of a millisecond now waited **`TODO: real number`ms** just to get *onto* a CPU. The slow external card-network call held its goroutine alive the entire time, keeping the in-flight count high, which kept the queues long. A feedback loop.
+Read that slowly, because it's the whole post:
 
-**The gotcha:** unbounded goroutines don't fail by crashing. They fail by turning your CPU-bound fast path into a queueing-theory problem. The system stays "up" and "busy" while every individual request gets slower, because you admitted more work than you have Ps to run, and the Go scheduler faithfully queued all of it instead of telling anyone *no*. Goroutines being cheap to *create* is exactly the trap: nothing pushed back at creation time.
+- **Unbounded accepted everything** — and made everyone pay. In-flight goroutines climbed to 12,710 and p99 hit ~895ms *and was still rising when the run ended*, because at 1.5× capacity the queue grows without bound. A request whose work takes ~2.2ms spent hundreds of milliseconds waiting for a downstream slot.
+- **Bounded accepted 22,737 — and check that number**: 22,737 ÷ 1.5s ≈ 15,200/s, which is the downstream's ~16k/s capacity with scheduling overhead. The pool found the service's true capacity *by construction*. Everything it accepted completed at p99 4ms — the latency the work actually costs — and the other 13,263 requests got an instant, cheap rejection instead of a 900ms timeout.
+
+**The gotcha:** unbounded goroutines don't fail by crashing. They fail by turning your fast path into a queueing-theory problem. The system stays up while every individual request slows down, because you admitted more work than the bottleneck can serve and the scheduler faithfully queued all of it instead of telling anyone *no*.
 
 ---
 
 ## Fix part 1: a bounded worker pool
 
-The first move is to stop coupling "a request arrived" to "spawn a goroutine." Spawn a fixed number of workers once and feed them requests over a channel. Now the number of goroutines doing expensive work is a constant *you* chose, not one the internet chose for you.
+Stop coupling "a request arrived" to "spawn a goroutine." Spawn a fixed number of workers once and feed them over a channel — now the concurrency doing expensive work is a constant *you* chose, not one the internet chose for you.
 
 ```go
 type AuthPool struct {
@@ -106,7 +114,7 @@ type AuthPool struct {
 	wg      sync.WaitGroup
 }
 
-// workers = how many auths run concurrently. Size it to the bottleneck,
+// workers = how many requests run concurrently. Size it to the bottleneck,
 // not to GOMAXPROCS — see the sizing note below.
 func NewAuthPool(workers, queue int, handler func(net.Conn)) *AuthPool {
 	p := &AuthPool{
@@ -144,24 +152,21 @@ func (p *AuthPool) Shutdown() {
 }
 ```
 
-The accept loop becomes: accept, `Submit`, and if `Submit` returns false, shed (we'll get to that). The number of goroutines running `handler` is now bounded by `workers`, full stop. The scheduler only juggles that many active work-Gs plus idle workers parked on the channel receive — and a goroutine parked on a receive costs the scheduler nothing until there's work.
+In the measured run this is what held peak goroutines at 49 (48 workers + the submitter) versus 12,710. A goroutine parked on a channel receive costs the scheduler nothing until there's work.
 
-**The gotcha:** a bounded pool only bounds what runs *inside* the pool. If your `handler` itself spawns `go somethingElse()`, you've reopened the hole one level down. The bound has to sit at whatever concurrency limit you actually care about — which, for us, was the downstream dependency, not the pool.
+**The gotcha:** a bounded pool only bounds what runs *inside* the pool. If `handler` spawns `go somethingElse()`, you've reopened the hole one level down. The bound has to sit at the concurrency limit you actually care about — usually the downstream dependency, not the pool.
 
 ---
 
 ## Fix part 2: a semaphore for the real bottleneck
 
-The pool caps how many auths we process at once. But the resource that falls over first is the **card network connection**, which tolerates far fewer concurrent calls than our CPU can handle scoring. Different bottlenecks want different limits — which is exactly what a second limit, a semaphore, is for.
-
-I used `golang.org/x/sync/semaphore`: it's weighted and, crucially, context-aware, so a request already past its deadline stops waiting for a slot.
+The pool caps total in-flight work, but the resource that falls over first — the external dependency — usually tolerates far less concurrency than your CPU. Different bottlenecks want different limits, which is what a second limit is for. `golang.org/x/sync/semaphore` is weighted and, crucially, context-aware:
 
 ```go
 import "golang.org/x/sync/semaphore"
 
 type NetworkClient struct {
-	sem *semaphore.Weighted // caps concurrent calls to the card network
-	// ... underlying transport
+	sem *semaphore.Weighted // caps concurrent calls to the dependency
 }
 
 func NewNetworkClient(maxConcurrent int64) *NetworkClient {
@@ -172,7 +177,7 @@ func (c *NetworkClient) Authorize(ctx context.Context, req AuthRequest, score fl
 	// Acquire respects the deadline: if we can't get a slot before the
 	// request's context expires, fail fast instead of piling on.
 	if err := c.sem.Acquire(ctx, 1); err != nil {
-		return Resp{}, fmt.Errorf("network slot: %w", err) // ctx deadline/cancel
+		return Resp{}, fmt.Errorf("network slot: %w", err)
 	}
 	defer c.sem.Release(1)
 
@@ -180,7 +185,7 @@ func (c *NetworkClient) Authorize(ctx context.Context, req AuthRequest, score fl
 }
 ```
 
-If you don't want the extra dependency, a buffered channel is a serviceable semaphore — one token per buffer slot — though you have to handle the deadline yourself:
+Without the dependency, a buffered channel is a serviceable semaphore — one token per slot — though you handle the deadline yourself:
 
 ```go
 type chanSem chan struct{}
@@ -197,15 +202,15 @@ func (s chanSem) acquire(ctx context.Context) error {
 func (s chanSem) release() { <-s }
 ```
 
-The context integration is what matters in a payment path. Every auth carries a hard deadline — a late "approved" is worse than a timely "try again." So `Acquire(ctx, 1)` doing double duty as the concurrency gate *and* the deadline check means a doomed request stops consuming a slot the moment its context is done, instead of waiting for a network slot it will never use.
+The context integration is the point for anything with a hard deadline: `Acquire(ctx, 1)` doing double duty as concurrency gate *and* deadline check means a doomed request stops consuming a slot the moment its context is done.
 
-**The gotcha:** put the `Release` on `defer` immediately after a *successful* `Acquire`, never before it. If `Acquire` returns an error you did not take a token, and releasing one you never held corrupts the count — with `x/sync/semaphore` a stray `Release` panics, and with the channel version it lets in one extra caller forever. One acquire, one guaranteed release, and only on the success path.
+**The gotcha:** put `Release` on `defer` immediately after a *successful* `Acquire`, never before it. If `Acquire` errored you took no token; releasing one you never held corrupts the count — `x/sync/semaphore` panics on a stray release, and the channel version silently admits one extra caller forever.
 
 ---
 
 ## Fix part 3: backpressure and load-shedding
 
-Bounding concurrency creates a new, better problem: what do you do with work you can't accept yet? The wrong answer is an unbounded queue in front of the pool — it just moves the pileup and reintroduces latency inversion. The right answer is **backpressure**: a bounded queue, and when it's full, **shed load** — reject fast with a retryable signal rather than accept work you can't finish in time.
+Bounding concurrency creates a better problem: what about work you can't accept? The wrong answer is an unbounded queue in front of the pool — that just relocates the pileup. The right answer is a **bounded queue plus shedding**: reject fast with a retryable signal.
 
 ```go
 func (s *AuthServer) Serve(l net.Listener) {
@@ -217,7 +222,7 @@ func (s *AuthServer) Serve(l net.Listener) {
 		}
 		if !s.pool.Submit(conn) {
 			// Saturated. Answer immediately with a retryable status
-			// so the gateway backs off instead of hanging on us.
+			// so the caller backs off instead of hanging on us.
 			s.shed(conn)
 			s.metrics.Shed.Inc() // watch this: it's your saturation signal
 			continue
@@ -228,46 +233,49 @@ func (s *AuthServer) Serve(l net.Listener) {
 func (s *AuthServer) shed(conn net.Conn) {
 	defer conn.Close()
 	_ = encodeAuthResponse(conn, Resp{
-		Decision: "TRY_AGAIN",  // maps to a 503-style retryable at the gateway
+		Decision: "TRY_AGAIN", // maps to a 503-style retryable upstream
 		Reason:   "at_capacity",
 	})
 }
 ```
 
-This inverts the failure mode. Before, at saturation *every* request got slow and many timed out anyway — the worst of both worlds, because we paid for the fraud-scoring and ledger work and then failed. After, we serve a fast, cheap "try again" for the marginal requests and keep serving the accepted ones at full speed, spending our fixed capacity on requests we can finish inside the deadline. A load-shed request costs almost nothing; a timed-out request costs a full fraud score, a held row lock, and a doomed network call.
+The measured run shows the inversion exactly: unbounded made *every* request pay ~400–900ms and (in a real system with deadlines) many would time out *after* their CPU and downstream work was already spent. Bounded spent its fixed capacity only on requests it could finish in ~4ms, and the marginal requests cost almost nothing. A shed request is a channel-send that failed; a timed-out request is a full scoring pass, a held database row, and a doomed downstream call.
 
-**The gotcha:** load-shedding is only correct if the caller treats the shed response as *retryable*, not as a decline. Getting that contract right with the gateway was as important as the code — a shed request that a partner interprets as "declined" is a failed payment, which is far worse than a slow one. Shedding must be visibly, semantically distinct from a real authorization decision.
+**The gotcha:** shedding is only correct if the caller treats the response as *retryable*, not as a decision. In anything transactional, a shed that an upstream interprets as "declined" is worse than slowness — the contract with the caller matters as much as the code. Shedding must be visibly, semantically distinct from a real answer.
 
 ---
 
-## Sizing the limits (don't copy my numbers)
+## Sizing the limits (reason, don't copy)
 
-The point of bounding is choosing the bound deliberately, so here's the reasoning rather than magic constants.
+The demo's numbers were *derived*, and that's the transferable part:
 
 | Limit | What it protects | How to size it |
 |---|---|---|
-| `GOMAXPROCS` | CPU oversubscription | Leave at core count; in containers, pin it to your CPU *quota* so the scheduler doesn't assume more cores than cgroups allow |
-| Worker count | Overall in-flight work | Little's Law: `workers ≈ target_throughput × avg_service_time`; then load-test around it |
-| Queue depth | Burst absorption vs. latency | Small — just enough to ride out sub-second bursts; a deep queue is latency inversion waiting to happen |
-| Network semaphore | The external dependency | The downstream's documented/observed safe concurrency, minus headroom |
+| `GOMAXPROCS` | CPU oversubscription | Core count; in containers, your CPU *quota* (see below) |
+| Worker count | Total in-flight work | Little's Law: `workers ≈ target_throughput × avg_service_time`, then load-test around it |
+| Queue depth | Burst absorption vs. latency | Small — enough for sub-second bursts; a deep queue is latency inversion waiting to happen |
+| Downstream semaphore | The external dependency | Its documented/observed safe concurrency, minus headroom |
 
-The container note bit us specifically: on an 8-core node with a 2-core cgroup quota, `GOMAXPROCS` defaulted to 8, so the runtime created more Ps than we had CPU to run and the throttling made scheduling latency *worse*. (Modern Go is cgroup-aware; if you're not on a version that sets this automatically, `automaxprocs` or an explicit `runtime.GOMAXPROCS` from the quota is the fix.) Our pool size, semaphore width, and queue depth were all found by load-testing to the point where p99 stayed flat — the real values were **`TODO: real number`** workers and a network semaphore of **`TODO: real number`**, but yours will differ because they're properties of *your* bottleneck, not of Go.
+Worked example from the demo: service time ≈ 2.2ms, downstream capacity 16k/s, so Little's Law says ~35 workers keep the downstream saturated; I used 48 to cover scheduling slack, and the measured throughput landed within 5% of theoretical capacity. When your p99 stays flat as you approach the bound and sheds begin exactly at capacity, the limits are right.
 
-After the change, p99 under the same Saturday load dropped from **`TODO: real number`ms** to **`TODO: real number`ms**, in-flight goroutines went from **`TODO: real number`** to a bounded **`TODO: real number`**, and RSS stopped tracking traffic. The scheduler was never the bug. Asking it to queue unbounded work was.
+The container note is its own post ([GOMAXPROCS in Kubernetes](/blog/posts/production-go-36-gomaxprocs-kubernetes.html)), but the one-line version: on an 8-core node with a 2-core quota, old defaults gave you 8 Ps and the kernel throttled the excess — modern Go is cgroup-aware, and if yours isn't, pin `GOMAXPROCS` to the quota.
 
 ---
 
 ## Key takeaways
 
-- **Runnable is not running.** Only `GOMAXPROCS` goroutines execute at once; the rest sit in P run queues, and new requests join the back of a very long line.
-- **"Goroutines are cheap" is about creation, not admission.** Nothing pushes back when you spawn one, so unbounded goroutine-per-request turns a load spike into a queueing collapse — slow, not crashed.
-- **Bound at the real bottleneck.** A worker pool caps total in-flight work; a separate semaphore caps the scarce downstream. Different resources need different limits, and a pool doesn't bound goroutines its handler spawns.
-- **Make the semaphore context-aware.** `Acquire(ctx, 1)` gating on the request deadline lets doomed requests stop consuming capacity. One acquire, one deferred release, only on success.
-- **Prefer shedding to queueing.** A bounded queue plus a fast, retryable "try again" beats an unbounded queue that just relocates the pileup — and the caller must treat a shed as retryable, never as a decline.
-- **Pin `GOMAXPROCS` to your CPU quota** in containers, or the scheduler assumes cores the cgroup won't give it.
+- **Runnable is not running.** Only `GOMAXPROCS` goroutines execute at once; everyone else queues. Measured: 12,710 in-flight goroutines produced p99 ~895ms for work that costs ~2.2ms.
+- **"Goroutines are cheap" is about creation, not admission.** ~2.7 KB each, measured — and that cheapness is why nothing pushes back when load exceeds capacity.
+- **The scheduler isn't the bottleneck — your dependencies are.** Dispatch latency barely moved under 50k runnable goroutines; the collapse was queueing for a 32-slot downstream.
+- **Bound at the real bottleneck.** A pool caps total in-flight work; a separate context-aware semaphore caps the scarce downstream. One acquire, one deferred release, only on success.
+- **Prefer shedding to queueing.** The bounded run served its true capacity (within 5% of the Little's-Law number) at p99 4ms and rejected the rest instantly — and callers must treat sheds as retryable, never as answers.
 
 ---
 
 ## Further reading
 
-- **"Scheduling In Go"** series by William Kennedy — the definitive working-level explanation of the G-M-P model, run queues, and work-stealing that underpins everything above: [Ardan Labs blog](https://www.ardanlabs.com/blog).
+- **"Scheduling In Go"** series by William Kennedy — the definitive working-level explanation of the G-M-P model, run queues, and work-stealing: [Ardan Labs blog](https://www.ardanlabs.com/blog).
+
+---
+
+*All measurements: Apple M1 Max (10 cores), Go 1.27, `GOMAXPROCS=10`, single run of the demo harness described above. Absolute numbers are machine-specific; the ratios are the lesson.*
