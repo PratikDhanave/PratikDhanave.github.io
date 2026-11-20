@@ -4,332 +4,136 @@
 
 ---
 
-## The Problem: The "Black Box" Factory
+## The Problem: The Black-Box Factory
 
-Most agentic factories are **black boxes**:
+The [previous post](/blog/posts/agentic-software-engineering-factory.html) left us with a factory that runs unattended. That immediately creates the operator's question: unattended *doing what?* A system that calls LLMs in a loop without observability degrades quietly — output quality drifts as context goes stale, costs creep as prompts bloat, and nobody can say whether last month's config change helped or hurt, because nothing was measured before or after.
 
-- You submit a task, but you don't know what happens inside
-- No visibility into agent behavior or decision-making
-- No metrics on performance, quality, or cost
-- No way to improve the system over time
-- "Works on my machine" becomes the de facto deployment standard
+This post covers what the factory actually exposes for operations today, what the evaluation data looks like from a real run, and — honestly — which parts of the observability story are wired versus still scaffolding.
 
-**The problem**: Without observability and continuous improvement, factories degrade over time:
+## The Metrics You Get for Free
 
-- **Quality drift**: Agent output quality slowly declines as context becomes stale
-- **Cost creep**: Unoptimized models and inefficient prompts increase costs
-- **Security drift**: Prompt injection techniques evolve, bypassing old defenses
-- **Stagnation**: No feedback loop means no learning from mistakes
-- **Blind spots**: Team has no data to make informed decisions about agent usage
+Because every task transition is persisted, the basic operational questions are answerable from the status endpoint with no extra instrumentation:
 
-## The Observability Stack
+```text
+$ curl -s localhost:8080/api/factory/status
+```
 
-**The Observability Stack** provides full visibility into factory operations.
+```json
+{
+  "llm_enabled": true,
+  "llm_provider": "ollama",
+  "llm_model": "qwen3.6:latest",
+  "max_workers": 4,
+  "tasks_completed": 4,
+  "tasks_failed": 2,
+  "tasks_pending": 0,
+  "workers_busy": 0,
+  "workers_idle": 2
+}
+```
 
-### 1. Metrics Pipeline
+That's a real response, and the completed/failed counts span process restarts — they come from SQLite, not process memory. The Next.js dashboard renders this same data live (worker states, recent activity, per-task verdicts), but the dashboard is a *view*; the system of record is the task store, which means your existing monitoring stack can poll one JSON endpoint and alert on `tasks_failed` without caring that an AI system sits behind it.
+
+Per-task visibility comes from the SSE stream, which emits every state transition until the task is terminal:
+
+```text
+$ curl -N localhost:8080/api/tasks/$ID/stream
+data: {"id":"8f3d...","status":"running","terminal":false, ...}
+data: {"id":"8f3d...","status":"completed","terminal":true,
+       "result":{"attempts":1,"context_items":37,"model":"qwen3.6:latest",
+                 "evaluation":{"score":0.91,"passed":true, ...}}}
+```
+
+## Evaluation: The Quality Signal
+
+The deepest operational signal is not whether tasks complete — it's whether their output is any good. Every LLM-backed generate task is scored by an LLM-as-a-judge evaluator against five weighted criteria. These are the actual defaults from `pkg/eval`:
 
 ```go
-// pkg/metrics/metrics.go — Factory metrics collection
-type FactoryMetrics struct {
-    // Task metrics
-    TasksSubmitted    int64
-    TasksCompleted    int64
-    TasksFailed       int64
-    AverageDuration   float64
-    TasksByType       map[string]int64
-    
-    // Verification metrics
-    VerificationPassRate float64
-    AverageVerificationDuration float64
-    VerificationErrorsByType map[string]int64
-    
-    // Agent metrics
-    ActiveWorkers     int
-    AverageAutonomyLevel string
-    AutonomyScoreDistribution map[string]int64
-    
-    // Security metrics
-    PromptInjectionsBlocked int64
-    SecurityViolations      int64
-    RBACViolations          int64
-    
-    // Timestamp
-    Timestamp time.Time
+func DefaultEvaluationCriteria() EvaluationCriteria {
+	return EvaluationCriteria{
+		Correctness:    0.35,
+		CodeQuality:    0.25,
+		SpecCompliance: 0.20,
+		Security:       0.15,
+		Documentation:  0.05,
+		Threshold:      0.75,
+	}
 }
 ```
+
+Below-threshold output is regenerated with the judge's feedback folded into the prompt (bounded by `ASF_EVAL_MAX_ATTEMPTS`, default 2), and the final verdict rides along on the task record. Here is the verdict from a real generate task — the authentication package the [case study](/blog/posts/agentic-software-engineering-case-study.html) dissects:
+
+```json
+"evaluation": {
+  "score": 0.91,
+  "passed": true,
+  "criteria": {
+    "correctness": 0.90,
+    "code_quality": 0.95,
+    "spec_compliance": 0.85,
+    "security": 0.95,
+    "documentation": 0.90
+  },
+  "improvements": [
+    "Add table-driven tests per execution plan step 5 ...",
+    "Correct the RefreshTokenStore.StoreDigest interface comment which
+     references returning ErrAlreadyExists, but the method signature only
+     declares error. ..."
+  ]
+}
+```
+
+Two things make this operationally useful. The per-criterion breakdown localizes problems — this artifact's weakest score was spec compliance, and the judge's improvement list says exactly why (a required test step was skipped). And because verdicts are persisted per task, "is quality drifting" becomes a query over scores instead of a feeling.
+
+One warning the case study earns the hard way: a judge score is *not* a compile check. That same 0.91-scored artifact did not build — the judge (the same model that wrote the code) praised an API that doesn't exist. Judge scores are a trend signal; the compiler is the gate. Operate with both.
+
+## A/B Testing Configurations
+
+Which model should handle generation? Does a bigger context budget actually improve output? The factory's answer is the benchmark suite in `pkg/eval`: run the same specs under two configurations, score both with the same judge criteria, compare.
 
 ```go
-// Metrics collection example
-func RecordTaskSubmitted(taskType string) {
-    metrics.TaskSubmitted++
-    metrics.TasksByType[taskType]++
-}
-
-func RecordVerificationResult(success bool, duration time.Duration) {
-    if success {
-        metrics.VerificationPassRate = (metrics.VerificationPassRate*float64(metrics.VerificationSubmitted-1) + 1) / float64(metrics.VerificationSubmitted+1)
-    } else {
-        metrics.VerificationErrorsByType[getErrorType()]++
-    }
-    metrics.AverageVerificationDuration = (metrics.AverageVerificationDuration*float64(metrics.VerificationSubmitted) + duration.Seconds()) / float64(metrics.VerificationSubmitted+1)
-    metrics.VerificationSubmitted++
-}
+suite := eval.NewBenchmarkSuite(client, criteria)
+suite.RunBenchmark(ctx, "qwen-local", specID, specContent, codeA, contextContent)
+suite.RunBenchmark(ctx, "sonnet-cloud", specID, specContent, codeB, contextContent)
+comparison, _ := suite.CompareConfigs("qwen-local", "sonnet-cloud")
+best := suite.GetBestConfig() // highest average score across runs
 ```
 
-### 2. Log Correlation
+The dashboard exposes a slice of this as the "Run Benchmark" card, backed by the `evaluate` task type: judge the most recent completed generate output for a spec, on demand. The honest caveat: `BetterThan` here means "higher mean judge score" — there is no significance testing, so treat small deltas across few specs as noise and re-run before acting on them.
 
-```go
-// Structured logging with correlation IDs
-type LogEntry struct {
-    CorrelationID string      `json:"correlation_id"`
-    TraceID       string      `json:"trace_id"`
-    Timestamp     time.Time   `json:"timestamp"`
-    Level         string      `json:"level"`
-    Component     string      `json:"component"`
-    Action        string      `json:"action"`
-    Success       bool        `json:"success"`
-    Metadata      map[string]string `json:"metadata"`
-}
+The knobs this machinery is built to compare are the ones that matter operationally:
 
-func LogAgentAction(correlationID, component, action string, success bool, metadata map[string]string) {
-    entry := LogEntry{
-        CorrelationID: correlationID,
-        Component:    component,
-        Action:       action,
-        Success:      success,
-        Metadata:     metadata,
-        Timestamp:    time.Now(),
-    }
-    structuredLog(entry)
-}
+- **Model routing** — `specs/factory.yaml` assigns a model per agent role, so a cheap model can verify while a stronger one generates; benchmarks tell you when the cheap one is good enough.
+- **Context budget** — prompts carry a provider-aware cap (`ASF_CONTEXT_MAX_CHARS`: ~24K chars for local models, ~400K for large-context cloud models) so a small local window isn't drowned in prefill. The budget is a quality/cost dial you can benchmark directly.
+- **Judge strictness** — threshold and criteria weights change how often the regeneration loop fires, which is a direct cost lever.
+
+## Logs and Tracing: The Honest Inventory
+
+Operational logging exists where it earns its keep — provider selection, judge outcomes, task failures all log with task IDs, like this line from a real boot:
+
+```text
+2026/11/20 11:00:28 factory: LLM enabled (provider ollama, model qwen3.6:latest,
+    max 2 concurrent calls, judge threshold 0.75, context budget 24000 chars)
 ```
 
-### 3. Tracing
+Tracing is scaffolding: an OpenTelemetry tracer provider is configured, but no exporter is wired, so spans are sampled and dropped. That is a deliberately honest state — the instrumentation points exist, and OTLP wiring is a config change, not a redesign. Until then, the task store is the trace: every attempt, verdict, and failure is already recorded per task, which for a system of this size answers most "what happened" questions without distributed tracing.
 
-```go
-# OpenTelemetry tracing integration
-func (fo *FactoryOrchestrator) startTracing(ctx context.Context) {
-    tp := trace.NewTracerProvider(
-        trace.WithBatcher(func(spans []trace.Span) error {
-            exportSpans(spans)
-        }),
-    )
-    traceProvider = tp
-    
-    # Create spans for factory operations
-    ctx, span := trace.SpanFromContext(ctx, "factory_start")
-    # ... record span events
-    span.End()
-}
-```
+The same inventory honesty applies across the repo: constraint verification in the pipeline is a stub, and the integration adapters (Slack, Teams, GitHub, Linear) model connection state but aren't wired to live credentials. Knowing precisely which signals are real is itself an operational practice — the failure mode this post exists to prevent is believing a dashboard that was never plumbed.
 
-### 4. Dashboards
+## The Improvement Loop Is a Practice, Not a Daemon
 
-```go
-# Factory metrics dashboard endpoint
-func (fo *FactoryOrchestrator) GetMetrics() factory.Metrics {
-    fo.mu.RLock()
-    defer fo.mu.RUnlock()
-    
-    return factory.Metrics{
-        WorkersTotal:         fo.workerCount,
-        WorkersBusy:          busyCount,
-        TasksPending:         len(fo.taskQueue),
-        TasksCompleted:      completedCount,
-        TasksFailed:          failedCount,
-        VerificationPassRate: verificationPassRate,
-        AverageDuration:      averageDuration,
-    }
-}
-```
+The first draft of this post sketched a `RunImprovementCycle()` that auto-applied config changes. No such daemon exists, and having operated the factory while writing this series, I now think that's the right call at this scale. The working loop is human-paced and data-fed:
 
-### Observability Dashboard
+1. **Collect** — judge scores, attempt counts, and failure types accumulate in the task store as a side effect of normal operation.
+2. **Notice** — a score trending down, attempts trending up, or one spec repeatedly needing regeneration. Each points at its own fix: stale context, a vague spec, or an underpowered model, respectively.
+3. **Change one thing** — a model assignment in `factory.yaml`, a context budget, a judge weight.
+4. **Benchmark** — same specs, old config vs. new, judged identically.
+5. **Keep or revert** — the comparison is a number, so the decision is reviewable.
 
-```mermaid
-dashboard
-    title "Agentic Software Factory Observability"
-    
-    grid "Tasks" {
-        stat "Tasks Submitted/hr" metrics.TasksSubmitted/3600 "green"
-        stat "Tasks Completed/hr" metrics.TasksCompleted/3600 "yellow"
-        stat "Tasks Failed/hr" metrics.TasksFailed/3600 "red"
-    }
-    
-    grid "Verification" {
-        stat "Pass Rate" metrics.VerificationPassRate "green"
-        stat "Avg Duration" fmt.Sprintf("%.1fs", metrics.AverageVerificationDuration) "yellow"
-    }
-    
-    grid "Factory" {
-        stat "Active Workers" metrics.ActiveWorkers "yellow"
-        stat "Autonomy Level" metrics.AutonomyLevel "yellow"
-    }
-    
-    grid "Security" {
-        stat "Prompt Injections Blocked" metrics.PromptInjectionsBlocked "green"
-        stat "Security Violations" metrics.SecurityViolations "red"
-    }
-```
+What makes this different from ordinary service tuning is step 4: because specs are machine-readable and evaluation is automated, every proposed change to the factory can be scored against the same work before it's adopted. Configuration changes stop being vibes.
 
-### Continuous Improvement Pipeline
-
-```mermaid
-flowchart TD
-    A[Collect Metrics] --> B[Analyze Trends]
-    B --> C[Identify Improvements]
-    C --> D[Update Configurations]
-    D -->[E Deploy]
-    E -->|A/B Test| F[Measure Impact]
-    F -->|Improve| A
-    G[Regress] -->|Rollback| A
-```
-
-### Improvement Loop
-
-```go
-# Improvement pipeline
-func (fo *FactoryOrchestrator) RunImprovementCycle() error {
-    # 1. Collect metrics from last cycle
-    metrics := fo.CollectMetrics()
-    
-    # 2. Analyze trends
-    trends := fo.AnalyzeTrends(metrics)
-    
-    # 3. Identify improvement opportunities
-    improvements := fo.IdentifyImprovements(trends)
-    
-    # 4. Apply configurations
-    for _, improvement := range improvements {
-        if err := fo.ApplyConfiguration(improvement); err != nil {
-            return err
-        }
-    }
-    
-    # 5. A/B test if needed
-    if len(improvements) > 1 {
-        results := fo.RunABTest(improvements)
-        if !results[0].BetterThan(results[1]) {
-            # Revert the worse improvement
-            fo.RevertConfiguration(improvements[1])
-        }
-    }
-    
-    return nil
-}
-```
-
-### A/B Testing Factory Configurations
-
-```go
-# A/B test two factory configurations
-func (fo *FactoryOrchestrator) A/BTest(configA, configB string, duration time.Duration) (bool, error) {
-    # 1. Apply config A
-    err := fo.ApplyConfiguration(configA)
-    if err != nil {
-        return false, err
-    }
-    
-    # Record metrics during A
-    metricsA := fo.RecordMetrics(duration)
-    
-    # Apply config B
-    err = fo.ApplyConfiguration(configB)
-    if err != nil {
-        return false, err
-    }
-    
-    # Record metrics during B
-    metricsB := fo.RecordMetrics(duration)
-    
-    # Compare results
-    return metricsB.BetterThan(metricsA), nil
-}
-```
-
-### Improvement Categories
-
-| Category | Description | Example Improvements |
-|------------|-------------|---------------------|
-| **Model Routing** | Switch models based on task type | Use haiku for simple tasks, sonnet for complex |
-| **Prompt Optimization** | Refine prompts based on failure patterns | Add missing constraints, clarify success criteria |
-| **Autonomy Calibration** | Adjust autonomy based on success/failure | Raise/lower autonomy thresholds |
-| **Context Updates** | Add missing ADRs/specs based on gaps | Add new ADRs for frequently failed areas |
-| **Scheduler Tuning** | Optimize worker pool size and timing | Adjust pool size, timeout values |
-| **Security Rules** | Update prompt injection patterns | Add new blocked patterns, refine RBAC |
-
-### Improvement Dashboard
-
-```mermaid
-gantt
-    title Factory Improvement Cycle
-    dateFormat  YYYY-MM-DD
-    section Metrics Collection
-    Metrics Collection          :active, m1, 2024-01-01, 1d
-    Trend Analysis              :after m1, 1d
-    Improvement Identification  :after m2, 1d
-    Configuration Updates       :after m3, 3d
-    A/B Testing                 :after m4, 7d
-    Result Analysis             :after m5, 2d
-```
-
-### Quick Start
-
-```bash
-# Initialize with observability
-asf init --with-observability
-
-# Start factory with metrics
-asf factory start
-
-# Access metrics at http://localhost:8080/metrics
-
-# Run improvement cycle
-asf factory improve
-
-# View dashboard at http://localhost:8080/dashboard
-
-# The factory will automatically:
-# 1. Collect metrics on every operation
-# 2. Analyze trends and identify improvements
-# 3. Apply configuration updates
-# 4. Run A/B tests to validate improvements
-# 5. Provide dashboard for monitoring
-```
-
-### Why Observability Matters
-
-| Concern | Without Observability | With Observability |
-|---------|----------------------|---------------------|
-| **Quality Tracking** | "It seems to work" | Data-driven quality metrics |
-| **Cost Optimization** | Unknown costs | Model routing, prompt optimization |
-| **Security Posture** | Unknown vulnerabilities | Tracked violations and block rates |
-| **Team Decisions** | Anecdotal, subjective | Data-driven improvements |
-| **Scaling Decisions** | Guesswork | Metrics-based scaling |
-| **Incident Response** | Blind to issues | Immediate visibility |
-| **Continuous Improvement** | Ad hoc, reactive | Systematic, iterative |
-
-### Quick Start
-
-```bash
-# Initialize with observability
-asf init --with-observability
-
-# Start factory with metrics endpoint
-asf factory start
-
-# Access metrics at http://localhost:8080/metrics
-# Access dashboard at http://localhost:8080/dashboard
-
-# Run improvement cycle
-asf factory improve
-
-# View trend analysis and apply recommended configurations
-```
-
-### Next: Case Study
-
-In the next post, we'll present a **case study** of an end-to-end implementation: taking a feature from specification through to production deployment.
+The [case study](/blog/posts/agentic-software-engineering-case-study.html) closes the series by running the entire stack — spec, factory, judge, verification, and the gaps between them — on one real feature, with nothing cleaned up.
 
 ---
 
-*All code examples are in Go 1.23+. Diagrams use white-background Archify for presentation-ready architecture visualizations.*
+*All command output, JSON, and code in this post is from the companion factory codebase (Go 1.23+) and real sessions against it.*

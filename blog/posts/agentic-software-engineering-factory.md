@@ -8,185 +8,152 @@
 
 ## The Problem: Ad-Hoc Agent Orchestration
 
-Most agentic setups are **ad-hoc orchestration**:
+Every workflow in this series so far has one launch mode: a developer types a command and waits. That ceiling is low. Agent calls that fail mid-run lose their work; nothing survives a process restart; two tasks can't run concurrently without two terminals; and there is no record of what ran last week, let alone metrics on it.
 
-- Agents are launched manually
-- No persistent state between runs
-- No auto-scaling based on load
-- No built-in resilience or retry logic
-- No observability or metrics
-- One-off executions, not continuous systems
+The factory is the answer: a long-running orchestration process that owns a durable task queue, a worker pool, and the verification machinery — so that agent work becomes something you *submit* and *query*, not something you babysit.
 
-**The problem**: Without a proper orchestration layer, agentic workflows remain:
-- **Fragile**: Break easily when network, agents, or dependencies change
-- **Manual**: Require constant human intervention
-- **Non-scalable**: Horizontal scaling only, not systematic
-- **Unobservable**: No metrics, no debugging, no insight into agent behavior
-- **Non-resilient**: Single point of failure, no checkpointing or recovery
+## The Triad
 
-## The Software Factory Orchestration
+The design splits into three roles. The **Orchestrator** owns the queue, the worker pool, and persistence. **Workers** are stateless goroutines that pull a task, execute it (generate, verify, review, refactor, evaluate), and report a result. The **Validator** is the verification engine from [post 4](/blog/posts/agentic-software-engineering-verification.html), invoked by workers rather than by a human.
 
-**Software Factory Orchestration** designs continuous, self-sustaining systems based on the **Orchestrator-Worker-Validator** pattern.
-
-### The Factory Triad
-
-| Component | Role | Key Characteristics |
-|-----------|------|---------------------|
-| **Orchestrator** | Coordinates workflow, manages task queue, handles scaling | Stateful, durable, auto-scaling, persists state |
-| **Worker** | Executes assigned tasks (generate, verify, review, refactor) | Stateless, scalable, configurable autonomy, reports results |
-| **Validator** | Runs verification loops, enforces constraints, provides feedback | Autonomous, configurable, metrics-driven, feedback-generating |
-
-```mermaid
-flowchart TD
-    O[Orchestrator] -->|Dispatches| W[Worker 1]
-    O -->|Dispatches| W[Worker 2]
-    O -->|Dispatches| W[Worker 3]
-    W -->|Submits Results| V[Validator]
-    V -->|Feeds Back| O
-    O -->|Persists State| S[Durable Store]
-    S -->|Recovers State| O
-    O -->|Metrics| M[Observability]
-    W -->|Emits Metrics| M
-    V -->|Emits Metrics| M
+```text
+            ┌──────────────────────────────────────────┐
+            │              Orchestrator                │
+ submit ──► │  task queue (buffered chan)  ──► dispatch │
+            │        │                          │      │
+            │   SQLite (.asf/factory.db)   worker pool │
+            └────────┼──────────────────────────┼──────┘
+                     ▼                          ▼
+              crash recovery:           worker-N: generate │ verify
+              running → pending            │
+              re-queued on boot            ▼
+                                    LLM client + judge
+                                    verification engine
 ```
 
-### The Orchestrator
+Every lifecycle in the system is a declared state machine — not scattered string comparisons. `asf factory states` prints them from the running declarations; this is actual output:
 
-The Orchestrator is the **brain** of the factory. It:
+```text
+=== task (initial: pending) ===
+    pending --> running
+    running --> completed
+    running --> failed
+    running --> pending      ← crash recovery / retry edge
 
-- Manages a task queue of pending, running, and completed tasks
-- Auto-scales worker pool based on queue depth and worker utilization
-- Persists task state to durable storage (SQLite) for recovery
-- Implements retry logic with configurable maximum retries
-- Implements rebalancing when workers become imbalanced
-- Provides status and metrics endpoints
+=== worker (initial: idle) ===
+    idle --> busy
+    busy --> idle
+    busy --> error
+    error --> idle
 
-```go
-// pkg/factory/factory.go — Factory Orchestrator
-fo := factory.NewFactoryOrchestrator(workingDir, 4)
-fo.Start(ctx)
-
-# Submit tasks
-fo.SubmitTask(&factory.Task{
-    Type:     "generate",
-    SpecID:   "spec-001",
-    Priority: 1,
-})
-
-# Check status
-status := fo.GetFactoryStatus()
-
-# Stop gracefully
-fo.Stop()
+=== verification (initial: build) ===
+    build --> test --> lint --> constraints --> passed
+    (each phase may also --> failed)
 ```
 
-### The Worker Pool
+That `running --> pending` edge on tasks is the whole durability story in one line, and we'll come back to it.
 
-Workers are **stateless** units that execute assigned task types:
+## Workers: Pull, Don't Push
 
-```go
-type Worker struct {
-    ID           string
-    Role         string
-    Capabilities []string
-    Status       string // "idle", "busy", "error"
-    CurrentTask  *Task
-    LastActive   time.Time
-}
-```
-
-Workers pull tasks from the queue and execute them:
+Workers don't get tasks assigned; they pull from a shared channel. This is the standard Go worker-pool shape, and it's worth showing because nothing about it is exotic:
 
 ```go
 func (fo *FactoryOrchestrator) workerLoop(ctx context.Context, worker *Worker) {
-    for {
-        select {
-        case <-ctx.Done():
-            return
-        case <-fo.shutdown:
-            return
-        case task := <-fo.taskQueue:
-            fo.executeTask(ctx, worker, task)
-        }
-    }
+	defer fo.wg.Done()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-fo.shutdown:
+			return
+		case <-worker.stop:
+			return
+		case task := <-fo.taskQueue:
+			fo.executeTask(ctx, worker, task)
+		}
+	}
 }
 ```
 
-### The Validator
+The pool auto-scales, but the policy is deliberately dumb: a dispatch loop ticks once per second; if every worker is busy and the pool is under its max, add one; if more than two are idle, retire one (closing its `stop` channel so the goroutine and the pool map can't drift apart). No predictive scaling, no utilization windows. For a system whose tasks take seconds to minutes, a one-second reactive loop is all the sophistication the problem deserves.
 
-The Validator runs the **AI-TDD verification loop**:
+## Durability: The Part That Earns "Factory"
+
+Every task state transition is persisted to SQLite (`.asf/factory.db`). On boot, the orchestrator replays the database into memory, and the one interesting decision is what to do with tasks persisted as `running` — they were interrupted mid-execution:
 
 ```go
-type VerificationResult struct {
-    Success         bool
-    TestOutput      string
-    LintOutput      string
-    BuildOutput     string
-    Errors          []VerificationError
-    Duration        time.Duration
-    RetryCount      int
+// Crash recovery: a task persisted as "running" was interrupted
+// mid-execution; re-queue it (explicit running -> pending transition).
+if task.Status == TaskRunning {
+	setTaskState(task, TaskPending)
 }
 ```
+
+That gives you at-least-once execution: a crashed generate task runs again rather than vanishing. Workers, by contrast, are *not* restored — they are ephemeral runtime entities recreated fresh each boot, because a persisted "busy" worker is meaningless after a restart once its task has been re-queued.
+
+This is observable in practice. Starting the API server on a machine where the factory had run before:
+
+```text
+$ ASF_MODEL=qwen3.6:latest ./asf-web-bin localhost:8080
+2026/11/20 11:00:28 factory: LLM enabled (provider ollama, model qwen3.6:latest,
+    max 2 concurrent calls, judge threshold 0.75, context budget 24000 chars)
+```
+
+and the first status query already knows about history this process never saw:
+
+```json
+{
+  "llm_enabled": true,
+  "llm_provider": "ollama",
+  "llm_model": "qwen3.6:latest",
+  "max_workers": 4,
+  "tasks_completed": 4,
+  "tasks_failed": 2,
+  "tasks_pending": 0,
+  "workers_idle": 2
+}
+```
+
+Those six historical tasks came out of SQLite, not memory.
+
+## What a Generate Task Actually Does
+
+The worker path for a `generate` task is: assemble the spec prompt and curated context, call the LLM, then hand the output to an LLM-as-a-judge evaluator. If the judge scores below threshold (0.75 by default), the worker regenerates with the judge's feedback folded into the prompt, up to `ASF_EVAL_MAX_ATTEMPTS`. The final result — artifact, attempt count, model, per-criterion verdict — is attached to the task record.
+
+Two design details matter more than they look. First, LLM calls go through a concurrency gate (two concurrent calls by default) so four workers can't stampede a local Ollama instance. Second, a broken judge does not discard a produced artifact:
 
 ```go
-func (e *VerificationEngine) RunVerification(ctx context.Context, specPath string) (*VerificationResult, error) {
-    # Phase 1: Build verification
-    # Phase 2: Test verification
-    # Phase 3: Lint verification
-    # Phase 4: Constraint verification
-    # Return result with success/failure and errors
+evalErr = fo.withLLMSlot(ctx, func(callCtx context.Context) error {
+	verdict, evalErr = fo.evaluator.EvaluateCode(callCtx, specPrompt, output, contextStr, fo.evalCriteria)
+	return evalErr
+})
+if evalErr != nil {
+	// The artifact was produced; a broken judge should not discard it.
+	judgeNote = fmt.Sprintf("evaluation skipped: %v", evalErr)
+	...
 }
 ```
 
-### Factory Orchestration Lifecycle
+For honest expectations on timing: on a MacBook running qwen3.6 locally through Ollama, one generate task for a ~150-line Go package — generation plus judge pass — took 4 minutes 59 seconds. A verification task (build + test + lint of the factory's own repo) takes about 5 seconds. Cloud models compress the generate numbers dramatically; the orchestration cost is noise either way.
 
-```mermaid
-flowchart TD
-    A[Factory Start] --> B[Initialize Workers]
-    B --> C[Begin Task Dispatch]
-    C --> D[Task Executed by Worker]
-    D -->|Pass| E[Task Marked Complete]
-    D -->|Fail| F[Task Retried or Failed]
-    F -->|Retries < max| G[Re-queue Task]
-    F |>|Retries >= max| G[Task Marked Failed]
-    E --> G
-    G --> H[Factory Status Updated]
-    H --> I[Factory Continues Operation]
-    I -->|Shutdown| I[Factory Gracefully Stops]
-    I |>|State Persisted| I[State Recovered on Restart]
-```
+## Factories-as-Code
 
-### Task Types
-
-| Task Type | Description | Typical Duration |
-|-----------|-------------|-----------------|
-| **generate** | Agent generates code from specification | 5-30s |
-| **verify** | Verification loop (build, test, lint) | 10-60s |
-| **review** | Agent-assisted code review | 5-15s |
-| **refactor** | Agent refactors existing code | 10-30s |
-
-### Factory Configuration
+The factory's shape is itself declared in YAML — which agents exist, what they're allowed to do, and which workflows chain them. This is the actual `specs/factory.yaml` schema, matching the `pkg/factorydef` structs field for field:
 
 ```yaml
-# specs/factory.yaml — Factory definition (Factories-as-Code)
 factory:
   name: "go-agentic-factory"
   version: "1.0"
-  max_workers: 8
-  default_timeout: "5m"
-  retry_policy:
-    max_retries: 3
-    backoff_base: "2s"
-    backoff_max: "30s"
   agents:
     - id: "gen-agent"
       role: "code-generator"
+      capabilities: ["generate", "refactor"]
       model: "claude-sonnet-5"
-      autonomy: "level_3"
     - id: "verify-agent"
       role: "validator"
+      capabilities: ["verify"]
       model: "claude-haiku-4-5"
-      autonomy: "level_4"
   workflows:
     - id: "code-improvement"
       steps:
@@ -194,113 +161,41 @@ factory:
           agent: "gen-agent"
         - name: "run-verification"
           agent: "verify-agent"
-        - name: "review"
-          agent: "gen-agent"
+          validation: "harness"
+  runners:
+    - id: "default-sandbox"
+      image: "golang:1.23-alpine"
+      work_dir: "/workspace"
+      read_only: false
+      timeout: "300s"
 ```
 
-### Factory Metrics Dashboard
+The definition is versioned next to the code it governs, so "which model reviews our PRs and with what autonomy" is a diff in review, not tribal knowledge. One wart found while dogfooding: `asf spec list` currently slurps `factory.yaml` out of `specs/` and lists it as an empty specification, because both formats live in the same directory. Real systems accumulate exactly this kind of edge.
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| Workers Total | Total number of workers | Configurable (e.g., 4-8) |
-| Workers Busy | Currently executing tasks | ≤ max_workers |
-| Workers Idle | Waiting for tasks | ≥ 0 |
-| Tasks Pending | Tasks waiting in queue | Varies by load |
-| Tasks Completed | Successfully completed tasks | Increasing trend |
-| Tasks Failed | Failed tasks (max retries exceeded) | Minimizing |
-| Average Task Duration | Mean execution time | Varies by task type |
-| Verification Pass Rate | % of verifications that pass | ≥ 95% |
-| Auto-Scaling Events | Number of times workers were added/removed | Monitoring only |
+## Access: Four Doors, One Orchestrator
 
-### Factory Recovery & Durability
+The same orchestrator is reachable four ways — CLI (`asf factory ...`), HTTP API, Server-Sent Events for streaming task state, and an MCP server so other agents and tools can drive the factory programmatically:
 
-```go
-# Persistent task state enables recovery
-func (fo *FactoryOrchestrator) restoreTasks() error {
-    # Restore pending tasks from SQLite
-    # Restore running tasks (mark as pending for retry)
-    # Restore completed/failed tasks
-    # Restore workers from previous session
-    # Resume operation from exact point of failure
-}
+```text
+POST /api/factory/launch/{action}    launch review|bugfix|feature|eval|refactor
+GET  /api/tasks/{id}                 task snapshot
+GET  /api/tasks/{id}/stream          SSE until the task hits a terminal state
+GET  /api/factory/status             the status JSON shown above
+GET  /api/state-machines             the declared lifecycles, as data
+
+MCP tools: submit_task, get_task_result, get_factory_status,
+           list_specs, get_spec, list_agents, run_verification
 ```
 
-### Factory Integration with MCP
+A note on honest scope: the CLI's `asf factory submit` constructs a fresh orchestrator per invocation — fine for development, but the durable always-on mode is the API server. Run `./asf-web-bin`, keep it up, and submit over HTTP.
 
-```go
-# MCP endpoints for factory control
-MCP Endpoints:
-- submit_task: Submit a new task to the factory
-- get_task_result: Get the result of a submitted task
-- get_factory_status: Get current factory status
-- list_specs: List all available specifications
-- get_spec: Get a specific specification
-- list_agents: List all agents in the factory
-- run_verification: Run the verification harness
-```
+## Why This Layer Is Worth Building
 
-### Quick Start
-
-```bash
-# Initialize factory
-asf init
-
-# Start factory with 4 workers
-asf factory start
-
-# Submit tasks
-asf factory submit generate spec-001
-asf factory submit verify spec-001
-
-# Check status
-asf factory status
-
-# Stop factory
-asf factory stop
-
-# The factory will automatically:
-# 1. Initialize workers
-# 2. Process tasks from the queue
-# 3. Persist state to SQLite
-# 3. Auto-scale based on load
-# 4. Recover on restart
-# 5. Provide metrics via MCP API
-```
-
-### Why Software Factory Orchestration Matters
-
-| Concern | Ad-Hoc Execution | Factory Orchestration |
-|---------|-----------------|---------------------|
-| **Resilience** | Breaks on error, manual recovery | Auto-recovery from SQLite state |
-| **Scalability** | Manual add more workers | Auto-scaling based on queue depth |
-| **Observability** | No metrics, blind spots | Full metrics dashboard |
-| **Consistency** | Varies by human execution | Consistent, configured behavior |
-| **Auditability** | Manual logs, hard to trace | Persistent state, traceable |
-| **Onboarding** | Hard to scale beyond 5 developers | Scales to any team size |
-| **Cost** | Pay per manual execution | Pay for running infrastructure |
-
-### Why This Series Matters
-
-This 12-part series provides a **complete roadmap** for implementing production-grade Agentic Software Engineering in Go:
-
-| Post | Topic | Key Takeaway |
-|------|-------|--------------|
-| 1 | Introduction | Overview and foundation patterns |
-| 2 | Context Engineering | ADRs and context curation |
-| 3 | Specification Engineering | Machine-readable specs, Plan-Build-Verify |
-| 5 | AI-TDD Verification | Build, test, lint, constraint validation |
-| 5 (duplicate slot) | Autonomy Calibration | AEMM maturity model and Elastic Loop |
-| 6 | Security & Safety | Prompt injection defense, sandbox, RBAC |
-| 7 | Team Operating Model | Git integration, shared context, PR review |
-| 8 | Developer Workflow | Daily loop, spec authoring, prompt patterns |
-| 9 | Software Factory Orchestration | Factory as code, durable orchestration |
-| 10 | Production Operations | Observability, A/B testing, continuous improvement |
-| 11 | Case Study | End-to-end: spec to production |
-| 12 | Summary & Future | Complete roadmap and future directions |
+Resilience stops being a property of your attention span: a crashed process re-queues its interrupted work from SQLite instead of losing it. Concurrency gets a policy — a worker pool with a scaling rule and an LLM gate — instead of being however many terminals you have open. And every task that ever ran leaves a queryable record with its verdict attached, which is the raw material the [next post](/blog/posts/agentic-software-engineering-ops.html) turns into operations: metrics, evaluation benchmarks, and the continuous-improvement loop.
 
 ---
 
-*All code examples are in Go 1.23+. Diagrams use white-background Archify for presentation-ready architecture visualizations.*
+*All code, configuration, and command output in this post is taken directly from the companion factory codebase (Go 1.23+) and real sessions against it.*
 
 ---
 

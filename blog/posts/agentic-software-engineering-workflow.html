@@ -127,7 +127,7 @@
       <span>·</span>
       <time datetime="2026-11-10">November 10, 2026</time>
       <span>·</span>
-      <span>5 min read</span>
+      <span>6 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/agentic-engineering/" class="tag-link"><span class="tag">#Agentic Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/coding-agents/" class="tag-link"><span class="tag">#Coding Agents</span></a><a href="/blog/tags/developer-productivity/" class="tag-link"><span class="tag">#Developer Productivity</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/prompt-engineering/" class="tag-link"><span class="tag">#Prompt Engineering</span></a></div>
   </header>
@@ -141,400 +141,104 @@
 
 
 
-  <h2 id="the-problem-the-developer-antagonist-loop">The Problem: The Developer-Antagonist Loop</h2>
-<p>Most developers experience an <strong>antagonistic relationship</strong> with AI agents:</p>
-<pre><code>Developer: &quot;Write this function&quot;
-Agent: [generates code]
-Developer: &quot;Not quite right, fix the imports&quot;
-Agent: [tries again]
-Developer: &quot;Wrong pattern, use this idiom&quot;
-Agent: [tries again]
-Developer: &quot;Gave up, just wrote it myself&quot;
+  <h2 id="the-problem-the-antagonist-loop">The Problem: The Antagonist Loop</h2>
+<p>Most developers experience an antagonistic relationship with coding agents. You ask for a function, the agent generates something plausible, you point out the imports are wrong, it tries again, you explain the team&rsquo;s error-handling idiom, it tries again, and eventually you give up and write the thing yourself. The agent consumed twenty minutes and produced nothing you kept.</p>
+<p>The root cause is not the model. It is that the interaction has no structure: no written success criteria, so &ldquo;done&rdquo; is whatever you fail to object to; no constraints, so the agent cannot know your organizational standards; no verification, so unproven code lands in your lap for manual inspection; and no artifact a colleague could pick up, because the whole exchange lives in a chat transcript.</p>
+<p>The previous posts in this series built the machinery that fixes this — specifications (<a href="/blog/posts/agentic-software-engineering-specs.html">post 3</a>), the verification pipeline (<a href="/blog/posts/agentic-software-engineering-verification.html">post 4</a>), and the harness that ties them together (<a href="/blog/posts/agentic-software-engineering-harness.html">post 5</a>). This post is about what your day actually looks like once that machinery exists. The short version: you stop typing implementations and start writing specs, reviewing artifacts, and directing the system — hand work becomes head work.</p>
+<h2 id="the-daily-loop">The Daily Loop</h2>
+<p>The loop has four phases, and only one of them is new work:</p>
+<pre><code class="language-text">author spec  ──►  validate  ──►  agent generates  ──►  verify + review
+    ▲                                                        │
+    └────────── revise spec when the failure is yours ◄──────┘
 </code></pre>
-<p><strong>The problem</strong>: The developer spends more time managing the agent than doing meaningful work. The agent becomes a productivity drain rather than a multiplier.</p>
-<p><strong>The root cause</strong>: Lack of structured interaction model. Developers and agents operate without a shared framework, leading to:</p>
-<ul>
-<li>Vague prompts → vague code → revision cycle</li>
-<li>No clear success criteria → endless back-and-forth</li>
-<li>No constraints → agent ignores organizational standards</li>
-<li>No verification → unverified code reaches developer</li>
-<li>No handoff → developer must re-read and re-understand</li>
-</ul>
-<h2 id="the-developer-workflow">The Developer Workflow</h2>
-<p><strong>The Developer Workflow</strong> replaces the antagonistic loop with a structured partnership where the developer moves from &ldquo;hand work&rdquo; to &ldquo;head work.&rdquo;</p>
-<h3 id="the-daily-developer-loop">The Daily Developer Loop</h3>
-<pre><code class="language-mermaid">flowchart TD
-    A[Start Day] --&gt; B[Pull Latest Changes]
-    B --&gt; C[Review Agent PRs from Overnight]
-    C --&gt;|Approve| G[Merge &amp; Continue]
-    C|Request| H[Request Agent Revisions]
-    H --&gt;|Agent Revises| B
-    G --&gt; I[Write Specs for New Features]
-    I --&gt; J[Let Agent Implement from Specs]
-    J --&gt; K[Run asf verify continuously]
-    K --&gt;|Pass| L[Commit when harness passes]
-    L --&gt; M[Push Changes]
-    M --&gt; N[Factory Runs Overnight Batch Jobs]
-    N --&gt; O[Review Results in Morning]
-    O --&gt; P[Next Day Repeat]
+<p>The surprising part in practice is the feedback edge on the left. When verification fails repeatedly, the bug is often in the <em>specification</em> — a success criterion that cannot be checked, a constraint the steps contradict — and the fix is editing YAML, not code.</p>
+<h2 id="authoring-a-spec">Authoring a Spec</h2>
+<p>Everything starts from <code>asf spec template</code>, which scaffolds the machine-readable format the whole factory consumes:</p>
+<pre><code class="language-bash">./asf spec template specs/my-feature.yaml
+$EDITOR specs/my-feature.yaml
+./asf spec validate my-feature
 </code></pre>
-<h3 id="spec-authoring-patterns">Spec Authoring Patterns</h3>
-<p><strong>Good specs are</strong>:</p>
-<table><caption class="sr-only">Spec Authoring Patterns</caption>
-<thead>
-<tr>
-<th>Characteristic</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Specific</strong></td>
-<td>Clear, measurable success criteria</td>
-</tr>
-<tr>
-<td><strong>Constrained</strong></td>
-<td>Explicit anti-goals and boundaries</td>
-</tr>
-<tr>
-<td><strong>Testable</strong></td>
-<td>Verifiable outputs and behaviors</td>
-</tr>
-<tr>
-<td><strong>Composable</strong></td>
-<td>Reusable steps and patterns</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Bad specs</strong>:</p>
-<table><caption class="sr-only">Spec Authoring Patterns</caption>
-<thead>
-<tr>
-<th>Anti-Pattern</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Vague</td>
-<td>&ldquo;Make it fast&rdquo;</td>
-</tr>
-<tr>
-<td>Unconstrained</td>
-<td>No boundaries</td>
-</tr>
-<tr>
-<td>Untestable</td>
-<td>No clear outputs</td>
-</tr>
-<tr>
-<td>Monolithic</td>
-<td>Can&rsquo;t be decomposed</td>
-</tr>
-</tbody>
-</table>
-<h3 id="prompt-engineering-for-specs">Prompt Engineering for Specs</h3>
-<p><strong>Instead of</strong>: <code>Build a user service</code></p>
-<p><strong>Write a spec with</strong>:</p>
-<ul>
-<li><strong>Goal</strong>: &ldquo;Implement user CRUD with email verification&rdquo;</li>
-<li><strong>Constraints</strong>: &ldquo;Must use PostgreSQL, must hash passwords with bcrypt&rdquo;</li>
-<li><strong>Anti-goals</strong>: &ldquo;No plain text passwords, no SQL injection&rdquo;</li>
-<li><strong>Steps</strong>: <code>[create schema, implement repo, add handlers, add tests]</code></li>
-</ul>
-<h3 id="the-asf-cli-workflow">The ASF CLI Workflow</h3>
-<pre><code class="language-bash"># 1. Initialize project
-asf init
-
-# 2. Write specification
-asf spec template specs/my-feature.yaml
-# Edit specs/my-feature.yaml
-
-# 3. Validate specification
-asf spec validate my-feature
-
-# 4. Generate agent prompt
-asf spec generate my-feature
-# The prompt is now the single source of truth
-
-# 5. Run verification continuously
-asf verify
-# The harness runs build, test, lint in a loop
-
-# 6. Run complete harness
-asf harness run my-feature
-# If pass: code is verified
-# If fail: agent receives fix prompt → revises code
-
-# 7. Commit when harness passes
-asf factory submit generate my-feature
-
-# 8. Overnight, factory runs batch jobs
-# Review results in morning
-
-# 9. Next day: repeat
-</code></pre>
-<h3 id="prompt-patterns-that-work">Prompt Patterns That Work</h3>
-<table><caption class="sr-only">Prompt Patterns That Work</caption>
-<thead>
-<tr>
-<th>Anti-Prompt</th>
-<th>Why It Fails</th>
-<th>Better Approach</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>&ldquo;Build a user service&rdquo;</td>
-<td>Too vague, no constraints</td>
-<td>Spec with goal, constraints, steps</td>
-</tr>
-<tr>
-<td>&ldquo;Make it fast&rdquo;</td>
-<td>Unmeasurable, subjective</td>
-<td>&ldquo;95th percentile latency &lt; 100ms&rdquo;</td>
-</tr>
-<tr>
-<td>&ldquo;Use React&rdquo;</td>
-<td>Framework lock-in, no flexibility</td>
-<td>&ldquo;Use Go with Gin framework&rdquo;</td>
-</tr>
-<tr>
-<td>&ldquo;Fix the bug&rdquo;</td>
-<td>No context, no reproduction</td>
-<td>&ldquo;Fix NULL pointer in UserHandler at line 42&rdquo;</td>
-</tr>
-<tr>
-<td>&ldquo;Optimize the query&rdquo;</td>
-<td>No baseline, no measurement</td>
-<td>&ldquo;Reduce query latency by 40%&rdquo;</td>
-</tr>
-</tbody>
-</table>
-<h3 id="spec-authoring-templates">Spec Authoring Templates</h3>
-<pre><code class="language-yaml"># specs/template.yaml (Spec Template)
-id: &quot;spec-001&quot;
-version: &quot;1.0&quot;
-title: &quot;Example Specification&quot;
-description: &quot;A brief description of what this achieves&quot;
+<p>A spec has five load-bearing sections — intent (goal, success criteria, anti-goals), constraints (<code>must</code> / <code>must_not</code>, each with a validator note), typed inputs and outputs, and a dependency-ordered step plan. Here is a condensed excerpt from the authentication spec the series <a href="/blog/posts/agentic-software-engineering-case-study.html">case study</a> runs end to end:</p>
+<pre><code class="language-yaml">id: &quot;auth-service-001&quot;
+title: &quot;Authentication token package&quot;
 intent:
-  goal: &quot;Clear, measurable goal for the agent&quot;
-  context: &quot;Background context and constraints&quot;
+  goal: &quot;Implement a Go package `auth` with password hashing (bcrypt),
+         HS256 JWT access-token issue/validate, and single-use rotating
+         refresh tokens&quot;
   success_criteria:
-    - &quot;Criterion 1: measurable outcome&quot;
-    - &quot;Criterion 2: another measurable outcome&quot;
+    - &quot;HashPassword/CheckPassword wrap bcrypt with a work factor of at least 12&quot;
+    - &quot;ValidateAccessToken rejects expired tokens, bad signatures, and
+       tokens signed with none/other algorithms&quot;
   anti_goals:
-    - &quot;What to explicitly avoid&quot;
+    - &quot;No hand-rolled crypto — stdlib crypto and golang.org/x/crypto/bcrypt
+       only, plus github.com/golang-jwt/jwt/v5&quot;
 constraints:
-  - id: &quot;c1&quot;
-    type: &quot;must&quot;
-    description: &quot;Hard constraint the agent must follow&quot;
-    validator: &quot;code to validate this constraint&quot;
   - id: &quot;c2&quot;
-    type: &quot;must_not&quot;
-    description: &quot;What the agent must not do&quot;
-inputs:
-  input_name:
-    type: &quot;string&quot;
-    description: &quot;Description of this input&quot;
-    required: true
-    default: &quot;default value&quot;
-outputs:
-  output_name:
-    type: &quot;string&quot;
-    description: &quot;Expected output&quot;
+    type: &quot;must&quot;
+    description: &quot;JWTs use github.com/golang-jwt/jwt/v5 with
+                  SigningMethodHS256, and validation pins the algorithm&quot;
+    validator: &quot;jwt.Parse must use WithValidMethods or an explicit method check&quot;
 steps:
-  - id: &quot;step1&quot;
-    name: &quot;First Step&quot;
-    description: &quot;What this step does&quot;
-    tool: &quot;tool_name&quot;
-    inputs:
-      key: &quot;value&quot;
-    depends_on: []
-    validation: &quot;how to validate this step succeeded&quot;
-  - id: &quot;step2&quot;
-    name: &quot;Second Step&quot;
-    description: &quot;What this step does&quot;
-    tool: &quot;tool_name&quot;
-    inputs:
-      key: &quot;value&quot;
-    depends_on: [&quot;step1&quot;]
-    validation: &quot;how to validate this step succeeded&quot;
+  - id: &quot;s3&quot;
+    name: &quot;Access tokens&quot;
+    depends_on: [&quot;s1&quot;]
+    validation: &quot;expired and tampered tokens rejected in tests&quot;
 </code></pre>
-<h3 id="developer-toolbox">Developer Toolbox</h3>
-<pre><code class="language-bash"># ASF CLI commands for daily developer loop
-asf init                          # Initialize project
-asf spec template specs/          # Create spec template
-asf spec validate spec-id         # Validate specification
-asf spec generate spec-id         # Generate agent prompt
-asf verify                        # Run verification loop
-asf harness run spec-id           # Run complete harness
-asf factory submit generate spec  # Submit task to factory
-asf mcp start                     # Start MCP server for API access
-asf factory status                # Check factory status
-asf security test-input &quot;input&quot;   # Test input sanitization
+<p>What makes a spec good is checkability. &ldquo;Make it fast&rdquo; is not a criterion; &ldquo;95th-percentile latency under 100ms&rdquo; is. &ldquo;Secure&rdquo; is not a constraint; &ldquo;refresh tokens stored only as SHA-256 digests, invalidated after one use&rdquo; is. Every success criterion should name the test, grep, or command that would prove it — the <code>validator</code> field exists to force that discipline.</p>
+<p>The validator catches structural problems before any model sees the spec — missing goals, and steps that depend on steps that don&rsquo;t exist:</p>
+<pre><code class="language-text">$ ./asf spec validate auth-service-001
+Spec auth-service-001 is valid!
 </code></pre>
-<h3 id="developer-commands-quick-reference">Developer Commands Quick Reference</h3>
-<table><caption class="sr-only">Developer Commands Quick Reference</caption>
-<thead>
-<tr>
-<th>Command</th>
-<th>Purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>asf init</code></td>
-<td>Initialize project structure</td>
-</tr>
-<tr>
-<td><code>asf spec template</code></td>
-<td>Create spec from template</td>
-</tr>
-<tr>
-<td><code>asf spec validate</code></td>
-<td>Validate spec completeness</td>
-</tr>
-<tr>
-<td><code>asf spec generate</code></td>
-<td>Generate agent prompt</td>
-</tr>
-<tr>
-<td><code>asf verify</code></td>
-<td>Run build/test/lint verification</td>
-</tr>
-<tr>
-<td><code>asf harness run</code></td>
-<td>Execute complete harness</td>
-</tr>
-<tr>
-<td><code>asf factory submit</code></td>
-<td>Submit task to factory</td>
-</tr>
-<tr>
-<td><code>asf factory status</code></td>
-<td>Check factory status</td>
-</tr>
-<tr>
-<td><code>asf mcp start</code></td>
-<td>Start MCP server</td>
-</tr>
-<tr>
-<td><code>asf security test-input</code></td>
-<td>Test input sanitization</td>
-</tr>
-</tbody>
-</table>
-<h3 id="why-the-developer-workflow-matters">Why the Developer Workflow Matters</h3>
-<table><caption class="sr-only">Why the Developer Workflow Matters</caption>
-<thead>
-<tr>
-<th>Concern</th>
-<th>Traditional Workflow</th>
-<th>Developer Workflow</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Prompt Management</strong></td>
-<td>Ad-hoc, lost in chat history</td>
-<td>Structured in specs/ directory</td>
-</tr>
-<tr>
-<td><strong>Success Criteria</strong></td>
-<td>Implicit, never verified</td>
-<td>Explicit, verified continuously</td>
-</tr>
-<tr>
-<td><strong>Agent Interaction</strong></td>
-<td>Antagonistic, endless revisions</td>
-<td>Structured, purposeful</td>
-</tr>
-<tr>
-<td><strong>Code Quality</strong></td>
-<td>Inconsistent, manual</td>
-<td>Consistent, verified</td>
-</tr>
-<tr>
-<td><strong>Handoff</strong></td>
-<td>Difficult, re-read required</td>
-<td>Seamless, spec-driven</td>
-</tr>
-<tr>
-<td><strong>Onboarding</strong></td>
-<td>2-4 weeks, variable</td>
-<td>1 week, structured</td>
-</tr>
-<tr>
-<td><strong>Productivity</strong></td>
-<td>Agent drains productivity</td>
-<td>Agent multiplies productivity</td>
-</tr>
-</tbody>
-</table>
-<h3 id="why-this-workflow-works">Why This Workflow Works</h3>
-<table><caption class="sr-only">Why This Workflow Works</caption>
-<thead>
-<tr>
-<th>Principle</th>
-<th>How It Helps</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Specs as Source of Truth</strong></td>
-<td>Eliminates &ldquo;he said/she said&rdquo; about what to build</td>
-</tr>
-<tr>
-<td><strong>Continuous Verification</strong></td>
-<td>Catches errors early, before they compound</td>
-</tr>
-<tr>
-<td><strong>Autonomy Calibration</strong></td>
-<td>Agent freedom adjusts based on task risk</td>
-</tr>
-<tr>
-<td><strong>Structured Prompts</strong></td>
-<td>Eliminates &ldquo;vague prompt → vague code&rdquo; cycle</td>
-</tr>
-<tr>
-<td><strong>Handoff Clarity</strong></td>
-<td>New developers read specs, not chat transcripts</td>
-</tr>
-<tr>
-<td><strong>Quality Gate</strong></td>
-<td>Harness passes before commit, not after</td>
-</tr>
-</tbody>
-</table>
-<h3 id="quick-start">Quick Start</h3>
-<pre><code class="language-bash"># 1. Initialize
-asf init
+<h2 id="from-spec-to-prompt">From Spec to Prompt</h2>
+<p><code>asf spec generate</code> renders the YAML into the prompt the agent receives, so you can read exactly what the model will be told — no hidden prompt assembly:</p>
+<pre><code class="language-text">$ ./asf spec generate auth-service-001
 
-# 2. Write your first spec
-asf spec template specs/my-feature.yaml
-
-# 3. Edit the spec to your needs
-# The spec is now the single source of truth
-
-# 4. Generate the agent prompt
-asf spec generate my-feature
-
-# 5. Run verification
-asf verify
-
-# 6. Run the harness
-asf harness run my-feature
-
-# 7. Submit to factory
-asf factory submit generate my-feature
-
-# 8. Repeat daily
+# Specification: Authentication token package
+...
+## Constraints (MUST FOLLOW)
+MUST: Passwords are hashed with golang.org/x/crypto/bcrypt at cost &gt;= 12
+MUST: JWTs use github.com/golang-jwt/jwt/v5 with SigningMethodHS256, and
+      validation pins the algorithm
+...
+## Execution Plan
+1. **Define types and errors**
+2. **Password hashing** [depends on: s1]
+3. **Access tokens** [depends on: s1]
+...
 </code></pre>
-<h3 id="next-software-factory-orchestration">Next: Software Factory Orchestration</h3>
-<p>In the next post, we&rsquo;ll explore <strong>Software Factory Orchestration</strong> — designing always-on, self-sustaining Orchestrator-Worker-Validator systems that operate continuously, not just on-demand.</p>
+<p>Reading this output regularly is worth the habit. While writing this series I noticed the execution plan printed every step with the same number — the renderer was using <code>len(spec.Steps)</code> where it meant the loop index. A one-line fix, but it had been silently mis-numbering every prompt. Inspectable prompts get debugged; invisible ones don&rsquo;t.</p>
+<p>When a harness run is wired to an LLM, this prompt goes out with curated project context appended — the ADRs and conventions from <a href="/blog/posts/agentic-software-engineering-context.html">post 2</a> — and the verification loop from post 4 gates what comes back.</p>
+<h2 id="verification-is-the-inner-loop">Verification Is the Inner Loop</h2>
+<p><code>asf verify</code> runs the pipeline — build, test, lint — against the working tree, and you run it the way you run tests: constantly.</p>
+<pre><code class="language-text">$ ./asf verify
+Running verification...
+✗ Verification failed with 50 errors:
+  [LINT] pkg/conversation/store.go:334 - Error return value of
+         `json.Unmarshal` is not checked (errcheck)
+  [LINT] pkg/integration/teams.go:26 - type teamsSigVerifier is unused (unused)
+  ...
+</code></pre>
+<p>That output is from a real run against the factory&rsquo;s own codebase, and the 50 findings are real backlog. The point of the workflow is not that verification always passes — it is that failure arrives as a structured list of file:line findings that can be handed back to an agent as a fix prompt, instead of as a vague feeling that the code is untrustworthy.</p>
+<p><code>asf harness run &lt;spec-id&gt;</code> composes the whole thing: load spec, assemble context, generate the prompt, then run the verification loop with bounded retries, emitting a fix prompt on each failure. The <a href="/blog/posts/agentic-software-engineering-case-study.html">case study</a> walks through a complete run, including the failures.</p>
+<h2 id="the-real-command-surface">The Real Command Surface</h2>
+<p>These are the commands that exist today, from the CLI&rsquo;s own help text — this list is deliberately boring, because the workflow should be:</p>
+<pre><code class="language-text">asf init                       scaffold project structure
+asf context                    show what context the agent would receive
+asf spec template [path]       scaffold a spec
+asf spec validate &lt;spec-id&gt;    structural validation
+asf spec generate &lt;spec-id&gt;    render the agent prompt
+asf verify                     build + test + lint on the working tree
+asf harness run &lt;spec-id&gt;      spec + context + verification loop
+asf factory start|status|submit|states
+asf mcp start [addr]           headless API for other tools
+asf integration list|status    adapter status (Slack/Teams/GitHub/Linear)
+</code></pre>
+<p>Two honest caveats. First, <code>asf factory submit</code> from the CLI constructs a fresh orchestrator per invocation — the durable, always-on mode runs through the API server, which the <a href="/blog/posts/agentic-software-engineering-factory.html">next post</a> covers. Second, the &ldquo;overnight batch&rdquo; workflow this post&rsquo;s first draft promised is aspirational until you deploy that server somewhere that stays up overnight.</p>
+<h2 id="why-this-beats-the-antagonist-loop">Why This Beats the Antagonist Loop</h2>
+<p>The spec is the artifact, and that changes four things concretely. Disagreements about what to build become diffs on a YAML file instead of competing recollections of a chat. Success criteria are checked by the pipeline, not re-litigated per review. A new teammate reads <code>specs/</code> to learn what the system is supposed to do — the specs are documentation that cannot drift, because the harness executes them. And when the agent produces garbage, you debug one of three inspectable inputs — spec, context, or verification feedback — instead of rewording a prompt and hoping.</p>
+<p>The next post scales this from one developer&rsquo;s loop to an always-on system: the <a href="/blog/posts/agentic-software-engineering-factory.html">factory orchestrator</a>, with durable task state, worker pools, and crash recovery.</p>
 <hr>
-<p><em>All code examples are in Go 1.23+. Diagrams use white-background Archify for presentation-ready architecture visualizations.</em></p>
+<p><em>Command output in this post is from real sessions against the companion factory codebase (Go 1.23+); nothing is mocked up.</em></p>
 
 
 <aside class="consult-cta" aria-label="Work with Pratik">

@@ -2,505 +2,192 @@
 
 # Agentic Software Engineering in Go: Case Study
 
-*End-to-end: from specification to production deployment*
+*End-to-end, nothing mocked: one feature through the whole factory*
 
 ---
 
-## The Problem: The Specification-to-Production Gap
+## The Setup
 
-Most teams can write a specification, and some can verify agent-generated code. **But very few can take a specification from concept to production** without the "spec-to-production gap" causing failures.
+This series has made a lot of claims: that machine-readable specs beat prompts, that verification loops beat vibes, that an LLM judge is useful but not sufficient, that the whole thing composes into a factory. This closing post cashes those claims by running one feature through the entire stack and reporting what actually happened — including the parts that failed.
 
-**The gap** manifests as:
+The ground rules: everything below is from one real session. The model is `qwen3.6` running locally through Ollama — deliberately not a frontier cloud model, because a local model's failures exercise the verification machinery harder, and the machinery is what this series is about. Timings are wall-clock. Nothing is cleaned up after the fact.
 
-| Symptom | Cause |
-|---------|-------|
-| "It works in development, but fails in production" | Context and constraints not production-hardened |
-| "The agent produces different code each time" | No deterministic specification |
-| "Security vulnerabilities appear post-deployment" | Security constraints not enforced during generation |
-| "Technical debt accumulates silently" | No continuous verification loop |
-| "Team can't onboard to the system" | No documented, reproducible process |
+The feature is an authentication token package: bcrypt password hashing, HS256 JWT access tokens, single-use rotating refresh tokens. Scoped honestly — a Go library package with tests, not a deployed service. One spec, one reviewable artifact.
 
-**The result**: Teams give up on agentic systems, returning to manual development, or worse, deploy agent-generated code with unseen issues.
+## Phase 1: The Specification
 
-## The Case Study: User Authentication Service
-
-We'll walk through a **complete end-to-end case study**: implementing a user authentication service from specification to production deployment using the Agentic Software Engineering patterns from this series.
-
-### Phase 1: Specification
+The spec follows the format from [post 3](/blog/posts/agentic-software-engineering-specs.html). The parts that end up mattering most are the constraints:
 
 ```yaml
-# specs/auth-service.yaml
 id: "auth-service-001"
-version: "1.0"
-title: "User Authentication Service"
-description: "Production-ready authentication service with JWT, refresh tokens, and session management"
+title: "Authentication token package"
 intent:
-  goal: "Implement a complete authentication service that supports user registration, login, token refresh, and logout with production-grade security"
-  context: "Go 1.23+, PostgreSQL, JWT, OAuth2 refresh token flow"
-  success_criteria:
-    - "Registration endpoint creates user with hashed password"
-    - "Login endpoint validates credentials and issues JWT"
-    - "Refresh token endpoint issues new access token"
-    - "Logout endpoint invalidates refresh tokens"
-    - "All passwords hashed with bcrypt at minimum 12 rounds"
-    - "JWT tokens signed with HMAC-SHA256"
-    - "Refresh tokens stored with rotation and revocation"
-    - "API documents with OpenAPI 3.0 specification"
+  goal: "Implement a Go package `auth` with password hashing (bcrypt),
+         HS256 JWT access-token issue/validate, and single-use rotating
+         refresh tokens"
   anti_goals:
-    - "No plain text password storage"
-    - "No SQL injection vulnerabilities"
-    - "No hardcoded secrets or credentials"
-    - "No session fixation vulnerabilities"
-    - "No password reuse across systems"
+    - "No plaintext storage of passwords or refresh tokens"
+    - "No hand-rolled crypto — stdlib crypto and golang.org/x/crypto/bcrypt
+       only, plus github.com/golang-jwt/jwt/v5"
 constraints:
   - id: "c1"
     type: "must"
-    description: "All passwords MUST be hashed with bcrypt and minimum 12 rounds"
-    validator: "code must use github.com/dgrijalva/jwt-go v5.x"
+    description: "Passwords are hashed with golang.org/x/crypto/bcrypt at cost >= 12"
   - id: "c2"
-    type: "must_not"
-    description: "API MUST NOT accept passwords shorter than 8 characters"
-    validator: "input validation middleware"
-  - id: "c3"
     type: "must"
-    description: "All JWT tokens MUST have expiration (exp claim)"
-    validator: "middleware validation"
+    description: "JWTs use github.com/golang-jwt/jwt/v5 with SigningMethodHS256,
+                  and validation pins the algorithm"
+    validator: "jwt.Parse must use WithValidMethods or an explicit method check"
   - id: "c4"
     type: "must_not"
-    description: "Refresh tokens MUST be rotated on each use and invalidated after single use"
-    validator: "token management middleware"
-inputs:
-  registration:
-    type: "object"
-    description: "User registration payload"
-    required: ["email", "password", "name"]
-    properties:
-      email:
-        type: "string"
-        format: "email"
-        description: "User's email address"
-      password:
-        type: "string"
-        minLength: 8
-        description: "User's password"
-      name:
-        type: "string"
-        description: "User's full name"
-  login:
-    type: "object"
-    description: "Login payload"
-    required: ["email", "password"]
-    properties:
-      email:
-        type: "string"
-        format: "email"
-        description: "User's email address"
-      password:
-        type: "string"
-        description: "User's password"
-  refresh:
-    type: "object"
-    description: "Refresh token payload"
-    required: ["refresh_token"]
-    properties:
-      refresh_token:
-        type: "string"
-        description: "Existing refresh token"
-outputs:
-  registration_response:
-    type: "object"
-    description: "Registration response"
-    properties:
-      user_id:
-        type: "string"
-        description: "Generated user ID"
-      email:
-        type: "string"
-        format: "email"
-        description: "Registered email"
-      access_token:
-        type: "string"
-        description: "JWT access token"
-      refresh_token:
-        type: "string"
-        description: "Refresh token"
-  login_response:
-    type: "object"
-    description: "Login response"
-    properties:
-      access_token:
-        type: "string"
-        description: "JWT access token"
-      token_type:
-        type: "string"
-        default: "Bearer"
-      expires_in:
-        type: "integer"
-        description: "Token expiration in seconds"
-  refresh_response:
-    type: "object"
-    description: "Refresh response"
-    properties:
-      access_token:
-        type: "string"
-        description: "New access token"
-      refresh_token:
-        type: "string"
-        description: "New refresh token"
+    description: "Refresh tokens must never be stored in plaintext and must be
+                  invalidated after a single use"
 steps:
-  - id: "s1"
-    name: "Set Up Project Structure"
-    description: "Initialize Go module, directory structure, and configuration"
-    tool: "go mod init && mkdir -p internal/{auth,db,config}"
-    depends_on: []
-    validation: "Project structure created and go mod tidy successful"
-  - id: "s2"
-    name: "Implement User Repository"
-    description: "Implement database operations for user management"
-    tool: "go generate repository"
-    depends_on: ["s1"]
-    validation: "Repository compiles, passes go vet, implements UserRepository interface"
-  - id: "s3"
-    name: "Implement Authentication Service"
-    description: "Implement JWT creation, validation, and refresh token management"
-    tool: "go generate service"
-    depends_on: ["s2"]
-    validation: "Service compiles, JWT creation/validation tests pass"
-  - id: "s4"
-    name: "Implement API Handlers"
-    description: "Implement HTTP handlers for all authentication endpoints"
-    tool: "go generate handlers"
-    depends_on: ["s3"]
-    validation: "All handlers compile, input validation middleware works"
-  - id: "s5"
-    name: "Implement OpenAPI Documentation"
-    description: "Generate OpenAPI 3.0 specification from code annotations"
-    tool: "go generate docs"
-    depends_on: ["s4"]
-    validation: "OpenAPI spec validates against schema, documents all endpoints"
-  - id: "s6"
-    name: "Run Comprehensive Verification"
-    description: "Run full verification suite: build, test, lint, constraints"
-    tool: "asf verify && asf harness run auth-service-001"
-    depends_on: ["s5"]
-    validation: "All verification phases pass, no constraint violations"
-
-generated_prompt: |
-  You are a Go agent tasked with implementing a production-grade user authentication service.
-  Follow the specification constraints above.
-  Generate code step by step, validating each step before proceeding.
-  All code must be production-ready, secure, and properly tested.
-  Use Go 1.23+ features and idioms.
-  Follow team coding conventions and ADRs.
+  # s1 types/errors → s2 hashing, s3 access tokens, s4 rotation → s5 tests
 ```
-
-### Phase 2: Harness Execution
-
-```go
-# Execute the complete harness
-ctx := context.Background()
-h := harness.NewCompleteHarness(".")
-
-result, err := h.Execute(ctx, "auth-service-001")
-if err != nil {
-    fmt.Printf("Harness error: %v\n", err)
-    os.Exit(1)
-}
-
-if result.Success {
-    fmt.Printf("✓ Harness completed successfully for auth-service-001\n")
-    fmt.Printf("  Duration: %v\n", result.TotalDuration)
-    fmt.Printf("  Retries: %d\n", result.RetryCount)
-    fmt.Printf("  Context Items: %d\n", len(result.ContextItems))
-} else {
-    fmt.Printf("✗ Harness failed after %d retries\n", result.RetryCount)
-    fmt.Println("Final output:", result.FinalOutput)
-    if result.AgentFeedback != "" {
-        fmt.Println("--- Agent Feedback ---")
-        fmt.Println(result.AgentFeedback[:1000])
-    }
-    os.Exit(1)
-}
-```
-
-### Phase 2 Output
 
 ```text
-✓ Harness completed successfully for auth-service-001
-  Duration: 45.2s
-  Retries: 1
-  Context Items Loaded: 12
-
- --- Context Items ---
-  3 ADRs (priority: 100)
-  4 Specifications (priority: 90)
-  5 Code files (priority: 50)
-
- --- Generated Agent Prompt ---
- [1200 characters of specification-driven prompt]
-
- --- Verification Results ---
- Build: ✓ Passed
- Tests: ✓ 27 passed
- Lint: ✓ Clean (0 issues)
- Constraints: ✓ All 4 constraints met
-
- --- Harness Complete ---
+$ ./asf spec validate auth-service-001
+Spec auth-service-001 is valid!
 ```
 
-### Phase 3: Production Hardening
+## Phase 2: The Tooling Shakeout Nobody Writes About
 
-```go
-# Production hardening steps
-func hardenAuthService(workingDir string) {
-    # 1. Add security middleware
-    # 2. Configure rate limiting
-    # Add CORS configuration
-    # Add request ID middleware
-    # Add structured logging
-    # Configure error boundaries
-    # Set up monitoring and alerting
-    
-    # Run final verification
-    verifier := verify.NewVerificationEngine(workingDir)
-    ctx := context.Background()
-    result, _ := verifier.RunVerification(ctx, "")
-    
-    if result.Success {
-        fmt.Println("✓ Production hardening complete")
-        fmt.Println("  All verification passed")
-    } else {
-        fmt.Printf("✗ Hardening verification failed: %d errors\n", len(result.Errors))
-    }
+Before any model ran, `./asf verify` — the build/test/lint pipeline from [post 4](/blog/posts/agentic-software-engineering-verification.html) — had to work. It didn't, three times, and each failure is more instructive than a clean run would have been.
+
+**Failure 1: toolchain skew.** The lint phase hard-failed because the installed golangci-lint (2.11.3, built with go1.26) couldn't read export data from the Go 1.27 toolchain compiling the repo:
+
+```text
+could not load export data: internal error in importing "internal/goarch"
+(cannot decode "internal/goarch", export data version 5 is greater than
+maximum supported version 2)
+```
+
+Your verification pipeline has its own dependencies, and they skew. Fix: upgrade the linter.
+
+**Failure 2: the parser lied.** With the linter current, verify produced the most suspicious output of the session:
+
+```text
+✗ Verification failed with 0 errors:
+```
+
+The engine's lint parser recognized findings by searching lines for the lowercase words "error" or "warning". golangci-lint v2 findings — `Error return value of 'json.Unmarshal' is not checked (errcheck)` — contain neither. Fifty real findings, zero parsed. The fix was to match the structural shape (`file.go:line:col: message`) instead of keyword-sniffing. After it, the pipeline reported honestly:
+
+```text
+✗ Verification failed with 50 errors:
+  [LINT] pkg/conversation/store.go:334 - Error return value of
+         `json.Unmarshal` is not checked (errcheck)
+  ...
+```
+
+**Failure 3: findings treated as crashes.** `./asf harness run auth-service-001` then *aborted* at the lint phase instead of entering its fix-prompt retry loop, because the verification engine returned findings as a Go `error` rather than as a failed result. The retry loop — the heart of AI-TDD — was unreachable code. One distinction fixed it: a phase that *ran and found problems* produces a verdict; only a phase that *could not run* produces an error. With that, the harness did its real job:
+
+```text
+$ ./asf harness run auth-service-001
+✗ Harness failed for auth-service-001
+  Duration: 19.46s
+  Retries: 3
+  Final: Verification failed after 3 retries
+```
+
+(A fourth bug, found by reading prompts: the spec renderer numbered every execution-plan step as `len(spec.Steps)` instead of its index. Every prompt the factory had ever assembled listed steps "6, 6, 6, 6, 6, 6".)
+
+The lesson of this phase: **the verification harness is itself software and fails like software.** None of these four bugs were visible until the system ran against real work. If your agentic pipeline has never surprised you with its own defects, it probably hasn't run for real yet.
+
+## Phase 3: The Live Run
+
+Factory up ([post 10](/blog/posts/agentic-software-engineering-factory.html)), with the orchestrator restoring six historical tasks from SQLite on boot:
+
+```text
+2026/11/20 11:00:28 factory: LLM enabled (provider ollama, model qwen3.6:latest,
+    max 2 concurrent calls, judge threshold 0.75, context budget 24000 chars)
+```
+
+Launch, then follow the SSE stream to the terminal state:
+
+```text
+$ curl -s -X POST localhost:8080/api/factory/launch/feature \
+    -H 'Content-Type: application/json' -d '{"spec_id":"auth-service-001"}'
+{"action":"feature","status":"running","task_id":"8f3d0c9e-...","type":"generate"}
+```
+
+Four minutes and 59 seconds later the task completed: one generation attempt, 37 context items in the prompt, and an LLM-as-judge verdict ([post 11](/blog/posts/agentic-software-engineering-ops.html)) well above the 0.75 threshold:
+
+```json
+"evaluation": {
+  "score": 0.91, "passed": true,
+  "criteria": { "correctness": 0.90, "code_quality": 0.95,
+                "spec_compliance": 0.85, "security": 0.95,
+                "documentation": 0.90 }
 }
 ```
 
-### Phase 4: MCP API Exposure
+And the judge earned partial credit. Its improvement list caught two real problems: the artifact shipped **no tests** (spec step s5 — hence the lowest score landing on spec compliance), and a doc comment on the `RefreshTokenStore` interface promised an `ErrAlreadyExists` that exists nowhere in the code. The generated code itself read well — algorithm-pinned JWT validation, SHA-256-digested refresh tokens, sentinel errors, no global state.
 
-```go
-# Expose factory as MCP server for programmatic access
-mcpServer := mcp.NewMCPServer(factoryOrchestrator, factoryDef)
+## Phase 4: The Compiler Disagrees
 
-go func() {
-    log.Fatal(mcpServer.Start(":8080"))
-}()
+Then I extracted the artifact into a module and ran the gate the judge isn't:
 
-# Now the factory is accessible via MCP:
-# List specifications
-mcp call resources/list_specs
-
-# Submit a task
-mcp call submit_task '{"type": "generate", "spec_id": "auth-service-001"}'
-
-# Get task result
-mcp call get_task_result '{"task_id": "task-123"}'
-
-# Check factory status
-mcp call get_factory_status
+```text
+$ go build ./...
+./auth.go:90:2:  declared and not used: token
+./auth.go:99:7:  undefined: jwt.WithAlgorithms
 ```
 
-### Phase 5: Production Deployment
+**The 0.91-scored artifact did not compile.** `jwt.WithAlgorithms` does not exist in `golang-jwt/jwt/v5` — the model hallucinated the API. Worse, and this is the sentence to remember from this whole series: *the judge praised the hallucination*. Its feedback specifically commended "algorithm pinning via `jwt.WithAlgorithms`". The judge is the same model that wrote the code; they share blind spots by construction. An LLM judge measures whether code *looks* right. Only the toolchain knows whether it *is*.
 
-```bash
-# Build production binary
-go build -o auth-service .
+## Phase 5: The Fix Loop, Round by Round
 
-# Run with production configuration
-./auth-service \\
-    --config production.yaml \\
-    --mcp-port 8080 \\
-    --observability-enabled
+I replayed the harness's fix prompt by hand against the same model — same system prompt, compiler output formatted exactly as the verification engine formats it — so each round below is one iteration of the AI-TDD loop with real feedback:
 
-# Deploy to production environment
-# Docker:
-docker build -t auth-service:latest .
-docker run -d \\
-    -p 8080:8080 \\
-    -e DATABASE_URL=postgresql://user:pass@db:5432/auth \\
-    -e JWT_SECRET=production-secret-key \\
-    -e REFRESH_TOKEN_SECRET=refresh-production-secret \\
-    auth-service:latest
+| Round | Feedback given | Result | Time |
+|-------|----------------|--------|------|
+| 1 (factory) | spec + context | Judge 0.91, but 2 compile errors, no tests | 4m 59s |
+| 2 | both compiler errors + "tests required" | Errors fixed, tests added — new typo: `crypto/sha256"` missing its opening quote | 3m 36s |
+| 3 | the exact malformed line | Quote fixed — but re-hallucinated the same API as `jwt.Algorithm` | 1m 23s |
+| 4 | the exact correct call: `jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()})` | **Builds. Vets clean. All 7 tests pass.** | 1m 55s |
 
-# Or Kubernetes:
-kubectl apply -f auth-service-deployment.yaml
-kubectl apply -f auth-service-service.yaml
+```text
+--- PASS: TestAuthService (1.05s)
+    --- PASS: TestAuthService/HashPassword_succeeds (0.52s)
+    --- PASS: TestAuthService/CheckPassword_mismatch_returns_error (0.52s)
+    --- PASS: TestAuthService/IssueAccessToken_creates_valid_token (0.00s)
+    --- PASS: TestAuthService/ValidateAccessToken_rejects_invalid_token (0.00s)
+    --- PASS: TestAuthService/IssueRefreshToken_generates_and_stores_digest (0.00s)
+    --- PASS: TestAuthService/RotateRefreshToken_successfully_validates... (0.00s)
+    --- PASS: TestAuthService/RotateRefreshToken_rejects_invalid_base64... (0.00s)
+ok   authdemo  1.515s
 ```
 
-### Production Checklist
+Look at what rounds 3 and 4 demonstrate together. "undefined: jwt.WithAlgorithms" was true but insufficient — told only that the name was wrong, the model guessed another wrong name for the same imaginary API. The loop converged the moment the feedback contained the *actual* API. **Convergence of the fix loop is bounded by the precision of the feedback**, which is the deepest argument for context engineering ([post 2](/blog/posts/agentic-software-engineering-context.html)): had the spec's context included a two-line cheat sheet of the `jwt/v5` parser options, round 1 would likely have been right — the 24K-char local context budget means the model was working from training memory of an API that changed between major versions.
 
-```markdown
-# Production Checklist for Authentication Service
+And one more honest finding: the passing tests are *partial*. Nothing exercises an actually-expired token, and no test reuses a rotated refresh token to assert `ErrRefreshReused`. Green tests written by the same model that wrote the code inherit the same blind spots. The human review gate ([post 6](/blog/posts/agentic-software-engineering-autonomy.html) put it at the autonomy boundary) stays.
 
-## Security
-- [ ] HTTPS terminated at load balancer
-- [ ] JWT secrets rotated regularly
-- [ ] Refresh tokens have short TTL (15min access, 30-day refresh)
-- [ ] Rate limiting enabled (100req/min per IP)
-- [ ] CORS configured for production origins only
-- [ ] Security headers (HSTS, CSP, X-Frame-Options)
-- [ ] Secrets managed via vault, not in code
+## The Scorecard
 
-## Reliability
-- [ ] Health endpoint at /health (k8s readiness/liveness probes)
-- [ ] Graceful shutdown implemented
-- [ ] Connection pooling configured
-- [ ] Database connection retry logic
-- [ ] Circuit breaker for external dependencies
+Measured, not estimated:
 
-## Observability
-- [ ] Structured JSON logging
-- [ ] Metrics endpoint at /metrics
-- [ ] Trace IDs propagated through chain
-- [ ] Error reporting to monitoring service
-- [ ] Audit log of authentication events
+| What | Value |
+|------|-------|
+| Spec authoring + validation | ~20 minutes, one `validate` pass |
+| Verification-harness bugs found & fixed before any LLM ran | 4 |
+| Factory generate task (gen + judge, local qwen3.6) | 4m 59s, 1 attempt |
+| Judge score vs. compiler verdict on round 1 | 0.91 "passed" vs. 2 build errors |
+| Rounds to a building, tested artifact | 4 (~12m of model time) |
+| Generated tests passing / criteria actually covered | 7/7 passing; coverage incomplete |
+| Lint findings surfaced in the factory's own repo | 50 (real backlog) |
 
-## Compliance
-- [ ] Password hashing with bcrypt (min 12 rounds)
-- [ ] JWT signed with HMAC-SHA256
-- [ ] Refresh token rotation and revocation
-- [ ] GDPR-compliant data handling
-- [ ] Session management best practices
+## What This Proves, and What It Doesn't
 
-## Documentation
-- [ ] OpenAPI 3.0 specification generated and published
-- [ ] API documentation site deployed
-- [ ] Usage analytics collected
-- [ ] Onboarding documentation for developers
-```
+The pipeline earned its keep in both directions: the judge caught real spec violations the compiler can't see (missing tests, lying doc comments), and the compiler caught a confident hallucination the judge blessed. Every claim in this series about layered verification came down to that one pair of facts.
 
-### Case Study Summary
+The biggest gap is now precisely locatable: the factory's judge loop is wired, but its *compiler* loop is not — generate tasks return artifacts as task results, and nothing inside the loop yet writes them to a workspace and runs `go build` before the judge opines. Phase 5 was me doing that step by hand. Wiring artifact extraction into the verification engine is the single highest-leverage next change, and it's an orchestration change, not an AI one.
 
-| Phase | Duration | Key Outcomes |
-|-------|----------|--------------|
-| **Specification** | 1 day | Complete, machine-readable spec with all constraints |
-| **Harness Execution** | 1 day | Verified code, 1 retry, all constraints met |
-| **Production Hardening** | 0.5 day | Security hardened, audit logging enabled |
-| **MCP Exposure** | 0.5 day | Factory accessible via API |
-| **Production Deployment** | 0.5 day | Deployed with full observability and security |
-
-**Total**: ~3 days from specification to production deployment
-
-### Case Study Metrics
-
-| Metric | Value |
-|--------|-------|
-| Total Time from Spec to Production | ~3 days |
-| Verification Pass Rate | 100% (all phases passed) |
-| Constraint Violations | 0 |
-| Test Coverage | 27 tests, 100% on critical paths |
-| Security Issues | 0 (all constraints met) |
-| Agent Retries | 1 (out of max 3) |
-| Human Intervention | 0 (fully automated) |
-
-### Case Study: What Went Well
-
-| Success Factor | Description |
-|----------------|-------------|
-| **Complete Specification** | All constraints, inputs, outputs, and steps documented |
-| **Automated Verification** | Build, test, lint, and constraint checks all passed |
-| **Autonomy Calibration** | Agent operated at appropriate autonomy level |
-| **Security by Design** | Constraints enforced from the start |
-| **MCP Integration** | Factory accessible via programmatic API |
-| **Production Hardening** | All security and reliability checks completed |
-
-### Case Study: What Could Be Improved
-
-| Improvement | Description |
-|-------------|-------------|
-| **Faster Verification** | Reduce verification duration from 45s to <30s |
-| **Additional Constraints** | Add more specific security constraints |
-| **Enhanced MCP** | Add more MCP endpoints for operational control |
-| **Autonomy Calibration** | Tune autonomy based on task risk and success rate |
-| **Monitoring Dashboard** | Add real-time metrics dashboard |
-
-### Lessons Learned
-
-| Lesson | Description |
-|----------|-------------|
-| **Specification Quality** | Complete specs dramatically reduce verification time and failures |
-| **Constraint-Driven Development** | Explicit constraints prevent security issues before they occur |
-| **Automation Pays Off** | Automated harness execution saves days of manual verification |
-| **MCP Integration** | Programmatic factory access enables seamless CI/CD integration |
-| **Production Hardening** | Cannot be an afterthought; must be planned from specification phase |
-| **Team Collaboration** | Shared specifications enable consistent understanding across team |
-
-### What If We Hadn't Used This Series?
-
-| Scenario | Outcome |
-|----------|---------|
-| **No Specification** | Agent produces different code each time; 3+ days of back-and-forth |
-| **No Verification** | 3+ days of debugging production issues, security vulnerabilities found post-deployment |
-| **No Harness** | Manual verification each time; inconsistent results |
-| **No Security Constraints** | SQL injection vulnerability found in production 2 weeks after deployment |
-| **No MCP Integration** | Manual deployment process, no programmatic access |
-
-### What If We Had Used a Different Approach?
-
-| Approach | Outcome |
-|----------|---------|
-| **Traditional Development** | 2-3 weeks manual development, no automated verification, security review at end |
-| **No-Code AI Tools** | Quick prototype, but no production hardening, no constraint enforcement, limited customization |
-| **Prompt Engineering Only** | Endless revision cycle, no deterministic output, quality varies widely |
-
-### What's Next
-
-This case study demonstrates that **Agentic Software Engineering in Go is practical and production-ready**. The complete 12-part series provides:
-
-| Post | Title | Key Takeaway |
-|------|-------|--------------|
-| 1 | Introduction | Overview and foundation patterns |
-| 2 | Context Engineering | ADRs and context curation |
-| 3 | Specification Engineering | Machine-readable specs, Plan-Build-Verify |
-| 4 | AI-TDD Verification | Build, test, lint, constraint validation |
-| 5 | Complete Harness | Integrated context + specs + verification |
-| 5 (duplicate slot) | Autonomy Calibration | AEMM maturity model and Elastic Loop |
-| 6 | Security & Safety | Prompt injection defense, sandbox, RBAC |
-| 7 | Team Operating Model | Git integration, shared context, PR review |
-| 8 | Developer Workflow | Daily loop, spec authoring, prompt patterns |
-| 9 | Software Factory Orchestration | Factory as code, durable orchestration |
-| 10 | Production Operations | Observability, A/B testing, continuous improvement |
-| 11 | Case Study | End-to-end: spec to production |
-| 12 | Summary & Future | Complete roadmap and future directions |
+That is the closing thought of the series. Nothing in the hard parts of this case study was about prompting. The failures were toolchain skew, a parser bug, an error-vs-verdict design mistake, and a feedback loop that needed better data — software engineering, all the way down. The agentic part works exactly as well as the engineering discipline wrapped around it.
 
 ---
 
-### Getting Started
-
-```bash
-# 1. Initialize your project
-asf init
-
-# 2. Write your first specification
-asf spec template specs/your-feature.yaml
-
-# 3. Validate and generate
-asf spec validate your-feature
-asf spec generate your-feature
-
-# 4. Run verification
-asf verify
-
-# 5. Run the complete harness
-asf harness run your-feature
-
-# 6. Submit to factory
-asf factory submit generate your-feature
-
-# 7. Monitor and improve
-asf factory status
-asf factory improve
-
-# 8. Deploy to production
-# (Follow the case study pattern)
-```
-
----
-
-*The future of software development is agentic, but only when built on engineering discipline. This series provides the roadmap. Start your journey today.*
-
----
-
-*All code examples are in Go 1.23+. Diagrams use white-background Archify for presentation-ready architecture visualizations.*
+*Every command, timing, score, and failure in this post is from a single real session against the companion factory codebase (Go 1.23+), model qwen3.6 via Ollama. The four harness bugs described are fixed in the codebase as of this writing.*
 
 ---
 

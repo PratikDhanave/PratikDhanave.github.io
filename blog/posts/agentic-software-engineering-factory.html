@@ -128,7 +128,7 @@
       <span>·</span>
       <time datetime="2026-11-11">November 11, 2026</time>
       <span>·</span>
-      <span>5 min read</span>
+      <span>6 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/agentic-engineering/" class="tag-link"><span class="tag">#Agentic Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/ai-agents/" class="tag-link"><span class="tag">#AI Agents</span></a><a href="/blog/tags/multi-agent-systems/" class="tag-link"><span class="tag">#Multi-Agent Systems</span></a><a href="/blog/tags/coding-agents/" class="tag-link"><span class="tag">#Coding Agents</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/mcp/" class="tag-link"><span class="tag">#MCP</span></a></div>
   </header>
@@ -143,107 +143,53 @@
 
 
   <h2 id="the-problem-ad-hoc-agent-orchestration">The Problem: Ad-Hoc Agent Orchestration</h2>
-<p>Most agentic setups are <strong>ad-hoc orchestration</strong>:</p>
-<ul>
-<li>Agents are launched manually</li>
-<li>No persistent state between runs</li>
-<li>No auto-scaling based on load</li>
-<li>No built-in resilience or retry logic</li>
-<li>No observability or metrics</li>
-<li>One-off executions, not continuous systems</li>
-</ul>
-<p><strong>The problem</strong>: Without a proper orchestration layer, agentic workflows remain:
-- <strong>Fragile</strong>: Break easily when network, agents, or dependencies change
-- <strong>Manual</strong>: Require constant human intervention
-- <strong>Non-scalable</strong>: Horizontal scaling only, not systematic
-- <strong>Unobservable</strong>: No metrics, no debugging, no insight into agent behavior
-- <strong>Non-resilient</strong>: Single point of failure, no checkpointing or recovery</p>
-<h2 id="the-software-factory-orchestration">The Software Factory Orchestration</h2>
-<p><strong>Software Factory Orchestration</strong> designs continuous, self-sustaining systems based on the <strong>Orchestrator-Worker-Validator</strong> pattern.</p>
-<h3 id="the-factory-triad">The Factory Triad</h3>
-<table><caption class="sr-only">The Factory Triad</caption>
-<thead>
-<tr>
-<th>Component</th>
-<th>Role</th>
-<th>Key Characteristics</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Orchestrator</strong></td>
-<td>Coordinates workflow, manages task queue, handles scaling</td>
-<td>Stateful, durable, auto-scaling, persists state</td>
-</tr>
-<tr>
-<td><strong>Worker</strong></td>
-<td>Executes assigned tasks (generate, verify, review, refactor)</td>
-<td>Stateless, scalable, configurable autonomy, reports results</td>
-</tr>
-<tr>
-<td><strong>Validator</strong></td>
-<td>Runs verification loops, enforces constraints, provides feedback</td>
-<td>Autonomous, configurable, metrics-driven, feedback-generating</td>
-</tr>
-</tbody>
-</table>
-<pre><code class="language-mermaid">flowchart TD
-    O[Orchestrator] --&gt;|Dispatches| W[Worker 1]
-    O --&gt;|Dispatches| W[Worker 2]
-    O --&gt;|Dispatches| W[Worker 3]
-    W --&gt;|Submits Results| V[Validator]
-    V --&gt;|Feeds Back| O
-    O --&gt;|Persists State| S[Durable Store]
-    S --&gt;|Recovers State| O
-    O --&gt;|Metrics| M[Observability]
-    W --&gt;|Emits Metrics| M
-    V --&gt;|Emits Metrics| M
+<p>Every workflow in this series so far has one launch mode: a developer types a command and waits. That ceiling is low. Agent calls that fail mid-run lose their work; nothing survives a process restart; two tasks can&rsquo;t run concurrently without two terminals; and there is no record of what ran last week, let alone metrics on it.</p>
+<p>The factory is the answer: a long-running orchestration process that owns a durable task queue, a worker pool, and the verification machinery — so that agent work becomes something you <em>submit</em> and <em>query</em>, not something you babysit.</p>
+<h2 id="the-triad">The Triad</h2>
+<p>The design splits into three roles. The <strong>Orchestrator</strong> owns the queue, the worker pool, and persistence. <strong>Workers</strong> are stateless goroutines that pull a task, execute it (generate, verify, review, refactor, evaluate), and report a result. The <strong>Validator</strong> is the verification engine from <a href="/blog/posts/agentic-software-engineering-verification.html">post 4</a>, invoked by workers rather than by a human.</p>
+<pre><code class="language-text">            ┌──────────────────────────────────────────┐
+            │              Orchestrator                │
+ submit ──► │  task queue (buffered chan)  ──► dispatch │
+            │        │                          │      │
+            │   SQLite (.asf/factory.db)   worker pool │
+            └────────┼──────────────────────────┼──────┘
+                     ▼                          ▼
+              crash recovery:           worker-N: generate │ verify
+              running → pending            │
+              re-queued on boot            ▼
+                                    LLM client + judge
+                                    verification engine
 </code></pre>
-<h3 id="the-orchestrator">The Orchestrator</h3>
-<p>The Orchestrator is the <strong>brain</strong> of the factory. It:</p>
-<ul>
-<li>Manages a task queue of pending, running, and completed tasks</li>
-<li>Auto-scales worker pool based on queue depth and worker utilization</li>
-<li>Persists task state to durable storage (SQLite) for recovery</li>
-<li>Implements retry logic with configurable maximum retries</li>
-<li>Implements rebalancing when workers become imbalanced</li>
-<li>Provides status and metrics endpoints</li>
-</ul>
-<pre><code class="language-go">// pkg/factory/factory.go — Factory Orchestrator
-fo := factory.NewFactoryOrchestrator(workingDir, 4)
-fo.Start(ctx)
+<p>Every lifecycle in the system is a declared state machine — not scattered string comparisons. <code>asf factory states</code> prints them from the running declarations; this is actual output:</p>
+<pre><code class="language-text">=== task (initial: pending) ===
+    pending --&gt; running
+    running --&gt; completed
+    running --&gt; failed
+    running --&gt; pending      ← crash recovery / retry edge
 
-# Submit tasks
-fo.SubmitTask(&amp;factory.Task{
-    Type:     &quot;generate&quot;,
-    SpecID:   &quot;spec-001&quot;,
-    Priority: 1,
-})
+=== worker (initial: idle) ===
+    idle --&gt; busy
+    busy --&gt; idle
+    busy --&gt; error
+    error --&gt; idle
 
-# Check status
-status := fo.GetFactoryStatus()
-
-# Stop gracefully
-fo.Stop()
+=== verification (initial: build) ===
+    build --&gt; test --&gt; lint --&gt; constraints --&gt; passed
+    (each phase may also --&gt; failed)
 </code></pre>
-<h3 id="the-worker-pool">The Worker Pool</h3>
-<p>Workers are <strong>stateless</strong> units that execute assigned task types:</p>
-<pre><code class="language-go">type Worker struct {
-    ID           string
-    Role         string
-    Capabilities []string
-    Status       string // &quot;idle&quot;, &quot;busy&quot;, &quot;error&quot;
-    CurrentTask  *Task
-    LastActive   time.Time
-}
-</code></pre>
-<p>Workers pull tasks from the queue and execute them:</p>
+<p>That <code>running --&gt; pending</code> edge on tasks is the whole durability story in one line, and we&rsquo;ll come back to it.</p>
+<h2 id="workers-pull-dont-push">Workers: Pull, Don&rsquo;t Push</h2>
+<p>Workers don&rsquo;t get tasks assigned; they pull from a shared channel. This is the standard Go worker-pool shape, and it&rsquo;s worth showing because nothing about it is exotic:</p>
 <pre><code class="language-go">func (fo *FactoryOrchestrator) workerLoop(ctx context.Context, worker *Worker) {
+    defer fo.wg.Done()
+
     for {
         select {
         case &lt;-ctx.Done():
             return
         case &lt;-fo.shutdown:
+            return
+        case &lt;-worker.stop:
             return
         case task := &lt;-fo.taskQueue:
             fo.executeTask(ctx, worker, task)
@@ -251,93 +197,62 @@ fo.Stop()
     }
 }
 </code></pre>
-<h3 id="the-validator">The Validator</h3>
-<p>The Validator runs the <strong>AI-TDD verification loop</strong>:</p>
-<pre><code class="language-go">type VerificationResult struct {
-    Success         bool
-    TestOutput      string
-    LintOutput      string
-    BuildOutput     string
-    Errors          []VerificationError
-    Duration        time.Duration
-    RetryCount      int
+<p>The pool auto-scales, but the policy is deliberately dumb: a dispatch loop ticks once per second; if every worker is busy and the pool is under its max, add one; if more than two are idle, retire one (closing its <code>stop</code> channel so the goroutine and the pool map can&rsquo;t drift apart). No predictive scaling, no utilization windows. For a system whose tasks take seconds to minutes, a one-second reactive loop is all the sophistication the problem deserves.</p>
+<h2 id="durability-the-part-that-earns-factory">Durability: The Part That Earns &ldquo;Factory&rdquo;</h2>
+<p>Every task state transition is persisted to SQLite (<code>.asf/factory.db</code>). On boot, the orchestrator replays the database into memory, and the one interesting decision is what to do with tasks persisted as <code>running</code> — they were interrupted mid-execution:</p>
+<pre><code class="language-go">// Crash recovery: a task persisted as &quot;running&quot; was interrupted
+// mid-execution; re-queue it (explicit running -&gt; pending transition).
+if task.Status == TaskRunning {
+    setTaskState(task, TaskPending)
 }
 </code></pre>
-<pre><code class="language-go">func (e *VerificationEngine) RunVerification(ctx context.Context, specPath string) (*VerificationResult, error) {
-    # Phase 1: Build verification
-    # Phase 2: Test verification
-    # Phase 3: Lint verification
-    # Phase 4: Constraint verification
-    # Return result with success/failure and errors
+<p>That gives you at-least-once execution: a crashed generate task runs again rather than vanishing. Workers, by contrast, are <em>not</em> restored — they are ephemeral runtime entities recreated fresh each boot, because a persisted &ldquo;busy&rdquo; worker is meaningless after a restart once its task has been re-queued.</p>
+<p>This is observable in practice. Starting the API server on a machine where the factory had run before:</p>
+<pre><code class="language-text">$ ASF_MODEL=qwen3.6:latest ./asf-web-bin localhost:8080
+2026/11/20 11:00:28 factory: LLM enabled (provider ollama, model qwen3.6:latest,
+    max 2 concurrent calls, judge threshold 0.75, context budget 24000 chars)
+</code></pre>
+<p>and the first status query already knows about history this process never saw:</p>
+<pre><code class="language-json">{
+  &quot;llm_enabled&quot;: true,
+  &quot;llm_provider&quot;: &quot;ollama&quot;,
+  &quot;llm_model&quot;: &quot;qwen3.6:latest&quot;,
+  &quot;max_workers&quot;: 4,
+  &quot;tasks_completed&quot;: 4,
+  &quot;tasks_failed&quot;: 2,
+  &quot;tasks_pending&quot;: 0,
+  &quot;workers_idle&quot;: 2
 }
 </code></pre>
-<h3 id="factory-orchestration-lifecycle">Factory Orchestration Lifecycle</h3>
-<pre><code class="language-mermaid">flowchart TD
-    A[Factory Start] --&gt; B[Initialize Workers]
-    B --&gt; C[Begin Task Dispatch]
-    C --&gt; D[Task Executed by Worker]
-    D --&gt;|Pass| E[Task Marked Complete]
-    D --&gt;|Fail| F[Task Retried or Failed]
-    F --&gt;|Retries &lt; max| G[Re-queue Task]
-    F |&gt;|Retries &gt;= max| G[Task Marked Failed]
-    E --&gt; G
-    G --&gt; H[Factory Status Updated]
-    H --&gt; I[Factory Continues Operation]
-    I --&gt;|Shutdown| I[Factory Gracefully Stops]
-    I |&gt;|State Persisted| I[State Recovered on Restart]
+<p>Those six historical tasks came out of SQLite, not memory.</p>
+<h2 id="what-a-generate-task-actually-does">What a Generate Task Actually Does</h2>
+<p>The worker path for a <code>generate</code> task is: assemble the spec prompt and curated context, call the LLM, then hand the output to an LLM-as-a-judge evaluator. If the judge scores below threshold (0.75 by default), the worker regenerates with the judge&rsquo;s feedback folded into the prompt, up to <code>ASF_EVAL_MAX_ATTEMPTS</code>. The final result — artifact, attempt count, model, per-criterion verdict — is attached to the task record.</p>
+<p>Two design details matter more than they look. First, LLM calls go through a concurrency gate (two concurrent calls by default) so four workers can&rsquo;t stampede a local Ollama instance. Second, a broken judge does not discard a produced artifact:</p>
+<pre><code class="language-go">evalErr = fo.withLLMSlot(ctx, func(callCtx context.Context) error {
+    verdict, evalErr = fo.evaluator.EvaluateCode(callCtx, specPrompt, output, contextStr, fo.evalCriteria)
+    return evalErr
+})
+if evalErr != nil {
+    // The artifact was produced; a broken judge should not discard it.
+    judgeNote = fmt.Sprintf(&quot;evaluation skipped: %v&quot;, evalErr)
+    ...
+}
 </code></pre>
-<h3 id="task-types">Task Types</h3>
-<table><caption class="sr-only">Task Types</caption>
-<thead>
-<tr>
-<th>Task Type</th>
-<th>Description</th>
-<th>Typical Duration</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>generate</strong></td>
-<td>Agent generates code from specification</td>
-<td>5-30s</td>
-</tr>
-<tr>
-<td><strong>verify</strong></td>
-<td>Verification loop (build, test, lint)</td>
-<td>10-60s</td>
-</tr>
-<tr>
-<td><strong>review</strong></td>
-<td>Agent-assisted code review</td>
-<td>5-15s</td>
-</tr>
-<tr>
-<td><strong>refactor</strong></td>
-<td>Agent refactors existing code</td>
-<td>10-30s</td>
-</tr>
-</tbody>
-</table>
-<h3 id="factory-configuration">Factory Configuration</h3>
-<pre><code class="language-yaml"># specs/factory.yaml — Factory definition (Factories-as-Code)
-factory:
+<p>For honest expectations on timing: on a MacBook running qwen3.6 locally through Ollama, one generate task for a ~150-line Go package — generation plus judge pass — took 4 minutes 59 seconds. A verification task (build + test + lint of the factory&rsquo;s own repo) takes about 5 seconds. Cloud models compress the generate numbers dramatically; the orchestration cost is noise either way.</p>
+<h2 id="factories-as-code">Factories-as-Code</h2>
+<p>The factory&rsquo;s shape is itself declared in YAML — which agents exist, what they&rsquo;re allowed to do, and which workflows chain them. This is the actual <code>specs/factory.yaml</code> schema, matching the <code>pkg/factorydef</code> structs field for field:</p>
+<pre><code class="language-yaml">factory:
   name: &quot;go-agentic-factory&quot;
   version: &quot;1.0&quot;
-  max_workers: 8
-  default_timeout: &quot;5m&quot;
-  retry_policy:
-    max_retries: 3
-    backoff_base: &quot;2s&quot;
-    backoff_max: &quot;30s&quot;
   agents:
     - id: &quot;gen-agent&quot;
       role: &quot;code-generator&quot;
+      capabilities: [&quot;generate&quot;, &quot;refactor&quot;]
       model: &quot;claude-sonnet-5&quot;
-      autonomy: &quot;level_3&quot;
     - id: &quot;verify-agent&quot;
       role: &quot;validator&quot;
+      capabilities: [&quot;verify&quot;]
       model: &quot;claude-haiku-4-5&quot;
-      autonomy: &quot;level_4&quot;
   workflows:
     - id: &quot;code-improvement&quot;
       steps:
@@ -345,234 +260,31 @@ factory:
           agent: &quot;gen-agent&quot;
         - name: &quot;run-verification&quot;
           agent: &quot;verify-agent&quot;
-        - name: &quot;review&quot;
-          agent: &quot;gen-agent&quot;
+          validation: &quot;harness&quot;
+  runners:
+    - id: &quot;default-sandbox&quot;
+      image: &quot;golang:1.23-alpine&quot;
+      work_dir: &quot;/workspace&quot;
+      read_only: false
+      timeout: &quot;300s&quot;
 </code></pre>
-<h3 id="factory-metrics-dashboard">Factory Metrics Dashboard</h3>
-<table><caption class="sr-only">Factory Metrics Dashboard</caption>
-<thead>
-<tr>
-<th>Metric</th>
-<th>Description</th>
-<th>Target</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Workers Total</td>
-<td>Total number of workers</td>
-<td>Configurable (e.g., 4-8)</td>
-</tr>
-<tr>
-<td>Workers Busy</td>
-<td>Currently executing tasks</td>
-<td>≤ max_workers</td>
-</tr>
-<tr>
-<td>Workers Idle</td>
-<td>Waiting for tasks</td>
-<td>≥ 0</td>
-</tr>
-<tr>
-<td>Tasks Pending</td>
-<td>Tasks waiting in queue</td>
-<td>Varies by load</td>
-</tr>
-<tr>
-<td>Tasks Completed</td>
-<td>Successfully completed tasks</td>
-<td>Increasing trend</td>
-</tr>
-<tr>
-<td>Tasks Failed</td>
-<td>Failed tasks (max retries exceeded)</td>
-<td>Minimizing</td>
-</tr>
-<tr>
-<td>Average Task Duration</td>
-<td>Mean execution time</td>
-<td>Varies by task type</td>
-</tr>
-<tr>
-<td>Verification Pass Rate</td>
-<td>% of verifications that pass</td>
-<td>≥ 95%</td>
-</tr>
-<tr>
-<td>Auto-Scaling Events</td>
-<td>Number of times workers were added/removed</td>
-<td>Monitoring only</td>
-</tr>
-</tbody>
-</table>
-<h3 id="factory-recovery-durability">Factory Recovery &amp; Durability</h3>
-<pre><code class="language-go"># Persistent task state enables recovery
-func (fo *FactoryOrchestrator) restoreTasks() error {
-    # Restore pending tasks from SQLite
-    # Restore running tasks (mark as pending for retry)
-    # Restore completed/failed tasks
-    # Restore workers from previous session
-    # Resume operation from exact point of failure
-}
+<p>The definition is versioned next to the code it governs, so &ldquo;which model reviews our PRs and with what autonomy&rdquo; is a diff in review, not tribal knowledge. One wart found while dogfooding: <code>asf spec list</code> currently slurps <code>factory.yaml</code> out of <code>specs/</code> and lists it as an empty specification, because both formats live in the same directory. Real systems accumulate exactly this kind of edge.</p>
+<h2 id="access-four-doors-one-orchestrator">Access: Four Doors, One Orchestrator</h2>
+<p>The same orchestrator is reachable four ways — CLI (<code>asf factory ...</code>), HTTP API, Server-Sent Events for streaming task state, and an MCP server so other agents and tools can drive the factory programmatically:</p>
+<pre><code class="language-text">POST /api/factory/launch/{action}    launch review|bugfix|feature|eval|refactor
+GET  /api/tasks/{id}                 task snapshot
+GET  /api/tasks/{id}/stream          SSE until the task hits a terminal state
+GET  /api/factory/status             the status JSON shown above
+GET  /api/state-machines             the declared lifecycles, as data
+
+MCP tools: submit_task, get_task_result, get_factory_status,
+           list_specs, get_spec, list_agents, run_verification
 </code></pre>
-<h3 id="factory-integration-with-mcp">Factory Integration with MCP</h3>
-<pre><code class="language-go"># MCP endpoints for factory control
-MCP Endpoints:
-- submit_task: Submit a new task to the factory
-- get_task_result: Get the result of a submitted task
-- get_factory_status: Get current factory status
-- list_specs: List all available specifications
-- get_spec: Get a specific specification
-- list_agents: List all agents in the factory
-- run_verification: Run the verification harness
-</code></pre>
-<h3 id="quick-start">Quick Start</h3>
-<pre><code class="language-bash"># Initialize factory
-asf init
-
-# Start factory with 4 workers
-asf factory start
-
-# Submit tasks
-asf factory submit generate spec-001
-asf factory submit verify spec-001
-
-# Check status
-asf factory status
-
-# Stop factory
-asf factory stop
-
-# The factory will automatically:
-# 1. Initialize workers
-# 2. Process tasks from the queue
-# 3. Persist state to SQLite
-# 3. Auto-scale based on load
-# 4. Recover on restart
-# 5. Provide metrics via MCP API
-</code></pre>
-<h3 id="why-software-factory-orchestration-matters">Why Software Factory Orchestration Matters</h3>
-<table><caption class="sr-only">Why Software Factory Orchestration Matters</caption>
-<thead>
-<tr>
-<th>Concern</th>
-<th>Ad-Hoc Execution</th>
-<th>Factory Orchestration</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Resilience</strong></td>
-<td>Breaks on error, manual recovery</td>
-<td>Auto-recovery from SQLite state</td>
-</tr>
-<tr>
-<td><strong>Scalability</strong></td>
-<td>Manual add more workers</td>
-<td>Auto-scaling based on queue depth</td>
-</tr>
-<tr>
-<td><strong>Observability</strong></td>
-<td>No metrics, blind spots</td>
-<td>Full metrics dashboard</td>
-</tr>
-<tr>
-<td><strong>Consistency</strong></td>
-<td>Varies by human execution</td>
-<td>Consistent, configured behavior</td>
-</tr>
-<tr>
-<td><strong>Auditability</strong></td>
-<td>Manual logs, hard to trace</td>
-<td>Persistent state, traceable</td>
-</tr>
-<tr>
-<td><strong>Onboarding</strong></td>
-<td>Hard to scale beyond 5 developers</td>
-<td>Scales to any team size</td>
-</tr>
-<tr>
-<td><strong>Cost</strong></td>
-<td>Pay per manual execution</td>
-<td>Pay for running infrastructure</td>
-</tr>
-</tbody>
-</table>
-<h3 id="why-this-series-matters">Why This Series Matters</h3>
-<p>This 12-part series provides a <strong>complete roadmap</strong> for implementing production-grade Agentic Software Engineering in Go:</p>
-<table><caption class="sr-only">Why This Series Matters</caption>
-<thead>
-<tr>
-<th>Post</th>
-<th>Topic</th>
-<th>Key Takeaway</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1</td>
-<td>Introduction</td>
-<td>Overview and foundation patterns</td>
-</tr>
-<tr>
-<td>2</td>
-<td>Context Engineering</td>
-<td>ADRs and context curation</td>
-</tr>
-<tr>
-<td>3</td>
-<td>Specification Engineering</td>
-<td>Machine-readable specs, Plan-Build-Verify</td>
-</tr>
-<tr>
-<td>5</td>
-<td>AI-TDD Verification</td>
-<td>Build, test, lint, constraint validation</td>
-</tr>
-<tr>
-<td>5 (duplicate slot)</td>
-<td>Autonomy Calibration</td>
-<td>AEMM maturity model and Elastic Loop</td>
-</tr>
-<tr>
-<td>6</td>
-<td>Security &amp; Safety</td>
-<td>Prompt injection defense, sandbox, RBAC</td>
-</tr>
-<tr>
-<td>7</td>
-<td>Team Operating Model</td>
-<td>Git integration, shared context, PR review</td>
-</tr>
-<tr>
-<td>8</td>
-<td>Developer Workflow</td>
-<td>Daily loop, spec authoring, prompt patterns</td>
-</tr>
-<tr>
-<td>9</td>
-<td>Software Factory Orchestration</td>
-<td>Factory as code, durable orchestration</td>
-</tr>
-<tr>
-<td>10</td>
-<td>Production Operations</td>
-<td>Observability, A/B testing, continuous improvement</td>
-</tr>
-<tr>
-<td>11</td>
-<td>Case Study</td>
-<td>End-to-end: spec to production</td>
-</tr>
-<tr>
-<td>12</td>
-<td>Summary &amp; Future</td>
-<td>Complete roadmap and future directions</td>
-</tr>
-</tbody>
-</table>
+<p>A note on honest scope: the CLI&rsquo;s <code>asf factory submit</code> constructs a fresh orchestrator per invocation — fine for development, but the durable always-on mode is the API server. Run <code>./asf-web-bin</code>, keep it up, and submit over HTTP.</p>
+<h2 id="why-this-layer-is-worth-building">Why This Layer Is Worth Building</h2>
+<p>Resilience stops being a property of your attention span: a crashed process re-queues its interrupted work from SQLite instead of losing it. Concurrency gets a policy — a worker pool with a scaling rule and an LLM gate — instead of being however many terminals you have open. And every task that ever ran leaves a queryable record with its verdict attached, which is the raw material the <a href="/blog/posts/agentic-software-engineering-ops.html">next post</a> turns into operations: metrics, evaluation benchmarks, and the continuous-improvement loop.</p>
 <hr>
-<p><em>All code examples are in Go 1.23+. Diagrams use white-background Archify for presentation-ready architecture visualizations.</em></p>
+<p><em>All code, configuration, and command output in this post is taken directly from the companion factory codebase (Go 1.23+) and real sessions against it.</em></p>
 
 
 <aside class="consult-cta" aria-label="Work with Pratik">
@@ -595,16 +307,16 @@ asf factory stop
     <h3>Related Reading</h3>
     <ul>
     <li>
-      <a href="/blog/posts/agentic-software-engineering-case-study.html">Agentic Software Engineering in Go: Case Study</a>
-      <span class="related-date">Nov 13</span>
-    </li>
-    <li>
       <a href="/blog/posts/agentic-software-engineering-autonomy.html">Agentic Software Engineering in Go: Autonomy Calibration</a>
       <span class="related-date">Nov 07</span>
     </li>
     <li>
       <a href="/blog/posts/maf-go-12-hosting-and-capstone.html">Hosting and the Capstone App — Microsoft Agent Framework in Go</a>
       <span class="related-date">Jul 16</span>
+    </li>
+    <li>
+      <a href="/blog/posts/agentic-software-engineering-case-study.html">Agentic Software Engineering in Go: Case Study</a>
+      <span class="related-date">Nov 13</span>
     </li>
     </ul>
   </aside>

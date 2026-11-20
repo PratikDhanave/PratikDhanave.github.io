@@ -129,7 +129,7 @@
       <span>·</span>
       <time datetime="2026-11-12">November 12, 2026</time>
       <span>·</span>
-      <span>5 min read</span>
+      <span>6 min read</span>
     </div>
     <div class="post-tags"><a href="/blog/tags/agentic-engineering/" class="tag-link"><span class="tag">#Agentic Engineering</span></a><a href="/blog/tags/go/" class="tag-link"><span class="tag">#Go</span></a><a href="/blog/tags/observability/" class="tag-link"><span class="tag">#Observability</span></a><a href="/blog/tags/llmops/" class="tag-link"><span class="tag">#LLMOps</span></a><a href="/blog/tags/coding-agents/" class="tag-link"><span class="tag">#Coding Agents</span></a><a href="/blog/tags/backend-engineering/" class="tag-link"><span class="tag">#Backend Engineering</span></a><a href="/blog/tags/reliability/" class="tag-link"><span class="tag">#Reliability</span></a><a href="/blog/tags/testing/" class="tag-link"><span class="tag">#Testing</span></a></div>
   </header>
@@ -143,360 +143,102 @@
 
 
 
-  <h2 id="the-problem-the-black-box-factory">The Problem: The &ldquo;Black Box&rdquo; Factory</h2>
-<p>Most agentic factories are <strong>black boxes</strong>:</p>
+  <h2 id="the-problem-the-black-box-factory">The Problem: The Black-Box Factory</h2>
+<p>The <a href="/blog/posts/agentic-software-engineering-factory.html">previous post</a> left us with a factory that runs unattended. That immediately creates the operator&rsquo;s question: unattended <em>doing what?</em> A system that calls LLMs in a loop without observability degrades quietly — output quality drifts as context goes stale, costs creep as prompts bloat, and nobody can say whether last month&rsquo;s config change helped or hurt, because nothing was measured before or after.</p>
+<p>This post covers what the factory actually exposes for operations today, what the evaluation data looks like from a real run, and — honestly — which parts of the observability story are wired versus still scaffolding.</p>
+<h2 id="the-metrics-you-get-for-free">The Metrics You Get for Free</h2>
+<p>Because every task transition is persisted, the basic operational questions are answerable from the status endpoint with no extra instrumentation:</p>
+<pre><code class="language-text">$ curl -s localhost:8080/api/factory/status
+</code></pre>
+<pre><code class="language-json">{
+  &quot;llm_enabled&quot;: true,
+  &quot;llm_provider&quot;: &quot;ollama&quot;,
+  &quot;llm_model&quot;: &quot;qwen3.6:latest&quot;,
+  &quot;max_workers&quot;: 4,
+  &quot;tasks_completed&quot;: 4,
+  &quot;tasks_failed&quot;: 2,
+  &quot;tasks_pending&quot;: 0,
+  &quot;workers_busy&quot;: 0,
+  &quot;workers_idle&quot;: 2
+}
+</code></pre>
+<p>That&rsquo;s a real response, and the completed/failed counts span process restarts — they come from SQLite, not process memory. The Next.js dashboard renders this same data live (worker states, recent activity, per-task verdicts), but the dashboard is a <em>view</em>; the system of record is the task store, which means your existing monitoring stack can poll one JSON endpoint and alert on <code>tasks_failed</code> without caring that an AI system sits behind it.</p>
+<p>Per-task visibility comes from the SSE stream, which emits every state transition until the task is terminal:</p>
+<pre><code class="language-text">$ curl -N localhost:8080/api/tasks/$ID/stream
+data: {&quot;id&quot;:&quot;8f3d...&quot;,&quot;status&quot;:&quot;running&quot;,&quot;terminal&quot;:false, ...}
+data: {&quot;id&quot;:&quot;8f3d...&quot;,&quot;status&quot;:&quot;completed&quot;,&quot;terminal&quot;:true,
+       &quot;result&quot;:{&quot;attempts&quot;:1,&quot;context_items&quot;:37,&quot;model&quot;:&quot;qwen3.6:latest&quot;,
+                 &quot;evaluation&quot;:{&quot;score&quot;:0.91,&quot;passed&quot;:true, ...}}}
+</code></pre>
+<h2 id="evaluation-the-quality-signal">Evaluation: The Quality Signal</h2>
+<p>The deepest operational signal is not whether tasks complete — it&rsquo;s whether their output is any good. Every LLM-backed generate task is scored by an LLM-as-a-judge evaluator against five weighted criteria. These are the actual defaults from <code>pkg/eval</code>:</p>
+<pre><code class="language-go">func DefaultEvaluationCriteria() EvaluationCriteria {
+    return EvaluationCriteria{
+        Correctness:    0.35,
+        CodeQuality:    0.25,
+        SpecCompliance: 0.20,
+        Security:       0.15,
+        Documentation:  0.05,
+        Threshold:      0.75,
+    }
+}
+</code></pre>
+<p>Below-threshold output is regenerated with the judge&rsquo;s feedback folded into the prompt (bounded by <code>ASF_EVAL_MAX_ATTEMPTS</code>, default 2), and the final verdict rides along on the task record. Here is the verdict from a real generate task — the authentication package the <a href="/blog/posts/agentic-software-engineering-case-study.html">case study</a> dissects:</p>
+<pre><code class="language-json">&quot;evaluation&quot;: {
+  &quot;score&quot;: 0.91,
+  &quot;passed&quot;: true,
+  &quot;criteria&quot;: {
+    &quot;correctness&quot;: 0.90,
+    &quot;code_quality&quot;: 0.95,
+    &quot;spec_compliance&quot;: 0.85,
+    &quot;security&quot;: 0.95,
+    &quot;documentation&quot;: 0.90
+  },
+  &quot;improvements&quot;: [
+    &quot;Add table-driven tests per execution plan step 5 ...&quot;,
+    &quot;Correct the RefreshTokenStore.StoreDigest interface comment which
+     references returning ErrAlreadyExists, but the method signature only
+     declares error. ...&quot;
+  ]
+}
+</code></pre>
+<p>Two things make this operationally useful. The per-criterion breakdown localizes problems — this artifact&rsquo;s weakest score was spec compliance, and the judge&rsquo;s improvement list says exactly why (a required test step was skipped). And because verdicts are persisted per task, &ldquo;is quality drifting&rdquo; becomes a query over scores instead of a feeling.</p>
+<p>One warning the case study earns the hard way: a judge score is <em>not</em> a compile check. That same 0.91-scored artifact did not build — the judge (the same model that wrote the code) praised an API that doesn&rsquo;t exist. Judge scores are a trend signal; the compiler is the gate. Operate with both.</p>
+<h2 id="ab-testing-configurations">A/B Testing Configurations</h2>
+<p>Which model should handle generation? Does a bigger context budget actually improve output? The factory&rsquo;s answer is the benchmark suite in <code>pkg/eval</code>: run the same specs under two configurations, score both with the same judge criteria, compare.</p>
+<pre><code class="language-go">suite := eval.NewBenchmarkSuite(client, criteria)
+suite.RunBenchmark(ctx, &quot;qwen-local&quot;, specID, specContent, codeA, contextContent)
+suite.RunBenchmark(ctx, &quot;sonnet-cloud&quot;, specID, specContent, codeB, contextContent)
+comparison, _ := suite.CompareConfigs(&quot;qwen-local&quot;, &quot;sonnet-cloud&quot;)
+best := suite.GetBestConfig() // highest average score across runs
+</code></pre>
+<p>The dashboard exposes a slice of this as the &ldquo;Run Benchmark&rdquo; card, backed by the <code>evaluate</code> task type: judge the most recent completed generate output for a spec, on demand. The honest caveat: <code>BetterThan</code> here means &ldquo;higher mean judge score&rdquo; — there is no significance testing, so treat small deltas across few specs as noise and re-run before acting on them.</p>
+<p>The knobs this machinery is built to compare are the ones that matter operationally:</p>
 <ul>
-<li>You submit a task, but you don&rsquo;t know what happens inside</li>
-<li>No visibility into agent behavior or decision-making</li>
-<li>No metrics on performance, quality, or cost</li>
-<li>No way to improve the system over time</li>
-<li>&ldquo;Works on my machine&rdquo; becomes the de facto deployment standard</li>
+<li><strong>Model routing</strong> — <code>specs/factory.yaml</code> assigns a model per agent role, so a cheap model can verify while a stronger one generates; benchmarks tell you when the cheap one is good enough.</li>
+<li><strong>Context budget</strong> — prompts carry a provider-aware cap (<code>ASF_CONTEXT_MAX_CHARS</code>: ~24K chars for local models, ~400K for large-context cloud models) so a small local window isn&rsquo;t drowned in prefill. The budget is a quality/cost dial you can benchmark directly.</li>
+<li><strong>Judge strictness</strong> — threshold and criteria weights change how often the regeneration loop fires, which is a direct cost lever.</li>
 </ul>
-<p><strong>The problem</strong>: Without observability and continuous improvement, factories degrade over time:</p>
-<ul>
-<li><strong>Quality drift</strong>: Agent output quality slowly declines as context becomes stale</li>
-<li><strong>Cost creep</strong>: Unoptimized models and inefficient prompts increase costs</li>
-<li><strong>Security drift</strong>: Prompt injection techniques evolve, bypassing old defenses</li>
-<li><strong>Stagnation</strong>: No feedback loop means no learning from mistakes</li>
-<li><strong>Blind spots</strong>: Team has no data to make informed decisions about agent usage</li>
-</ul>
-<h2 id="the-observability-stack">The Observability Stack</h2>
-<p><strong>The Observability Stack</strong> provides full visibility into factory operations.</p>
-<h3 id="1-metrics-pipeline">1. Metrics Pipeline</h3>
-<pre><code class="language-go">// pkg/metrics/metrics.go — Factory metrics collection
-type FactoryMetrics struct {
-    // Task metrics
-    TasksSubmitted    int64
-    TasksCompleted    int64
-    TasksFailed       int64
-    AverageDuration   float64
-    TasksByType       map[string]int64
-
-    // Verification metrics
-    VerificationPassRate float64
-    AverageVerificationDuration float64
-    VerificationErrorsByType map[string]int64
-
-    // Agent metrics
-    ActiveWorkers     int
-    AverageAutonomyLevel string
-    AutonomyScoreDistribution map[string]int64
-
-    // Security metrics
-    PromptInjectionsBlocked int64
-    SecurityViolations      int64
-    RBACViolations          int64
-
-    // Timestamp
-    Timestamp time.Time
-}
+<h2 id="logs-and-tracing-the-honest-inventory">Logs and Tracing: The Honest Inventory</h2>
+<p>Operational logging exists where it earns its keep — provider selection, judge outcomes, task failures all log with task IDs, like this line from a real boot:</p>
+<pre><code class="language-text">2026/11/20 11:00:28 factory: LLM enabled (provider ollama, model qwen3.6:latest,
+    max 2 concurrent calls, judge threshold 0.75, context budget 24000 chars)
 </code></pre>
-<pre><code class="language-go">// Metrics collection example
-func RecordTaskSubmitted(taskType string) {
-    metrics.TaskSubmitted++
-    metrics.TasksByType[taskType]++
-}
-
-func RecordVerificationResult(success bool, duration time.Duration) {
-    if success {
-        metrics.VerificationPassRate = (metrics.VerificationPassRate*float64(metrics.VerificationSubmitted-1) + 1) / float64(metrics.VerificationSubmitted+1)
-    } else {
-        metrics.VerificationErrorsByType[getErrorType()]++
-    }
-    metrics.AverageVerificationDuration = (metrics.AverageVerificationDuration*float64(metrics.VerificationSubmitted) + duration.Seconds()) / float64(metrics.VerificationSubmitted+1)
-    metrics.VerificationSubmitted++
-}
-</code></pre>
-<h3 id="2-log-correlation">2. Log Correlation</h3>
-<pre><code class="language-go">// Structured logging with correlation IDs
-type LogEntry struct {
-    CorrelationID string      `json:&quot;correlation_id&quot;`
-    TraceID       string      `json:&quot;trace_id&quot;`
-    Timestamp     time.Time   `json:&quot;timestamp&quot;`
-    Level         string      `json:&quot;level&quot;`
-    Component     string      `json:&quot;component&quot;`
-    Action        string      `json:&quot;action&quot;`
-    Success       bool        `json:&quot;success&quot;`
-    Metadata      map[string]string `json:&quot;metadata&quot;`
-}
-
-func LogAgentAction(correlationID, component, action string, success bool, metadata map[string]string) {
-    entry := LogEntry{
-        CorrelationID: correlationID,
-        Component:    component,
-        Action:       action,
-        Success:      success,
-        Metadata:     metadata,
-        Timestamp:    time.Now(),
-    }
-    structuredLog(entry)
-}
-</code></pre>
-<h3 id="3-tracing">3. Tracing</h3>
-<pre><code class="language-go"># OpenTelemetry tracing integration
-func (fo *FactoryOrchestrator) startTracing(ctx context.Context) {
-    tp := trace.NewTracerProvider(
-        trace.WithBatcher(func(spans []trace.Span) error {
-            exportSpans(spans)
-        }),
-    )
-    traceProvider = tp
-
-    # Create spans for factory operations
-    ctx, span := trace.SpanFromContext(ctx, &quot;factory_start&quot;)
-    # ... record span events
-    span.End()
-}
-</code></pre>
-<h3 id="4-dashboards">4. Dashboards</h3>
-<pre><code class="language-go"># Factory metrics dashboard endpoint
-func (fo *FactoryOrchestrator) GetMetrics() factory.Metrics {
-    fo.mu.RLock()
-    defer fo.mu.RUnlock()
-
-    return factory.Metrics{
-        WorkersTotal:         fo.workerCount,
-        WorkersBusy:          busyCount,
-        TasksPending:         len(fo.taskQueue),
-        TasksCompleted:      completedCount,
-        TasksFailed:          failedCount,
-        VerificationPassRate: verificationPassRate,
-        AverageDuration:      averageDuration,
-    }
-}
-</code></pre>
-<h3 id="observability-dashboard">Observability Dashboard</h3>
-<pre><code class="language-mermaid">dashboard
-    title &quot;Agentic Software Factory Observability&quot;
-
-    grid &quot;Tasks&quot; {
-        stat &quot;Tasks Submitted/hr&quot; metrics.TasksSubmitted/3600 &quot;green&quot;
-        stat &quot;Tasks Completed/hr&quot; metrics.TasksCompleted/3600 &quot;yellow&quot;
-        stat &quot;Tasks Failed/hr&quot; metrics.TasksFailed/3600 &quot;red&quot;
-    }
-
-    grid &quot;Verification&quot; {
-        stat &quot;Pass Rate&quot; metrics.VerificationPassRate &quot;green&quot;
-        stat &quot;Avg Duration&quot; fmt.Sprintf(&quot;%.1fs&quot;, metrics.AverageVerificationDuration) &quot;yellow&quot;
-    }
-
-    grid &quot;Factory&quot; {
-        stat &quot;Active Workers&quot; metrics.ActiveWorkers &quot;yellow&quot;
-        stat &quot;Autonomy Level&quot; metrics.AutonomyLevel &quot;yellow&quot;
-    }
-
-    grid &quot;Security&quot; {
-        stat &quot;Prompt Injections Blocked&quot; metrics.PromptInjectionsBlocked &quot;green&quot;
-        stat &quot;Security Violations&quot; metrics.SecurityViolations &quot;red&quot;
-    }
-</code></pre>
-<h3 id="continuous-improvement-pipeline">Continuous Improvement Pipeline</h3>
-<pre><code class="language-mermaid">flowchart TD
-    A[Collect Metrics] --&gt; B[Analyze Trends]
-    B --&gt; C[Identify Improvements]
-    C --&gt; D[Update Configurations]
-    D --&gt;[E Deploy]
-    E --&gt;|A/B Test| F[Measure Impact]
-    F --&gt;|Improve| A
-    G[Regress] --&gt;|Rollback| A
-</code></pre>
-<h3 id="improvement-loop">Improvement Loop</h3>
-<pre><code class="language-go"># Improvement pipeline
-func (fo *FactoryOrchestrator) RunImprovementCycle() error {
-    # 1. Collect metrics from last cycle
-    metrics := fo.CollectMetrics()
-
-    # 2. Analyze trends
-    trends := fo.AnalyzeTrends(metrics)
-
-    # 3. Identify improvement opportunities
-    improvements := fo.IdentifyImprovements(trends)
-
-    # 4. Apply configurations
-    for _, improvement := range improvements {
-        if err := fo.ApplyConfiguration(improvement); err != nil {
-            return err
-        }
-    }
-
-    # 5. A/B test if needed
-    if len(improvements) &gt; 1 {
-        results := fo.RunABTest(improvements)
-        if !results[0].BetterThan(results[1]) {
-            # Revert the worse improvement
-            fo.RevertConfiguration(improvements[1])
-        }
-    }
-
-    return nil
-}
-</code></pre>
-<h3 id="ab-testing-factory-configurations">A/B Testing Factory Configurations</h3>
-<pre><code class="language-go"># A/B test two factory configurations
-func (fo *FactoryOrchestrator) A/BTest(configA, configB string, duration time.Duration) (bool, error) {
-    # 1. Apply config A
-    err := fo.ApplyConfiguration(configA)
-    if err != nil {
-        return false, err
-    }
-
-    # Record metrics during A
-    metricsA := fo.RecordMetrics(duration)
-
-    # Apply config B
-    err = fo.ApplyConfiguration(configB)
-    if err != nil {
-        return false, err
-    }
-
-    # Record metrics during B
-    metricsB := fo.RecordMetrics(duration)
-
-    # Compare results
-    return metricsB.BetterThan(metricsA), nil
-}
-</code></pre>
-<h3 id="improvement-categories">Improvement Categories</h3>
-<table><caption class="sr-only">Improvement Categories</caption>
-<thead>
-<tr>
-<th>Category</th>
-<th>Description</th>
-<th>Example Improvements</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Model Routing</strong></td>
-<td>Switch models based on task type</td>
-<td>Use haiku for simple tasks, sonnet for complex</td>
-</tr>
-<tr>
-<td><strong>Prompt Optimization</strong></td>
-<td>Refine prompts based on failure patterns</td>
-<td>Add missing constraints, clarify success criteria</td>
-</tr>
-<tr>
-<td><strong>Autonomy Calibration</strong></td>
-<td>Adjust autonomy based on success/failure</td>
-<td>Raise/lower autonomy thresholds</td>
-</tr>
-<tr>
-<td><strong>Context Updates</strong></td>
-<td>Add missing ADRs/specs based on gaps</td>
-<td>Add new ADRs for frequently failed areas</td>
-</tr>
-<tr>
-<td><strong>Scheduler Tuning</strong></td>
-<td>Optimize worker pool size and timing</td>
-<td>Adjust pool size, timeout values</td>
-</tr>
-<tr>
-<td><strong>Security Rules</strong></td>
-<td>Update prompt injection patterns</td>
-<td>Add new blocked patterns, refine RBAC</td>
-</tr>
-</tbody>
-</table>
-<h3 id="improvement-dashboard">Improvement Dashboard</h3>
-<pre><code class="language-mermaid">gantt
-    title Factory Improvement Cycle
-    dateFormat  YYYY-MM-DD
-    section Metrics Collection
-    Metrics Collection          :active, m1, 2024-01-01, 1d
-    Trend Analysis              :after m1, 1d
-    Improvement Identification  :after m2, 1d
-    Configuration Updates       :after m3, 3d
-    A/B Testing                 :after m4, 7d
-    Result Analysis             :after m5, 2d
-</code></pre>
-<h3 id="quick-start">Quick Start</h3>
-<pre><code class="language-bash"># Initialize with observability
-asf init --with-observability
-
-# Start factory with metrics
-asf factory start
-
-# Access metrics at http://localhost:8080/metrics
-
-# Run improvement cycle
-asf factory improve
-
-# View dashboard at http://localhost:8080/dashboard
-
-# The factory will automatically:
-# 1. Collect metrics on every operation
-# 2. Analyze trends and identify improvements
-# 3. Apply configuration updates
-# 4. Run A/B tests to validate improvements
-# 5. Provide dashboard for monitoring
-</code></pre>
-<h3 id="why-observability-matters">Why Observability Matters</h3>
-<table><caption class="sr-only">Why Observability Matters</caption>
-<thead>
-<tr>
-<th>Concern</th>
-<th>Without Observability</th>
-<th>With Observability</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Quality Tracking</strong></td>
-<td>&ldquo;It seems to work&rdquo;</td>
-<td>Data-driven quality metrics</td>
-</tr>
-<tr>
-<td><strong>Cost Optimization</strong></td>
-<td>Unknown costs</td>
-<td>Model routing, prompt optimization</td>
-</tr>
-<tr>
-<td><strong>Security Posture</strong></td>
-<td>Unknown vulnerabilities</td>
-<td>Tracked violations and block rates</td>
-</tr>
-<tr>
-<td><strong>Team Decisions</strong></td>
-<td>Anecdotal, subjective</td>
-<td>Data-driven improvements</td>
-</tr>
-<tr>
-<td><strong>Scaling Decisions</strong></td>
-<td>Guesswork</td>
-<td>Metrics-based scaling</td>
-</tr>
-<tr>
-<td><strong>Incident Response</strong></td>
-<td>Blind to issues</td>
-<td>Immediate visibility</td>
-</tr>
-<tr>
-<td><strong>Continuous Improvement</strong></td>
-<td>Ad hoc, reactive</td>
-<td>Systematic, iterative</td>
-</tr>
-</tbody>
-</table>
-<h3 id="quick-start_1">Quick Start</h3>
-<pre><code class="language-bash"># Initialize with observability
-asf init --with-observability
-
-# Start factory with metrics endpoint
-asf factory start
-
-# Access metrics at http://localhost:8080/metrics
-# Access dashboard at http://localhost:8080/dashboard
-
-# Run improvement cycle
-asf factory improve
-
-# View trend analysis and apply recommended configurations
-</code></pre>
-<h3 id="next-case-study">Next: Case Study</h3>
-<p>In the next post, we&rsquo;ll present a <strong>case study</strong> of an end-to-end implementation: taking a feature from specification through to production deployment.</p>
+<p>Tracing is scaffolding: an OpenTelemetry tracer provider is configured, but no exporter is wired, so spans are sampled and dropped. That is a deliberately honest state — the instrumentation points exist, and OTLP wiring is a config change, not a redesign. Until then, the task store is the trace: every attempt, verdict, and failure is already recorded per task, which for a system of this size answers most &ldquo;what happened&rdquo; questions without distributed tracing.</p>
+<p>The same inventory honesty applies across the repo: constraint verification in the pipeline is a stub, and the integration adapters (Slack, Teams, GitHub, Linear) model connection state but aren&rsquo;t wired to live credentials. Knowing precisely which signals are real is itself an operational practice — the failure mode this post exists to prevent is believing a dashboard that was never plumbed.</p>
+<h2 id="the-improvement-loop-is-a-practice-not-a-daemon">The Improvement Loop Is a Practice, Not a Daemon</h2>
+<p>The first draft of this post sketched a <code>RunImprovementCycle()</code> that auto-applied config changes. No such daemon exists, and having operated the factory while writing this series, I now think that&rsquo;s the right call at this scale. The working loop is human-paced and data-fed:</p>
+<ol>
+<li><strong>Collect</strong> — judge scores, attempt counts, and failure types accumulate in the task store as a side effect of normal operation.</li>
+<li><strong>Notice</strong> — a score trending down, attempts trending up, or one spec repeatedly needing regeneration. Each points at its own fix: stale context, a vague spec, or an underpowered model, respectively.</li>
+<li><strong>Change one thing</strong> — a model assignment in <code>factory.yaml</code>, a context budget, a judge weight.</li>
+<li><strong>Benchmark</strong> — same specs, old config vs. new, judged identically.</li>
+<li><strong>Keep or revert</strong> — the comparison is a number, so the decision is reviewable.</li>
+</ol>
+<p>What makes this different from ordinary service tuning is step 4: because specs are machine-readable and evaluation is automated, every proposed change to the factory can be scored against the same work before it&rsquo;s adopted. Configuration changes stop being vibes.</p>
+<p>The <a href="/blog/posts/agentic-software-engineering-case-study.html">case study</a> closes the series by running the entire stack — spec, factory, judge, verification, and the gaps between them — on one real feature, with nothing cleaned up.</p>
 <hr>
-<p><em>All code examples are in Go 1.23+. Diagrams use white-background Archify for presentation-ready architecture visualizations.</em></p>
+<p><em>All command output, JSON, and code in this post is from the companion factory codebase (Go 1.23+) and real sessions against it.</em></p>
 
 
 <aside class="consult-cta" aria-label="Work with Pratik">
@@ -519,16 +261,16 @@ asf factory improve
     <h3>Related Reading</h3>
     <ul>
     <li>
-      <a href="/blog/posts/agentic-software-engineering-case-study.html">Agentic Software Engineering in Go: Case Study</a>
-      <span class="related-date">Nov 13</span>
-    </li>
-    <li>
       <a href="/blog/posts/agentic-software-engineering-verification.html">Agentic Software Engineering in Go: AI-TDD Verification Loops</a>
       <span class="related-date">Nov 05</span>
     </li>
     <li>
       <a href="/blog/posts/picnic-test-coverage-prometheus.html">Picnic — 80%+ test coverage and Prometheus observability...</a>
       <span class="related-date">May 04</span>
+    </li>
+    <li>
+      <a href="/blog/posts/agentic-software-engineering-case-study.html">Agentic Software Engineering in Go: Case Study</a>
+      <span class="related-date">Nov 13</span>
     </li>
     </ul>
   </aside>
